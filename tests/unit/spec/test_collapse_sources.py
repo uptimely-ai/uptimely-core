@@ -31,8 +31,8 @@ def test_collapse_source_discovery_retains_invalid_candidates(
     inputs: list[str], message: str | None, ambiguous: bool
 ) -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
-    action = document.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
-    action.interface.inputs = inputs
+    operator = document.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
+    operator.interface.inputs = inputs
     if ambiguous:
         source_profile = document.profiles["pump_telemetry"]
         document.profiles["pump_telemetry_copy"] = source_profile.model_copy(
@@ -58,22 +58,22 @@ def test_collapse_source_discovery_retains_invalid_candidates(
         validate_source()
         assert source is not None
         owners = document.feature_owners
-        assert any(source in owners.get(feature, ()) for feature in action.input_features)
-        assert document.actions_by_key[key] is action
+        assert any(source in owners.get(feature, ()) for feature in operator.input_features)
+        assert document.actions_by_key[key] is operator
     assert document == original
 
 
 def test_new_document_rediscovers_collapse_sources_after_edits() -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     validation.validate_spec(document)
-    action = document.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
+    operator = document.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
     key = ("pump_profile", "bearing_temperature_by_pump")
     first = document.input_sources[key]
     assert first is not None
     assert first == "pump_telemetry"
     target = document.profiles["pump_profile"]
     target.features["local_source"] = spec.Feature(id="local_source")
-    action.interface.inputs = ["$features.local_source"]
+    operator.interface.inputs = ["$features.local_source"]
     document = spec.Spec.model_validate(document.model_dump())
     second = document.input_sources[key]
     assert second is not None

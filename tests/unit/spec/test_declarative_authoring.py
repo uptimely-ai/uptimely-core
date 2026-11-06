@@ -119,20 +119,20 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
         ]
 
     declaration = Example()
-    action = declaration.assembly[0]
+    operator = declaration.assembly[0]
     model = declaration.to_model().assembly["result"]
 
     assert model.id == "result"
     assert model.input_features == ["temperature"]
-    assert action.compute.arguments == {
+    assert operator.compute.arguments == {
         "values": [ref.feature("temperature"), ref.feature("temperature")],
         "output": ref.feature("result").id,
     }
-    assert action.bound_arguments() == action.compute.arguments
+    assert operator.bound_arguments() == operator.compute.arguments
     assert model.compute.args["output"] == "$features.result.id"
-    assert action.interface.outputs[0].id == "result"
-    assert action.interface.outputs[0].name == "Result"
-    assert action.interface.outputs[0].type == "float"
+    assert operator.interface.outputs[0].id == "result"
+    assert operator.interface.outputs[0].name == "Result"
+    assert operator.interface.outputs[0].type == "float"
 
 
 @pytest.mark.parametrize(
@@ -278,7 +278,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
 
 
 def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
-    action = authoring.Operator(
+    operator = authoring.Operator(
         id="result",
         interface=authoring.Interface(
             outputs=[authoring.Feature(id="result", type="float")],
@@ -298,8 +298,8 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
             },
         ),
     )
-    model = action.to_model()
-    assert action.interface.inputs is None
+    model = operator.to_model()
+    assert operator.interface.inputs is None
     assert model.input_features == ["first", "second"]
     assert model.row_context.before.rows == 2
     assert model.compute.args["configuration"] == {
@@ -310,7 +310,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
 
 
 def test_programmatic_dataset_uses_function_name_for_catalog_id() -> None:
-    action = authoring.Operator(
+    operator = authoring.Operator(
         id="named",
         interface=authoring.Interface(
             inputs=[ref.feature("explicit")],
@@ -321,18 +321,18 @@ def test_programmatic_dataset_uses_function_name_for_catalog_id() -> None:
             arguments={"column": ref.feature("inferred")},
         ),
     )
-    declaration = authoring.Profile(id="example", assembly=[action])
+    declaration = authoring.Profile(id="example", assembly=[operator])
 
-    assert declaration.assembly == [action]
-    assert action.reference.entrypoint == "calculation:calculate"
-    assert action.catalog_id == "calculate"
+    assert declaration.assembly == [operator]
+    assert operator.reference.entrypoint == "calculation:calculate"
+    assert operator.catalog_id == "calculate"
     assert declaration.to_model().assembly["named"].input_features == ["explicit"]
     assert declaration.to_model().assembly["named"].compute.function == "calculate"
     assert set(declaration.function_catalog()) == {"calculate"}
 
 
 def test_action_interface_inputs_accept_feature_declarations() -> None:
-    action = authoring.Operator(
+    operator = authoring.Operator(
         id="calculate",
         interface=authoring.Interface(
             inputs=[authoring.Feature(id="explicit")],
@@ -344,8 +344,8 @@ def test_action_interface_inputs_accept_feature_declarations() -> None:
         ),
     )
 
-    assert action.to_model().input_features == ["explicit"]
-    assert action.to_model().output_features == ["result"]
+    assert operator.to_model().input_features == ["explicit"]
+    assert operator.to_model().output_features == ["result"]
 
 
 def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None:
@@ -443,7 +443,7 @@ def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
 
 
 def test_action_export_uses_its_identifier() -> None:
-    action = authoring.Operator(
+    operator = authoring.Operator(
         id="action",
         interface=authoring.Interface(
             outputs=[],
@@ -453,7 +453,7 @@ def test_action_export_uses_its_identifier() -> None:
             arguments={},
         ),
     )
-    assert action.to_model().id == "action"
+    assert operator.to_model().id == "action"
 
 
 @pytest.mark.parametrize("identifier", ["", " ", None, 1])
@@ -473,7 +473,7 @@ def test_action_rejects_invalid_identifiers(identifier: typing.Any) -> None:
 
 @pytest.mark.parametrize("kind", functions.FUNCTION_KINDS)
 def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKindId) -> None:
-    action = authoring.Operator(
+    operator = authoring.Operator(
         id="work",
         interface=authoring.Interface(
             outputs=[],
@@ -483,8 +483,8 @@ def test_actions_accept_every_declared_function_kind(kind: functions.FunctionKin
             arguments={},
         ),
     )
-    declaration = authoring.Profile(id="example", assembly=[action])
-    assert declaration.to_model().assembly["work"] == action.to_model()
+    declaration = authoring.Profile(id="example", assembly=[operator])
+    assert declaration.to_model().assembly["work"] == operator.to_model()
     assert declaration.function_catalog()["work"].kind == kind
 
 
@@ -684,7 +684,7 @@ def test_grouped_actions_preserve_dependencies_and_canonical_mapping_ids() -> No
         }
 
     declaration = Example()
-    assert [action.id for action in declaration.assembly] == [
+    assert [operator.id for operator in declaration.assembly] == [
         "calculate",
         "publish",
         "custom_work",

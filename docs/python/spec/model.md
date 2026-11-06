@@ -32,8 +32,8 @@ still parses and inspects only entrypoints needed by the selected graph.
 the number of arguments declared as dataframes.
 
 When ownership matters, `profile_items` contains `(profile_key, profile)` pairs
-and `action_items` contains `(action_key, action)` pairs in declaration order.
-Action keys contain the profile ID and action dictionary key. The action list
+and `operator_items` contains `(operator_key, operator)` pairs in declaration order.
+Operator keys contain the profile ID and assembly dictionary key. The operator list
 retains aliases for validation without introducing additional Operator classes.
 `profiles_by_key`, `feature_owners`, `feature_producers`, and
 `actions_by_function` provide keyed lookups and relationships.

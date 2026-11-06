@@ -81,14 +81,14 @@ def to_model(
         profile_values[canonical.id] = canonical
 
     if logger.isEnabledFor(logging.DEBUG):
-        action_count = sum(
+        operator_count = sum(
             len(declaration.assembly)
             for declaration in declarations
             if isinstance(declaration, profile_module.Profile)
         )
         logger.debug(
             "\nPython spec validation:\n  - collected feature interfaces for %d actions",
-            action_count,
+            operator_count,
         )
 
     if functions is None:

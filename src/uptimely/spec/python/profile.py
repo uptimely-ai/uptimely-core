@@ -11,9 +11,10 @@ from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import common as spec_common
 
-from . import actions, references
+from . import actions as assembly
 from . import dimension as dimension_module
 from . import feature as feature_module
+from . import references
 
 __all__ = [
     "Profile",
@@ -88,7 +89,9 @@ class Profile:
     features: feature_module.FeatureSet | None = None
     grain: abc.Sequence[Grain] = ()
     order: abc.Sequence[Order] = ()
-    assembly: abc.Sequence[actions.Operator] | abc.Mapping[str, abc.Sequence[actions.Operator]] = ()
+    assembly: (
+        abc.Sequence[assembly.Operator] | abc.Mapping[str, abc.Sequence[assembly.Operator]]
+    ) = ()
 
     @property
     def data(self) -> references.Reference:
@@ -100,7 +103,9 @@ class Profile:
         *,
         id: str | None = None,
         assembly: (
-            abc.Sequence[actions.Operator] | abc.Mapping[str, abc.Sequence[actions.Operator]] | None
+            abc.Sequence[assembly.Operator]
+            | abc.Mapping[str, abc.Sequence[assembly.Operator]]
+            | None
         ) = None,
         name: str | None = None,
         description: str | None = None,
@@ -141,13 +146,13 @@ class Profile:
         _ = self._assembly_by_id
 
     @property
-    def _assembly_by_id(self) -> dict[str, actions.Operator]:
+    def _assembly_by_id(self) -> dict[str, assembly.Operator]:
         """Return declared assembly items keyed by ID after validating the collection."""
-        collected: dict[str, actions.Operator] = {}
+        collected: dict[str, assembly.Operator] = {}
         if not isinstance(self.assembly, abc.Sequence) or isinstance(self.assembly, (str, bytes)):
             raise TypeError(f"Profile '{self.id}' assembly must be a sequence of Operators")
         for operator in self.assembly:
-            if not isinstance(operator, actions.Operator):
+            if not isinstance(operator, assembly.Operator):
                 raise TypeError(f"Profile '{self.id}' assembly must contain Operators")
             if (
                 operator.interface.outputs
@@ -165,12 +170,12 @@ class Profile:
     def _flatten_assembly(
         self,
         provided_assembly: (
-            abc.Sequence[actions.Operator] | abc.Mapping[str, abc.Sequence[actions.Operator]]
+            abc.Sequence[assembly.Operator] | abc.Mapping[str, abc.Sequence[assembly.Operator]]
         ),
-    ) -> list[actions.Operator]:
+    ) -> list[assembly.Operator]:
         """Copy assembly declarations, flattening named groups in insertion order."""
         if isinstance(provided_assembly, abc.Mapping):
-            flattened: list[actions.Operator] = []
+            flattened: list[assembly.Operator] = []
             for group_name, group_items in provided_assembly.items():
                 if not isinstance(group_name, str) or not group_name.strip():
                     raise TypeError("Profile assembly group names must be non-empty strings")
@@ -181,7 +186,7 @@ class Profile:
                         f"Profile '{self.id}' assembly group '{group_name}' "
                         "must be a sequence of Operators"
                     )
-                if any(not isinstance(operator, actions.Operator) for operator in group_items):
+                if any(not isinstance(operator, assembly.Operator) for operator in group_items):
                     raise TypeError(
                         f"Profile '{self.id}' assembly group '{group_name}' must contain Operators"
                     )
@@ -193,7 +198,7 @@ class Profile:
             raise TypeError(
                 f"Profile '{self.id}' assembly must be a sequence or mapping of Operators"
             )
-        if any(not isinstance(operator, actions.Operator) for operator in provided_assembly):
+        if any(not isinstance(operator, assembly.Operator) for operator in provided_assembly):
             raise TypeError(f"Profile '{self.id}' assembly must contain Operators")
         return list(provided_assembly)
 
@@ -212,7 +217,7 @@ class Profile:
             grain=grain,
             order=[key.to_model() for key in self.order],
             features=self._feature_metadata(self.grain),
-            assembly=self._action_models(selected_resolutions),
+            assembly=self._operator_models(selected_resolutions),
         )
 
     def _grain(self) -> list[spec_model.Grain]:
@@ -239,23 +244,23 @@ class Profile:
             references.append(reference)
         return references
 
-    def _action_models(
+    def _operator_models(
         self, resolutions: abc.Sequence[spec_model.Resolution]
     ) -> dict[str, spec_model.Operator]:
-        """Convert actions and add profile-key outputs to source actions."""
-        actions_by_id: dict[str, spec_model.Operator] = {}
-        for action_id, declaration in self._assembly_by_id.items():
-            action_model = self._action_model(action_id, declaration)
+        """Convert operators and add profile-key outputs to source operators."""
+        operators_by_id: dict[str, spec_model.Operator] = {}
+        for operator_id, declaration in self._assembly_by_id.items():
+            operator_model = self._operator_model(operator_id, declaration)
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
                 key_outputs = [
                     f"{selectors.FEATURE_PREFIX}{resolution.key}"
                     for resolution in resolutions
                     if f"{selectors.FEATURE_PREFIX}{resolution.key}"
-                    not in action_model.interface.outputs
+                    not in operator_model.interface.outputs
                 ]
-                action_model.interface.outputs[:0] = key_outputs
-            actions_by_id[action_id] = action_model
-        return actions_by_id
+                operator_model.interface.outputs[:0] = key_outputs
+            operators_by_id[operator_id] = operator_model
+        return operators_by_id
 
     def _feature_metadata(self, grain: abc.Sequence[Grain]) -> dict[str, spec_model.Feature]:
         """Collect output metadata and selected grain keys, rejecting duplicate producers."""
@@ -283,7 +288,7 @@ class Profile:
                         )
         return features
 
-    def _action_model(self, name: str, declaration: actions.Operator) -> spec_model.Operator:
+    def _operator_model(self, name: str, declaration: assembly.Operator) -> spec_model.Operator:
         """Convert an operator and add its profile location to declaration errors."""
         try:
             return declaration.to_model()
@@ -296,7 +301,7 @@ class Profile:
         """Collect reusable function contracts without executing implementations."""
         catalogs: list[spec_model.FunctionCatalog] = []
         for name, declaration in self._assembly_by_id.items():
-            self._action_model(name, declaration)
+            self._operator_model(name, declaration)
             catalogs.append(declaration.function_catalog())
         return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))
 

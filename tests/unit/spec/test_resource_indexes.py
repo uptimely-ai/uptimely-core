@@ -124,25 +124,25 @@ def test_new_model_discovers_edits_without_invalidation_machinery() -> None:
 
 def test_indexes_preserve_action_aliases_and_diagnostic_paths() -> None:
     document = _sample_spec()
-    action = document.profiles["first"].assembly["read"]
-    document.profiles["first"].assembly["alias"] = action
-    action.compute.function = "missing"
+    operator = document.profiles["first"].assembly["read"]
+    document.profiles["first"].assembly["alias"] = operator
+    operator.compute.function = "missing"
     key = ("first", "alias")
-    assert document.actions_by_key[key] is action
+    assert document.actions_by_key[key] is operator
     assert document.action_profiles[key] is document.profiles_by_key["first"]
-    assert document.actions[:2] == [action, action]
+    assert document.actions[:2] == [operator, operator]
     assert document.action_paths[key][-1] == "alias"
     assert document.declaration_paths[key][-1] == "alias"
-    assert action.compute.function not in document.functions
+    assert operator.compute.function not in document.functions
 
 
 def test_nested_models_expose_cached_children_and_normalized_ids() -> None:
     document = _sample_spec()
     profile = document.profiles["first"]
     profile.grain = _CountingList(profile.grain)
-    action = profile.assembly["read"]
-    action.interface.inputs = _CountingList(["$features.another"])
-    action.interface.outputs = _CountingList(action.interface.outputs)
+    operator = profile.assembly["read"]
+    operator.interface.inputs = _CountingList(["$features.another"])
+    operator.interface.outputs = _CountingList(operator.interface.outputs)
     profile.order = _CountingList(
         [
             model.Order(dimension="key", resolution="key", direction="asc"),
@@ -155,22 +155,22 @@ def test_nested_models_expose_cached_children_and_normalized_ids() -> None:
         assert profile.dimension_ids == ["key"]
         assert profile.dimension_id_set == frozenset({"key"})
         assert profile.features["value"].id == "value"
-        assert profile.assembly["read"] is action
+        assert profile.assembly["read"] is operator
         assert profile.arguments["read", "path"] == "first"
-        assert action.arguments is action.compute.args
-        assert profile.feature_producers["value"] == (("read", action),)
-        assert action.input_features is action.interface.input_ids
-        assert action.input_features == ["another"]
-        assert action.output_features is action.interface.output_ids
-        assert action.output_features == ["key", "value"]
+        assert operator.arguments is operator.compute.args
+        assert profile.feature_producers["value"] == (("read", operator),)
+        assert operator.input_features is operator.interface.input_ids
+        assert operator.input_features == ["another"]
+        assert operator.output_features is operator.interface.output_ids
+        assert operator.output_features == ["key", "value"]
         assert profile.order_dimensions == (("key", frozenset()), ("key", frozenset({"key"})))
         assert profile.order_references == frozenset({"$dimensions.key"})
-        assert action.dataset_references == ()
-        assert action.feature_selectors == ()
-        assert action.dimensions_references == ()
+        assert operator.dataset_references == ()
+        assert operator.feature_selectors == ()
+        assert operator.dimensions_references == ()
     assert profile.grain.traversals == 1
-    assert action.interface.inputs.traversals == 1
-    assert action.interface.outputs.traversals == 1
+    assert operator.interface.inputs.traversals == 1
+    assert operator.interface.outputs.traversals == 1
     assert profile.order.traversals == 1
     assert document.functions["load"].args.traversals == 1
 

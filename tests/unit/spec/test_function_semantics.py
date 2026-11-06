@@ -42,7 +42,7 @@ def test_public_decorator_and_module_exports_are_unambiguous() -> None:
 
 def test_undecorated_function_uses_explicit_reference_contract() -> None:
     assert functions.declared_kind(implementation) is None
-    action = authoring.Operator(
+    operator = authoring.Operator(
         id="calculate",
         interface=authoring.Interface(
             outputs=[],
@@ -52,9 +52,9 @@ def test_undecorated_function_uses_explicit_reference_contract() -> None:
             arguments={"value": "input"},
         ),
     )
-    assert action.kind == "vectorize"
-    assert action.function_catalog()["implementation"].kind == "vectorize"
-    assert action.to_model().compute.args == {"value": "input"}
+    assert operator.kind == "vectorize"
+    assert operator.function_catalog()["implementation"].kind == "vectorize"
+    assert operator.to_model().compute.args == {"value": "input"}
     assert functions.declared_kind(implementation) is None
     assert implementation("input") == "input"
 

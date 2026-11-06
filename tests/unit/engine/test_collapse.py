@@ -15,7 +15,8 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, dimension, feature, profile, ref
+from uptimely.spec.python import actions as assembly
+from uptimely.spec.python import dimension, feature, profile, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -150,24 +151,24 @@ def _spec(*, lazy=False, empty=False):
         id="observations",
         grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="read_values",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(read_values, kind="read"),
                     arguments={"lazy": lazy, "empty": empty},
                 ),
             ),
-            actions.Operator(
+            assembly.Operator(
                 id="double",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[ref.feature("value")],
                     outputs=[feature.Feature(id="doubled")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(double, kind="vectorize"),
                     arguments={
                         "dataset": ref.profile().data,
@@ -176,13 +177,13 @@ def _spec(*, lazy=False, empty=False):
                     },
                 ),
             ),
-            actions.Operator(
+            assembly.Operator(
                 id="unneeded",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[ref.feature("value")],
                     outputs=[feature.Feature(id="unneeded")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(double, kind="vectorize"),
                     arguments={
                         "dataset": ref.profile().data,
@@ -197,13 +198,13 @@ def _spec(*, lazy=False, empty=False):
         id="summary",
         grain=[profile.Grain(group, "group")],
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="group_summary",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[ref.feature("value"), ref.feature("doubled")],
                     outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(summarize, kind="collapse"),
                     arguments={
                         "dataset": ref.profile("observations").data,
@@ -217,24 +218,24 @@ def _spec(*, lazy=False, empty=False):
     global_summary = profile.Profile(
         id="global",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="global_total",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[ref.feature("maximum")],
                     outputs=[feature.Feature(id="total")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(total, kind="collapse"),
                     arguments={"dataset": ref.profile("summary").data},
                 ),
             ),
-            actions.Operator(
+            assembly.Operator(
                 id="global_maximum",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[ref.feature("maximum")],
                     outputs=[feature.Feature(id="global_max")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(maximum, kind="collapse"),
                     arguments={"dataset": ref.profile("summary").data},
                 ),
@@ -278,24 +279,24 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
         id="target",
         grain=[profile.Grain(group, "group")],
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="read_target",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[feature.Feature(id="base_value")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(read_conform_target, kind="read"),
                     arguments={},
                 ),
             ),
-            actions.Operator(
+            assembly.Operator(
                 id="conform_source",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[ref.feature("source_value")],
                     outputs=[feature.Feature(id="conformed_value")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(conform_source, kind="conform"),
                     arguments={
                         "source": ref.profile("foreign").data,
@@ -309,13 +310,13 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
         id="foreign",
         grain=[profile.Grain(group, "group")],
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="read_source",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[feature.Feature(id="source_value")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(read_conform_source, kind="read"),
                     arguments={},
                 ),
@@ -607,24 +608,24 @@ def _broadcast_spec(
         id="observations",
         grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="read_values",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[feature.Feature(id="value")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(read_values, kind="read"),
                     arguments={"lazy": lazy},
                 ),
             ),
-            actions.Operator(
+            assembly.Operator(
                 id="reference",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[ref.feature("source_value")],
                     outputs=[feature.Feature(id="reference")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(expand_function, kind="expand"),
                     arguments={
                         "source": ref.profile("reference_source").data,
@@ -639,13 +640,13 @@ def _broadcast_spec(
         id="reference_source",
         grain=[profile.Grain(dimensions[name], name) for name in source_dimension_ids],
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="read_reference",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[feature.Feature(id="source_value")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(reader, kind="read"),
                     arguments={"lazy": lazy},
                 ),

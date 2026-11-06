@@ -144,13 +144,13 @@ class FeatureGraph(FeatureGraphBase):
     def _declared_features(self) -> dict[str, models.FeatureNode]:
         """Resolve output metadata directly from action and dataset declarations."""
         feature_metadata: dict[str, models.FeatureNode] = {}
-        for key, action in self.spec.action_items:
+        for key, operator in self.spec.operator_items:
             profile = self.spec.action_profiles[key]
             profile_id = self.spec.action_profile_keys[key]
-            function = self.spec.functions[action.compute.function]
+            function = self.spec.functions[operator.compute.function]
             kind = functions.FUNCTION_KINDS[function.kind]
             is_source_input = kind.is_source and kind.dimension_change != "remove"
-            for name in action.output_features:
+            for name in operator.output_features:
                 feature = profile.all_features[name]
                 data_type = feature.type
                 if (
@@ -192,7 +192,7 @@ class FeatureGraph(FeatureGraphBase):
             name for name in self.spec.feature_producers if name not in self.spec.grain_key_ids
         }
         dependency_names = {
-            name for _, action in self.spec.action_items for name in action.input_features
+            name for _, operator in self.spec.operator_items for name in operator.input_features
         }
         feature_metadata = self._declared_features()
 
@@ -234,26 +234,26 @@ class FeatureGraph(FeatureGraphBase):
                 is_output=name in output_names,
             )
 
-        for key, action in self.spec.action_items:
+        for key, operator in self.spec.operator_items:
             profile = self.spec.action_profiles[key]
             profile_id = self.spec.action_profile_keys[key]
             outputs = [
-                name for name in action.output_features if name not in self.spec.grain_key_ids
+                name for name in operator.output_features if name not in self.spec.grain_key_ids
             ]
             action_metadata = models.ActionNode(
-                action_id=action.id,
+                action_id=operator.id,
                 features=tuple(sorted(outputs)),
                 profile_id=profile_id,
                 dataset_id=profile.id,
                 dataset_name=profile.name,
-                action=action,
-                function=self.spec.functions[action.compute.function],
+                action=operator,
+                function=self.spec.functions[operator.compute.function],
             )
             action_node = node(action_metadata)
             for output in outputs:
                 output_node = node(feature_meta(output, action_metadata))
                 graph.add_edge(action_node, output_node)
-            for parent in set(action.input_features):
+            for parent in set(operator.input_features):
                 parent_node = node(feature_meta(parent))
                 graph.add_edge(parent_node, action_node)
 

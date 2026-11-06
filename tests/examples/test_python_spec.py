@@ -182,13 +182,13 @@ def test_sources_and_transforms_python_spec() -> None:
         id="transformed_dataset",
         grain=[python_spec.Grain(id_dimension, "id")],
         assembly=[
-            python_spec.actions.Operator(
+            python_spec.Operator(
                 id="read",
-                interface=python_spec.actions.Interface(
+                interface=python_spec.Interface(
                     inputs=[],
                     outputs=[python_spec.feature.Feature(id="input_1")],
                 ),
-                compute=python_spec.actions.Binding(
+                compute=python_spec.Binding(
                     function=python_spec.ref.function(_read_transform_data, kind="read"),
                     arguments={},
                 ),
@@ -202,24 +202,24 @@ def test_sources_and_transforms_python_spec() -> None:
             python_spec.Grain(region_dimension, "region"),
         ],
         assembly=[
-            python_spec.actions.Operator(
+            python_spec.Operator(
                 id="read",
-                interface=python_spec.actions.Interface(
+                interface=python_spec.Interface(
                     inputs=[],
                     outputs=[python_spec.feature.Feature(id="target_value")],
                 ),
-                compute=python_spec.actions.Binding(
+                compute=python_spec.Binding(
                     function=python_spec.ref.function(_read_transform_data, kind="read"),
                     arguments={},
                 ),
             ),
-            python_spec.actions.Operator(
+            python_spec.Operator(
                 id="expand_data",
-                interface=python_spec.actions.Interface(
+                interface=python_spec.Interface(
                     inputs=[python_spec.ref.feature("input_1")],
                     outputs=[python_spec.feature.Feature(id="input_2")],
                 ),
-                compute=python_spec.actions.Binding(
+                compute=python_spec.Binding(
                     function=python_spec.ref.function(expand_data, kind="expand"),
                     arguments={
                         "source": python_spec.ref.profile("transformed_dataset").data,
@@ -232,13 +232,13 @@ def test_sources_and_transforms_python_spec() -> None:
         id="summary",
         grain=[python_spec.Grain(id_dimension, "id")],
         assembly=[
-            python_spec.actions.Operator(
+            python_spec.Operator(
                 id="collapse_data",
-                interface=python_spec.actions.Interface(
+                interface=python_spec.Interface(
                     inputs=[python_spec.ref.feature("input_2")],
                     outputs=[python_spec.feature.Feature(id="collapsed_feature")],
                 ),
-                compute=python_spec.actions.Binding(
+                compute=python_spec.Binding(
                     function=python_spec.ref.function(analytics.aggregate, kind="collapse"),
                     arguments={
                         "dataset": python_spec.ref.profile("target").data,

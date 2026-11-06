@@ -1,20 +1,21 @@
 import pytest
 
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import actions, conversion, profile, ref
+from uptimely.spec.python import actions as assembly
+from uptimely.spec.python import conversion, profile, ref
 
 
 def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
     return profile.Profile(
         id=identifier,
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="read",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.FunctionReference(
                         module=__name__ if not conflicting else f"{__name__}.alternate",
                         name="source",

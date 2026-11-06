@@ -14,7 +14,9 @@ from uptimely import execution_plan as uptimely_plan
 from uptimely.explorer import presentation
 from uptimely.spec import functions
 from uptimely.spec.python import (
-    actions,
+    actions as assembly,
+)
+from uptimely.spec.python import (
     binding_conversion,
     dimension,
     feature,
@@ -62,27 +64,27 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                 grain=[profile.Grain(timestamp, "timestamp")],
                 order=[profile.Order(timestamp, "timestamp", "asc")] if ordered else [],
                 assembly=[
-                    actions.Operator(
+                    assembly.Operator(
                         id="read_observations",
-                        interface=actions.Interface(
+                        interface=assembly.Interface(
                             inputs=[],
                             outputs=[
                                 feature.Feature(id="timestamp", type=dimension_type),
                                 feature.Feature(id="temperature", type="integer"),
                             ],
                         ),
-                        compute=actions.Binding(
+                        compute=assembly.Binding(
                             function=ref.function(read_observations, kind="read"),
                             arguments={},
                         ),
                     ),
-                    actions.Operator(
+                    assembly.Operator(
                         id="result",
-                        interface=actions.Interface(
+                        interface=assembly.Interface(
                             inputs=[ref.feature("temperature")],
                             outputs=[feature.Feature(id="result", type="integer")],
                         ),
-                        compute=actions.Binding(
+                        compute=assembly.Binding(
                             function=ref.function(calculate, kind="vectorize"),
                             arguments={
                                 "dataset": ref.profile().data,
@@ -149,13 +151,13 @@ def test_count_extents_require_nonnegative_integers(factory, value):
 
 
 def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
-    declaration = actions.Operator(
+    declaration = assembly.Operator(
         id="declaration",
-        interface=actions.Interface(
+        interface=assembly.Interface(
             inputs=[],
             outputs=[],
         ),
-        compute=actions.Binding(
+        compute=assembly.Binding(
             function=ref.function(f"{__name__}:calculate", kind="vectorize"),
             arguments={
                 "configuration": {
@@ -185,25 +187,25 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     first = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h")
     second = authoring.time("8h", dimension=ref.dimension("other"), before="8h")
     with pytest.raises(ValueError, match="one dimension"):
-        actions.Operator(
+        assembly.Operator(
             id="action",
-            interface=actions.Interface(
+            interface=assembly.Interface(
                 inputs=[],
                 outputs=[],
             ),
-            compute=actions.Binding(
+            compute=assembly.Binding(
                 function=ref.function(calculate, kind="vectorize"),
                 arguments={"configuration": [first, second]},
             ),
         )
     with pytest.raises(ValueError, match="one measurement"):
-        actions.Operator(
+        assembly.Operator(
             id="action",
-            interface=actions.Interface(
+            interface=assembly.Interface(
                 inputs=[],
                 outputs=[],
             ),
-            compute=actions.Binding(
+            compute=assembly.Binding(
                 function=ref.function(calculate, kind="vectorize"),
                 arguments={"configuration": [first, authoring.rows(8, before=7)]},
             ),
@@ -237,13 +239,13 @@ def test_context_rejects_invalid_metadata(payload):
 
 def test_unknown_current_and_whole_dataset_context_are_distinct():
     assert (
-        actions.Operator(
+        assembly.Operator(
             id="action",
-            interface=actions.Interface(
+            interface=assembly.Interface(
                 inputs=[],
                 outputs=[],
             ),
-            compute=actions.Binding(
+            compute=assembly.Binding(
                 function=ref.function(calculate, kind="vectorize"),
                 arguments={},
             ),
@@ -318,16 +320,16 @@ def test_row_context_dataset_selection_follows_dimension_contract(
 ) -> None:
     configuration = _spec().model_dump()
     source = configuration["profiles"]["observations"]
-    action = source["assembly"].pop("result")
+    operator = source["assembly"].pop("result")
     output = source["features"].pop("result")
-    action["row_context"] = authoring.time(
+    operator["row_context"] = authoring.time(
         "1h", dimension=ref.dimension("timestamp"), before="1h"
     ).row_context.to_dict()
     configuration["profiles"]["summary"] = {
         "name": "Summary",
         "grain": [],
         "features": {"result": output},
-        "assembly": {"result": action},
+        "assembly": {"result": operator},
     }
     configuration["functions"]["calculate"]["kind"] = kind
     document = spec.Spec.model_validate(configuration)
@@ -403,13 +405,13 @@ def test_spec_plan_execution_and_presentation_preserve_context(
 
 @pytest.mark.parametrize("operation", ["read", "expand", "collapse", "vectorize"])
 def test_all_data_mappings_preserve_annotated_context(operation):
-    declaration = actions.Operator(
+    declaration = assembly.Operator(
         id="declaration",
-        interface=actions.Interface(
+        interface=assembly.Interface(
             inputs=[],
             outputs=[],
         ),
-        compute=actions.Binding(
+        compute=assembly.Binding(
             function=ref.function(f"{__name__}:calculate", kind=operation),
             arguments={"configuration": {"windows": [authoring.rows(8, before=7)]}},
         ),
@@ -494,16 +496,16 @@ def test_collapse_functions_execute_without_row_context(
     source = profile.Profile(
         id="observations",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="read_observations",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[
                         feature.Feature(id="timestamp", type="datetime"),
                         feature.Feature(id="temperature", type="integer"),
                     ],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(read_observations, kind="read"),
                     arguments={},
                 ),
@@ -513,13 +515,13 @@ def test_collapse_functions_execute_without_row_context(
     summary = profile.Profile(
         id="summary",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="summary",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[ref.feature("temperature")],
                     outputs=[feature.Feature(id="temperature_max", type="integer")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(maximum, kind="collapse"),
                     arguments={
                         "dataset": ref.profile("observations").data,

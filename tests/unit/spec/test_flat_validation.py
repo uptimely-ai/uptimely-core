@@ -16,7 +16,7 @@ import pytest
 
 from uptimely import row_context as row_context_model
 from uptimely.spec import api, functions, model
-from uptimely.spec.python import actions as python_actions
+from uptimely.spec.python import actions as assembly
 from uptimely.spec.python import feature as python_feature
 from uptimely.spec.python import profile as python_profile
 from uptimely.spec.python import ref as python_ref
@@ -200,7 +200,7 @@ def test_source_discovery_visits_every_action_kind(kind: functions.FunctionKindI
     spec = make_spec(kind)
     before = spec.model_dump()
     sources = spec.input_sources
-    assert list(sources) == [key for key, _ in spec.action_items]
+    assert list(sources) == [key for key, _ in spec.operator_items]
     key = ("target", "compute")
     source = sources[key]
     if kind == functions.READ:
@@ -781,13 +781,13 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
     return python_profile.Profile(
         id="source",
         assembly=[
-            python_actions.Operator(
+            assembly.Operator(
                 id="compute",
-                interface=python_actions.Interface(
+                interface=assembly.Interface(
                     inputs=[python_ref.feature("missing")],
                     outputs=[python_feature.Feature(id="result")],
                 ),
-                compute=python_actions.Binding(
+                compute=assembly.Binding(
                     function=python_ref.function("external:compute", kind="vectorize"),
                     arguments={"data": python_ref.profile().data},
                 ),

@@ -234,9 +234,9 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
         id="ordered_values",
         grain=[python_spec.profile.Grain(identifier, "id")],
         assembly=[
-            python_spec.actions.Operator(
+            python_spec.Operator(
                 id="read",
-                interface=python_spec.actions.Interface(
+                interface=python_spec.Interface(
                     inputs=[],
                     outputs=[
                         python_spec.feature.Feature(id="input_1"),
@@ -244,18 +244,18 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                         python_spec.feature.Feature(id="id", type="integer"),
                     ],
                 ),
-                compute=python_spec.actions.Binding(
+                compute=python_spec.Binding(
                     function=python_spec.ref.function(_read_order_data, kind="read"),
                     arguments={},
                 ),
             ),
-            python_spec.actions.Operator(
+            python_spec.Operator(
                 id="sum",
-                interface=python_spec.actions.Interface(
+                interface=python_spec.Interface(
                     inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
                     outputs=[python_spec.feature.Feature(id="sum")],
                 ),
-                compute=python_spec.actions.Binding(
+                compute=python_spec.Binding(
                     function=python_spec.ref.function(_sum_order_features, kind="vectorize"),
                     arguments={
                         "left_feature": python_spec.ref.feature("input_1"),

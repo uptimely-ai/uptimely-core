@@ -223,9 +223,9 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "Use list_calculated_features to see available features."
             )
 
-        profile_id, action = producer
+        profile_id, operator = producer
         transitive: list[str] = []
-        queue = list(action.input_features)
+        queue = list(operator.input_features)
         seen = set(queue)
         while queue:
             current = queue.pop(0)
@@ -241,8 +241,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             {
                 "feature": feature_id,
                 "profile": profile_id,
-                "function": action.compute.function,
-                "direct_dependencies": action.input_features,
+                "function": operator.compute.function,
+                "direct_dependencies": operator.input_features,
                 "transitive_dependencies": transitive,
                 "input_features": [name for name in transitive if name not in by_feature],
                 "calculated_dependencies": [name for name in transitive if name in by_feature],

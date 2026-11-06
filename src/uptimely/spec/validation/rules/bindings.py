@@ -14,11 +14,11 @@ logger = logging.getLogger(__name__)
 def validate_arguments(spec: spec_model.Spec) -> None:
     """Require the supplied argument names to match the function signature."""
     logger.debug("    - checking binding argument names match function declarations")
-    for key, action in spec.action_items:
-        function = spec.functions.root.get(action.compute.function)
+    for key, operator in spec.operator_items:
+        function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
-        supplied = action.arguments
+        supplied = operator.arguments
         missing = function.args.keys() - supplied.keys()
         unknown = supplied.keys() - function.args.keys()
         if missing or unknown:
@@ -26,7 +26,7 @@ def validate_arguments(spec: spec_model.Spec) -> None:
                 ["unknown arguments: " + ", ".join(sorted(unknown))] if unknown else []
             )
             raise errors.SpecError(
-                f"Binding for function {action.compute.function} has " + "; ".join(details),
+                f"Binding for function {operator.compute.function} has " + "; ".join(details),
                 code="invalid_binding_arguments",
                 path=(*spec.declaration_paths[key], "compute", "args"),
             )
@@ -59,14 +59,14 @@ def validate_selector_type(spec: spec_model.Spec) -> None:
                 code="invalid_binding_reference_type",
                 path=path,
             )
-    for key, action in spec.action_items:
+    for key, operator in spec.operator_items:
         resolver = spec_model.BindingArgumentResolver(
             current_profile_id=key[0],
             feature_id=None,
             grain_keys_by_profile=spec.grain_keys_by_profile,
             resources=spec.binding_resources,
         )
-        for value, path in action.compute.values_with_paths:
+        for value, path in operator.compute.values_with_paths:
             if not isinstance(value, str):
                 continue
             prefix = next(

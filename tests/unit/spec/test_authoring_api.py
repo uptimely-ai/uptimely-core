@@ -54,10 +54,10 @@ def test_root_authoring_api_compiles_and_executes(
 
     declaration = up.Spec(profiles=[CalculatedData])
     model = declaration.to_model()
-    action = model.profiles["calculated_profile"].assembly["double"]
-    assert action.input_features == ["value"]
-    assert action.output_features == ["doubled"]
-    assert action.compute.args == {
+    operator = model.profiles["calculated_profile"].assembly["double"]
+    assert operator.input_features == ["value"]
+    assert operator.output_features == ["doubled"]
+    assert operator.compute.args == {
         "dataset": "$profiles.@.dataframe",
         "value": "$features.value",
         "output": "$features.doubled",
@@ -104,7 +104,7 @@ def test_profile_features_attributes_can_be_action_outputs() -> None:
         value = up.Feature(id="value", type="float")
 
     features = Features()
-    action = up.Operator(
+    operator = up.Operator(
         id="read",
         interface=up.Interface(
             outputs=[features.value],
@@ -115,7 +115,7 @@ def test_profile_features_attributes_can_be_action_outputs() -> None:
         ),
     )
 
-    assert action.to_model().output_features == ["value"]
+    assert operator.to_model().output_features == ["value"]
     assert Features.value.to_model().type == "float"
 
 
@@ -144,13 +144,13 @@ def test_feature_roles_follow_interface_in_nested_arguments(shape: str, declared
             ),
         )
 
-    action = create_action()
-    assert action.to_model().input_features == ([] if declared else ["result"])
-    assert action.to_model().output_features == (["result"] if declared else [])
+    operator = create_action()
+    assert operator.to_model().input_features == ([] if declared else ["result"])
+    assert operator.to_model().output_features == (["result"] if declared else [])
 
 
 def test_mutated_interface_updates_inferred_input_roles() -> None:
-    action = up.Operator(
+    operator = up.Operator(
         id="calculate",
         interface=up.Interface(
             outputs=[up.Feature(id="result")],
@@ -160,5 +160,5 @@ def test_mutated_interface_updates_inferred_input_roles() -> None:
             arguments={"output": up.ref.feature("result")},
         ),
     )
-    action.interface.outputs.clear()
-    assert action.to_model().input_features == ["result"]
+    operator.interface.outputs.clear()
+    assert operator.to_model().input_features == ["result"]

@@ -7,12 +7,14 @@ import pytest
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import (
     Spec,
-    actions,
     conversion,
     dimension,
     feature,
     profile,
     ref,
+)
+from uptimely.spec.python import (
+    actions as assembly,
 )
 
 
@@ -25,17 +27,17 @@ def test_output_reference_logging_is_one_counted_summary(
         profile.Profile(
             id=f"dataset_{index}",
             assembly=[
-                actions.Operator(
-                    id=f"read_{action}",
-                    interface=actions.Interface(
-                        outputs=[feature.Feature(id=f"value_{action}")],
+                assembly.Operator(
+                    id=f"read_{operator}",
+                    interface=assembly.Interface(
+                        outputs=[feature.Feature(id=f"value_{operator}")],
                     ),
-                    compute=actions.Binding(
+                    compute=assembly.Binding(
                         function=ref.function("reader:read", kind="read"),
-                        arguments={"column": ref.feature(f"value_{action}")},
+                        arguments={"column": ref.feature(f"value_{operator}")},
                     ),
                 )
-                for action in range(count)
+                for operator in range(count)
             ],
         )
         for index, count in enumerate([2, 1])
@@ -75,13 +77,13 @@ def _declaration(
     is_dimensional = category in {"conform", "expand"}
     module = __name__ if function is _source else f"{__name__}.alternate"
     declarations = [
-        actions.Operator(
+        assembly.Operator(
             id=f"{identifier}_mapping",
-            interface=actions.Interface(
+            interface=assembly.Interface(
                 inputs=[ref.feature("temperature")] if is_dimensional else [],
                 outputs=[],
             ),
-            compute=actions.Binding(
+            compute=assembly.Binding(
                 function=ref.FunctionReference(
                     module=module,
                     name=f"{category}_shared",
@@ -121,13 +123,13 @@ def _mapping_source() -> profile.Profile:
     return profile.Profile(
         id="shared_source",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="_other_source",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[feature.Feature(id="temperature")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(_other_source, kind="read"),
                     arguments={},
                 ),
@@ -140,13 +142,13 @@ def _conform_source(identifier: str) -> profile.Profile:
     return profile.Profile(
         id=f"{identifier}_source",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="_other_source",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[feature.Feature(id="temperature")],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(_other_source, kind="read"),
                     arguments={},
                 ),
@@ -328,13 +330,13 @@ def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
     additional = profile.Profile(
         id="additional",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="_other_source",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(_other_source, kind="read"),
                     arguments={},
                 ),
@@ -445,13 +447,13 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
     first = profile.Profile(
         id="first",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="_source",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(_source, kind="read"),
                     arguments={"path": "readings.json"},
                 ),
@@ -461,13 +463,13 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
     second = profile.Profile(
         id="second",
         assembly=[
-            actions.Operator(
+            assembly.Operator(
                 id="_source",
-                interface=actions.Interface(
+                interface=assembly.Interface(
                     inputs=[],
                     outputs=[],
                 ),
-                compute=actions.Binding(
+                compute=assembly.Binding(
                     function=ref.function(_source, kind="read"),
                     arguments={"path": 42},
                 ),

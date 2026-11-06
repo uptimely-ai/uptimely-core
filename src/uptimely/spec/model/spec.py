@@ -29,7 +29,7 @@ class _ResourceIndex:
     profile_items: list[tuple[ProfileKey, profile_module.Profile]] = dataclasses.field(
         default_factory=list
     )
-    action_items: list[tuple[ActionKey, profile_module.Operator]] = dataclasses.field(
+    operator_items: list[tuple[ActionKey, profile_module.Operator]] = dataclasses.field(
         default_factory=list
     )
     profiles: dict[str, profile_module.Profile] = dataclasses.field(default_factory=dict)
@@ -104,18 +104,18 @@ class Spec(common.StrictModel):
                 indexes.features[feature_id] = feature
                 if feature_id not in all_grain_keys:
                     indexes.feature_owners.setdefault(feature_id, []).append(profile_id)
-            for action_id, action in profile.assembly.items():
+            for action_id, operator in profile.assembly.items():
                 key = (profile_id, action_id)
-                indexes.action_items.append((key, action))
-                indexes.actions.append(action)
-                indexes.actions_by_key[key] = action
+                indexes.operator_items.append((key, operator))
+                indexes.actions.append(operator)
+                indexes.actions_by_key[key] = operator
                 indexes.action_profile_keys[key] = profile_id
                 indexes.action_profiles[key] = profile
                 base = ("profiles", profile.id, "assembly")
                 indexes.action_paths[key] = (*base, action_id)
                 indexes.declaration_paths[key] = (*base, action_id)
-                indexes.actions_by_function.setdefault(action.compute.function, []).append(key)
-                for feature_id in action.output_features:
+                indexes.actions_by_function.setdefault(operator.compute.function, []).append(key)
+                for feature_id in operator.output_features:
                     indexes.feature_producers.setdefault(feature_id, []).append(key)
         return indexes
 
@@ -150,9 +150,9 @@ class Spec(common.StrictModel):
         return self._indexes.actions
 
     @property
-    def action_items(self) -> list[tuple[ActionKey, profile_module.Operator]]:
-        """Return action occurrences with profile and dictionary keys."""
-        return self._indexes.action_items
+    def operator_items(self) -> list[tuple[ActionKey, profile_module.Operator]]:
+        """Return operator occurrences with profile and dictionary keys."""
+        return self._indexes.operator_items
 
     @property
     def actions_by_key(self) -> dict[ActionKey, profile_module.Operator]:
@@ -171,8 +171,8 @@ class Spec(common.StrictModel):
 
     def _row_context_profile_key(self, key: ActionKey) -> ProfileKey | None:
         """Resolve the profile whose observations an action's context describes."""
-        action = self.actions_by_key[key]
-        function = self.functions[action.compute.function]
+        operator = self.actions_by_key[key]
+        function = self.functions[operator.compute.function]
         definition = functions.FUNCTION_KINDS[function.kind]
         return (
             self.input_sources[key]
@@ -299,10 +299,10 @@ class Spec(common.StrictModel):
         return {
             key: tuple(
                 (feature, self.feature_owners.get(feature, []))
-                for feature in action.input_features
+                for feature in operator.input_features
                 if feature != selectors.CURRENT_ID and feature not in self.grain_key_ids
             )
-            for key, action in self.action_items
+            for key, operator in self.operator_items
         }
 
     @functools.cached_property
@@ -322,12 +322,12 @@ class Spec(common.StrictModel):
     def actions_arguments(self) -> dict[ActionKey, tuple[DatasetArgument, ...]]:
         """Return supplied dataset arguments and normalized dataset IDs per action."""
         result: dict[ActionKey, tuple[DatasetArgument, ...]] = {}
-        for key, action in self.action_items:
-            function = self.functions.root.get(action.compute.function)
+        for key, operator in self.operator_items:
+            function = self.functions.root.get(operator.compute.function)
             arguments: list[DatasetArgument] = []
             if function is not None:
                 for name in function.arguments_by_type.get(arg_types.DATAFRAME, {}):
-                    value = action.arguments.get(name)
+                    value = operator.arguments.get(name)
                     source_id = None
                     if isinstance(value, str) and value.startswith(selectors.PROFILE_PREFIX):
                         reference = value.removeprefix(selectors.PROFILE_PREFIX).removesuffix(
@@ -367,11 +367,11 @@ class Spec(common.StrictModel):
     def binding_selectors(self) -> dict[ActionKey, tuple[tuple[object, str], ...]]:
         """Return supplied binding leaves with their inherited argument types."""
         result: dict[ActionKey, tuple[tuple[object, str], ...]] = {}
-        for key, action in self.action_items:
+        for key, operator in self.operator_items:
             values: list[tuple[object, str]] = []
-            function = self.functions.root.get(action.compute.function)
+            function = self.functions.root.get(operator.compute.function)
             if function is not None:
-                for value, path in action.compute.values_with_paths:
+                for value, path in operator.compute.values_with_paths:
                     argument = function.args.get(path[0]) if isinstance(path[0], str) else None
                     if argument is None:
                         continue
@@ -413,9 +413,9 @@ class Spec(common.StrictModel):
     def matching_profile_keys(self) -> dict[ActionKey, tuple[tuple[str, SpecPath], ...]]:
         """Return selected matching profile keys and their declaration paths."""
         result: dict[ActionKey, tuple[tuple[str, SpecPath], ...]] = {}
-        for key, action in self.action_items:
+        for key, operator in self.operator_items:
             matches: list[tuple[str, SpecPath]] = []
-            for value, path in action.compute.values_with_paths:
+            for value, path in operator.compute.values_with_paths:
                 if not (
                     isinstance(value, str)
                     and value.startswith(selectors.PROFILE_PREFIX)
@@ -487,7 +487,7 @@ class Spec(common.StrictModel):
     def _log_structure_checks(cls, document: dict[str, typing.Any]) -> None:
         """Summarize structural checks once instead of logging each nested resource."""
         dataset_count = 0
-        action_count = 0
+        operator_count = 0
         profiles = cls.get_profiles(document)
         for profile in profiles.values() if isinstance(profiles, dict) else ():
             assembly = (
@@ -500,10 +500,10 @@ class Spec(common.StrictModel):
             if not isinstance(assembly, dict):
                 continue
             dataset_count += 1
-            action_count += len(assembly)
+            operator_count += len(assembly)
         logger.debug("    - checking object keys as identifiers for %d profiles", dataset_count)
         logger.debug("    - checking spec version is an integer")
-        logger.debug("    - checking feature references for %d actions", action_count)
+        logger.debug("    - checking feature references for %d actions", operator_count)
 
     @classmethod
     def _normalize_functions(cls, value: typing.Any) -> typing.Any:

@@ -107,7 +107,7 @@ Action rules are grouped by the relationship they check, not by function kind.
 Collapse shares input source discovery with every other action; only invariants
 specific to collapsing are conditional on that kind.
 
-Rules access `spec.profile_items` and `spec.action_items` directly when they need
+Rules access `spec.profile_items` and `spec.operator_items` directly when they need
 ownership or diagnostic paths, and use `spec.profiles` or `spec.actions` otherwise.
 The indexed values are the canonical models, not declaration wrappers.
 `spec.feature_owners` retains every owner so ambiguous declarations can be
