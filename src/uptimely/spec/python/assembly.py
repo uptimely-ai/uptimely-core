@@ -30,10 +30,54 @@ class Interface:
     outputs: list[feature_module.Feature] = dataclasses.field(default_factory=list)
 
     def __post_init__(self) -> None:
-        """Copy interface collections into mutable lists."""
+        """Copy interface collections and reject repeated output feature IDs."""
         if self.inputs is not None:
             object.__setattr__(self, "inputs", list(self.inputs))
         object.__setattr__(self, "outputs", list(self.outputs))
+        if len(self.output_ids) != len(set(self.output_ids)):
+            raise ValueError("Operator output feature IDs must not repeat")
+
+    @property
+    def output_ids(self) -> list[str]:
+        """Return the declared output feature IDs in order."""
+        return [output.id for output in self.outputs]
+
+    def to_model(
+        self, *, compute: spec_model.Binding, merge: spec_model.Binding | None = None
+    ) -> spec_model.Interface:
+        """Convert explicit or inferred dependencies to canonical feature selectors.
+
+        Args:
+            compute: Canonical computation binding used to infer omitted inputs.
+            merge: Optional canonical merge binding contributing inferred inputs.
+
+        Returns:
+            An interface with ordered inputs and declared outputs.
+        """
+        if self.inputs is None:
+            outputs = set(self.output_ids)
+            inferred = list(compute.inferred_feature_inputs)
+            if merge is not None:
+                inferred.extend(merge.inferred_feature_inputs)
+            inputs = [name for name in dict.fromkeys(inferred) if name not in outputs]
+        else:
+            inputs = [self._feature_id(value) for value in self.inputs]
+        return spec_model.Interface(
+            inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
+            outputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in self.output_ids],
+        )
+
+    @staticmethod
+    def _feature_id(value: feature_module.Feature | ref.Reference | str) -> str:
+        """Return a feature identifier or reject a reference to another resource."""
+        if isinstance(value, feature_module.Feature):
+            return value.id
+        if isinstance(value, ref.Reference):
+            prefix, _, identifier = value.value.rpartition(".")
+            if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
+                raise ValueError(f"Operator input must reference a feature, got {value.value!r}")
+            return identifier
+        return value.removeprefix(selectors.FEATURE_PREFIX)
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -43,8 +87,80 @@ class Binding:
     function: _Function
     arguments: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
 
+    @property
+    def _declared_kind(self) -> functions.FunctionKindId | None:
+        """Return function semantics without requiring a complete contract."""
+        if isinstance(self.function, ref.FunctionReference):
+            return self.function.kind
+        if callable(self.function):
+            return function_semantics.declared_kind(self.function)
+        return None
 
-@dataclasses.dataclass(frozen=True, kw_only=True, init=False)
+    @property
+    def kind(self) -> functions.FunctionKindId:
+        """Return the required function kind.
+
+        Raises:
+            ValueError: If the implementation has no supported declared kind.
+        """
+        value = self._declared_kind
+        if value is None or value not in functions.FUNCTION_KINDS:
+            raise ValueError(
+                "Function kind is required: use @function(kind=...) or "
+                "ref.function(..., kind=...) for an undecorated implementation"
+            )
+        return value
+
+    @property
+    def reference(self) -> ref.FunctionReference:
+        """Return the normalized entrypoint without importing string references."""
+        if isinstance(self.function, ref.FunctionReference):
+            return self.function
+        return ref.function(self.function)
+
+    def bound_arguments(self) -> dict[str, typing.Any]:
+        """Copy arguments after validating signatures of in-process callables.
+
+        Entrypoint strings and references are not imported during authoring;
+        their signature validation is deferred until compilation.
+        """
+        if callable(self.function):
+            inspect.signature(self.function).bind(**self.arguments)
+        return self.arguments.copy()
+
+    def to_model(self) -> spec_model.Binding:
+        """Convert this binding to the canonical document model."""
+        arguments = self.bound_arguments()
+        return spec_model.Binding(
+            function=self.reference.name,
+            args={name: binding_conversion.to_value(value) for name, value in arguments.items()},
+        )
+
+    def to_function_template(self) -> spec_model.FunctionTemplate:
+        """Build the reusable function contract, including merge-target optionality."""
+        argument_definitions = {
+            name: binding_conversion.argument_definition(value)
+            for name, value in self.bound_arguments().items()
+        }
+        reference = self.reference
+        kind = self.kind
+        if kind == functions.MERGE and "target" in argument_definitions:
+            argument_definitions["target"]["type"] = arg_types.OPTIONAL_DATAFRAME
+        return spec_model.FunctionTemplate(
+            id=reference.name,
+            kind=kind,
+            returns=functions.FUNCTION_KINDS[kind].returns,
+            entrypoint=reference.entrypoint,
+            validate_signature=reference.validate_signature,
+            args={
+                name: spec_model.Argument(id=name, **definition)
+                for name, definition in argument_definitions.items()
+            },
+            description=reference.description,
+        )
+
+
+@dataclasses.dataclass(frozen=True, kw_only=True)
 class Operator:
     """Declare operator identity, logical interface, computation, and optional merge.
 
@@ -66,46 +182,26 @@ class Operator:
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
 
-    def __init__(
-        self,
-        *,
-        id: str,
-        interface: Interface,
-        compute: Binding,
-        merge: Binding | None = None,
-        row_context: (
-            row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
-        ) = None,
-    ) -> None:
+    def __post_init__(self) -> None:
         """Validate the declaration and merge argument-level row-context annotations."""
-        if not isinstance(compute, Binding):
+        if not isinstance(self.compute, Binding):
             raise TypeError("Operator compute must be a Binding")
-        if not isinstance(interface, Interface):
+        if not isinstance(self.interface, Interface):
             raise TypeError("Operator interface must be an Interface")
-        if merge is not None and not isinstance(merge, Binding):
+        if self.merge is not None and not isinstance(self.merge, Binding):
             raise TypeError("Operator merge must be a Binding or None")
-        object.__setattr__(self, "id", id)
-        object.__setattr__(self, "interface", interface)
-        object.__setattr__(self, "compute", compute)
-        object.__setattr__(self, "merge", merge)
-        object.__setattr__(self, "row_context", row_context)
         if not isinstance(self.id, str) or not self.id.strip():
             raise ValueError("Operator requires a non-empty id")
-        _ = self.kind
-        if self.kind == functions.MERGE:
+        kind = self.kind
+        if kind == functions.MERGE:
             raise ValueError("Merge functions must be declared in Operator.merge")
         if self.merge is not None:
-            if self.kind == functions.VECTORIZE:
+            if kind == functions.VECTORIZE:
                 raise ValueError("Vectorize operators cannot declare a merge binding")
-            if not functions.FUNCTION_KINDS[self.kind].produces_fragment:
-                raise ValueError(
-                    f"{self.kind.capitalize()} operators cannot declare a merge binding"
-                )
-        if self.merge is not None and self._function_kind(self.merge.function) != functions.MERGE:
-            raise ValueError("Operator merge binding must reference a function of kind 'merge'")
-        output_ids = [output.id for output in self.interface.outputs]
-        if len(output_ids) != len(set(output_ids)):
-            raise ValueError("Operator output feature IDs must not repeat")
+            if not functions.FUNCTION_KINDS[kind].produces_fragment:
+                raise ValueError(f"{kind.capitalize()} operators cannot declare a merge binding")
+            if self.merge._declared_kind != functions.MERGE:
+                raise ValueError("Operator merge binding must reference a function of kind 'merge'")
         object.__setattr__(
             self,
             "row_context",
@@ -115,31 +211,12 @@ class Operator:
     @property
     def kind(self) -> functions.FunctionKindId:
         """Return the kind declared on the function or its reference."""
-        value = self._function_kind(self.compute.function)
-        if value not in functions.FUNCTION_KINDS:
-            raise ValueError(
-                "Function kind is required: use @function(kind=...) or "
-                "ref.function(..., kind=...) for an undecorated implementation"
-            )
-        return typing.cast(functions.FunctionKindId, value)
-
-    @staticmethod
-    def _function_kind(function: _Function) -> functions.FunctionKindId | None:
-        """Return the kind declared on a function or its reference."""
-        if isinstance(function, ref.FunctionReference):
-            value = function.kind
-        elif callable(function):
-            value = function_semantics.declared_kind(function)
-        else:
-            value = None
-        return typing.cast(functions.FunctionKindId | None, value)
+        return self.compute.kind
 
     @property
     def reference(self) -> ref.FunctionReference:
         """Return the normalized entrypoint without importing string references."""
-        if isinstance(self.compute.function, ref.FunctionReference):
-            return self.compute.function
-        return ref.function(self.compute.function)
+        return self.compute.reference
 
     @property
     def catalog_id(self) -> str:
@@ -152,116 +229,27 @@ class Operator:
         Entrypoint strings are not imported during authoring; signature validation
         for those functions is deferred until compilation.
         """
-        if callable(self.compute.function):
-            inspect.signature(self.compute.function).bind(**self.compute.arguments)
-        return self.compute.arguments.copy()
+        return self.compute.bound_arguments()
 
     def to_model(self) -> spec_model.Operator:
         """Convert this declaration to its canonical document model."""
-        compute = self._binding_model(self.compute)
-        merge = self._binding_model(self.merge) if self.merge is not None else None
-        inputs = self._input_ids(compute, merge)
+        compute = self.compute.to_model()
+        merge = self.merge.to_model() if self.merge is not None else None
         return spec_model.Operator(
             id=self.id,
             compute=compute,
             merge=merge,
-            interface=self._model_interface(inputs, self.interface.outputs),
+            interface=self.interface.to_model(compute=compute, merge=merge),
             row_context=self.row_context,
         )
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Build the reusable function contract declared by this operator."""
-        catalogs = [self._function_template(self.compute)]
+        bindings = [self.compute]
         if self.merge is not None:
-            catalogs.append(self._function_template(self.merge))
+            bindings.append(self.merge)
+        catalogs = []
+        for binding in bindings:
+            template = binding.to_function_template()
+            catalogs.append(spec_model.FunctionCatalog(root={template.id: template}))
         return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))
-
-    def _function_template(self, binding: Binding) -> spec_model.FunctionCatalog:
-        """Build the reusable function contract for one binding."""
-        argument_definitions = {
-            name: binding_conversion.argument_definition(value)
-            for name, value in self._bound_arguments(binding).items()
-        }
-        if binding is self.merge and "target" in argument_definitions:
-            argument_definitions["target"]["type"] = arg_types.OPTIONAL_DATAFRAME
-        function_arguments = {
-            name: spec_model.Argument(id=name, **definition)
-            for name, definition in argument_definitions.items()
-        }
-        reference = self._binding_reference(binding)
-        kind = self._function_kind(binding.function)
-        if kind is None or kind not in functions.FUNCTION_KINDS:
-            raise ValueError(
-                "Function kind is required: use @function(kind=...) or "
-                "ref.function(..., kind=...) for an undecorated implementation"
-            )
-        return spec_model.FunctionCatalog(
-            root={
-                reference.name: spec_model.FunctionTemplate(
-                    id=reference.name,
-                    kind=kind,
-                    returns=functions.FUNCTION_KINDS[kind].returns,
-                    entrypoint=reference.entrypoint,
-                    validate_signature=reference.validate_signature,
-                    args=function_arguments,
-                    description=reference.description,
-                )
-            }
-        )
-
-    def _binding_reference(self, binding: Binding) -> ref.FunctionReference:
-        """Return the normalized function reference for one binding."""
-        if isinstance(binding.function, ref.FunctionReference):
-            return binding.function
-        return ref.function(binding.function)
-
-    def _binding_model(self, binding: Binding) -> spec_model.Binding:
-        """Convert one Python binding to the canonical document model."""
-        arguments = self._bound_arguments(binding)
-        reference = self._binding_reference(binding)
-        return spec_model.Binding(
-            function=reference.name,
-            args={name: binding_conversion.to_value(value) for name, value in arguments.items()},
-        )
-
-    @staticmethod
-    def _bound_arguments(binding: Binding) -> dict[str, typing.Any]:
-        """Return supplied arguments, validating in-process callable signatures."""
-        if callable(binding.function):
-            inspect.signature(binding.function).bind(**binding.arguments)
-        return binding.arguments.copy()
-
-    @staticmethod
-    def _feature_id(value: feature_module.Feature | ref.Reference | str) -> str:
-        """Return a feature identifier or reject a reference to another resource."""
-        if isinstance(value, feature_module.Feature):
-            return value.id
-        if isinstance(value, ref.Reference):
-            prefix, _, identifier = value.value.rpartition(".")
-            if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
-                raise ValueError(f"Operator input must reference a feature, got {value.value!r}")
-            return identifier
-        return value.removeprefix(selectors.FEATURE_PREFIX)
-
-    def _input_ids(
-        self, compute: spec_model.Binding, merge: spec_model.Binding | None
-    ) -> list[str]:
-        """Return declared input IDs or infer them from feature bindings."""
-        if self.interface.inputs is None:
-            outputs = {output.id for output in self.interface.outputs}
-            inputs = list(compute.inferred_feature_inputs)
-            if merge is not None:
-                inputs.extend(merge.inferred_feature_inputs)
-            return [name for name in dict.fromkeys(inputs) if name not in outputs]
-        return [self._feature_id(value) for value in self.interface.inputs]
-
-    @staticmethod
-    def _model_interface(
-        inputs: abc.Iterable[str],
-        outputs: abc.Iterable[feature_module.Feature],
-    ) -> spec_model.Interface:
-        """Build canonical input and output feature selectors."""
-        return spec_model.Interface(
-            inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
-            outputs=[f"{selectors.FEATURE_PREFIX}{feature.id}" for feature in outputs],
-        )
