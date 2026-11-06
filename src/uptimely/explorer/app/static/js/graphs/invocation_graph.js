@@ -99,7 +99,7 @@ export function initializeInvocationLineage(signal) {
 			layout.bounds.y -= STAGE_COLUMNS.headerHeight / 2;
 			layout.bounds.height += STAGE_COLUMNS.headerHeight;
 		}
-		return ExplorerLineage.createDatasetLineage2D(lineageContainer, graphData, style, layout, highlight, {
+		return ExplorerLineage.createLineage2D(lineageContainer, graphData, style, layout, highlight, {
 			label: node => `${node.label}\nprofile: ${node.dataset_name || node.dataset_id}\nstage: ${node.stage}`,
 			drawNode: (node, ctx) =>
 				ExplorerLineage.drawCard(node, ctx, node.function_name || node.function_id, node.datasetColor, highlight),
