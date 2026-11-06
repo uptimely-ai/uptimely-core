@@ -201,7 +201,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     source.write_text(
         json.dumps(
             {
-                "spec_version": 4,
+                "spec_version": 5,
                 "name": "Build-only test",
                 "functions": {
                     "read": {
@@ -213,10 +213,10 @@ def test_project_build_explicit_source_does_not_execute_workflow(
                 "profiles": {
                     "values": {
                         "features": {"value": {}},
-                        "actions": {
+                        "assembly": {
                             "read": {
-                                "binding": {"function": "read"},
-                                "features": {"outputs": ["$features.value"]},
+                                "compute": {"function": "read"},
+                                "interface": {"outputs": ["$features.value"]},
                             }
                         },
                     }

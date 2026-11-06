@@ -22,7 +22,7 @@ def validate_dataset_argument_reference(spec: spec_model.Spec) -> None:
                 raise errors.SpecError(
                     f"DataFrame argument {name} must reference a profile",
                     code="invalid_mapping_dataset_input",
-                    path=(*spec.action_paths[key], "binding", "args", name),
+                    path=(*spec.action_paths[key], "compute", "args", name),
                 )
 
 
@@ -39,7 +39,7 @@ def validate_dataset_argument_selector(spec: spec_model.Spec) -> None:
                     f"DataFrame argument {name} must select profile data, not an identifier "
                     "or grain-key list",
                     code="invalid_mapping_dataset_input",
-                    path=(*spec.action_paths[key], "binding", "args", name),
+                    path=(*spec.action_paths[key], "compute", "args", name),
                 )
 
 
@@ -52,7 +52,7 @@ def validate_dataset_argument_source(spec: spec_model.Spec) -> None:
                 raise errors.SpecError(
                     f"DataFrame argument {name} references unknown profile {source_id}",
                     code="invalid_mapping_dataset_input",
-                    path=(*spec.action_paths[key], "binding", "args", name),
+                    path=(*spec.action_paths[key], "compute", "args", name),
                 )
 
 
@@ -60,7 +60,7 @@ def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
     """Require actions to consume the foreign profile count in their kind contract."""
     logger.debug("    - checking foreign profile input counts match function kinds")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -74,7 +74,7 @@ def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
                 f"{function.kind.capitalize()} action must consume exactly "
                 f"{expected} foreign profile(s)",
                 code="invalid_mapping_dataset_input",
-                path=(*spec.action_paths[key], "binding", "args"),
+                path=(*spec.action_paths[key], "compute", "args"),
             )
 
 
@@ -97,7 +97,7 @@ def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
     """Require profile-scoped feature inputs to belong to at most one profile."""
     logger.debug("    - checking profile-scoped feature inputs have at most one source")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
             "dataframe"
         ):
@@ -107,7 +107,7 @@ def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} action inputs must belong to one source profile",
                 code="invalid_mapping_dataset_input",
-                path=(*spec.action_paths[key], "features", "inputs"),
+                path=(*spec.action_paths[key], "interface", "inputs"),
             )
 
 
@@ -115,7 +115,7 @@ def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
     """Reject the target profile when a kind requires a foreign profile input."""
     logger.debug("    - checking foreign profile arguments do not reference the target")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -124,7 +124,7 @@ def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} action must reference a foreign source profile",
                 code="invalid_mapping_dataset_input",
-                path=(*spec.action_paths[key], "binding", "args", name),
+                path=(*spec.action_paths[key], "compute", "args", name),
             )
 
 
@@ -132,7 +132,7 @@ def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
     """Require a feature source to match the action's profile input."""
     logger.debug("    - checking feature sources match profile arguments")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -152,7 +152,7 @@ def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
                 f"{function.kind.capitalize()} action must reference its foreign source profile "
                 f"{source}",
                 code="invalid_mapping_dataset_input",
-                path=(*spec.action_paths[key], "binding", "args", name),
+                path=(*spec.action_paths[key], "compute", "args", name),
             )
 
 
@@ -160,7 +160,7 @@ def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
     """Require profile-scoped feature inputs to belong to the action's profile inputs."""
     logger.debug("    - checking feature inputs belong to profile arguments")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
             "dataframe"
         ):
@@ -182,7 +182,7 @@ def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
                 f"{function.kind.capitalize()} action inputs must belong to its profile inputs: "
                 + ", ".join(unavailable),
                 code="invalid_mapping_feature_inputs",
-                path=(*spec.action_paths[key], "features", "inputs"),
+                path=(*spec.action_paths[key], "interface", "inputs"),
             )
 
 
@@ -190,7 +190,7 @@ def validate_feature_input_scope(spec: spec_model.Spec) -> None:
     """Reject feature inputs for kinds that do not accept feature dependencies."""
     logger.debug("    - checking function kinds permit declared feature inputs")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if (
             function is not None
             and functions.FUNCTION_KINDS[function.kind].feature_input_scope == ("none")
@@ -199,7 +199,7 @@ def validate_feature_input_scope(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 f"Kind {function.kind} cannot declare feature inputs",
                 code="invalid_mapping_feature_inputs",
-                path=(*spec.action_paths[key], "features", "inputs"),
+                path=(*spec.action_paths[key], "interface", "inputs"),
             )
 
 
@@ -207,7 +207,7 @@ def validate_target_dataset_input(spec: spec_model.Spec) -> None:
     """Require target-scoped actions to consume their target profile."""
     logger.debug("    - checking target-scoped actions consume their target profile")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -215,7 +215,7 @@ def validate_target_dataset_input(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} action must consume its target profile",
                 code="invalid_mapping_dataset_input",
-                path=(*spec.action_paths[key], "binding", "args"),
+                path=(*spec.action_paths[key], "compute", "args"),
             )
 
 
@@ -223,7 +223,7 @@ def validate_target_dataset_only(spec: spec_model.Spec) -> None:
     """Reject foreign profile inputs on target-scoped actions."""
     logger.debug("    - checking target-scoped actions do not consume foreign profiles")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -235,7 +235,7 @@ def validate_target_dataset_only(spec: spec_model.Spec) -> None:
                 f"{function.kind.capitalize()} action cannot publish a foreign profile: "
                 + ", ".join(foreign),
                 code="invalid_mapping_dataset_input",
-                path=(*spec.action_paths[key], "binding", "args"),
+                path=(*spec.action_paths[key], "compute", "args"),
             )
 
 
@@ -243,7 +243,7 @@ def validate_dimension_source(spec: spec_model.Spec) -> None:
     """Require dimension-reducing actions to consume their inferred source."""
     logger.debug("    - checking dimension-reducing actions consume their inferred source")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
@@ -254,7 +254,7 @@ def validate_dimension_source(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} action must consume its source profile {source}",
                 code="invalid_mapping_dataset_input",
-                path=(*spec.action_paths[key], "binding", "args"),
+                path=(*spec.action_paths[key], "compute", "args"),
             )
 
 
@@ -276,7 +276,7 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
     """Require profile sources and targets to follow their declared grain policy."""
     logger.debug("    - checking source and target dimensions follow function-kind policies")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None:
             continue
         change = functions.FUNCTION_KINDS[function.kind].dimension_change
@@ -302,16 +302,16 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
                     f"{function.kind.capitalize()} action inputs must preserve "
                     "target dimensionality"
                 )
-                path = (*spec.action_paths[key], "binding", "args")
+                path = (*spec.action_paths[key], "compute", "args")
             elif change == "remove":
                 message = (
                     f"{function.kind.capitalize()} action source must have strictly higher "
                     "dimensionality than its target"
                 )
-                path = (*spec.action_paths[key], "features", "inputs")
+                path = (*spec.action_paths[key], "interface", "inputs")
             else:
                 message = EXPAND_INPUT_ERROR
-                path = (*spec.action_paths[key], "binding", "args")
+                path = (*spec.action_paths[key], "compute", "args")
             raise errors.SpecError(message, code="invalid_mapping_dimensions", path=path)
 
 
@@ -319,7 +319,7 @@ def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
     """Require dimensional expansion to use a feature from a lower-dimensional source."""
     logger.debug("    - checking dimensional expansion inputs come from lower-dimensional sources")
     for key, action in spec.action_items:
-        function = spec.functions.root.get(action.binding.function)
+        function = spec.functions.root.get(action.compute.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].dimension_change != "add":
             continue
         lower = {
@@ -339,5 +339,5 @@ def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 EXPAND_INPUT_ERROR,
                 code="invalid_mapping_feature_inputs",
-                path=(*spec.action_paths[key], "features", "inputs"),
+                path=(*spec.action_paths[key], "interface", "inputs"),
             )

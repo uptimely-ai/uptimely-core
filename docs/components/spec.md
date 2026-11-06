@@ -1,6 +1,6 @@
 # Spec
 
-**Current spec version: 4**
+**Current spec version: 5**
 
 The spec definition is a single JSON document describing profiles, feature
 dependencies, and function bindings. JSON is the shared format used by
@@ -9,8 +9,8 @@ analytical declarations and the tools that validate, document, and compile them.
 ## Document Conventions
 
 The root is one JSON object. Dimensions, profiles, function templates,
-features, arguments, and actions use object keys as identifiers. Their IDs are
-derived from those keys; serialized action entries also include their `id`.
+features, arguments, and operators use object keys as identifiers. Their IDs
+are derived from those keys; operator entries do not include an `id` field.
 Identifiers should be stable, lowercase, and descriptive.
 
 Tables describe the current parser contract. A default applies when a field is
@@ -52,7 +52,7 @@ For example, dimensions and profiles use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `4` | Spec format version; only `4` is supported. |
+| `spec_version` | integer | No | `5` | Spec format version; only `5` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
@@ -111,7 +111,7 @@ key to a profile or expand its observations.
 
 ## Profiles
 
-A profile describes observations, their dimensions, features, actions, and
+A profile describes observations, their dimensions, features, operators, and
 optional metadata. Profiles are top-level and identified by a globally unique
 object key; attributes must not include `id`. Its ordered `grain` selects one
 resolution per dimension and defines the dataframe key order. An empty grain
@@ -126,7 +126,7 @@ represents a dimensionless profile.
 | `grain` | array of objects | No | `[]` | Ordered dimension-resolution references defining row detail. |
 | `order` | array of objects | No | `[]` | Logical ordering by selected grain references. |
 | `features` | object | No | `{}` | Feature metadata keyed by identifier. |
-| `actions` | object | No | `{}` | Function bindings keyed by identifier, unique within this profile. |
+| `assembly` | object | No | `{}` | Operators keyed by identifier, unique within this profile. |
 
 Each grain reference contains a bare `dimension` identifier and a `resolution`
 identifier from that dimension. A profile cannot select multiple resolutions
@@ -171,7 +171,7 @@ is available; a profile's grain declares what that profile actually selects.
 }
 ```
 
-Version 4 replaces the entity-owned `datasets` structure with top-level
+Version 4 replaced the entity-owned `datasets` structure with top-level
 `profiles`. Dimensions declare available resolutions; each profile must select
 its own grain explicitly. Entity-owned dimensions and descriptive
 `row_scope.grain` text do not determine the selected grain. The optional
@@ -199,19 +199,25 @@ snapshot:
    previously held grain or filtering rules, move those requirements into
    explicit profile grains or application logic as appropriate.
 5. Change dataset selectors to profile selectors, such as
-   `$profiles.<id>.grain.ids` or `$profiles.@.grain.ids`, then export version 4
+   `$profiles.<id>.grain.ids` or `$profiles.@.grain.ids`, then export version 5
    and rebuild all generated artifacts.
 
-Set `spec_version` to `4` in exported JSON. The field defaults to `4` when
-omitted; readers accept only version `4`.
+## Migrating from spec version 4
 
-### Feature and Action Identifiers
+Version 4 documents are rejected rather than parsed with compatibility rules.
+Update every profile's `actions` object to `assembly`. Within each operator,
+rename `binding` to `compute` and the action-level `features` object to
+`interface`. Remove the operator's `id` field; its ID is the key in `assembly`.
+Set `spec_version` to `5` (the default when omitted), then rebuild generated
+execution plans and Explorer snapshots.
+
+### Feature and Operator Identifiers
 
 Each key under `features` identifies a column's metadata. Each key under
-`actions` identifies one function binding, unique within its profile.
-An action identifier names a binding instance, not a reusable function or an
-output feature. Multiple actions can invoke the same function with different
-arguments. Serialized action entries include an `id` matching their key.
+`assembly` identifies one operator, unique within its profile. An operator
+identifier names a compute instance, not a reusable function or an output
+feature. Multiple operators can invoke the same function with different
+arguments. The key supplies the operator ID; an `id` attribute is rejected.
 
 ### Scope
 
@@ -442,28 +448,32 @@ Use plain `array` or `object` for heterogeneous or unspecified contents.
 Argument types describe implementation values, not feature dependencies.
 Nested expressions such as `object{str: array[string]}` are supported.
 
-## Action Features
+## Operator Interface and Compute
 
-An action separates analytical requirements from the implementation binding:
+An operator separates analytical requirements from its computation:
 
 ```json
-"temperature_mean": {
-  "features": {
-    "inputs": ["$features.bearing_temperature"],
-    "outputs": ["$features.temperature_mean"]
-  },
-  "row_context": {
-    "dimension": "$dimensions.timestamp",
-    "before": {"time": "8h"},
-    "after": {"time": "0s"}
-  },
-  "binding": {
-    "function": "rolling_mean",
-    "args": {
-      "dataset": "$profiles.@.dataframe",
-      "column": "$features.bearing_temperature.id",
-      "window": "8h",
-      "output": "$features.temperature_mean.id"
+{
+  "assembly": {
+    "temperature_mean": {
+      "interface": {
+        "inputs": ["$features.bearing_temperature"],
+        "outputs": ["$features.temperature_mean"]
+      },
+      "row_context": {
+        "dimension": "$dimensions.timestamp",
+        "before": {"time": "8h"},
+        "after": {"time": "0s"}
+      },
+      "compute": {
+        "function": "rolling_mean",
+        "args": {
+          "dataset": "$profiles.@.dataframe",
+          "column": "$features.bearing_temperature.id",
+          "window": "8h",
+          "output": "$features.temperature_mean.id"
+        }
+      }
     }
   }
 }
@@ -471,13 +481,13 @@ An action separates analytical requirements from the implementation binding:
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
-| `features` | object | No | Empty lists | Explicit prerequisites and outputs. |
-| `features.inputs` | array of strings | No | `[]` | Materialized features required before the call. |
-| `features.outputs` | array of strings | No | `[]` | Features produced in the owning profile. |
+| `interface` | object | No | Empty lists | Explicit prerequisites and outputs. |
+| `interface.inputs` | array of strings | No | `[]` | Materialized features required before the call. |
+| `interface.outputs` | array of strings | No | `[]` | Features produced in the owning profile. |
 | `row_context` | object or null | No | `null` | Surrounding-observation requirements. |
-| `binding` | object | Yes | N/A | Function invocation. |
-| `binding.function` | string | Yes | N/A | Identifier of the function definition to bind. |
-| `binding.args` | object | No | `{}` | Concrete arguments matching the template schema. |
+| `compute` | object | Yes | N/A | Function invocation. |
+| `compute.function` | string | Yes | N/A | Identifier of the function definition to invoke. |
+| `compute.args` | object | No | `{}` | Concrete arguments matching the template schema. |
 
 Input and output lists contain distinct `$features.<id>` references, without
 selectors. Inputs establish feature dependencies even when not passed as
@@ -486,7 +496,7 @@ Conversely, passing a feature identifier is not a declaration that its data
 must exist. Declare every consumed feature in `inputs`.
 
 Outputs reference the owning profile's feature registry and are the only
-declaration of features produced by an action. Binding arguments may use
+declaration of features produced by an operator. Compute arguments may use
 feature references to pass identifiers, including output names; those arguments
 do not infer inputs or outputs. Profile dimension keys are required in every
 returned table, even when omitted from `outputs`.
@@ -506,7 +516,7 @@ coverage is retained; duplicate keys and overlapping feature outputs are
 rejected. See the [engine fragment contract](engine.md#fragments) for runtime
 details.
 
-### Binding syntax
+### Compute syntax
 
 | Argument reference | Argument type | Value supplied to the implementation |
 | --- | --- | --- |

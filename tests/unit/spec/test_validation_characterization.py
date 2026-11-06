@@ -33,15 +33,15 @@ def test_document_validation_accepts_valid_document_without_mutation() -> None:
 
 def test_binding_feature_selectors_do_not_become_input_dependencies() -> None:
     document = spec.Spec.model_validate(_configuration())
-    action = document.profiles["pump_telemetry"].actions["pressure_flow_efficiency"]
-    action.features.inputs = []
-    action.binding.args["dependency_hint"] = "$features.bearing_temperature"
+    action = document.profiles["pump_telemetry"].assembly["pressure_flow_efficiency"]
+    action.interface.inputs = []
+    action.compute.args["dependency_hint"] = "$features.bearing_temperature"
 
     facts = next(item for item in document.actions if item is action)
 
     assert facts.input_features == []
     assert "bearing_temperature" in [
-        feature for feature, _ in facts.binding.references_by_prefix["$features."]
+        feature for feature, _ in facts.compute.references_by_prefix["$features."]
     ]
 
 
@@ -69,9 +69,9 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
     tmp_path: pathlib.Path, load_from_file: bool, inputs: list[str], message: str
 ) -> None:
     configuration = _configuration()
-    action = configuration["profiles"]["pump_profile"]["actions"]["bearing_temperature_by_pump"]
-    action["features"]["inputs"] = inputs
-    action["binding"]["args"]["unexpected"] = None
+    action = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
+    action["interface"]["inputs"] = inputs
+    action["compute"]["args"]["unexpected"] = None
     if load_from_file:
         path = tmp_path / "invalid.json"
         path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -92,8 +92,8 @@ def test_independent_rules_report_grouping_and_dimension_reference_faults() -> N
     configuration["profiles"]["pump_telemetry"]["grain"].remove(
         {"dimension": "machine", "resolution": "machine"}
     )
-    action = configuration["profiles"]["pump_profile"]["actions"]["bearing_temperature_by_pump"]
-    action["binding"]["args"]["unexpected"] = "$dimensions.missing"
+    action = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
+    action["compute"]["args"]["unexpected"] = "$dimensions.missing"
     document = spec.Spec.model_validate(configuration)
     with pytest.raises(ValueError, match="grouping keys must exist in source"):
         action_inputs.validate_grouping_dimensions(document)
@@ -107,18 +107,18 @@ def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
 ) -> None:
     document = spec.Spec.model_validate(_configuration())
     dataset = document.profiles["pump_telemetry"]
-    action = dataset.actions.pop("pressure_flow_efficiency")
-    dataset.actions["alias"] = action
+    action = dataset.assembly.pop("pressure_flow_efficiency")
+    dataset.assembly["alias"] = action
     if invalid_binding:
-        action.binding.args["unexpected"] = None
+        action.compute.args["unexpected"] = None
         expected_id = "alias"
         expected_code = "invalid_binding_arguments"
         validate = bindings.validate_arguments
     else:
-        function = document.functions[action.binding.function]
+        function = document.functions[action.compute.function]
         argument = next(name for name, arg in function.args.items() if arg.type == "dataframe")
-        action.binding.args[argument] = "$profiles.pump_profile.dataframe"
-        expected_id = action.id
+        action.compute.args[argument] = "$profiles.pump_profile.dataframe"
+        expected_id = "alias"
         expected_code = "invalid_mapping_dataset_input"
         validate = contracts_validation.validate_target_dataset_input
     with pytest.raises(validation.SpecError) as error:
@@ -127,9 +127,9 @@ def test_binding_and_contract_paths_keep_their_existing_action_identifiers(
     assert error.value.path == (
         "profiles",
         dataset.id,
-        "actions",
+        "assembly",
         expected_id,
-        "binding",
+        "compute",
         "args",
     )
 
@@ -163,8 +163,8 @@ def test_duplicate_ids_block_action_cycle_validation() -> None:
     document = spec.Spec.model_validate(_configuration())
     dataset = document.profiles["pump_profile"]
     document.profiles["wrong"] = spec.Profile(id="different")
-    action = dataset.actions["health_signal_normalized"]
-    action.features.inputs.append("$features.health_signal_normalized")
+    action = dataset.assembly["health_signal_normalized"]
+    action.interface.inputs.append("$features.health_signal_normalized")
     with pytest.raises(validation.SpecError) as error:
         validation.validate_spec(document)
     assert error.value.code == "invalid_profile_id"
@@ -172,7 +172,7 @@ def test_duplicate_ids_block_action_cycle_validation() -> None:
 
 def test_document_validation_rejects_duplicate_output_producers() -> None:
     configuration = _configuration()
-    actions = configuration["profiles"]["pump_telemetry"]["actions"]
+    actions = configuration["profiles"]["pump_telemetry"]["assembly"]
     actions["duplicate"] = copy.deepcopy(actions["pressure_flow_efficiency"])
     document = spec.Spec.model_validate(configuration)
 
@@ -196,8 +196,8 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
     configuration = _configuration()
     function = configuration["functions"]["ratio"]
     function["args"]["numerator_features"]["type"] = argument_type
-    binding = configuration["profiles"]["pump_telemetry"]["actions"]["pressure_flow_efficiency"][
-        "binding"
+    binding = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"][
+        "compute"
     ]
     binding["args"]["numerator_features"] = argument_value
     model = spec.Spec.model_validate(configuration)
@@ -206,25 +206,25 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "profiles.pump_telemetry.actions."
-        "pressure_flow_efficiency.binding.args: Reference $profiles.@.dataframe "
+        "profiles.pump_telemetry.assembly."
+        "pressure_flow_efficiency.compute.args: Reference $profiles.@.dataframe "
         "requires argument type dataframe, got string"
     )
     assert error.value.code == "invalid_binding_reference_type"
     assert error.value.path == (
         "profiles",
         "pump_telemetry",
-        "actions",
+        "assembly",
         "pressure_flow_efficiency",
-        "binding",
+        "compute",
         "args",
     )
 
 
 def test_binding_argument_name_contract_keeps_structured_error() -> None:
     configuration = _configuration()
-    action = configuration["profiles"]["pump_telemetry"]["actions"]["pressure_flow_efficiency"]
-    action["binding"]["args"] = {"unexpected": None}
+    action = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
+    action["compute"]["args"] = {"unexpected": None}
     model = spec.Spec.model_validate(configuration)
 
     with pytest.raises(validation.SpecError) as error:
@@ -234,9 +234,9 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
     assert error.value.path == (
         "profiles",
         "pump_telemetry",
-        "actions",
+        "assembly",
         "pressure_flow_efficiency",
-        "binding",
+        "compute",
         "args",
     )
     assert "missing arguments:" in str(error.value)
@@ -245,8 +245,8 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
 
 def test_mapping_dependency_cycle_keeps_its_message() -> None:
     configuration = _configuration()
-    action = configuration["profiles"]["pump_telemetry"]["actions"]["recommended_flow_rate"]
-    action["features"]["inputs"].append("$features.recommended_flow_rate")
+    action = configuration["profiles"]["pump_telemetry"]["assembly"]["recommended_flow_rate"]
+    action["interface"]["inputs"].append("$features.recommended_flow_rate")
     model = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError) as error:
@@ -259,8 +259,8 @@ def test_mapping_dependency_cycle_keeps_its_message() -> None:
 
 def test_mapping_dependency_rejects_unknown_feature() -> None:
     configuration = _configuration()
-    action = configuration["profiles"]["pump_telemetry"]["actions"]["pressure_flow_efficiency"]
-    action["features"]["inputs"].append("$features.missing_feature")
+    action = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
+    action["interface"]["inputs"].append("$features.missing_feature")
     model = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError) as error:
@@ -274,8 +274,8 @@ def test_mapping_dependency_rejects_unknown_feature() -> None:
 def test_new_document_validation_observes_an_edit() -> None:
     document = spec.Spec.model_validate(_configuration())
     validation.validate_spec(document)
-    action = document.profiles["pump_telemetry"].actions["pressure_flow_efficiency"]
-    action.features.inputs.append("$features.health_signal_normalized")
+    action = document.profiles["pump_telemetry"].assembly["pressure_flow_efficiency"]
+    action.interface.inputs.append("$features.health_signal_normalized")
     document = spec.Spec.model_validate(document.model_dump())
 
     with pytest.raises(ValueError, match="cannot read feature .* from another profile"):
@@ -285,8 +285,8 @@ def test_new_document_validation_observes_an_edit() -> None:
 def test_document_validation_rejects_blank_calculation_function_id() -> None:
     configuration = _configuration()
     configuration["functions"][" "] = configuration["functions"].pop("ratio")
-    action = configuration["profiles"]["pump_telemetry"]["actions"]["pressure_flow_efficiency"]
-    action["binding"]["function"] = " "
+    action = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
+    action["compute"]["function"] = " "
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError, match="Every function must define a non-empty string id"):
@@ -297,7 +297,7 @@ def test_document_validation_rejects_blank_calculated_output() -> None:
     configuration = _configuration()
     dataset = configuration["profiles"]["pump_telemetry"]
     dataset["features"][" "] = dict(dataset["features"]["pressure_flow_efficiency"])
-    dataset["actions"]["pressure_flow_efficiency"]["features"]["outputs"] = ["$features. "]
+    dataset["assembly"]["pressure_flow_efficiency"]["interface"]["outputs"] = ["$features. "]
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError, match="Every calculation must define a non-empty output"):
@@ -308,10 +308,10 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     document = spec.Spec.model_validate(_configuration())
     document.dimensions["machine"].resolutions["plant"].parent = "plant"
     dataset = document.profiles["pump_profile"]
-    dataset.actions["bearing_temperature_by_pump"].features.inputs = ["$features.missing"]
+    dataset.assembly["bearing_temperature_by_pump"].interface.inputs = ["$features.missing"]
     other = document.profiles["pump_telemetry"]
-    other.actions["pressure_flow_efficiency"].binding.function = "missing"
-    other.actions["recommended_flow_rate"].binding.args = {"unexpected": None}
+    other.assembly["pressure_flow_efficiency"].compute.function = "missing"
+    other.assembly["recommended_flow_rate"].compute.args = {"unexpected": None}
     document.profiles["pump_profile_copy"] = dataset.model_copy(
         update={"id": "pump_profile_copy"}, deep=True
     )
@@ -320,7 +320,7 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     actions = document.actions
     assert sum(item.id.startswith("pump_profile") for _, item in profiles) == 2
     assert any(len(owners) > 1 for owners in document.feature_owners.values())
-    assert any(item.binding.function not in document.functions for item in actions)
+    assert any(item.compute.function not in document.functions for item in actions)
     assert any(cycle for _, cycle in dimensions.iter_parent_cycles(document))
     assert any(item.order_dimensions for _, item in profiles)
     assert document.feature_producers

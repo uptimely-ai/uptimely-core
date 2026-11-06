@@ -119,10 +119,10 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
 ) -> None:
     spec_definition = _spec()
     dataset_model = spec_definition.profiles["observations"]
-    assert dataset_model.actions["metadata"].input_features == []
-    assert dataset_model.actions["metadata"].output_features == ["metadata"]
-    assert dataset_model.actions["metadata"].binding.args["identifier"] == "$features.result.id"
-    assert dataset_model.actions["result"].input_features == ["value"]
+    assert dataset_model.assembly["metadata"].input_features == []
+    assert dataset_model.assembly["metadata"].output_features == ["metadata"]
+    assert dataset_model.assembly["metadata"].compute.args["identifier"] == "$features.result.id"
+    assert dataset_model.assembly["result"].input_features == ["value"]
 
     computed = compiler.Compiler().compile(spec_definition, features=["result"])
     assert len(computed.invocations) == 2
@@ -211,7 +211,7 @@ def test_invalid_input_contracts_are_rejected(
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
     configuration = json.loads(path.read_text())
-    configuration["profiles"]["observations"]["actions"]["result"]["features"]["inputs"] = inputs
+    configuration["profiles"]["observations"]["assembly"]["result"]["interface"]["inputs"] = inputs
     path.write_text(json.dumps(configuration))
     with pytest.raises(ValueError, match=message):
         spec.load_spec(path)
@@ -245,8 +245,8 @@ def test_implicit_dimensions_have_runtime_type_validation(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     spec_definition = _spec()
-    source = next(iter(spec_definition.profiles["observations"].actions.values()))
-    source.features.outputs = ["$features.value"]
+    source = next(iter(spec_definition.profiles["observations"].assembly.values()))
+    source.interface.outputs = ["$features.value"]
     compiled = compiler.Compiler().compile(spec_definition, features=["result"])
 
     def wrong_dimension() -> pl.DataFrame:
@@ -270,8 +270,8 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     configuration = json.loads(path.read_text())
     dataset = configuration["profiles"]["observations"]
     del dataset["features"]["id"]
-    dataset["actions"]["read_values"]["features"]["outputs"] = ["$features.value"]
-    dataset["actions"]["result"]["features"]["inputs"].append("$features.id")
+    dataset["assembly"]["read_values"]["interface"]["outputs"] = ["$features.value"]
+    dataset["assembly"]["result"]["interface"]["inputs"].append("$features.id")
     if with_sink:
         configuration["functions"]["write_ids"] = {
             "kind": "write",
@@ -279,9 +279,9 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
             "entrypoint": f"{__name__}:write_ids",
             "args": {"dataset": {"type": "dataframe"}, "column": {"type": "string"}},
         }
-        dataset["actions"]["write_ids"] = {
-            "features": {"inputs": ["$features.id"], "outputs": []},
-            "binding": {
+        dataset["assembly"]["write_ids"] = {
+            "interface": {"inputs": ["$features.id"], "outputs": []},
+            "compute": {
                 "function": "write_ids",
                 "args": {"dataset": "$profiles.@.dataframe", "column": "$features.id.id"},
             },

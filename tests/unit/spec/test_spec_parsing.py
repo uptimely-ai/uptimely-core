@@ -35,7 +35,7 @@ def test_loading_can_suppress_structure_debug_without_disabling_checks(
 def test_document_structure_checks_emit_debug_bullets(caplog: pytest.LogCaptureFixture) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profiles = list(configuration["profiles"].values())
-    action_count = sum(len(profile["actions"]) for profile in profiles)
+    action_count = sum(len(profile["assembly"]) for profile in profiles)
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
 
     spec.Spec.model_validate(configuration)
@@ -68,7 +68,7 @@ def test_invalid_action_reference_does_not_repeat_document_checks(
     caplog.set_level(logging.DEBUG, logger="uptimely.spec.model")
 
     with pytest.raises(pydantic.ValidationError, match=r"\$features"):
-        model.ActionFeatures(inputs=["invalid"])
+        model.Interface(inputs=["invalid"])
 
     assert not caplog.messages
 
@@ -78,24 +78,24 @@ def test_structure_summary_counts_profiles_and_actions_once(
     caplog: pytest.LogCaptureFixture, level: int
 ) -> None:
     configuration = {
-        "spec_version": 4,
+        "spec_version": 5,
         "profiles": {
             "profile_1": {
                 "name": "First",
-                "actions": {
-                    f"action_{action}": {"binding": {"function": "read"}} for action in range(8)
+                "assembly": {
+                    f"action_{action}": {"compute": {"function": "read"}} for action in range(8)
                 },
             },
             "profile_2": {
                 "name": "Second",
-                "actions": {
-                    f"action_{action}": {"binding": {"function": "read"}} for action in range(5)
+                "assembly": {
+                    f"action_{action}": {"compute": {"function": "read"}} for action in range(5)
                 },
             },
             "profile_3": {
                 "name": "Third",
-                "actions": {
-                    f"action_{action}": {"binding": {"function": "read"}} for action in range(7)
+                "assembly": {
+                    f"action_{action}": {"compute": {"function": "read"}} for action in range(7)
                 },
             },
         },
@@ -140,7 +140,7 @@ def test_structure_summary_counts_existing_resource_models(
         {"profiles": ["invalid"]},
         {"profiles": {"profile": None}},
         {"profiles": {"profile": {"unknown": True}}},
-        {"profiles": {"profile": {"actions": {"action": ["invalid"]}}}},
+        {"profiles": {"profile": {"assembly": {"action": ["invalid"]}}}},
     ],
 )
 def test_structure_summary_preserves_invalid_document_errors(
@@ -171,6 +171,32 @@ def test_spec_rejects_unknown_fields(tmp_path: pathlib.Path) -> None:
         spec.load_spec(_write_configuration(tmp_path, configuration, "unknown.json"))
 
 
+@pytest.mark.parametrize("old_key", ["actions", "binding", "features"])
+def test_spec_rejects_version_four_operator_keys(old_key: str) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    profile = configuration["profiles"]["pump_telemetry"]
+    operator_key = "read_pump_telemetry"
+    operator = profile["assembly"][operator_key]
+    new_key = {"actions": "assembly", "binding": "compute", "features": "interface"}[old_key]
+    if old_key == "actions":
+        profile[old_key] = profile.pop(new_key)
+    else:
+        operator[old_key] = operator.pop(new_key)
+
+    with pytest.raises(pydantic.ValidationError, match="Extra inputs are not permitted"):
+        model.Spec.model_validate(configuration)
+
+
+def test_spec_rejects_explicit_operator_id_attribute() -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    configuration["profiles"]["pump_telemetry"]["assembly"]["read_pump_telemetry"]["id"] = (
+        "read_pump_telemetry"
+    )
+
+    with pytest.raises(ValueError, match="not an 'id' attribute"):
+        model.Spec.model_validate(configuration)
+
+
 def test_spec_accepts_top_level_name(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["name"] = "Pump analytics"
@@ -193,7 +219,7 @@ def test_canonical_model_rejects_file_loading_arguments() -> None:
         spec.Spec.model_validate({"json": str(SPEC_PATH)})
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, "4", True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, "5", True])
 def test_spec_rejects_unsupported_version(tmp_path: pathlib.Path, version: object) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["spec_version"] = version
@@ -234,7 +260,7 @@ def test_spec_errors_expose_stable_profile_identity_code_and_path() -> None:
 def test_spec_rejects_unknown_write_function(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profile = configuration["profiles"]["pump_telemetry"]
-    profile["actions"]["write_pump_telemetry"]["binding"]["function"] = "missing_write"
+    profile["assembly"]["write_pump_telemetry"]["compute"]["function"] = "missing_write"
 
     with pytest.raises(ValueError, match="actions reference unknown functions: missing_write"):
         spec.load_spec(_write_configuration(tmp_path, configuration, "write.json"))
@@ -242,8 +268,8 @@ def test_spec_rejects_unknown_write_function(tmp_path: pathlib.Path) -> None:
 
 def test_spec_rejects_undeclared_binding_arguments(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    binding_args = configuration["profiles"]["pump_telemetry"]["actions"]["read_pump_telemetry"][
-        "binding"
+    binding_args = configuration["profiles"]["pump_telemetry"]["assembly"]["read_pump_telemetry"][
+        "compute"
     ]["args"]
     binding_args["unexpected"] = "value"
 
@@ -362,10 +388,10 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     assert len(spec_definition.functions.by_kind("vectorize")) == 7
-    collapse = spec_definition.profiles["pump_profile"].actions["bearing_temperature_by_pump"]
+    collapse = spec_definition.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
-    assert collapse.binding.function == "aggregate"
-    assert collapse.binding.args["feature"] == "$features.bearing_temperature"
+    assert collapse.compute.function == "aggregate"
+    assert collapse.compute.args["feature"] == "$features.bearing_temperature"
     system = spec.FeatureGraph(spec_definition)
 
     assert system.feature_names == {
@@ -402,8 +428,8 @@ def test_system_and_subset_support_multiple_variables() -> None:
 
 def test_spec_validation_rejects_missing_output_variables() -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    action = configuration["profiles"]["pump_telemetry"]["actions"]["pressure_flow_efficiency"]
-    action["features"]["outputs"] = []
+    action = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
+    action["interface"]["outputs"] = []
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(
@@ -415,12 +441,12 @@ def test_spec_validation_rejects_missing_output_variables() -> None:
 def test_spec_validation_rejects_duplicate_feature_names(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profile = configuration["profiles"]["pump_telemetry"]
-    duplicate = profile["actions"]["pressure_flow_efficiency"]
+    duplicate = profile["assembly"]["pressure_flow_efficiency"]
     configuration["profiles"]["duplicate_dataset"] = {
         "name": "Duplicate profile",
         "grain": profile["grain"],
         "features": {"pressure_flow_efficiency": profile["features"]["pressure_flow_efficiency"]},
-        "actions": {"pressure_flow_efficiency": duplicate},
+        "assembly": {"pressure_flow_efficiency": duplicate},
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -434,9 +460,9 @@ def test_spec_validation_rejects_duplicate_fragment_input_names(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profile = configuration["profiles"]["pump_telemetry"]
-    profile["actions"]["duplicate_input"] = {
-        "binding": profile["actions"]["read_pump_telemetry"]["binding"],
-        "features": {"inputs": [], "outputs": ["$features.bearing_temperature"]},
+    profile["assembly"]["duplicate_input"] = {
+        "compute": profile["assembly"]["read_pump_telemetry"]["compute"],
+        "interface": {"inputs": [], "outputs": ["$features.bearing_temperature"]},
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -452,7 +478,7 @@ def test_dimension_outputs_are_implicit_in_mapping(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_telemetry"]["actions"]["read_pump_telemetry"]["features"][
+    configuration["profiles"]["pump_telemetry"]["assembly"]["read_pump_telemetry"]["interface"][
         "outputs"
     ].remove("$features.pump_id")
     spec_path = tmp_path / "spec.json"
@@ -465,7 +491,7 @@ def test_spec_validation_rejects_unknown_vectorize_template(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_telemetry"]["actions"]["recommended_flow_rate"]["binding"][
+    configuration["profiles"]["pump_telemetry"]["assembly"]["recommended_flow_rate"]["compute"][
         "function"
     ] = "missing_vectorize_template"
     spec_path = tmp_path / "spec.json"
@@ -483,10 +509,10 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profile = configuration["profiles"]["pump_telemetry"]
-    collision = json.loads(json.dumps(profile["actions"]["converged"]))
-    profile["actions"]["pump_collision"] = {
+    collision = json.loads(json.dumps(profile["assembly"]["converged"]))
+    profile["assembly"]["pump_collision"] = {
         **collision,
-        "features": {"inputs": [], "outputs": ["$features.pump_id"]},
+        "interface": {"inputs": [], "outputs": ["$features.pump_id"]},
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -503,9 +529,11 @@ def test_spec_validation_rejects_cross_profile_feature_dependency(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     calculation = json.loads(
-        json.dumps(configuration["profiles"]["pump_profile"]["actions"]["health_signal_normalized"])
+        json.dumps(
+            configuration["profiles"]["pump_profile"]["assembly"]["health_signal_normalized"]
+        )
     )
-    calculation["features"]["outputs"] = ["$features.health_signal_normalized_copy"]
+    calculation["interface"]["outputs"] = ["$features.health_signal_normalized_copy"]
     copied_feature = configuration["profiles"]["pump_profile"]["features"][
         "health_signal_normalized"
     ]
@@ -513,7 +541,7 @@ def test_spec_validation_rejects_cross_profile_feature_dependency(
         "name": "Pump copy",
         "grain": configuration["profiles"]["pump_profile"]["grain"],
         "features": {"health_signal_normalized_copy": copied_feature},
-        "actions": {"health_signal_normalized_copy": calculation},
+        "assembly": {"health_signal_normalized_copy": calculation},
     }
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")

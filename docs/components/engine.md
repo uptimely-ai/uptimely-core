@@ -89,7 +89,7 @@ it supplies scalar values to function bindings. Use it for framework controls
 such as a path or source identifier when a read or write function needs that
 value, not for profile or analytical values.
 
-Binding arguments may contain `$params.<name>` references. Each reference
+Compute arguments may contain `$params.<name>` references. Each reference
 resolves to one required scalar value from the flat `params` map in
 `config/config.json`; missing entries fail explicitly. References work recursively inside argument
 dictionaries and lists and do not create feature dependencies.

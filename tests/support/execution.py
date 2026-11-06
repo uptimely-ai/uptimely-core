@@ -134,12 +134,11 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
                 feature,
                 {"type": invocation.column_types.get(feature)},
             )
-        profile.setdefault("actions", {}).setdefault(
+        profile.setdefault("assembly", {}).setdefault(
             invocation.mapping_id,
             {
-                "id": invocation.mapping_id,
-                "binding": {"function": invocation.function_id},
-                "features": {
+                "compute": {"function": invocation.function_id},
+                "interface": {
                     "inputs": [f"$features.{name}" for name in invocation.input_features],
                     "outputs": [f"$features.{name}" for name in invocation.output_features],
                 },

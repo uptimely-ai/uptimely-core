@@ -25,7 +25,7 @@ def test_graph_metadata_follows_function_capabilities(
     changed = graph._declared_features()
     checked = set()
     for action in graph.actions:
-        kind = graph.spec.functions[action.binding.function].kind
+        kind = graph.spec.functions[action.compute.function].kind
         if kind not in {"read", "collapse"}:
             continue
         checked.add(kind)
@@ -36,10 +36,10 @@ def test_graph_metadata_follows_function_capabilities(
     assert checked == {"read", "collapse"}
     graph.spec = spec.Spec.model_validate(graph.spec.model_dump())
     for profile in graph.spec.profiles.values():
-        profile.actions = {
+        profile.assembly = {
             key: action
-            for key, action in profile.actions.items()
-            if graph.spec.functions[action.binding.function].kind == "read"
+            for key, action in profile.assembly.items()
+            if graph.spec.functions[action.compute.function].kind == "read"
         }
     graph.actions = graph.spec.actions
     rebuilt_features = [
@@ -87,7 +87,7 @@ def test_system_graph_connects_actions_to_feature_outputs() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
 
-    action_function_ids = {action.binding.function for action in system.actions}
+    action_function_ids = {action.compute.function for action in system.actions}
     assert "aggregate" in action_function_ids
     assert "min_max_scale" in action_function_ids
     assert "extract_field" in action_function_ids
@@ -143,7 +143,7 @@ def test_system_graph_contains_one_node_per_action() -> None:
         node.reference for node in system.graph if isinstance(node.reference, models.ActionNode)
     ]
     spec_function_ids = set(system.spec.functions)
-    action_count = sum(len(profile.actions) for profile in spec_definition.profiles.values())
+    action_count = sum(len(profile.assembly) for profile in spec_definition.profiles.values())
 
     assert len(action_nodes) == action_count
     assert any(action.action_id == "bearing_temperature_by_pump" for action in action_nodes)

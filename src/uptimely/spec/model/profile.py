@@ -30,8 +30,8 @@ class Feature(common.StrictModel):
         return self
 
 
-class ActionFeatures(common.StrictModel):
-    """Explicit data prerequisites and produced features for one action."""
+class Interface(common.StrictModel):
+    """Explicit data prerequisites and produced features for one operator."""
 
     inputs: list[str] = pydantic.Field(default_factory=list)
     outputs: list[str] = pydantic.Field(default_factory=list)
@@ -57,53 +57,53 @@ class ActionFeatures(common.StrictModel):
             or value[len(selectors.FEATURE_PREFIX) :] == selectors.CURRENT_ID
             for value in values
         ):
-            raise ValueError("Action features must use $features.<id> references")
+            raise ValueError("Operator interface must use $features.<id> references")
         if len(values) != len(set(values)):
-            raise ValueError("Action feature references must not repeat")
+            raise ValueError("Operator interface references must not repeat")
         return values
 
 
-class Action(common.StrictModel):
-    """A function binding with declared feature inputs, outputs, and row context."""
+class Operator(common.StrictModel):
+    """A computation with declared feature inputs, outputs, and row context."""
 
-    id: str
-    binding: common.Binding
-    features: ActionFeatures = pydantic.Field(default_factory=ActionFeatures)
+    id: str = pydantic.Field(exclude=True)
+    compute: common.Binding
+    interface: Interface = pydantic.Field(default_factory=Interface)
     row_context: uptimely_row_context.RowContext | None = None
 
     @property
     def input_features(self) -> list[str]:
         """Return identifiers of declared feature dependencies."""
-        return self.features.input_ids
+        return self.interface.input_ids
 
     @property
     def output_features(self) -> list[str]:
         """Return identifiers of declared logical feature outputs."""
-        return self.features.output_ids
+        return self.interface.output_ids
 
     @property
     def arguments(self) -> dict[str, common.BindingArgument]:
         """Return this action's supplied argument values."""
-        return self.binding.args
+        return self.compute.args
 
     @functools.cached_property
     def dataset_references(self) -> tuple[str, ...]:
-        """Return normalized binding dataset IDs in reference order, retaining duplicates."""
+        """Return normalized compute dataset IDs in reference order, retaining duplicates."""
         return tuple(
-            dataset for dataset, _ in self.binding.references_by_prefix[selectors.PROFILE_PREFIX]
+            dataset for dataset, _ in self.compute.references_by_prefix[selectors.PROFILE_PREFIX]
         )
 
     @functools.cached_property
     def feature_selectors(self) -> tuple[str, ...]:
-        """Return normalized binding feature IDs in reference order, retaining duplicates."""
+        """Return normalized compute feature IDs in reference order, retaining duplicates."""
         return tuple(
-            feature for feature, _ in self.binding.references_by_prefix[selectors.FEATURE_PREFIX]
+            feature for feature, _ in self.compute.references_by_prefix[selectors.FEATURE_PREFIX]
         )
 
     @property
     def dimension_reference_paths(self) -> tuple[tuple[str, tuple[str | int, ...]], ...]:
-        """Return normalized dimension IDs and relative binding argument paths."""
-        return self.binding.references_by_prefix[selectors.DIMENSION_PREFIX]
+        """Return normalized dimension IDs and relative compute argument paths."""
+        return self.compute.references_by_prefix[selectors.DIMENSION_PREFIX]
 
     @functools.cached_property
     def dimensions_references(self) -> tuple[str, ...]:
@@ -134,7 +134,7 @@ class Profile(common.StrictModel):
     scope: str | None = None
     grain: list[Grain] = pydantic.Field(default_factory=list)
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)
-    actions: dict[str, Action] = pydantic.Field(default_factory=dict)
+    assembly: dict[str, Operator] = pydantic.Field(default_factory=dict)
     order: list[Order] = pydantic.Field(default_factory=list)
 
     @functools.cached_property
@@ -161,18 +161,18 @@ class Profile(common.StrictModel):
 
     @functools.cached_property
     def arguments(self) -> dict[tuple[str, str], common.BindingArgument]:
-        """Return bound arguments keyed by action dictionary key and argument name."""
+        """Return compute arguments keyed by operator key and argument name."""
         return {
             (action_id, name): value
-            for action_id, action in self.actions.items()
+            for action_id, action in self.assembly.items()
             for name, value in action.arguments.items()
         }
 
     @functools.cached_property
-    def feature_producers(self) -> dict[str, tuple[tuple[str, Action], ...]]:
-        """Return all declared output actions per feature, retaining action aliases."""
-        producers: dict[str, list[tuple[str, Action]]] = {}
-        for action_id, action in self.actions.items():
+    def feature_producers(self) -> dict[str, tuple[tuple[str, Operator], ...]]:
+        """Return all declared output operators per feature, retaining aliases."""
+        producers: dict[str, list[tuple[str, Operator]]] = {}
+        for action_id, action in self.assembly.items():
             for feature_id in action.output_features:
                 producers.setdefault(feature_id, []).append((action_id, action))
         return {feature: tuple(actions) for feature, actions in producers.items()}

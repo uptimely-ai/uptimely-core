@@ -45,8 +45,8 @@ def test_keyed_profiles_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     assert payload["profiles"]["first"]["category"] == "telemetry"
     assert payload["profiles"]["first"]["scope"] == "One row per machine"
     assert payload == model.model_dump(exclude_none=False)
-    assert payload["spec_version"] == 4
-    assert "actions" in payload["profiles"]["first"]
+    assert payload["spec_version"] == 5
+    assert "assembly" in payload["profiles"]["first"]
     assert "mappings" not in payload["profiles"]["first"]
 
     path = tmp_path / "spec.json"
@@ -70,13 +70,13 @@ def test_feature_name_defaults_to_humanized_id() -> None:
     )
 
 
-def test_action_id_is_included_in_serialized_document() -> None:
+def test_operator_id_is_inferred_from_assembly_key() -> None:
     document = _document(
         {
             "telemetry": {
-                "actions": {
+                "assembly": {
                     "calculate": {
-                        "binding": {"function": "calculate"},
+                        "compute": {"function": "calculate"},
                     }
                 }
             }
@@ -85,9 +85,10 @@ def test_action_id_is_included_in_serialized_document() -> None:
     model = spec.Spec.model_validate(document)
 
     payload = codec.to_document(model)
-    action = payload["profiles"]["telemetry"]["actions"]["calculate"]
+    action = payload["profiles"]["telemetry"]["assembly"]["calculate"]
 
-    assert action["id"] == "calculate"
+    assert "id" not in action
+    assert set(action) == {"compute", "interface", "row_context"}
     assert spec.Spec.model_validate(payload) == model
 
 

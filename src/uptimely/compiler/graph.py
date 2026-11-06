@@ -71,7 +71,7 @@ class InvocationGraph:
         for key, action in self.spec.action_items:
             profile_id = key[0]
             profile = self.spec.profiles_by_key[profile_id]
-            function_kind = self.spec.functions[action.binding.function].kind
+            function_kind = self.spec.functions[action.compute.function].kind
             function_definition = functions.FUNCTION_KINDS[function_kind]
             outputs = action.output_features
             feature_id = (
@@ -89,12 +89,12 @@ class InvocationGraph:
                 else None
             )
             invocation = InvocationNode(
-                function_id=action.binding.function,
+                function_id=action.compute.function,
                 dataset_id=profile.id,
                 action_id=action.id,
                 feature_id=feature_id,
                 output_features=tuple(outputs),
-                arguments=action.binding.args,
+                arguments=action.compute.args,
                 input_features=tuple(action.input_features),
                 row_context=action.row_context,
             )
@@ -149,7 +149,7 @@ class InvocationGraph:
     ) -> None:
         """Connect action dataframe and feature references to their producers."""
         for invocation in (node.reference for node in nodes.values()):
-            dataset_references = self.action_for(invocation).binding.dataset_dependencies(
+            dataset_references = self.action_for(invocation).compute.dataset_dependencies(
                 invocation.dataset_id
             )
             for referenced_id in dataset_references:
@@ -212,9 +212,9 @@ class InvocationGraph:
         """Return a node's profile by its globally unique ID."""
         return self.spec.profiles[node.dataset_id]
 
-    def action_for(self, node: InvocationNode) -> spec.Action:
+    def action_for(self, node: InvocationNode) -> spec.Operator:
         """Return the declaration that produced an invocation node."""
-        return self.profile_for(node).actions[node.action_id]
+        return self.profile_for(node).assembly[node.action_id]
 
     def topology(self) -> list[list[InvocationNode]]:
         """Return invocations grouped by dependency level (topological order)."""

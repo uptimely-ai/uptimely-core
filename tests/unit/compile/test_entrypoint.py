@@ -223,8 +223,8 @@ def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() ->
 def test_compiler_still_validates_spec_when_signature_validation_is_disabled() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions["ratio"].validate_signature = False
-    action = spec_definition.profiles["pump_telemetry"].actions["pressure_flow_efficiency"]
-    action.features.inputs = ["$features.missing_input"]
+    action = spec_definition.profiles["pump_telemetry"].assembly["pressure_flow_efficiency"]
+    action.interface.inputs = ["$features.missing_input"]
     spec_definition = spec.Spec.model_validate(spec_definition.model_dump())
 
     with pytest.raises(ValueError, match="unknown input feature"):

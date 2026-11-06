@@ -133,9 +133,9 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert len(spec_definition.functions.by_kind("vectorize")) == 7
 
     pump_profile = spec_definition.profiles["pump_profile"]
-    collapse = pump_profile.actions["bearing_temperature_by_pump"]
+    collapse = pump_profile.assembly["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
-    assert collapse.binding.function == "aggregate"
+    assert collapse.compute.function == "aggregate"
     assert "bearing_temperature_max" in collapse.output_features
 
 
@@ -256,17 +256,17 @@ def test_sources_and_transforms_python_spec() -> None:
     )
 
     ds_model = spec_definition.profiles["target"]
-    assert set(ds_model.actions) == {"read", "expand_data"}
+    assert set(ds_model.assembly) == {"read", "expand_data"}
     assert {"target_value", "input_2"} <= set(ds_model.all_features)
-    expand = ds_model.actions["expand_data"]
-    assert expand.binding.function == "expand_data"
-    assert expand.binding.args == {
+    expand = ds_model.assembly["expand_data"]
+    assert expand.compute.function == "expand_data"
+    assert expand.compute.args == {
         "source": "$profiles.transformed_dataset.dataframe",
     }
     assert expand.input_features == ["input_1"]
-    collapse = spec_definition.profiles["summary"].actions["collapse_data"]
-    assert collapse.binding.function == "aggregate"
-    assert collapse.binding.args == {
+    collapse = spec_definition.profiles["summary"].assembly["collapse_data"]
+    assert collapse.compute.function == "aggregate"
+    assert collapse.compute.args == {
         "dataset": "$profiles.target.dataframe",
         "feature": "$features.input_2.id",
         "group_by": "$profiles.@.grain.ids",

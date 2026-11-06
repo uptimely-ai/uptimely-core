@@ -31,12 +31,12 @@ def _add_escape_mapping(
         "entrypoint": entrypoint,
         "args": {},
     }
-    configuration["profiles"]["pump_telemetry"]["actions"][mapping_id] = {
-        "binding": {
+    configuration["profiles"]["pump_telemetry"]["assembly"][mapping_id] = {
+        "compute": {
             "function": function_id,
             "args": {},
         },
-        "features": {
+        "interface": {
             "inputs": [f"$features.{feature_id}" for feature_id in input_features],
             "outputs": [f"$features.{feature_id}" for feature_id in (output_features or [])],
         },
@@ -117,7 +117,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     function["args"]["keys"] = {"type": "array[string]"}
     function["args"]["source_keys"] = {"type": "array[string]"}
     dataset = configuration["profiles"]["pump_telemetry"]
-    dataset["actions"]["read_pump_telemetry"]["binding"]["args"].update(
+    dataset["assembly"]["read_pump_telemetry"]["compute"]["args"].update(
         {
             "keys": "$profiles.@.grain.ids",
             "source_keys": "$profiles.pump_profile.grain.ids",
@@ -146,8 +146,8 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
 
 def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    action = configuration["profiles"]["pump_profile"]["actions"]["bearing_temperature_by_pump"]
-    action["binding"]["args"]["output"] = "$features.@.id"
+    action = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
+    action["compute"]["args"]["output"] = "$features.@.id"
     path = tmp_path / "collapse_feature_placeholder.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -185,33 +185,33 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     definition = spec.load_spec(SPEC_PATH)
     pump_profile = definition.profiles["pump_profile"]
     pump_profile = pump_profile
-    read_mapping = definition.profiles["pump_telemetry"].actions["read_pump_telemetry"]
+    read_mapping = definition.profiles["pump_telemetry"].assembly["read_pump_telemetry"]
 
     definition.profiles["auxiliary_dataset"] = spec_model.Profile(
         id="auxiliary_dataset",
         grain=list(pump_profile.grain),
         features={"auxiliary_value": spec_model.Feature(id="auxiliary_value")},
-        actions={
-            "read_auxiliary": spec_model.Action(
+        assembly={
+            "read_auxiliary": spec_model.Operator(
                 id="read_auxiliary",
-                binding=spec_model.Binding(
+                compute=spec_model.Binding(
                     function="read_pump_telemetry",
-                    args=dict(read_mapping.binding.args),
+                    args=dict(read_mapping.compute.args),
                 ),
-                features=spec_model.ActionFeatures(outputs=["$features.auxiliary_value"]),
+                interface=spec_model.Interface(outputs=["$features.auxiliary_value"]),
             ),
         },
     )
     pump_profile.features["conformed_auxiliary"] = spec_model.Feature(id="conformed_auxiliary")
-    pump_profile.actions["conform_auxiliary"] = spec_model.Action(
+    pump_profile.assembly["conform_auxiliary"] = spec_model.Operator(
         id="conform_auxiliary",
-        binding=spec_model.Binding(
+        compute=spec_model.Binding(
             function="conform_auxiliary",
             args={
                 "source": "$profiles.auxiliary_dataset.dataframe",
             },
         ),
-        features=spec_model.ActionFeatures(
+        interface=spec_model.Interface(
             inputs=["$features.auxiliary_value"],
             outputs=["$features.conformed_auxiliary"],
         ),
@@ -281,8 +281,8 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
     spec_definition = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = spec_definition["profiles"]["pump_profile"]
-    action = dataset["actions"]["health_signal_normalized"]
-    action["features"]["outputs"].append("$features.health_signal_secondary")
+    action = dataset["assembly"]["health_signal_normalized"]
+    action["interface"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(spec_definition), encoding="utf-8")
@@ -490,7 +490,7 @@ def test_compiled_inputs_match_each_profile_mapping() -> None:
 
     assert len(profiles) > 1
     for invocation in execution_plan.invocations:
-        action = profiles[invocation.dataset_id].actions[invocation.mapping_id]
+        action = profiles[invocation.dataset_id].assembly[invocation.mapping_id]
         assert invocation.input_features == action.input_features
         assert invocation.output_features == action.output_features
 

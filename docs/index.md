@@ -166,7 +166,7 @@ result = Engine(bundle, EngineConfig()).run()
 Profiles declare operators in one assembly, optionally using a mapping to group them
 by purpose. Each operator has an explicit ID unique within its profile. Grouping
 is organizational, not execution order; dependencies determine execution.
-In JSON specs, profiles declare their keyed action definitions under `actions`.
+In JSON specs, profiles declare their keyed operators under `assembly`.
 
 ## Further exploration
 

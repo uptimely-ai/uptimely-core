@@ -31,8 +31,8 @@ def test_collapse_source_discovery_retains_invalid_candidates(
     inputs: list[str], message: str | None, ambiguous: bool
 ) -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
-    action = document.profiles["pump_profile"].actions["bearing_temperature_by_pump"]
-    action.features.inputs = inputs
+    action = document.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
+    action.interface.inputs = inputs
     if ambiguous:
         source_profile = document.profiles["pump_telemetry"]
         document.profiles["pump_telemetry_copy"] = source_profile.model_copy(
@@ -66,14 +66,14 @@ def test_collapse_source_discovery_retains_invalid_candidates(
 def test_new_document_rediscovers_collapse_sources_after_edits() -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     validation.validate_spec(document)
-    action = document.profiles["pump_profile"].actions["bearing_temperature_by_pump"]
+    action = document.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
     key = ("pump_profile", "bearing_temperature_by_pump")
     first = document.input_sources[key]
     assert first is not None
     assert first == "pump_telemetry"
     target = document.profiles["pump_profile"]
     target.features["local_source"] = spec.Feature(id="local_source")
-    action.features.inputs = ["$features.local_source"]
+    action.interface.inputs = ["$features.local_source"]
     document = spec.Spec.model_validate(document.model_dump())
     second = document.input_sources[key]
     assert second is not None

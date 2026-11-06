@@ -82,7 +82,7 @@ def _feature_data(
     seen_inputs: set[tuple[str, str]] = set()
     for key, action in spec_definition.action_items:
         dataset = spec_definition.profiles_by_key[key[0]]
-        function = spec_definition.functions.root.get(action.binding.function)
+        function = spec_definition.functions.root.get(action.compute.function)
         kind = function_kinds.FUNCTION_KINDS[function.kind] if function is not None else None
         for feature_id in action.output_features:
             metadata = dataset.features.get(feature_id)
@@ -94,8 +94,8 @@ def _feature_data(
                 calculated_features.append(
                     {
                         **feature,
-                        "binding": action.binding.model_dump(mode="json", exclude_none=True),
-                        "inputs": action.features.inputs,
+                        "compute": action.compute.model_dump(mode="json", exclude_none=True),
+                        "inputs": action.interface.inputs,
                     }
                 )
             elif (dataset.id, feature_id) not in seen_inputs:
@@ -183,7 +183,7 @@ def _build_context(
             function["escape_actions"] = []
             function["action_usage_count"] = 0
     for key, action in spec_definition.action_items:
-        function = function_definitions[action.binding.function]
+        function = function_definitions[action.compute.function]
         function["action_usage_count"] = function.get("action_usage_count", 0) + 1
         if function_kinds.FUNCTION_KINDS[function["kind"]].is_effect:
             function["escape_actions"].append(
@@ -249,7 +249,7 @@ def _build_context(
         1
         for action in spec_definition.actions
         if function_kinds.FUNCTION_KINDS[
-            spec_definition.functions[action.binding.function].kind
+            spec_definition.functions[action.compute.function].kind
         ].is_source
     )
     summary = ExplorerSummary(
@@ -267,13 +267,13 @@ def _build_context(
     )
     dependencies = [
         {
-            "function": action.binding.function,
-            "kind": spec_definition.functions[action.binding.function].kind,
+            "function": action.compute.function,
+            "kind": spec_definition.functions[action.compute.function].kind,
             "feature": feature,
             "dependencies": action.input_features,
         }
         for action in spec_definition.actions
-        if spec_definition.functions[action.binding.function].kind
+        if spec_definition.functions[action.compute.function].kind
         in {function_kinds.ESCAPE, function_kinds.VECTORIZE}
         for feature in action.output_features
     ]

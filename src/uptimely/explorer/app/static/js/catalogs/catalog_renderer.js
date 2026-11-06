@@ -13,8 +13,8 @@ export function features(configuration) {
   return profiles(configuration).flatMap(item => {
     const produced = new Map();
     const grainKeys = new Set(profileGrainKeys(configuration, item.profile));
-    for (const [actionId, action] of Object.entries(item.profile.actions)) {
-      for (const reference of action.features.outputs) {
+    for (const [actionId, action] of Object.entries(item.profile.assembly)) {
+      for (const reference of action.interface.outputs) {
         const id = reference.replace(/^\$features\./, "");
         if (!grainKeys.has(id)) {
           produced.set(id, { ...item, featureId: id, feature: item.profile.features[id], actionId, action });
@@ -171,12 +171,12 @@ function functionOverview(data) {
 
 function featureCards(config) {
   return features(config).map(item => {
-    const fn = config.functions[item.action.binding.function] || {};
+    const fn = config.functions[item.action.compute.function] || {};
     return `<article id="feature-${escape(item.id)}-${escape(item.featureId)}" data-context-item>
       ${itemTitle(item.featureId, item.feature)}
       <p data-feature-description class="mt-4 text-sm leading-6 text-slate-400">${escape(item.feature.description || "No description provided.")}</p>
       <section class="mt-6 rounded-xl border border-cyan-900/60 bg-cyan-950/20 p-4 sm:p-5">
-        <h3 class="ui-section-title">Producing function: ${escape(fn.name || item.action.binding.function)}</h3>
+        <h3 class="ui-section-title">Producing function: ${escape(fn.name || item.action.compute.function)}</h3>
         <p class="mt-3 flex items-center gap-2 text-xs text-slate-400">${kindIcon(fn.kind, "h-3.5 w-3.5")}<span class="font-mono text-cyan-100">${escape(fn.kind || "Unspecified")}</span></p>
         ${description(fn.description)}
       </section>
@@ -244,9 +244,9 @@ export function schemaColumns(config, profile) {
   const grainKeys = new Set(profileGrainKeys(config, profile));
   const producers = new Map();
   const producingActions = new Map();
-  for (const [actionId, action] of Object.entries(profile.actions)) {
-    const kind = config.functions[action.binding.function]?.kind;
-    for (const ref of action.features.outputs) {
+  for (const [actionId, action] of Object.entries(profile.assembly)) {
+    const kind = config.functions[action.compute.function]?.kind;
+    for (const ref of action.interface.outputs) {
       const id = ref.replace(/^\$features\./, "");
       if (!producers.has(id)) producers.set(id, kind === "escape" ? "escape" : ["vectorize", "collapse"].includes(kind) ? "amber" : "teal");
       if (!producingActions.has(id)) producingActions.set(id, new Set());
@@ -286,9 +286,9 @@ function profileActionCards(config, profile, actions) {
     ? references.map(reference => `<code>${escape(reference.replace(/^\$features\./, ""))}</code>`).join("")
     : '<span class="profile-action-empty">None declared</span>';
   return `<div class="profile-actions">${actions.map(([id, action]) => {
-    const functionId = action.binding.function;
+    const functionId = action.compute.function;
     const fn = config.functions[functionId] || {};
-    const args = Object.entries(action.binding.args || {});
+    const args = Object.entries(action.compute.args || {});
     return `<article class="profile-action" data-profile-action="${escape(id)}" data-action-kind="${escape(fn.kind)}">
       <header class="profile-action-header">
         <span class="profile-action-symbol">${kindIcon(fn.kind, "profile-action-icon")}</span>
@@ -305,8 +305,8 @@ function profileActionCards(config, profile, actions) {
         ${fn.name && fn.name !== functionId ? `<code>${escape(functionId)}</code>` : ""}
       </div>
       <dl class="profile-action-contract">
-        <div><dt>Input features</dt><dd>${featureList(action.features.inputs)}</dd></div>
-        <div><dt>Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(action.features.outputs)}</dd></div>
+        <div><dt>Input features</dt><dd>${featureList(action.interface.inputs)}</dd></div>
+        <div><dt>Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(action.interface.outputs)}</dd></div>
       </dl>
       ${fn.kind === "collapse" ? `<div class="profile-action-note">Group by grain keys: <code>${display(profileGrainKeys(config, profile))}</code></div>` : ""}
       ${fn.kind === "escape" ? '<div class="profile-action-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</div>' : ""}
@@ -318,7 +318,7 @@ function profileCards(config) {
   return profiles(config).map(({ id, profile }) => {
     const columns = schemaColumns(config, profile);
     const grain = profile.grain;
-    const actions = Object.entries(profile.actions);
+    const actions = Object.entries(profile.assembly);
     return `<article id="profile-${escape(id)}" data-context-item>
       <div hidden>
         <h2>${escape(label(id, profile))}</h2>
@@ -401,7 +401,7 @@ export function stageCards(data) {
           <caption class="sr-only">Argument bindings for ${escape(step.title)}</caption>
           <thead><tr>${["Argument", "Value", "Binding type", "Function type", "Engine type"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
           <tbody>${Object.entries(step.args).map(([id, arg]) => `<tr><th scope="row"><code>${escape(id)}</code></th>
-            <td><code>${display(arg.value)}</code></td>${["binding", "function", "engine"].map(key => `<td><code>${escape(arg.type[key] || "—")}</code></td>`).join("")}</tr>`).join("")}</tbody>
+            <td><code>${display(arg.value)}</code></td>${["compute", "function", "engine"].map(key => `<td><code>${escape(arg.type[key] || "—")}</code></td>`).join("")}</tr>`).join("")}</tbody>
           </table></div>` : ""}</article></div>`).join("")}</div></section>`).join("");
 }
 

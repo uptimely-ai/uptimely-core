@@ -143,10 +143,10 @@ async def test_escape_function_description_reports_logical_feature_dependencies(
         entrypoint="examples.pump_analytics.functions.analytics:aggregate",
     )
     dataset = definition.profiles["pump_telemetry"]
-    dataset.actions["external_audit"] = spec_model.Action(
+    dataset.assembly["external_audit"] = spec_model.Operator(
         id="external_audit",
-        binding=spec_model.Binding(function="external_audit"),
-        features=spec_model.ActionFeatures(
+        compute=spec_model.Binding(function="external_audit"),
+        interface=spec_model.Interface(
             inputs=["$features.bearing_temperature", "$features.vibration_rms"],
             outputs=[],
         ),

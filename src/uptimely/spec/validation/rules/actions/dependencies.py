@@ -15,7 +15,7 @@ def validate_action_cycle(spec: spec_model.Spec) -> None:
     logger.debug("    - checking action feature dependencies are acyclic")
     producers: dict[str, ActionKey] = {}
     for key, action in spec.action_items:
-        if spec.functions[action.binding.function].kind == functions.WRITE:
+        if spec.functions[action.compute.function].kind == functions.WRITE:
             continue
         profile_id = spec.action_profile_keys[key]
         grain_keys = spec.grain_keys_by_profile[profile_id]

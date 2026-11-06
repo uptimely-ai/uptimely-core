@@ -125,7 +125,7 @@ def test_load_build_bundle_validates_and_loads_all_declared_artifacts(
     assert bundle.root == tmp_path.resolve() / project.BUILD_OUTPUT_DIR
     assert bundle.manifest.features is None
     assert bundle.spec_path == bundle.root / "spec.json"
-    assert bundle.spec_definition.spec_version == 4
+    assert bundle.spec_definition.spec_version == 5
     assert bundle.execution_plan_path == bundle.root / "execution_plan.json"
     assert bundle.execution_plan.invocations == []
 

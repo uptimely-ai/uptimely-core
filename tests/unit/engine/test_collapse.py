@@ -411,11 +411,11 @@ def test_collapse_consumes_expanded_features(
     auxiliary = spec_model.Profile(
         id="expansion_input",
         features={"expansion_value": spec_model.Feature(id="expansion_value")},
-        actions={
-            "read_expansion": spec_model.Action(
+        assembly={
+            "read_expansion": spec_model.Operator(
                 id="read_expansion",
-                binding=spec_model.Binding(function="read_expansion_input", args={"lazy": lazy}),
-                features={"outputs": ["$features.expansion_value"]},
+                compute=spec_model.Binding(function="read_expansion_input", args={"lazy": lazy}),
+                interface=spec_model.Interface(outputs=["$features.expansion_value"]),
             )
         },
     )
@@ -428,19 +428,19 @@ def test_collapse_consumes_expanded_features(
         entrypoint=f"{__name__}:read_expansion_input",
         args={"lazy": spec_model.Argument(id="lazy", type="boolean")},
     )
-    source.actions["expanded"] = spec_model.Action(
+    source.assembly["expanded"] = spec_model.Operator(
         id="expanded",
-        binding=spec_model.Binding(
+        compute=spec_model.Binding(
             function="expanded_values",
             args={
                 "dataset": "$profiles.expansion_input.dataframe",
                 "observation_ids_by_group": {"A": [1, 2], "B": [3, 4]},
             },
         ),
-        features={
-            "inputs": ["$features.expansion_value"],
-            "outputs": ["$features.expanded"],
-        },
+        interface=spec_model.Interface(
+            inputs=["$features.expansion_value"],
+            outputs=["$features.expanded"],
+        ),
     )
     spec_definition.functions.root["expanded_values"] = spec_model.FunctionTemplate(
         id="expanded_values",
@@ -456,20 +456,20 @@ def test_collapse_consumes_expanded_features(
     )
     summary = spec_definition.profiles["summary"]
     summary.features = {"combined_maximum": spec.Feature(id="combined_maximum")}
-    summary.actions = {
-        "nested": spec_model.Action(
+    summary.assembly = {
+        "nested": spec_model.Operator(
             id="nested",
-            binding=spec_model.Binding(
+            compute=spec_model.Binding(
                 function="nested_maximum",
                 args={
                     "dataset": "$profiles.observations.dataframe",
                     "columns": ["$features.value.id", "$features.expanded.id"],
                 },
             ),
-            features={
-                "inputs": ["$features.value", "$features.expanded"],
-                "outputs": ["$features.combined_maximum"],
-            },
+            interface=spec_model.Interface(
+                inputs=["$features.value", "$features.expanded"],
+                outputs=["$features.combined_maximum"],
+            ),
         )
     }
     spec_definition.functions.root["nested_maximum"] = spec_model.FunctionTemplate(

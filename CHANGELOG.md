@@ -8,6 +8,13 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- **Breaking:** Spec version 5 uses `assembly` instead of `actions` in profiles,
+  infers operator IDs from assembly keys, and renames the operator fields
+  `binding` and `features` to `compute` and `interface`. Version 4 documents
+  must be migrated and rebuilt; compatibility parsing is not provided.
+
 ## [0.9.0] - 2026-11-03
 
 ### Added

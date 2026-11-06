@@ -63,7 +63,7 @@ test("produced schema is a table listing declared columns vertically with their 
     catalogs: {
       summary: {},
       configuration: { dimensions: {}, functions: {}, profiles: {
-        readings: { name: "Readings", grain: [], actions: {}, features: {
+        readings: { name: "Readings", grain: [], assembly: {}, features: {
           temperature: { name: "Temperature", type: "float", unit: "C" },
           label: { type: "string" },
         } },
@@ -91,10 +91,10 @@ test("schema columns include every producing action including grain and vectoriz
   const profile = {
     grain: [{ dimension: "machine", resolution: "unit" }],
     features: { machine_id: {}, temperature: {}, score: {}, orphan: {} },
-    actions: {
-      load: { binding: { function: "read" }, features: { outputs: ["$features.machine_id", "$features.temperature"] } },
-      calculate: { binding: { function: "compute" }, features: { outputs: ["$features.score", "$features.score"] } },
-      revise: { binding: { function: "compute" }, features: { outputs: ["$features.score"] } },
+    assembly: {
+      load: { compute: { function: "read" }, interface: { outputs: ["$features.machine_id", "$features.temperature"] } },
+      calculate: { compute: { function: "compute" }, interface: { outputs: ["$features.score", "$features.score"] } },
+      revise: { compute: { function: "compute" }, interface: { outputs: ["$features.score"] } },
     },
   };
   const columns = schemaColumns(config, profile);
@@ -106,25 +106,25 @@ test("schema columns include every producing action including grain and vectoriz
 
 test("profile details show every declared action in order including vectorized actions", () => {
   const kinds = ["read", "vectorize", "expand", "vectorize", "collapse", "escape", "write"];
-  const actions = Object.fromEntries(kinds.map((kind, index) => [`action_${index}`, {
-    binding: { function: kind, args: { output: `$outputs.value_${index}` } },
-    features: { inputs: [], outputs: [] },
+  const assembly = Object.fromEntries(kinds.map((kind, index) => [`action_${index}`, {
+    compute: { function: kind, args: { output: `$outputs.value_${index}` } },
+    interface: { inputs: [], outputs: [] },
   }]));
   const configuration = {
     dimensions: {},
     functions: Object.fromEntries(kinds.map(kind => [kind, { name: `${kind} function`, kind }])),
-    profiles: { telemetry: { grain: [], features: {}, actions } },
+    profiles: { telemetry: { grain: [], features: {}, assembly } },
   };
   const render = () => renderCatalog({ catalogs: { summary: {}, configuration } }, "profiles").content;
   const content = render();
   assert.deepEqual([...content.matchAll(/data-profile-action="([^"]+)"/g)].map(match => match[1]),
-    Object.keys(actions));
+    Object.keys(assembly));
   assert.equal((content.match(/data-action-kind="vectorize"/g) || []).length, 2);
   assert.match(content, /Argument bindings for action_1/);
   assert.match(content, /href="\?view=functions#function-vectorize">vectorize function/);
   assert.match(content, /\$outputs.value_1/);
 
-  configuration.profiles.telemetry.actions = { calculate: actions.action_1 };
+  configuration.profiles.telemetry.assembly = { calculate: assembly.action_1 };
   const vectorizedOnly = render();
   assert.match(vectorizedOnly, />Actions<\/h3>/);
   assert.match(vectorizedOnly, /data-profile-action="calculate" data-action-kind="vectorize"/);
@@ -136,7 +136,7 @@ test("profile grain uses flat cards with dimension and resolution metadata", () 
       unit: { key: "machine_id", type: "string" },
     } } },
     profiles: { sample: { grain: [{ dimension: "machine", resolution: "unit" }],
-      features: { machine_id: {} }, actions: {} } },
+      features: { machine_id: {} }, assembly: {} } },
   } } }, "profiles");
   const card = content.match(/<li class="profile-grain-card"[\s\S]*?<\/li>/)[0];
   assert.match(card, /<h4>Machine<\/h4>/);
@@ -252,7 +252,7 @@ test("topology controls use topology labels while retaining graph hooks", () => 
 
 test("stage argument bindings use the shared table and preserve typed values", () => {
   const content = stageCards({ stages: [{ stage: 1, steps: [{
-    title: "Compute", function_kind: "vectorize", function_label: "Calculate",
+    title: "Binding", function_kind: "vectorize", function_label: "Calculate",
     feature: "score", returns: { type: { engine: "float" } },
     depends_on_invocations: [], row_context: null,
     args: { input: { value: "<unsafe>", type: {

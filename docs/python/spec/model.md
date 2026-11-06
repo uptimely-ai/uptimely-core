@@ -18,12 +18,12 @@ Use `document.grain_keys_by_profile` and
 `document.grain_key_types_by_profile` for the dataframe keys and types selected
 by each profile.
 
-`document.actions` is an ordered list of the original canonical `Action` objects.
-Use `for action in document.actions` to traverse it. Action IDs are profile-scoped,
+`document.actions` is an ordered list of the original canonical `Operator` objects.
+Use `for action in document.actions` to traverse it. Operator IDs are profile-scoped,
 so `document.actions_by_key` uses `(profile_id, action_key)` keys.
 `document.arguments` contains function
 argument declarations keyed by `(function_id, argument_key)`; bound values remain
-on `action.binding.args`. `document.action_profiles` maps each action key to its
+on `action.compute.args`. `document.action_profiles` maps each action key to its
 owning profile.
 `document.entrypoints` lists distinct function-catalog entrypoint strings in
 declaration order without parsing them or importing implementations. Compilation
@@ -34,7 +34,7 @@ the number of arguments declared as dataframes.
 When ownership matters, `profile_items` contains `(profile_key, profile)` pairs
 and `action_items` contains `(action_key, action)` pairs in declaration order.
 Action keys contain the profile ID and action dictionary key. The action list
-retains aliases for validation without introducing additional Action classes.
+retains aliases for validation without introducing additional Operator classes.
 `profiles_by_key`, `feature_owners`, `feature_producers`, and
 `actions_by_function` provide keyed lookups and relationships.
 `feature_owners` excludes global
@@ -56,13 +56,13 @@ normalize their children:
 | Model | Views |
 | --- | --- |
 | `Profile` | `all_features`, `arguments` keyed by `(action_key, argument_name)`, `feature_producers`, `dimension_ids`, `dimension_id_set`, `order_dimensions`, `order_references` |
-| `Action` | `arguments`, `input_features`, `output_features`, `feature_selectors`, `dataset_references`, `dimensions_references`, `dimension_reference_paths` |
-| `ActionFeatures` | `input_ids`, `output_ids` |
+| `Operator` | `arguments`, `input_features`, `output_features`, `feature_selectors`, `dataset_references`, `dimensions_references`, `dimension_reference_paths` |
+| `Interface` | `input_ids`, `output_ids` |
 | `Binding` | `values_with_paths`, `references_by_prefix`, `dataset_input_references` |
 | `FunctionTemplate` | `arguments_by_type` |
 | `FunctionCatalog` | `arguments`, `functions_by_kind`, `by_kind(kind)` |
 
-Raw child dictionaries such as `profile.features`, `profile.actions`, and
+Raw child dictionaries such as `profile.features`, `profile.assembly`, and
 `function.args` remain available. Bound arguments are values; catalog arguments
 are declarations. Feature and action references retain declaration order.
 
@@ -137,7 +137,7 @@ mapping, and their internal IDs are excluded from serialized profile attributes.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Profile, Feature, Order, Action, ActionFeatures]
+      members: [Profile, Feature, Order, Operator, Interface]
 
 ## functions
 

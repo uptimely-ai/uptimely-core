@@ -175,7 +175,7 @@ def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
         "before": {"time": "24h"},
         "after": {"time": "3h"},
     }
-    assert declaration.to_model().binding.args == {"configuration": {"windows": ["8h", "24h"]}}
+    assert declaration.to_model().compute.args == {"configuration": {"windows": ["8h", "24h"]}}
     assert binding_conversion.argument_definition(
         declaration.bound_arguments()["configuration"]
     ) == {"type": "object{str: array[string]}"}
@@ -318,7 +318,7 @@ def test_row_context_dataset_selection_follows_dimension_contract(
 ) -> None:
     configuration = _spec().model_dump()
     source = configuration["profiles"]["observations"]
-    action = source["actions"].pop("result")
+    action = source["assembly"].pop("result")
     output = source["features"].pop("result")
     action["row_context"] = authoring.time(
         "1h", dimension=ref.dimension("timestamp"), before="1h"
@@ -327,7 +327,7 @@ def test_row_context_dataset_selection_follows_dimension_contract(
         "name": "Summary",
         "grain": [],
         "features": {"result": output},
-        "actions": {"result": action},
+        "assembly": {"result": action},
     }
     configuration["functions"]["calculate"]["kind"] = kind
     document = spec.Spec.model_validate(configuration)
@@ -358,7 +358,7 @@ def test_row_context_dataset_selection_follows_dimension_contract(
 def test_row_context_accessors_preserve_unresolved_sources() -> None:
     configuration = _spec(authoring.current()).model_dump()
     configuration["functions"]["calculate"]["kind"] = "collapse"
-    configuration["profiles"]["observations"]["actions"]["result"]["features"]["inputs"] = [
+    configuration["profiles"]["observations"]["assembly"]["result"]["interface"]["inputs"] = [
         "$features.missing"
     ]
     document = spec.Spec.model_validate(configuration)
@@ -380,7 +380,7 @@ def test_spec_plan_execution_and_presentation_preserve_context(
     payload = json.loads(path.read_text())
     authored_dataset = payload["profiles"]["observations"]
     assert "row_context" not in authored_dataset["features"]["result"]
-    assert authored_dataset["actions"]["result"]["row_context"] == context.to_dict()
+    assert authored_dataset["assembly"]["result"]["row_context"] == context.to_dict()
     restored = spec.load_spec(path)
     compiled = compiler.Compiler().compile(restored)
     operation = next(item for item in compiled.invocations if item.function_kind == "vectorize")
@@ -415,7 +415,7 @@ def test_all_data_mappings_preserve_annotated_context(operation):
         ),
     )
     assert declaration.to_model().row_context.before.rows == 7
-    assert declaration.to_model().binding.args == {"configuration": {"windows": [8]}}
+    assert declaration.to_model().compute.args == {"configuration": {"windows": [8]}}
 
 
 def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
@@ -427,20 +427,22 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     spec_path = tmp_path / "spec.json"
     spec.write_document(spec_definition, spec_path)
     restored_spec = spec.load_spec(spec_path)
-    original_mapping = spec_definition.profiles["observations"].actions["result"]
-    restored_mapping = restored_spec.profiles["observations"].actions["result"]
+    original_mapping = spec_definition.profiles["observations"].assembly["result"]
+    restored_mapping = restored_spec.profiles["observations"].assembly["result"]
     assert restored_mapping.row_context == original_mapping.row_context == context
     assert (
         "row_context"
-        not in spec_definition.profiles["observations"].actions["result"].binding.model_dump()
+        not in spec_definition.profiles["observations"].assembly["result"].compute.model_dump()
     )
     exported = json.loads(spec_path.read_text())
     exported_dataset = exported["profiles"]["observations"]
     exported_feature = exported_dataset["features"]["result"]
     assert "row_context" not in exported_feature
-    assert exported_dataset["actions"]["result"]["row_context"] == context.to_dict()
-    assert "binding" not in exported_feature
-    assert "row_context" not in exported["profiles"]["observations"]["actions"]["result"]["binding"]
+    assert exported_dataset["assembly"]["result"]["row_context"] == context.to_dict()
+    assert "compute" not in exported_feature
+    assert (
+        "row_context" not in exported["profiles"]["observations"]["assembly"]["result"]["compute"]
+    )
     assert spec_definition.functions["calculate"].args["column"].type == "string"
 
     plan = compiler.Compiler().compile(restored_spec)
@@ -555,11 +557,11 @@ def test_collapse_functions_execute_without_row_context(
         "output": "temperature_max",
     }
     output_dataset = spec_definition.profiles["summary"]
-    output = output_dataset.actions["summary"]
+    output = output_dataset.assembly["summary"]
     assert output.row_context is None
     payload = output.model_dump()
     assert "group_by" not in payload
-    assert "row_context" not in payload["binding"]
+    assert "row_context" not in payload["compute"]
     restored = uptimely_plan.from_dict(json.loads(json.dumps(uptimely_plan.to_dict(plan))))
     assert restored == plan
     result = engine_for_plan(restored, spec_definition=spec_definition).run()
