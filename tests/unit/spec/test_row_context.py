@@ -175,7 +175,9 @@ def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
         "before": {"time": "24h"},
         "after": {"time": "3h"},
     }
-    assert declaration.to_model().compute.args == {"configuration": {"windows": ["8h", "24h"]}}
+    assert declaration.to_model().compute.model_dump()["args"] == {
+        "configuration": {"windows": ["8h", "24h"]}
+    }
     assert binding_conversion.argument_definition(
         declaration.bound_arguments()["configuration"]
     ) == {"type": "object{str: array[string]}"}
@@ -415,7 +417,9 @@ def test_all_data_mappings_preserve_annotated_context(operation):
         ),
     )
     assert declaration.to_model().row_context.before.rows == 7
-    assert declaration.to_model().compute.args == {"configuration": {"windows": [8]}}
+    assert declaration.to_model().compute.model_dump()["args"] == {
+        "configuration": {"windows": [8]}
+    }
 
 
 def test_spec_plan_and_batch_execution_preserve_context_and_arguments(

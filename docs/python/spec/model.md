@@ -22,8 +22,8 @@ by each profile.
 Use `for operator in document.operators` to traverse it. Operator IDs are profile-scoped,
 so `document.operators_by_key` uses `(profile_id, operator_key)` keys.
 `document.arguments` contains function
-argument declarations keyed by `(function_id, argument_key)`; bound values remain
-on `operator.compute.args`. `document.operator_profiles` maps each operator key to its
+argument declarations keyed by `(function_id, argument_key)`; bound `BindingArgument`
+objects remain on `operator.compute.args`. `document.operator_profiles` maps each operator key to its
 owning profile.
 `document.entrypoints` lists distinct function-catalog entrypoint strings in
 declaration order without parsing them or importing implementations. Compilation
@@ -59,11 +59,12 @@ normalize their children:
 | `Operator` | `arguments`, `input_features`, `output_features`, `feature_selectors`, `dataset_references`, `dimensions_references`, `dimension_reference_paths` |
 | `Interface` | `input_ids`, `output_ids` |
 | `Binding` | `values_with_paths`, `references_by_prefix`, `dataset_input_references` |
+| `BindingArgument` | `root`, `children`, `leaves_with_paths`, `references_with_paths`, `prefix`, `identifier`, `selector`, `dataset_input_references`, `inferred_feature_inputs` |
 | `FunctionTemplate` | `arguments_by_type` |
 | `FunctionCatalog` | `arguments`, `functions_by_kind`, `by_kind(kind)` |
 
 Raw child dictionaries such as `profile.features`, `profile.assembly`, and
-`function.args` remain available. Bound arguments are values; catalog arguments
+`function.args` remain available. Bound arguments wrap values; catalog arguments
 are declarations. Feature and operator references retain declaration order.
 
 `operator.dataset_references` contains normalized profile IDs from nested binding
@@ -75,9 +76,43 @@ feature references; joins use dimension keys instead.
 `operator.dimensions_references` likewise exposes normalized dimension IDs.
 `operator.dimension_reference_paths` additionally retains each reference's relative
 binding argument path for diagnostics. Both reuse the same cached binding traversal.
-`BindingArgumentResolver` resolves bound values for one invocation; profile-dataframe,
-feature, and dimension-index context is configured once, then `resolve_arguments` receives
-only the binding argument mapping.
+Each `BindingArgument` owns its nested traversal, parsed selectors, inferred data
+dependencies, argument-type propagation, and value resolution. `Binding` only
+stores `function` and `args` and aggregates argument views. `BindingArgumentResolver`
+supplies shared invocation context; its `resolve_arguments` method remains available
+as an adapter for raw or modeled argument mappings.
+
+### Working with bound arguments
+
+`binding.args` now maps names to `BindingArgument` objects instead of raw values.
+Constructing or loading a `Binding` wraps supplied JSON values automatically.
+Read an argument's value with `binding.args["column"].root`; use
+`binding.model_dump()["args"]` to obtain the complete raw argument mapping.
+Arguments serialize directly as their values, so the spec JSON shape is unchanged.
+Pydantic values supplied inside an argument are converted to document values;
+other non-JSON values are rejected.
+
+When editing a binding in Python, insert argument objects:
+
+```python
+from uptimely.spec import model
+
+binding = model.Binding(function="calculate", args={"column": "$features.pressure"})
+binding.args["column"] = model.BindingArgument("$features.temperature")
+resolved = binding.resolve_args("telemetry")
+```
+
+`argument.resolve(context)` resolves nested structural references without changing
+the supplied values. `binding.resolve_args(...)` resolves all arguments and accepts
+profile ID, output-feature ID, grain keys, and optional resource metadata. Context
+is never cached on an argument: the same binding can be resolved for different
+profiles and output features.
+
+Python authoring infers omitted interface inputs from bare feature references,
+including their string forms, but excludes metadata selectors, the current-output
+marker, and declared outputs. An explicit interface, including `inputs=[]`, always
+overrides inference. Dataset dependencies are inferred only from profile-data
+references, never from profile IDs, grain keys, or descriptive metadata.
 
 Context-dependent views live on the Spec rather than wrapper objects:
 `dimensions_by_profile` uses profile keys;
@@ -108,25 +143,50 @@ binding argument collection, not individual nested leaves.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Spec, Options, SPEC_VERSION]
+      members: [Spec, SpecSource, Options, SPEC_VERSION]
 
-## common
+## base
 
-`uptimely.spec.model.common` defines shared dimensions, arguments, and
-bindings.
+`uptimely.spec.model.base` defines the strict document-model contract and display
+naming policy.
 
-::: uptimely.spec.model.common
+::: uptimely.spec.model.base
     options:
       heading_level: 3
       show_root_heading: false
-      members:
-        - StrictModel
-        - SpecSource
-        - Dimension
-        - Argument
-        - BindingArgument
-        - Binding
-        - BindingArgumentResolver
+      members: [StrictModel]
+
+## dimension
+
+`uptimely.spec.model.dimension` defines observation dimensions and their keyed
+resolutions.
+
+::: uptimely.spec.model.dimension
+    options:
+      heading_level: 3
+      show_root_heading: false
+      members: [Dimension, Resolution]
+
+## binding_argument
+
+`uptimely.spec.model.binding_argument` owns bound values and invocation-specific
+selector resolution.
+
+::: uptimely.spec.model.binding_argument
+    options:
+      heading_level: 3
+      show_root_heading: false
+      members: [BindingArgument, BindingArgumentResolver]
+
+## binding
+
+`uptimely.spec.model.binding` defines function bindings and aggregate argument views.
+
+::: uptimely.spec.model.binding
+    options:
+      heading_level: 3
+      show_root_heading: false
+      members: [Binding]
 
 ## profile
 
@@ -149,7 +209,7 @@ function catalog.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [FunctionTemplate, FunctionCatalog]
+      members: [Argument, FunctionTemplate, FunctionCatalog]
 
 For supported function kinds and values, see the
 [spec vocabulary](../spec-vocabulary.md).

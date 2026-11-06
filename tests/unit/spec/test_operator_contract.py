@@ -121,7 +121,9 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
     dataset_model = spec_definition.profiles["observations"]
     assert dataset_model.assembly["metadata"].input_features == []
     assert dataset_model.assembly["metadata"].output_features == ["metadata"]
-    assert dataset_model.assembly["metadata"].compute.args["identifier"] == "$features.result.id"
+    assert (
+        dataset_model.assembly["metadata"].compute.args["identifier"].root == "$features.result.id"
+    )
     assert dataset_model.assembly["result"].input_features == ["value"]
 
     computed = compiler.Compiler().compile(spec_definition, features=["result"])

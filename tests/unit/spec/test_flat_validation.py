@@ -447,7 +447,7 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "vectorize",
             lambda s: (
                 compute(s).interface.outputs.append("$features.x"),
-                compute(s).compute.args.update({"output": "$features.@.id"}),
+                compute(s).compute.args.update({"output": model.BindingArgument("$features.@.id")}),
             ),
             "cannot use",
         ),
@@ -467,20 +467,24 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             operator_inputs.validate_feature_reference,
             "vectorize",
             lambda s: compute(s).compute.args.update(
-                {"extra": {"nested": ["$features.missing.id"]}}
+                {"extra": model.BindingArgument({"nested": ["$features.missing.id"]})}
             ),
             "unknown feature",
         ),
         (
             operator_inputs.validate_dataset_reference,
             "vectorize",
-            lambda s: compute(s).compute.args.update({"data": "$profiles.missing.dataframe"}),
+            lambda s: compute(s).compute.args.update(
+                {"data": model.BindingArgument("$profiles.missing.dataframe")}
+            ),
             "unknown profile",
         ),
         (
             operator_inputs.validate_dimension_reference,
             "vectorize",
-            lambda s: compute(s).compute.args.update({"extra": ["$dimensions.missing.id"]}),
+            lambda s: compute(s).compute.args.update(
+                {"extra": model.BindingArgument(["$dimensions.missing.id"])}
+            ),
             "unknown dimension",
         ),
         (
@@ -492,7 +496,9 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             bindings.validate_selector_type,
             "vectorize",
-            lambda s: compute(s).compute.args.update({"data": "$profiles.target.id"}),
+            lambda s: compute(s).compute.args.update(
+                {"data": model.BindingArgument("$profiles.target.id")}
+            ),
             "requires argument type",
         ),
         (
@@ -549,26 +555,32 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
                         )
                     }
                 ),
-                compute(s).compute.args.update({"extra": "$dimensions.other.id"}),
+                compute(s).compute.args.update(
+                    {"extra": model.BindingArgument("$dimensions.other.id")}
+                ),
             ),
             "unknown source dimensions",
         ),
         (
             operator_contracts.validate_dataset_argument_reference,
             "vectorize",
-            lambda s: compute(s).compute.args.update({"data": 42}),
+            lambda s: compute(s).compute.args.update({"data": model.BindingArgument(42)}),
             "must reference a profile",
         ),
         (
             operator_contracts.validate_dataset_argument_selector,
             "vectorize",
-            lambda s: compute(s).compute.args.update({"data": "$profiles.target.id"}),
+            lambda s: compute(s).compute.args.update(
+                {"data": model.BindingArgument("$profiles.target.id")}
+            ),
             "must select profile data",
         ),
         (
             operator_contracts.validate_dataset_argument_source,
             "vectorize",
-            lambda s: compute(s).compute.args.update({"data": "$profiles.missing.dataframe"}),
+            lambda s: compute(s).compute.args.update(
+                {"data": model.BindingArgument("$profiles.missing.dataframe")}
+            ),
             "unknown profile",
         ),
         (
@@ -580,7 +592,9 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             operator_contracts.validate_foreign_dataset_argument,
             "collapse",
-            lambda s: compute(s).compute.args.update({"data": "$profiles.target.dataframe"}),
+            lambda s: compute(s).compute.args.update(
+                {"data": model.BindingArgument("$profiles.target.dataframe")}
+            ),
             "foreign source",
         ),
         (
@@ -592,7 +606,9 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             operator_contracts.validate_dataset_argument_feature_source,
             "conform",
-            lambda s: compute(s).compute.args.update({"data": "$profiles.target.dataframe"}),
+            lambda s: compute(s).compute.args.update(
+                {"data": model.BindingArgument("$profiles.target.dataframe")}
+            ),
             "foreign source profile source",
         ),
         (
@@ -610,19 +626,25 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             operator_contracts.validate_target_dataset_input,
             "vectorize",
-            lambda s: compute(s).compute.args.update({"data": "$profiles.source.dataframe"}),
+            lambda s: compute(s).compute.args.update(
+                {"data": model.BindingArgument("$profiles.source.dataframe")}
+            ),
             "consume its target",
         ),
         (
             operator_contracts.validate_target_dataset_only,
             "write",
-            lambda s: compute(s).compute.args.update({"data": "$profiles.source.dataframe"}),
+            lambda s: compute(s).compute.args.update(
+                {"data": model.BindingArgument("$profiles.source.dataframe")}
+            ),
             "publish a foreign",
         ),
         (
             operator_contracts.validate_dimension_source,
             "collapse",
-            lambda s: compute(s).compute.args.update({"data": "$profiles.target.dataframe"}),
+            lambda s: compute(s).compute.args.update(
+                {"data": model.BindingArgument("$profiles.target.dataframe")}
+            ),
             "consume its source",
         ),
         (
@@ -650,7 +672,9 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
         (
             operator_contracts.validate_matching_keys,
             "expand",
-            lambda s: compute(s).compute.args.update({"keys": "$profiles.target.grain.ids"}),
+            lambda s: compute(s).compute.args.update(
+                {"keys": model.BindingArgument("$profiles.target.grain.ids")}
+            ),
             "Matching key",
         ),
         (

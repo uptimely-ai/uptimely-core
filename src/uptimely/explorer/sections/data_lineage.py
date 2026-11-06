@@ -7,7 +7,7 @@ import itertools
 
 from uptimely import execution_plan, spec
 from uptimely.spec import functions
-from uptimely.spec.model import common as spec_common
+from uptimely.spec.model import base as model_base
 
 UNASSIGNED_DATASET_LABEL = "Unassigned"
 DIMENSION_COLOR = "#93c5fd"
@@ -274,7 +274,7 @@ class _DataLineageBuilder:
             function_label=function.name or invocation.function_id
             if function is not None
             else invocation.function_id,
-            operator=spec_common.humanize_identifier(invocation.operator_id),
+            operator=model_base.humanize_identifier(invocation.operator_id),
             kind=kind,
             profile=profile.id,
             dataset=invocation.dataset_id,

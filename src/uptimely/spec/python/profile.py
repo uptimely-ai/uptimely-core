@@ -9,7 +9,7 @@ from collections import abc
 from uptimely.spec import catalog as function_catalog
 from uptimely.spec import functions, selectors
 from uptimely.spec import model as spec_model
-from uptimely.spec.model import common as spec_common
+from uptimely.spec.model import base as model_base
 
 from . import assembly, references
 from . import dimension as dimension_module
@@ -120,7 +120,7 @@ class Profile:
         if name is not None:
             self.name = name
         elif self.name is None:
-            self.name = spec_common.humanize_identifier(self.id)
+            self.name = model_base.humanize_identifier(self.id)
         if description is not None:
             self.description = description
         if category is not None:
@@ -281,7 +281,7 @@ class Profile:
                     if resolution.key not in features:
                         features[resolution.key] = spec_model.Feature(
                             id=resolution.key,
-                            name=spec_common.humanize_identifier(resolution.key),
+                            name=model_base.humanize_identifier(resolution.key),
                             type=resolution.type,
                             description=item.dimension.description,
                         )

@@ -132,7 +132,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
         "output": ref.feature("result").id,
     }
     assert operator.bound_arguments() == operator.compute.arguments
-    assert model.compute.args["output"] == "$features.result.id"
+    assert model.compute.args["output"].root == "$features.result.id"
     assert operator.interface.outputs[0].id == "result"
     assert operator.interface.outputs[0].name == "Result"
     assert operator.interface.outputs[0].type == "float"
@@ -305,7 +305,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
     assert operator.interface.inputs is None
     assert model.input_features == ["first", "second"]
     assert model.row_context.before.rows == 2
-    assert model.compute.args["configuration"] == {
+    assert model.compute.args["configuration"].root == {
         "columns": ["$features.first", "$features.second", "$features.first"],
         "output": "$features.result.id",
         "key": "$profiles.@.grain.ids",
@@ -378,8 +378,8 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
 
     model = declaration.to_model()
     catalog = declaration.function_catalog()
-    assert model.assembly["read"].compute.args["keys"] == "$profiles.@.grain.ids"
-    assert model.assembly["read"].compute.args["source_keys"] == "$profiles.source.grain.ids"
+    assert model.assembly["read"].compute.args["keys"].root == "$profiles.@.grain.ids"
+    assert model.assembly["read"].compute.args["source_keys"].root == "$profiles.source.grain.ids"
     assert catalog["read"].args["keys"].type == "array[string]"
     assert catalog["read"].args["source_keys"].type == "array[string]"
 
@@ -529,7 +529,7 @@ def test_python_spec_merge_binding_and_options_export() -> None:
     assert spec_definition.spec_version == 6
     assert spec_definition.options.merge == "explicit"
     assert model_operator.merge is not None
-    assert model_operator.merge.args == {
+    assert model_operator.merge.model_dump()["args"] == {
         "target": "$profiles.@.dataframe",
         "fragment": "$operators.@.fragment",
     }
@@ -543,7 +543,9 @@ def test_python_spec_merge_binding_and_options_export() -> None:
     invalid_spec = spec_model.Spec.model_validate(spec_definition.model_dump())
     merge_template = invalid_spec.functions["merge_frames"]
     merge_template.args["feature"] = spec_model.Argument(id="feature", type="string")
-    invalid_spec.profiles["example"].assembly["read"].merge.args["feature"] = "$features.value"
+    invalid_spec.profiles["example"].assembly["read"].merge.args["feature"] = (
+        spec_model.BindingArgument("$features.value")
+    )
     with pytest.raises(validation_errors.SpecError, match="cannot reference features") as error:
         validate_spec(invalid_spec)
     assert error.value.code == "invalid_merge_feature_reference"

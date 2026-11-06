@@ -10,6 +10,13 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking (Python document models):** `Binding.args` now contains
+  `BindingArgument` objects. Read raw values through `.root`, or serialize the
+  binding with `model_dump()`. JSON remains unchanged. Bound arguments own
+  reference resolution and inferred dependencies; model definitions now live
+  in focused modules rather than `model.common`. Package-level model imports
+  remain available. Python authoring also infers omitted interface inputs from
+  bare feature-reference strings, while explicit inputs remain authoritative.
 - **Breaking:** Vectorize functions now return the complete enriched target
   dataframe, preserving existing columns and adding declared outputs. They no
   longer return fragments that the engine joins into the target.
