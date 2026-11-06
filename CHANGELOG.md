@@ -10,6 +10,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Vectorize functions now return the complete enriched target
+  dataframe, preserving existing columns and adding declared outputs. They no
+  longer return fragments that the engine joins into the target.
 - **Breaking:** Spec version 5 uses `assembly` instead of `actions` in profiles,
   infers operator IDs from assembly keys, and renames the operator fields
   `binding` and `features` to `compute` and `interface`. Version 4 documents

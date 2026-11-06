@@ -20,6 +20,7 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.engine.runtime import validation as runtime_validation
 from uptimely.execution_plan import serialization as plan_serialization
+from uptimely.library.merge import polars as merge_module
 from uptimely.spec.python import assembly, dimension, profile, ref
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
@@ -91,7 +92,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
         f"\nInvocation: {invocation.operator_id} [{invocation.function_kind}]"
         for invocation in engine.plan.execution_invocations
     ]
-    assert caplog.messages.count("  Merge:\n    Target profile: telemetry") == 2
+    assert caplog.messages.count("  Merge:\n    Target profile: telemetry") == 1
     assert [message for message in caplog.messages if message.startswith("  Function: ")] == [
         "  Function: load",
         "  Function: double",
@@ -230,8 +231,8 @@ def test_validation_is_opt_in_for_eager_and_lazy_frames(
     message = {
         "duplicates": "duplicate dimension keys",
         "types": "expected string",
-        "row_count": "must preserve the accumulated profile row count",
-        "keys": "must preserve the profile grain keys",
+        "row_count": "must preserve existing column values and row order",
+        "keys": "must preserve existing column values and row order",
     }[invalid]
     assert message in next(iter(checked.failures.values()))
     assert len(writes) == 1
@@ -1214,6 +1215,129 @@ def test_execute_reports_unsupported_function_kinds(
     )
 
 
+def test_vectorize_requires_an_accumulated_target() -> None:
+    executor = execution_module.InvocationExecutor(
+        backend_module.PolarsBackend(),
+        {},
+        {},
+        state_module.RuntimeState(),
+    )
+    invocation = uptimely_plan.Invocation(
+        id="vectorize",
+        function_kind="vectorize",
+        entrypoint="test:calculate",
+        function_id="calculate",
+        operator_id="calculate",
+        dataset_id="telemetry",
+    )
+
+    with pytest.raises(ValueError, match="Profile dataframe is unavailable: telemetry"):
+        executor.execute(invocation)
+
+
+def test_column_projection_failure_preserves_published_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = pl.DataFrame({"reading": [3]})
+    main_frame = execution_support.main_frame(original)
+    state = state_module.RuntimeState(main_frames={"telemetry": main_frame})
+    adapter = backend_module.PolarsBackend()
+    executor = execution_module.InvocationExecutor(adapter, {}, {}, state)
+    invocation = uptimely_plan.Invocation(
+        id="vectorize",
+        function_kind="vectorize",
+        entrypoint="test:calculate",
+        function_id="calculate",
+        operator_id="calculate",
+        dataset_id="telemetry",
+        output_features=["first", "second"],
+    )
+    result = original.with_columns(pl.lit(4).alias("first"), pl.lit(6).alias("second"))
+
+    def invoke(invocation: uptimely_plan.Invocation) -> pl.DataFrame:
+        return result
+
+    select = adapter.select
+
+    def select_output(frame: object, columns: list[str]) -> object:
+        if "second" in columns:
+            raise ValueError("Cannot project second output")
+        return select(frame, columns)
+
+    monkeypatch.setattr(executor, "_invoke", invoke)
+    monkeypatch.setattr(adapter, "select", select_output)
+
+    with pytest.raises(ValueError, match="Cannot project second output"):
+        executor.execute(invocation)
+
+    assert main_frame.dataframe is original
+    assert state.calculated_outputs == {}
+    assert main_frame.fragments == {}
+
+
+@pytest.mark.parametrize("validate", [False, True])
+@pytest.mark.parametrize("reverse", [False, True])
+def test_vectorize_validation_uses_one_lazy_input_snapshot(
+    monkeypatch: pytest.MonkeyPatch, validate: bool, reverse: bool
+) -> None:
+    collections = 0
+    calls = 0
+
+    def alternating_order(frame: pl.DataFrame) -> pl.DataFrame:
+        nonlocal collections
+        collections += 1
+        return frame.reverse() if collections % 2 else frame
+
+    original = (
+        pl.DataFrame({"key": ["A", "B"], "value": [1, 2]})
+        .lazy()
+        .map_batches(
+            alternating_order,
+            predicate_pushdown=False,
+            projection_pushdown=False,
+            slice_pushdown=False,
+        )
+    )
+    main_frame = execution_support.main_frame(original)
+    state = state_module.RuntimeState(main_frames={"dataset": main_frame})
+    executor = execution_module.InvocationExecutor(
+        backend_module.PolarsBackend(), {}, {}, state, validate=validate
+    )
+
+    def calculate(dataset: pl.LazyFrame) -> pl.LazyFrame:
+        nonlocal calls
+        calls += 1
+        assert isinstance(dataset, pl.LazyFrame)
+        result = dataset.with_columns((pl.col("value") * 2).alias("doubled"))
+        return result.reverse() if reverse else result
+
+    _patch_callables(monkeypatch, {"test:calculate": calculate})
+    invocation = uptimely_plan.Invocation(
+        id="vectorize",
+        function_kind="vectorize",
+        entrypoint="test:calculate",
+        function_id="calculate",
+        operator_id="calculate",
+        dataset_id="dataset",
+        id_columns=["key"],
+        output_features=["doubled"],
+        arguments={"dataset": "dataset"},
+        argument_types={"dataset": "dataframe"},
+    )
+
+    if validate and reverse:
+        with pytest.raises(ValueError, match="preserve existing column values and row order"):
+            executor.execute(invocation)
+        assert main_frame.dataframe is original
+        assert state.calculated_outputs == {}
+    else:
+        executor.execute(invocation)
+        assert isinstance(main_frame.dataframe, pl.LazyFrame)
+        assert ("dataset", "doubled") in state.calculated_outputs
+    assert calls == 1
+    assert collections == (1 if validate else 0)
+
+
 def test_execute_rejects_scalar_calculations(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
@@ -1231,7 +1355,7 @@ def test_execute_rejects_scalar_calculations(
 
     result = engine.run(validate=True)
 
-    assert "must return a Polars DataFrame or LazyFrame" in next(iter(result.failures.values()))
+    assert "must be a Polars DataFrame or LazyFrame" in next(iter(result.failures.values()))
 
 
 def test_vectorize_mapping_emits_multiple_features_with_one_call(
@@ -1242,16 +1366,27 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
     def read() -> pl.DataFrame:
         return pl.DataFrame({"asset_id": ["A"], "reading": [3]})
 
-    def calculate() -> pl.DataFrame:
+    def calculate(dataset: pl.DataFrame) -> pl.DataFrame:
         nonlocal calls
         calls += 1
-        return pl.DataFrame(
-            {
-                "asset_id": ["A"],
-                "reading_plus_one": [4],
-                "reading_times_two": [6],
-            }
+        return dataset.with_columns(
+            (pl.col("reading") + 1).alias("reading_plus_one"),
+            (pl.col("reading") * 2).alias("reading_times_two"),
         )
+
+    staged_kinds: list[str] = []
+    stage_fragment = fragment_module.Fragment.stage
+    merge_calls = 0
+    merge_by_grain = merge_module.merge_by_grain
+
+    def stage_spy(backend: object, invocation: object, load: object, **kwargs: object) -> object:
+        staged_kinds.append(invocation.function_kind)
+        return stage_fragment(backend, invocation, load, **kwargs)
+
+    def merge_spy(*args: object, **kwargs: object) -> object:
+        nonlocal merge_calls
+        merge_calls += 1
+        return merge_by_grain(*args, **kwargs)
 
     read_invocation = uptimely_plan.Invocation(
         id="invocation:read:load:asset:telemetry:load",
@@ -1270,6 +1405,8 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         operator_id="reading_plus_one",
         dataset_id="telemetry",
         output_features=["reading_plus_one", "reading_times_two"],
+        arguments={"dataset": "telemetry"},
+        argument_types={"dataset": "dataframe"},
         dependency_ids=[read_invocation.id],
     )
     plan = uptimely_plan.ExecutionPlan(
@@ -1291,15 +1428,20 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         stages=[[read_invocation.id], [vectorize_invocation.id]],
     )
     _patch_callables(monkeypatch, {"test:read": read, "test:calculate": calculate})
+    monkeypatch.setattr(fragment_module.Fragment, "stage", staticmethod(stage_spy))
+    monkeypatch.setattr(merge_module, "merge_by_grain", merge_spy)
     engine = engine_for_plan(plan)
 
     result = engine.run()
 
     assert result.failures == {}
     assert calls == 1
+    assert result.main_frames["telemetry"]["reading"].to_list() == [3]
     assert result.main_frames["telemetry"].select(
         "reading_plus_one", "reading_times_two"
     ).rows() == [(4, 6)]
+    assert staged_kinds == ["read"]
+    assert merge_calls == 1
     assert set(result.calculated_outputs) == {
         ("telemetry", "reading_plus_one"),
         ("telemetry", "reading_times_two"),

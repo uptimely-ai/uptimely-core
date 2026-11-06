@@ -38,34 +38,106 @@ def test_function_kind_definitions_and_registry_are_immutable() -> None:
 @pytest.mark.parametrize(
     (
         "kind",
+        "produces_fragment",
         "dimension_change",
         "fragment_dimensions",
         "row_count_relation",
         "key_relation",
+        "row_order_relation",
+        "existing_data_relation",
     ),
     [
-        ("read", "unrestricted", "target", "unrestricted", "unrestricted"),
-        ("write", "unrestricted", "not_applicable", "unrestricted", "unrestricted"),
-        ("escape", "unrestricted", "not_applicable", "unrestricted", "unrestricted"),
-        ("conform", "preserve", "target", "unrestricted", "unrestricted"),
-        ("expand", "add", "subset", "unrestricted", "unrestricted"),
-        ("collapse", "remove", "target", "unrestricted", "unrestricted"),
-        ("vectorize", "preserve", "target", "same", "identical"),
+        (
+            "read",
+            True,
+            "unrestricted",
+            "target",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+        ),
+        (
+            "write",
+            False,
+            "unrestricted",
+            "not_applicable",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+        ),
+        (
+            "escape",
+            False,
+            "unrestricted",
+            "not_applicable",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+        ),
+        (
+            "conform",
+            True,
+            "preserve",
+            "target",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+        ),
+        (
+            "expand",
+            True,
+            "add",
+            "subset",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+        ),
+        (
+            "collapse",
+            True,
+            "remove",
+            "target",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+            "unrestricted",
+        ),
+        (
+            "vectorize",
+            False,
+            "preserve",
+            "not_applicable",
+            "same",
+            "identical",
+            "preserve",
+            "preserve",
+        ),
     ],
 )
 def test_builtin_structural_contract_matrix(
     kind: functions.FunctionKindId,
+    produces_fragment: bool,
     dimension_change: functions.DimensionChange,
     fragment_dimensions: functions.FragmentDimensions,
     row_count_relation: functions.RowCountRelation,
     key_relation: functions.KeyRelation,
+    row_order_relation: functions.RowOrderRelation,
+    existing_data_relation: functions.ExistingDataRelation,
 ) -> None:
     definition = functions.FUNCTION_KINDS[kind]
 
+    assert definition.produces_fragment is produces_fragment
     assert definition.dimension_change == dimension_change
     assert definition.fragment_dimensions == fragment_dimensions
     assert definition.row_count_relation == row_count_relation
     assert definition.key_relation == key_relation
+    assert definition.row_order_relation == row_order_relation
+    assert definition.existing_data_relation == existing_data_relation
 
 
 def test_function_kind_ids_remain_the_serialized_values() -> None:

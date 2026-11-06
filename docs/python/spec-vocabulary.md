@@ -10,30 +10,34 @@ same definitions.
 
 `uptimely.spec.functions` defines immutable function-kind contracts and their
 string identifiers. `FUNCTION_KINDS` is a read-only mapping from each supported
-identifier to its contract.
+identifier to its contract. `produces_fragment` distinguishes assembled
+contributions from `vectorize`, which returns a complete enriched target frame.
 
 The built-in structural policies are independent. `dimension_change` compares
 the bound source profile's selected dimensional identities with the target
 profile's selected identities during spec validation: `preserve` requires equal
 sets, `add` requires the target to be a strict superset, and `remove` requires
 the target to be a strict subset. `fragment_dimensions` checks the raw
-materialized result against the target profile grain: `target` requires all
+materialized fragment against the target profile grain: `target` requires all
 target grain keys; `subset` permits any subset and leaves the engine to assemble
-it against the accumulated target. `row_count_relation`
-compares the raw result's row count with the accumulated target frame.
-`key_relation` independently compares dimension-key identities, ignoring row
-order. These policies never infer row-count or key guarantees from a
-dimensional change.
+it against the accumulated target. For fragment-producing kinds,
+`row_count_relation` compares the raw result's row count with the accumulated
+target and `key_relation` compares key identities. Vectorize does not produce a
+fragment: it must return all existing target columns plus its declared outputs.
+With `validate=True`, the engine also checks its `row_order_relation` and
+`existing_data_relation` contracts by comparing old columns and values in their
+original row order. These policies never infer row-count or key guarantees
+from a dimensional change.
 
-| Kind | Source-to-target dimensions (spec validation) | Raw result keys (runtime) | Row-count reference (runtime) | Key-identity reference (runtime) |
-| --- | --- | --- | --- | --- |
-| `read` | Unrestricted; no bound source | All target dimensions | Unrestricted | Unrestricted |
-| `write` | Unrestricted | Not applicable; no dataframe result | Unrestricted | Unrestricted |
-| `escape` | Unrestricted | Not applicable; its return is ignored | Unrestricted | Unrestricted |
-| `conform` | Preserve: bound foreign source to target | All target grain keys | Unrestricted; source may have different rows | Unrestricted |
-| `expand` | Add: bound lower-dimensional source to target | Any subset of target grain keys; assemble against accumulated target | Unrestricted | Unrestricted |
-| `collapse` | Remove: bound higher-dimensional source to target | All target grain keys | Unrestricted | Unrestricted |
-| `vectorize` | Preserve: bound target profile to target | All target grain keys | Same row count as accumulated target | Identical keys to accumulated target, regardless of row order |
+| Kind | Source-to-target dimensions (spec validation) | Dataframe result (runtime) |
+| --- | --- | --- |
+| `read` | Unrestricted; no bound source | Target-grain fragment |
+| `write` | Unrestricted | Not applicable; no dataframe result |
+| `escape` | Unrestricted | Not applicable; its return is ignored |
+| `conform` | Preserve: bound foreign source to target | Target-grain fragment |
+| `expand` | Add: bound lower-dimensional source to target | Partial-grain fragment assembled against the target |
+| `collapse` | Remove: bound higher-dimensional source to target | Target-grain fragment |
+| `vectorize` | Preserve: bound target profile to target | Complete enriched target frame; no fragment or join |
 
 Dimensionless profile frames and fragments have a separate structural
 limit of at most one row. This is not a same-row-count guarantee. Expand's

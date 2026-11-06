@@ -143,9 +143,9 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
     [
         ("missing", "missing output columns: result"),
         ("keys", "missing dimension columns: id"),
-        ("rows", "must preserve the profile grain keys"),
+        ("rows", "must preserve existing column values and row order"),
         ("type", "Output column result has type String; expected integer"),
-        ("scalar", "must return a Polars DataFrame or LazyFrame"),
+        ("scalar", "must be a Polars DataFrame or LazyFrame"),
     ],
 )
 def test_dataframe_returns_are_validated(
@@ -176,7 +176,7 @@ def test_dataframe_returns_are_validated(
     assert ("observations", "result") not in execution.calculated_outputs
 
 
-def test_returned_row_order_does_not_control_alignment(
+def test_vectorize_rejects_reordered_existing_rows(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     spec_definition = _spec()
@@ -186,14 +186,35 @@ def test_returned_row_order_does_not_control_alignment(
         return dataset.with_columns((pl.col("value") + 1).alias(output)).reverse()
 
     monkeypatch.setattr(f"{__name__}.add_one", reversed_result)
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
-    assert not execution.failures
-    assert execution.main_frames["observations"].sort("id").select(
-        "id", "value", "result"
-    ).rows() == [
-        (1, 10, 11),
-        (2, 20, 21),
+    execution = engine_for_plan(compiled, spec_definition=spec_definition).run(validate=True)
+    assert "must preserve existing column values and row order" in next(
+        iter(execution.failures.values())
+    )
+    assert execution.main_frames["observations"].select("id", "value").rows() == [
+        (2, 20),
+        (1, 10),
     ]
+    assert "result" not in execution.main_frames["observations"].columns
+
+
+def test_vectorize_merge_field_is_rejected_by_json_and_python_authoring(
+    tmp_path: pathlib.Path,
+) -> None:
+    path = tmp_path / "spec.json"
+    spec.write_document(_spec(), path)
+    configuration = json.loads(path.read_text())
+    configuration["profiles"]["observations"]["assembly"]["result"]["merge"] = {}
+    path.write_text(json.dumps(configuration))
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        spec.load_spec(path)
+
+    with pytest.raises(TypeError, match="unexpected keyword argument 'merge'"):
+        assembly.Operator(
+            id="vectorize",
+            interface=assembly.Interface(),
+            compute=assembly.Binding(function=ref.function(add_one, kind="vectorize")),
+            merge=assembly.Binding(function=ref.function(add_one, kind="vectorize")),
+        )
 
 
 @pytest.mark.parametrize(

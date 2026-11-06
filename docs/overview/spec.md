@@ -107,7 +107,7 @@ the profile legend above, including on both sides of each transformation.
 
 ### Vectorize
 
-<p class="cv-function-subtitle">Add a feature, keep the rows</p>
+<p class="cv-function-subtitle">Enrich the target frame, keep its existing data and row order</p>
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -116,7 +116,7 @@ the profile legend above, including on both sides of each transformation.
       <div class="cv-arrow"><span>divide</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">AFTER / one new feature</span><table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-amber">ratio</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-amber">0.75</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-amber">1.00</td></tr><tr><td class="cv-key">09:02</td><td class="cv-teal">4</td><td class="cv-amber">0.50</td></tr></tbody></table></div>
     </div>
-    <p class="cv-takeaway"><strong>Exactly one output feature. No new rows.</strong> Here, ratio = pressure / limit. The existing limit column is omitted from the after-view only for space.</p>
+    <p class="cv-takeaway"><strong>Add declared outputs to the complete target frame.</strong> Existing columns, values, and row order are preserved; here, ratio = pressure / limit. The existing limit column is omitted from the after-view only for space.</p>
   </div>
 </div>
 

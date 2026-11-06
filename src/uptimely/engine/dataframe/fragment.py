@@ -53,9 +53,9 @@ class Fragment:
         definition = functions.FUNCTION_KINDS.get(invocation.function_kind)
         if definition is None:
             raise ValueError(f"Unknown function kind: {invocation.function_kind}")
-        if definition.fragment_dimensions == "not_applicable":
+        if not definition.produces_fragment:
             raise ValueError(
-                f"Function kind {invocation.function_kind} does not materialize dataframe results"
+                f"Function kind {invocation.function_kind} does not produce dataframe fragments"
             )
         dataframe = load()
         dimensions = tuple(invocation.id_columns)
