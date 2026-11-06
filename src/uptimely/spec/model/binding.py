@@ -1,0 +1,99 @@
+"""Function bindings and aggregate views of their bound arguments."""
+
+from __future__ import annotations
+
+import functools
+import typing
+
+import pydantic
+
+from uptimely.spec import selectors
+
+from . import base, binding_argument
+
+
+class Binding(base.StrictModel):
+    """Wire a catalog function to its named argument values."""
+
+    function: str
+    args: dict[str, binding_argument.BindingArgument] = pydantic.Field(default_factory=dict)
+
+    @functools.cached_property
+    def references_with_paths(
+        self,
+    ) -> tuple[tuple[binding_argument.BindingArgument, binding_argument.ArgumentPath], ...]:
+        """Return structural argument references with binding-relative paths."""
+        return tuple(
+            (reference, (name, *path))
+            for name, argument in self.args.items()
+            for reference, path in argument.references_with_paths
+        )
+
+    @functools.cached_property
+    def values_with_paths(self) -> tuple[tuple[object, binding_argument.ArgumentPath], ...]:
+        """Return nested argument leaves and their binding-relative paths."""
+        return tuple(
+            (leaf.root, (name, *path))
+            for name, argument in self.args.items()
+            for leaf, path in argument.leaves_with_paths
+        )
+
+    @functools.cached_property
+    def references_by_prefix(
+        self,
+    ) -> dict[str, tuple[tuple[str, binding_argument.ArgumentPath], ...]]:
+        """Group nested reference IDs by resource prefix."""
+        return {
+            prefix: tuple(
+                (reference.identifier, path)
+                for reference, path in self.references_with_paths
+                if reference.prefix == prefix and reference.identifier is not None
+            )
+            for prefix in selectors.STRUCTURAL_PREFIXES
+        }
+
+    @functools.cached_property
+    def dataset_input_references(self) -> tuple[str, ...]:
+        """Return ordered profile data references from all arguments."""
+        return tuple(
+            identifier
+            for argument in self.args.values()
+            for identifier in argument.dataset_input_references
+        )
+
+    @property
+    def inferred_feature_inputs(self) -> tuple[str, ...]:
+        """Return ordered unique feature inputs inferred by the arguments."""
+        return tuple(
+            dict.fromkeys(
+                feature
+                for argument in self.args.values()
+                for feature in argument.inferred_feature_inputs
+            )
+        )
+
+    def dataset_dependencies(self, current_dataset: str) -> list[str]:
+        """Aggregate unique inferred profile-data dependencies."""
+        return list(
+            dict.fromkeys(
+                dependency
+                for argument in self.args.values()
+                for dependency in argument.dataset_dependencies(current_dataset)
+            )
+        )
+
+    def resolve_args(
+        self,
+        profile_id: str,
+        feature_id: str | None = None,
+        grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
+        resources: typing.Mapping[str, typing.Mapping[str, pydantic.BaseModel]] | None = None,
+    ) -> dict[str, object]:
+        """Resolve all arguments with a shared invocation context."""
+        context = binding_argument.BindingArgumentResolver(
+            current_profile_id=profile_id,
+            feature_id=feature_id,
+            grain_keys_by_profile=grain_keys_by_profile,
+            resources=resources if resources is not None else {},
+        )
+        return {name: argument.resolve(context) for name, argument in self.args.items()}

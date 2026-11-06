@@ -9,6 +9,7 @@ import graphable as graphable_
 
 from uptimely import row_context, spec
 from uptimely.spec import functions
+from uptimely.spec import model as spec_model
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +25,7 @@ class InvocationNode:
     operator_id: str
     feature_id: str | None = None
     output_features: tuple[str, ...] = ()
-    arguments: dict[str, object] = dataclasses.field(
+    arguments: dict[str, spec_model.BindingArgument] = dataclasses.field(
         default_factory=dict, compare=False, hash=False
     )
     input_features: tuple[str, ...] = ()

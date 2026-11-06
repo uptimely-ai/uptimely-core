@@ -354,7 +354,9 @@ def test_nested_model_binding_values_are_dumped_and_resolved() -> None:
         feature: str
 
     binding = model.Binding(function="calculate")
-    binding.args["nested"] = NestedArgument(feature="$features.flow_rate")
+    binding.args["nested"] = model.BindingArgument.model_validate(
+        NestedArgument(feature="$features.flow_rate")
+    )
 
     assert binding.resolve_args("telemetry") == {"nested": {"feature": "flow_rate"}}
 
@@ -394,7 +396,7 @@ def test_system_and_subset_support_multiple_variables() -> None:
     collapse = spec_definition.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.compute.function == "aggregate"
-    assert collapse.compute.args["feature"] == "$features.bearing_temperature"
+    assert collapse.compute.args["feature"].root == "$features.bearing_temperature"
     system = spec.FeatureGraph(spec_definition)
 
     assert system.feature_names == {

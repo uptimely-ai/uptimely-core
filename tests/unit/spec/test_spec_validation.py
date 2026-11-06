@@ -110,7 +110,9 @@ def test_location_indexes_describe_original_objects() -> None:
     item = next(iter(profile.assembly.values()))
     item.interface.inputs = ["$features.new_input"]
     item.interface.outputs = ["$features.new_output"]
-    item.compute.args = {"nested": ["$features.selected", "$dimensions.new_dimension"]}
+    item.compute.args = {
+        "nested": spec_model.BindingArgument(["$features.selected", "$dimensions.new_dimension"])
+    }
     key, indexed = model.operator_items[0]
     assert indexed is item
     assert key[0] == profile_id
@@ -455,7 +457,7 @@ def test_grain_key_selector_is_a_matching_key_declaration() -> None:
         if key[1] == "bearing_temperature_by_pump"
     )
 
-    assert operator.compute.args["dimensions"] == "$profiles.@.grain.ids"
+    assert operator.compute.args["dimensions"].root == "$profiles.@.grain.ids"
     assert [grain_key for grain_key, _ in spec_definition.matching_profile_keys[key]] == ["pump_id"]
     assert operator_contracts.validate_matching_keys(spec_definition) is None
 

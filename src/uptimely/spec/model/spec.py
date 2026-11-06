@@ -11,7 +11,8 @@ import pydantic
 
 from uptimely.spec import arg_types, functions, selectors
 
-from . import common
+from . import base
+from . import dimension as dimension_module
 from . import functions as functions_module
 from . import profile as profile_module
 
@@ -56,45 +57,29 @@ class _ResourceIndex:
     declaration_paths: dict[OperatorKey, SpecPath] = dataclasses.field(default_factory=dict)
 
 
-def _typed_binding_values(
-    binding: common.Binding,
-    catalog: typing.Mapping[str, functions_module.FunctionTemplate],
-) -> typing.Iterator[tuple[object, str]]:
-    """Yield binding values with types inherited from their function arguments."""
-    function = catalog.get(binding.function)
-    if function is None:
-        return
-    for value, path in binding.values_with_paths:
-        argument = function.args.get(path[0]) if isinstance(path[0], str) else None
-        if argument is None:
-            continue
-        argument_type = argument.type
-        for segment in path[1:]:
-            item_type = (
-                arg_types.array_item_type(argument_type)
-                if isinstance(segment, int)
-                else arg_types.object_value_type(argument_type)
-            )
-            argument_type = item_type or arg_types.STRING
-        yield value, argument_type
+class SpecSource(base.StrictModel):
+    """Describe how a spec document was authored or generated."""
+
+    name: str
+    generated: bool
 
 
-class Options(common.StrictModel):
+class Options(base.StrictModel):
     """Build-time options that affect Spec interpretation."""
 
     merge: typing.Literal["auto", "explicit"] = "auto"
 
 
-class Spec(common.StrictModel):
+class Spec(base.StrictModel):
     """The complete JSON document; cached views assume declarations are unchanged."""
 
     name: str | None = None
     spec_version: typing.Literal[6] = SPEC_VERSION
-    source: common.SpecSource = pydantic.Field(
-        default_factory=lambda: common.SpecSource(name="manual", generated=False)
+    source: SpecSource = pydantic.Field(
+        default_factory=lambda: SpecSource(name="manual", generated=False)
     )
     options: Options = pydantic.Field(default_factory=Options)
-    dimensions: dict[str, common.Dimension] = pydantic.Field(default_factory=dict)
+    dimensions: dict[str, dimension_module.Dimension] = pydantic.Field(default_factory=dict)
     functions: functions_module.FunctionCatalog = pydantic.Field(
         default_factory=functions_module.FunctionCatalog
     )
@@ -226,7 +211,7 @@ class Spec(common.StrictModel):
 
     def get_row_context_resolution(
         self, key: OperatorKey, dimension_id: str
-    ) -> common.Resolution | None:
+    ) -> dimension_module.Resolution | None:
         """Return the selected context resolution, or None when it is unavailable."""
         profile = self.get_row_context_profile(key)
         if profile is None:
@@ -263,7 +248,7 @@ class Spec(common.StrictModel):
         return True
 
     @property
-    def arguments(self) -> dict[tuple[str, str], common.Argument]:
+    def arguments(self) -> dict[tuple[str, str], functions_module.Argument]:
         """Return function argument declarations keyed by function and argument."""
         return self.functions.arguments
 
@@ -361,14 +346,14 @@ class Spec(common.StrictModel):
             arguments: list[DatasetArgument] = []
             if function is not None:
                 for name in function.arguments_by_type.get(arg_types.DATAFRAME, {}):
-                    value = operator.arguments.get(name)
-                    source_id = None
-                    if isinstance(value, str) and value.startswith(selectors.PROFILE_PREFIX):
-                        reference = value.removeprefix(selectors.PROFILE_PREFIX).removesuffix(
-                            selectors.DATAFRAME_SELECTOR
+                    argument = operator.arguments.get(name)
+                    arguments.append(
+                        (
+                            name,
+                            argument.root if argument is not None else None,
+                            argument.profile_id(key[0]) if argument is not None else None,
                         )
-                        source_id = key[0] if reference == selectors.CURRENT_ID else reference
-                    arguments.append((name, value, source_id))
+                    )
             result[key] = tuple(arguments)
         return result
 
@@ -405,11 +390,17 @@ class Spec(common.StrictModel):
             for name, binding in (("compute", operator.compute), ("merge", operator.merge)):
                 if binding is None:
                     continue
+                function = self.functions.root.get(binding.function)
+                if function is None:
+                    continue
                 binding_path = (*self.declaration_paths[key], name, "args")
-                values.extend(
-                    (binding_path, value, argument_type)
-                    for value, argument_type in _typed_binding_values(binding, self.functions.root)
-                )
+                for argument_name, argument in binding.args.items():
+                    declaration = function.args.get(argument_name)
+                    if declaration is not None:
+                        values.extend(
+                            (binding_path, value, argument_type)
+                            for value, argument_type in argument.typed_values(declaration.type)
+                        )
         return tuple(values)
 
     @functools.cached_property
@@ -431,16 +422,15 @@ class Spec(common.StrictModel):
         result: dict[OperatorKey, tuple[tuple[str, SpecPath], ...]] = {}
         for key, operator in self.operator_items:
             matches: list[tuple[str, SpecPath]] = []
-            for value, path in operator.compute.values_with_paths:
-                if not (
-                    isinstance(value, str)
-                    and value.startswith(selectors.PROFILE_PREFIX)
-                    and value.endswith(selectors.PROFILE_GRAIN_IDS_SELECTOR)
+            for reference, path in operator.compute.references_with_paths:
+                if (
+                    reference.prefix != selectors.PROFILE_PREFIX
+                    or reference.selector != "grain.ids"
                 ):
                     continue
-                profile_id = value.removeprefix(selectors.PROFILE_PREFIX).removesuffix(
-                    selectors.PROFILE_GRAIN_IDS_SELECTOR
-                )
+                profile_id = reference.identifier
+                if profile_id is None:
+                    continue
                 if profile_id == selectors.CURRENT_ID:
                     profile_key = self.operator_profile_keys[key]
                 else:

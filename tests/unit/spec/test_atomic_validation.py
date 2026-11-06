@@ -170,7 +170,7 @@ def test_merge_operator_kind_is_validated_independently(document: spec.Spec) -> 
 
 def test_merge_target_is_validated_independently(document: spec.Spec) -> None:
     operator = _add_merge_binding(document)
-    operator.merge.args["target"] = "$profiles.other.dataframe"
+    operator.merge.args["target"] = spec.model.BindingArgument("$profiles.other.dataframe")
 
     with pytest.raises(errors.SpecError, match="current profile dataframe") as error:
         bindings.validate_merge_target(document)
@@ -181,7 +181,7 @@ def test_merge_target_is_validated_independently(document: spec.Spec) -> None:
 
 def test_merge_fragment_is_validated_independently(document: spec.Spec) -> None:
     operator = _add_merge_binding(document)
-    operator.merge.args["fragment"] = "$operators.other.fragment"
+    operator.merge.args["fragment"] = spec.model.BindingArgument("$operators.other.fragment")
 
     with pytest.raises(errors.SpecError, match="staged fragment") as error:
         bindings.validate_merge_fragment(document)
@@ -192,7 +192,7 @@ def test_merge_fragment_is_validated_independently(document: spec.Spec) -> None:
 
 def test_merge_feature_references_are_validated_independently(document: spec.Spec) -> None:
     operator = _add_merge_binding(document)
-    operator.merge.args["feature"] = "$features.value"
+    operator.merge.args["feature"] = spec.model.BindingArgument("$features.value")
 
     with pytest.raises(errors.SpecError, match="cannot reference features") as error:
         bindings.validate_merge_feature_references(document)
@@ -204,7 +204,9 @@ def test_selector_metadata_is_validated_independently(document: spec.Spec) -> No
     key, operator = document.operator_items[0]
     function = document.functions.root[operator.compute.function]
     function.args["metadata"] = spec.model.Argument(id="metadata", type="object{str: string}")
-    operator.compute.args["metadata"] = {"nested": "$dimensions.missing.name"}
+    operator.compute.args["metadata"] = spec.model.BindingArgument(
+        {"nested": "$dimensions.missing.name"}
+    )
 
     with pytest.raises(errors.SpecError, match="Cannot resolve resource metadata") as error:
         bindings.validate_selector_metadata(document)

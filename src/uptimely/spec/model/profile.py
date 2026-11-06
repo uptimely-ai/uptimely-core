@@ -10,10 +10,10 @@ import pydantic
 from uptimely import row_context as uptimely_row_context
 from uptimely.spec import selectors
 
-from . import common
+from . import base, binding, binding_argument
 
 
-class Feature(common.StrictModel):
+class Feature(base.StrictModel):
     """A profile feature's logical metadata."""
 
     id: str = pydantic.Field(exclude=True)
@@ -26,11 +26,11 @@ class Feature(common.StrictModel):
     def generate_name(self) -> typing.Self:
         """Generate a display name from the feature ID when one is not supplied."""
         if self.name is None:
-            self.name = common.humanize_identifier(self.id)
+            self.name = base.humanize_identifier(self.id)
         return self
 
 
-class Interface(common.StrictModel):
+class Interface(base.StrictModel):
     """Explicit data prerequisites and produced features for one operator."""
 
     inputs: list[str] = pydantic.Field(default_factory=list)
@@ -63,12 +63,12 @@ class Interface(common.StrictModel):
         return values
 
 
-class Operator(common.StrictModel):
+class Operator(base.StrictModel):
     """A computation with declared feature inputs, outputs, and optional merge."""
 
     id: str = pydantic.Field(exclude=True)
-    compute: common.Binding
-    merge: common.Binding | None = None
+    compute: binding.Binding
+    merge: binding.Binding | None = None
     interface: Interface = pydantic.Field(default_factory=Interface)
     row_context: uptimely_row_context.RowContext | None = None
 
@@ -83,8 +83,8 @@ class Operator(common.StrictModel):
         return self.interface.output_ids
 
     @property
-    def arguments(self) -> dict[str, common.BindingArgument]:
-        """Return this operator's supplied argument values."""
+    def arguments(self) -> dict[str, binding_argument.BindingArgument]:
+        """Return this operator's bound argument objects."""
         return self.compute.args
 
     @functools.cached_property
@@ -112,7 +112,7 @@ class Operator(common.StrictModel):
         return tuple(dimension for dimension, _ in self.dimension_reference_paths)
 
 
-class Grain(common.StrictModel):
+class Grain(base.StrictModel):
     """A selected resolution that contributes keys to a profile's grain."""
 
     dimension: str
@@ -125,7 +125,7 @@ class Order(Grain):
     direction: typing.Literal["asc", "desc"]
 
 
-class Profile(common.StrictModel):
+class Profile(base.StrictModel):
     """An entry under the top-level ID-keyed `profiles` object."""
 
     id: str = pydantic.Field(exclude=True)
@@ -152,7 +152,7 @@ class Profile(common.StrictModel):
     def generate_name(self) -> typing.Self:
         """Generate a display name from the profile ID when one is not supplied."""
         if self.name is None:
-            self.name = common.humanize_identifier(self.id)
+            self.name = base.humanize_identifier(self.id)
         return self
 
     @property
@@ -161,7 +161,7 @@ class Profile(common.StrictModel):
         return self.features
 
     @functools.cached_property
-    def arguments(self) -> dict[tuple[str, str], common.BindingArgument]:
+    def arguments(self) -> dict[tuple[str, str], binding_argument.BindingArgument]:
         """Return compute arguments keyed by operator key and argument name."""
         return {
             (operator_id, name): value

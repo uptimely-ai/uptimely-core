@@ -9,10 +9,18 @@ import pydantic
 
 from uptimely.spec import arg_types, functions
 
-from . import common
+from . import base
 
 
-class FunctionTemplate(common.StrictModel):
+class Argument(base.StrictModel):
+    """A single argument declaration under a function template's `args`."""
+
+    id: str = pydantic.Field(exclude=True)
+    type: str
+    comment: str | None = None
+
+
+class FunctionTemplate(base.StrictModel):
     """One logical function definition in the spec catalog."""
 
     id: str = pydantic.Field(exclude=True)
@@ -24,20 +32,20 @@ class FunctionTemplate(common.StrictModel):
         default=True,
         description="Whether to inspect the Python signature and check implementation contracts.",
     )
-    args: dict[str, common.Argument] = pydantic.Field(default_factory=dict)
+    args: dict[str, Argument] = pydantic.Field(default_factory=dict)
     description: str | None = None
 
     @pydantic.model_validator(mode="after")
     def generate_name(self) -> typing.Self:
         """Generate a display name from the function ID when one is not supplied."""
         if self.name is None:
-            self.name = common.humanize_identifier(self.id)
+            self.name = base.humanize_identifier(self.id)
         return self
 
     @functools.cached_property
-    def arguments_by_type(self) -> dict[str, dict[str, common.Argument]]:
+    def arguments_by_type(self) -> dict[str, dict[str, Argument]]:
         """Return argument declarations grouped by type in declaration order."""
-        grouped: dict[str, dict[str, common.Argument]] = {}
+        grouped: dict[str, dict[str, Argument]] = {}
         for argument_id, argument in self.args.items():
             argument_type = (
                 arg_types.DATAFRAME if arg_types.is_dataframe(argument.type) else argument.type
@@ -73,7 +81,7 @@ class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
         return grouped
 
     @functools.cached_property
-    def arguments(self) -> dict[tuple[str, str], common.Argument]:
+    def arguments(self) -> dict[tuple[str, str], Argument]:
         """Return argument declarations keyed by function key and argument key."""
         return {
             (function_id, argument_id): argument

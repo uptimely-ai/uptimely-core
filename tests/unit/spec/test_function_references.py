@@ -371,7 +371,7 @@ def test_references_supply_function_names_as_catalog_ids(kind: functions.Functio
     model = declaration.to_model()
     assert model.id == declaration.id
     assert model.compute.function == identifier
-    assert model.compute.args == {"x": 1.2}
+    assert model.compute.model_dump()["args"] == {"x": 1.2}
 
 
 def test_nested_bindings_use_reference_names_and_overrides() -> None:

@@ -54,7 +54,7 @@ def test_undecorated_function_uses_explicit_reference_contract() -> None:
     )
     assert operator.kind == "vectorize"
     assert operator.function_catalog()["implementation"].kind == "vectorize"
-    assert operator.to_model().compute.args == {"value": "input"}
+    assert operator.to_model().compute.model_dump()["args"] == {"value": "input"}
     assert functions.declared_kind(implementation) is None
     assert implementation("input") == "input"
 

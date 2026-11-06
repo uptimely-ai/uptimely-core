@@ -69,7 +69,7 @@ def validate_merge_target(spec: spec_model.Spec) -> None:
         if operator.merge is None:
             continue
         target = operator.merge.args.get("target")
-        if target != current_target:
+        if target is None or target.root != current_target:
             raise errors.SpecError(
                 "Merge target must reference the current profile dataframe",
                 code="invalid_merge_binding",
@@ -85,7 +85,7 @@ def validate_merge_fragment(spec: spec_model.Spec) -> None:
         if operator.merge is None:
             continue
         fragment = operator.merge.args.get("fragment")
-        if fragment != current_fragment:
+        if fragment is None or fragment.root != current_fragment:
             raise errors.SpecError(
                 "Merge fragment must reference this operator's staged fragment",
                 code="invalid_merge_binding",
@@ -99,10 +99,7 @@ def validate_merge_feature_references(spec: spec_model.Spec) -> None:
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
-        if any(
-            isinstance(value, str) and value.startswith(selectors.FEATURE_PREFIX)
-            for value, _ in operator.merge.values_with_paths
-        ):
+        if operator.merge.references_by_prefix[selectors.FEATURE_PREFIX]:
             raise errors.SpecError(
                 "Merge bindings cannot reference features; merge using dimension keys",
                 code="invalid_merge_feature_reference",
@@ -161,24 +158,11 @@ def validate_selector_metadata(spec: spec_model.Spec) -> None:
         for binding_name, binding in (("compute", operator.compute), ("merge", operator.merge)):
             if binding is None:
                 continue
-            for value, path in binding.values_with_paths:
-                if not isinstance(value, str):
-                    continue
-                prefix = next(
-                    (
-                        prefix
-                        for prefix in selectors.STRUCTURAL_PREFIXES
-                        if value.startswith(prefix)
-                    ),
-                    None,
-                )
-                if prefix is None:
-                    continue
-                _, _, attribute = value.removeprefix(prefix).partition(".")
-                if not attribute or attribute in {"id", "dataframe", "grain.ids"}:
+            for argument, path in binding.references_with_paths:
+                if not argument.is_metadata_reference:
                     continue
                 try:
-                    resolver.resolve_arguments({"value": value})
+                    argument.resolve(resolver)
                 except ValueError as error:
                     raise errors.SpecError(
                         str(error),

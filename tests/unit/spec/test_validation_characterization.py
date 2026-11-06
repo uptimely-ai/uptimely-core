@@ -35,7 +35,9 @@ def test_binding_feature_selectors_do_not_become_input_dependencies() -> None:
     document = spec.Spec.model_validate(_configuration())
     operator = document.profiles["pump_telemetry"].assembly["pressure_flow_efficiency"]
     operator.interface.inputs = []
-    operator.compute.args["dependency_hint"] = "$features.bearing_temperature"
+    operator.compute.args["dependency_hint"] = spec.model.BindingArgument(
+        "$features.bearing_temperature"
+    )
 
     facts = next(item for item in document.operators if item is operator)
 
@@ -110,14 +112,16 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
     operator = dataset.assembly.pop("pressure_flow_efficiency")
     dataset.assembly["alias"] = operator
     if invalid_binding:
-        operator.compute.args["unexpected"] = None
+        operator.compute.args["unexpected"] = spec.model.BindingArgument(None)
         expected_id = "alias"
         expected_code = "invalid_binding_arguments"
         validate = bindings.validate_arguments
     else:
         function = document.functions[operator.compute.function]
         argument = next(name for name, arg in function.args.items() if arg.type == "dataframe")
-        operator.compute.args[argument] = "$profiles.pump_profile.dataframe"
+        operator.compute.args[argument] = spec.model.BindingArgument(
+            "$profiles.pump_profile.dataframe"
+        )
         expected_id = "alias"
         expected_code = "invalid_mapping_dataset_input"
         validate = contracts_validation.validate_target_dataset_input
@@ -311,7 +315,9 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     dataset.assembly["bearing_temperature_by_pump"].interface.inputs = ["$features.missing"]
     other = document.profiles["pump_telemetry"]
     other.assembly["pressure_flow_efficiency"].compute.function = "missing"
-    other.assembly["recommended_flow_rate"].compute.args = {"unexpected": None}
+    other.assembly["recommended_flow_rate"].compute.args = {
+        "unexpected": spec.model.BindingArgument(None)
+    }
     document.profiles["pump_profile_copy"] = dataset.model_copy(
         update={"id": "pump_profile_copy"}, deep=True
     )

@@ -12,7 +12,7 @@ from uptimely.spec import arg_types, functions, selectors
 from uptimely.spec import catalog as function_catalog
 from uptimely.spec import model as spec_model
 
-from . import bind, binding_conversion, ref
+from . import binding_conversion, ref
 from . import feature as feature_module
 from . import functions as function_semantics
 from . import row_context as row_context_module
@@ -158,11 +158,13 @@ class Operator:
 
     def to_model(self) -> spec_model.Operator:
         """Convert this declaration to its canonical document model."""
-        inputs = self._input_ids()
+        compute = self._binding_model(self.compute)
+        merge = self._binding_model(self.merge) if self.merge is not None else None
+        inputs = self._input_ids(compute, merge)
         return spec_model.Operator(
             id=self.id,
-            compute=self._binding_model(self.compute),
-            merge=self._binding_model(self.merge) if self.merge is not None else None,
+            compute=compute,
+            merge=merge,
             interface=self._model_interface(inputs, self.interface.outputs),
             row_context=self.row_context,
         )
@@ -241,13 +243,15 @@ class Operator:
             return identifier
         return value.removeprefix(selectors.FEATURE_PREFIX)
 
-    def _input_ids(self) -> list[str]:
+    def _input_ids(
+        self, compute: spec_model.Binding, merge: spec_model.Binding | None
+    ) -> list[str]:
         """Return declared input IDs or infer them from feature bindings."""
         if self.interface.inputs is None:
             outputs = {output.id for output in self.interface.outputs}
-            inputs = self._inputs(self.compute.arguments)
-            if self.merge is not None:
-                inputs.extend(self._inputs(self.merge.arguments))
+            inputs = list(compute.inferred_feature_inputs)
+            if merge is not None:
+                inputs.extend(merge.inferred_feature_inputs)
             return [name for name in dict.fromkeys(inputs) if name not in outputs]
         return [self._feature_id(value) for value in self.interface.inputs]
 
@@ -261,30 +265,3 @@ class Operator:
             inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
             outputs=[f"{selectors.FEATURE_PREFIX}{feature.id}" for feature in outputs],
         )
-
-    @staticmethod
-    def _inputs(value: object) -> list[str]:
-        """Collect unique feature-valued arguments in declaration order."""
-        return list(
-            dict.fromkeys(
-                reference.value.removeprefix(selectors.FEATURE_PREFIX)
-                for reference in Operator._references(value)
-                if reference.kind == "feature"
-            )
-        )
-
-    @staticmethod
-    def _references(value: object) -> typing.Iterator[ref.Reference]:
-        """Yield references nested in argument bindings."""
-        if isinstance(value, row_context_module.RowContextBinding):
-            yield from Operator._references(value.value)
-        elif isinstance(reference := binding_conversion.resource_reference(value), ref.Reference):
-            yield reference
-        elif isinstance(value, bind.Bind):
-            yield from Operator._references(value.args)
-        elif isinstance(value, abc.Mapping):
-            for child in value.values():
-                yield from Operator._references(child)
-        elif isinstance(value, (list, tuple)):
-            for child in value:
-                yield from Operator._references(child)

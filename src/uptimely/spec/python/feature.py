@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 
 from uptimely.spec import model as spec_model
-from uptimely.spec.model import common as spec_common
+from uptimely.spec.model import base as model_base
 
 __all__ = ["Feature", "FeatureSet"]
 
@@ -23,7 +23,7 @@ class Feature:
     def __post_init__(self) -> None:
         """Generate a display name from the ID when one is not supplied."""
         if self.name is None:
-            object.__setattr__(self, "name", spec_common.humanize_identifier(self.id))
+            object.__setattr__(self, "name", model_base.humanize_identifier(self.id))
 
     def to_model(self) -> spec_model.Feature:
         """Convert this feature declaration to its JSON model."""

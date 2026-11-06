@@ -57,7 +57,7 @@ def test_root_authoring_api_compiles_and_executes(
     operator = model.profiles["calculated_profile"].assembly["double"]
     assert operator.input_features == ["value"]
     assert operator.output_features == ["doubled"]
-    assert operator.compute.args == {
+    assert operator.compute.model_dump()["args"] == {
         "dataset": "$profiles.@.dataframe",
         "value": "$features.value",
         "output": "$features.doubled",

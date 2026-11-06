@@ -156,7 +156,7 @@ def test_nested_models_expose_cached_children_and_normalized_ids() -> None:
         assert profile.dimension_id_set == frozenset({"key"})
         assert profile.features["value"].id == "value"
         assert profile.assembly["read"] is operator
-        assert profile.arguments["read", "path"] == "first"
+        assert profile.arguments["read", "path"].root == "first"
         assert operator.arguments is operator.compute.args
         assert profile.feature_producers["value"] == (("read", operator),)
         assert operator.input_features is operator.interface.input_ids
