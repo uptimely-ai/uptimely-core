@@ -24,7 +24,7 @@ __all__ = [
     "steps",
     "rows",
     "current",
-    "dataset",
+    "all_rows",
 ]
 
 
@@ -131,8 +131,8 @@ def current() -> row_context.RowContext:
     return row_context.RowContext()
 
 
-def dataset() -> row_context.RowContext:
-    """Declare that the entire input dataset is required."""
+def all_rows() -> row_context.RowContext:
+    """Declare that all observations in the input profile are required."""
     return row_context.RowContext(before=row_context.UNBOUNDED, after=row_context.UNBOUNDED)
 
 

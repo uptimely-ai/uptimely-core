@@ -52,7 +52,7 @@ class _CountingDict(dict[str, typing.Any]):
         return super().values()
 
 
-def test_cached_views_build_only_the_indexes_they_need() -> None:
+def test_cached_views_build_only_the_views_they_need() -> None:
     document = _sample_spec()
     counted = []
     document.profiles = _CountingDict(document.profiles)
@@ -140,7 +140,7 @@ def test_rebuild_discovers_edits_after_cached_views_are_warmed() -> None:
         validation.validate_spec(reconstructed)
 
 
-def test_indexes_preserve_operator_aliases_and_diagnostic_paths() -> None:
+def test_cached_views_preserve_operator_aliases_and_diagnostic_paths() -> None:
     document = _sample_spec()
     operator = document.profiles["first"].assembly["read"]
     document.profiles["first"].assembly["alias"] = operator

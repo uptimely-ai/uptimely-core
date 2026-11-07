@@ -237,7 +237,7 @@ def test_context_rejects_invalid_metadata(payload):
         row_context.RowContext.model_validate(payload)
 
 
-def test_unknown_current_and_whole_dataset_context_are_distinct():
+def test_unknown_current_and_all_rows_context_are_distinct():
     assert (
         assembly.Operator(
             id="operator",
@@ -253,7 +253,7 @@ def test_unknown_current_and_whole_dataset_context_are_distinct():
         is None
     )
     assert authoring.current().to_dict() == {"before": {}, "after": {}}
-    whole = authoring.dataset()
+    whole = authoring.all_rows()
     assert whole.to_dict() == {"before": "unbounded", "after": "unbounded"}
     assert not whole.requires_order
     assert whole.merge(authoring.rows(8, before=7)) == whole
@@ -308,7 +308,7 @@ def test_directional_context_requires_dataset_order():
     with pytest.raises(ValueError, match="requires profile order"):
         _spec(authoring.rows(1, before=1).row_context, ordered=False)
     _spec(authoring.current(), ordered=False)
-    _spec(authoring.dataset(), ordered=False)
+    _spec(authoring.all_rows(), ordered=False)
 
 
 @pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
