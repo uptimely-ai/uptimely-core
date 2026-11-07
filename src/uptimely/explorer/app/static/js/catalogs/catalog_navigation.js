@@ -27,7 +27,7 @@ export function initializeCatalog(signal) {
     const link = catalogLinks.find(candidate => candidate.hash === hash) || catalogLinks[0];
     const target = document.getElementById(decodeURIComponent(link.hash.slice(1)));
     const selected = catalogItems.find(item => item === target || target.contains(item));
-    const isOverview = selected.id === "catalog-overview";
+    const isOverview = selected.id === "overview";
     const dimensionLabel = document.querySelector("[data-dimension-label]");
     if (dimensionLabel) dimensionLabel.hidden = isOverview;
     if (catalogSectionCount) {

@@ -1,5 +1,5 @@
 const LEGACY_ROUTES = {
-  overview: "home", catalogs: "features", "feature-lineage": "lineage",
+  catalogs: "features", "feature-lineage": "lineage",
   "invocation-lineage": "topology", plan: "stages", animation: "animation",
 };
 

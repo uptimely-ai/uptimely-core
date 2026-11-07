@@ -96,12 +96,12 @@ test("browser back/forward and item hashes update the active view without stale 
   const app = await boot();
   await app.click("?view=features#feature-readings-value");
   const catalog = app.mounted.find(instance => instance.name === "catalog");
-  await app.hash("#catalog-overview");
+  await app.hash("#overview");
   assert.equal(catalog.updates, 1);
   await app.click("?view=animation#step-1");
   assert.equal(catalog.signal.aborted, true);
   await app.back();
-  assert.match(app.location.href, /view=features#catalog-overview$/);
+  assert.match(app.location.href, /view=features#overview$/);
   assert.equal(app.mounted.at(-2).name, "catalog");
   await app.back();
   assert.match(app.location.href, /#feature-readings-value$/);
@@ -137,7 +137,7 @@ test("modified, external, download and local fragment clicks keep native browser
   }
   assert.equal(await app.click("https://external.test/?view=features"), false);
   assert.equal(await app.click("/different/path/?view=features"), false);
-  assert.equal(await app.click("#catalog-overview"), false);
+  assert.equal(await app.click("#overview"), false);
   assert.equal(app.entries.length, 1);
 });
 

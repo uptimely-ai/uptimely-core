@@ -30,8 +30,8 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   for (const view of ["features", "profiles", "dimensions", "functions", "stages"]) {
     const { content, context } = renderCatalog(sampleData(), view);
     assert.match(context, /id="catalog-context"/);
-    assert.match(context, /href="#catalog-overview"/);
-    assert.match(content, /id="catalog-overview" data-context-item/);
+    assert.match(context, /href="#overview"/);
+    assert.match(content, /id="overview" data-context-item/);
     if (view === "profiles") {
       assert.match(content, /class="profile-summary-category"/);
     } else {
@@ -58,7 +58,7 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   profileData.catalogs.summary.operator_count = 400;
   const profileCatalog = renderCatalog(profileData, "profiles");
   const profiles = profileCatalog.content;
-  assert.match(profileCatalog.context, /href="#catalog-overview"[^]*?>Overview/);
+  assert.match(profileCatalog.context, /href="#overview"[^]*?>Overview/);
   assert.equal((profiles.match(/class="profile-summary-card"/g) || []).length, 2);
   assert.match(profiles, /href="#profile-readings"[^]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>1<\/strong><span>operator<\/span>/);
   assert.match(profiles, /href="#profile-daily"[^]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>3<\/strong><span>operators<\/span>/);
@@ -219,7 +219,7 @@ test("profile context groups links by category in declaration order", async () =
   assert.match(groups[1], /href="#profile-pumps"/);
   assert.match(groups[2], /Uncategorized.*context-link-count">2/);
   assert.match(groups[2], /href="#profile-constants"[^]*href="#profile-other"/);
-  assert.match(html, /href="#catalog-overview"/);
+  assert.match(html, /href="#overview"/);
   assert.doesNotMatch(html, /Measurements <raw>/);
 });
 

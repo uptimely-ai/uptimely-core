@@ -311,7 +311,7 @@ test("catalog overview navigation uses the appropriate label and profile cards s
     stages: [],
   };
   const { content, context } = renderCatalog(data, "profiles");
-  assert.match(context, /href="#catalog-overview"[\s\S]*?data-lucide="layout-grid"[\s\S]*?>Overview/);
+  assert.match(context, /href="#overview"[\s\S]*?data-lucide="layout-grid"[\s\S]*?>Overview/);
   assert.match(content, /aria-label="Profiles overview"/);
   assert.match(content, /<h1[^]*?<span>Profiles<\/span><\/h1>[^]*?<p data-section-description[^>]*>A profile defines computational operators required to assemble a dataset at a specific grain\.<\/p>/);
   assert.doesNotMatch(content, /profile-summary-note/);
@@ -343,7 +343,7 @@ test("catalog overviews use the shared dashboard icon and summary panels", () =>
   for (const view of ["features", "functions", "dimensions", "stages"]) {
     const { content, context } = renderCatalog(data, view);
     const title = view[0].toUpperCase() + view.slice(1);
-    assert.match(context, /href="#catalog-overview"[\s\S]*?data-lucide="layout-grid"[\s\S]*?>Overview/);
+    assert.match(context, /href="#overview"[\s\S]*?data-lucide="layout-grid"[\s\S]*?>Overview/);
     assert.match(content, new RegExp(`aria-label="${title} overview"`));
     if (view === "features") {
       assert.doesNotMatch(content, /<h2[^>]*>Features overview<\/h2>|data-stat=/);

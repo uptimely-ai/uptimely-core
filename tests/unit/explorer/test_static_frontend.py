@@ -17,6 +17,12 @@ def test_static_frontend_uses_packaged_assets_and_live_api() -> None:
     navigation = frontend.joinpath("js", "rendering", "shared_markup.js").read_text(
         encoding="utf-8"
     )
+    catalogs = frontend.joinpath("js", "catalogs", "catalog_renderer.js").read_text(
+        encoding="utf-8"
+    )
+    catalog_navigation = frontend.joinpath("js", "catalogs", "catalog_navigation.js").read_text(
+        encoding="utf-8"
+    )
 
     assert 'src="./config.js"' in index
     assert 'src="./js/application/bootstrap.js"' in index
@@ -39,6 +45,10 @@ def test_static_frontend_uses_packaged_assets_and_live_api() -> None:
     assert "engine-log-gutter" in engine_pages
     assert "engine-log-level" in engine_pages
     assert "engine-log-editor" in engine_pages
+    assert '"overview", "Overview", "overview"' in catalogs
+    assert 'id="overview"' in catalogs
+    assert "catalog-overview" not in catalogs
+    assert 'selected.id === "overview"' in catalog_navigation
 
 
 def test_original_ui_components_are_packaged_with_the_static_frontend() -> None:
