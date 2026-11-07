@@ -81,7 +81,7 @@ const contextLinks = {
     return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length)
       .map(([kind, items]) => group(kind[0].toUpperCase() + kind.slice(1),
         Object.entries(items).map(([id, item]) =>
-          contextLink(`function-${id}`, label(id, item), "functions")))).join("");
+          contextLink(`function-${id}`, label(id, item), "functions", null, kind)))).join("");
   },
   stages(data) {
     return data.stages.map(stage =>
@@ -147,7 +147,7 @@ const overviewData = {
       charts: [
         distribution("Invocations by stage",
           data.stages.map(stage => [`Stage ${stage.stage}`, stage.steps.length])),
-        distribution("Invocations by function kind", data.plan.function_kind_counts),
+        distribution("Invocations by function kind", data.plan.function_kind_counts, { kindLabels: true }),
       ],
     };
   },
@@ -202,16 +202,17 @@ function profileOverview(data) {
 
 function functionOverview(data) {
   const groups = Object.entries(data.catalogs.function_groups);
+  const returnTypeCounts = new Map();
+  groups.flatMap(([, items]) => Object.values(items)).forEach(item => {
+    const type = item.return_type || "unspecified";
+    returnTypeCounts.set(type, (returnTypeCounts.get(type) || 0) + 1);
+  });
   return `<section id="overview" data-context-item aria-label="Functions overview" class="mb-12">
-    <h2 class="ui-section-title mb-6">Functions overview</h2>
-    <div class="grid gap-3 sm:grid-cols-2">${[
-      ["Functions", data.catalogs.summary.function_count],
-      ["Kinds in use", groups.filter(([, items]) => Object.keys(items).length).length],
-    ].map(args => statistic(...args)).join("")}</div>
-    <div class="catalog-charts">${distribution("Functions by kind", groups.map(([kind, items]) => {
+    <div class="catalog-charts lg:grid-cols-2">${distribution("Functions by kind", groups.map(([kind, items]) => {
       const count = Object.keys(items).length;
       return [kind, count, count ? `#functions-${encodeURIComponent(kind)}` : null];
-    }), { total: data.catalogs.summary.function_count })}</div></section>`;
+    }), { total: data.catalogs.summary.function_count, kindLabels: true })}
+      ${distribution("Functions by return type", [...returnTypeCounts], { typeLabels: true, returnTypeLabels: true })}</div></section>`;
 }
 
 function featureCards(config, invocations) {
