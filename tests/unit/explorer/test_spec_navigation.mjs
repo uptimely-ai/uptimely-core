@@ -66,7 +66,7 @@ test("typed names put the icon before the name without visible type text", () =>
   assert.match(typedName("unknown", null), /data-lucide="braces"/);
 });
 
-test("function context uses shared category labels and flat icon links", () => {
+test("function context uses shared category labels and kind-specific icon links", () => {
   const context = catalogContext({ catalogs: { function_groups: {
     read: { load: { name: "Load data" }, fetch: { name: "Fetch data" } },
     vectorize: { score: { name: "Score" } },
@@ -74,9 +74,9 @@ test("function context uses shared category labels and flat icon links", () => {
   } } }, "functions");
   assert.match(context, /context-group-label"><span>Read<\/span><span class="context-link-count">2<\/span>/);
   assert.match(context, /context-group-label"><span>Vectorize<\/span><span class="context-link-count">1<\/span>/);
-  for (const id of ["load", "fetch", "score"]) {
-    assert.match(context, new RegExp(`href="#function-${id}"[\\s\\S]*?data-lucide="square-function"`));
-  }
+  assert.match(context, /href="#function-load"[\s\S]*?data-lucide="database" title="Function kind: Read"/);
+  assert.match(context, /href="#function-fetch"[\s\S]*?data-lucide="database" title="Function kind: Read"/);
+  assert.match(context, /href="#function-score"[\s\S]*?data-lucide="table-properties" title="Function kind: Vectorize"/);
   assert.doesNotMatch(context, /context-sublinks|href="#functions-|>Write<\/span>/);
 });
 
@@ -435,8 +435,11 @@ test("catalog overviews use the shared dashboard icon and summary panels", () =>
     const title = view[0].toUpperCase() + view.slice(1);
     assert.match(context, /href="#overview"[\s\S]*?data-lucide="layout-grid"[\s\S]*?>Overview/);
     assert.match(content, new RegExp(`aria-label="${title} overview"`));
-    if (view === "features") {
+    if (view === "features" || view === "functions") {
       assert.doesNotMatch(content, /<h2[^>]*>Features overview<\/h2>|data-stat=/);
+      if (view === "functions") {
+        assert.doesNotMatch(content, /<h2[^>]*>Functions overview<\/h2>/);
+      }
     } else {
       assert.match(content, new RegExp(`<h2 class="ui-section-title mb-6">${title} overview</h2>`));
       assert.match(content, /class="ui-panel" data-stat=/);

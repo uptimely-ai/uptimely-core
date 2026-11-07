@@ -60,7 +60,9 @@ export function planOverview(data) {
         ["Profiles", plan.profile_count], ["Features", plan.feature_count], ["Stages", plan.stage_count],
         ["Dependencies", plan.dependency_count], ["Max parallel invocations", plan.max_parallel_invocations],
       ].map(args => statistic(...args)).join("")}</div>
-      <div class="catalog-charts lg:grid-cols-2">${distribution("Invocations by function kind", plan.function_kind_counts, { total: plan.invocation_count })}
+      <div class="catalog-charts lg:grid-cols-2">${distribution("Invocations by function kind", plan.function_kind_counts, {
+        total: plan.invocation_count, kindLabels: true,
+      })}
         ${distribution("Invocations by stage", data.stages.map(stage => [`Stage ${stage.stage}`, stage.steps.length]), {
           total: plan.invocation_count,
           note: "Invocations in each stage can run independently. Actual parallel execution depends on the engine.",
