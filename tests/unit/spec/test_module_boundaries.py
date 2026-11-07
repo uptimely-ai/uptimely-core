@@ -112,7 +112,6 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
     [
         "uptimely.spec.model.spec",
         "uptimely.spec.function_kinds",
-        "uptimely.spec.functions",
         "uptimely.spec.validation",
         "uptimely.spec.validation.rules.operators.outputs",
         "uptimely.spec.validation.rules.operators.inputs",
