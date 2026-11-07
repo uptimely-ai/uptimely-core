@@ -2,7 +2,7 @@
 
 import typing
 
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.explorer import common
 from uptimely.spec import function_kinds as functions
@@ -10,7 +10,7 @@ from uptimely.spec.model import base
 
 
 def invocation_lineage_payload(
-    plan: execution_plan.ExecutionPlan,
+    plan: plan_module.ExecutionPlan,
     spec_definition: spec.Spec,
     feature_labels: typing.Mapping[str, str] | None = None,
 ) -> tuple[list[dict[str, typing.Any]], list[dict[str, str]]]:

@@ -5,20 +5,22 @@ import logging
 import polars as pl
 import pytest
 
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.spec import function_kinds as functions
+from uptimely.engine.runtime import execution as execution_module
+from uptimely.engine.runtime import state as state_module
+from uptimely.spec import function_kinds as function_kinds_module
 
 
 def _invocation(
-    kind: functions.FunctionKindId = "read",
+    kind: function_kinds_module.FunctionKindId = "read",
     *,
     output_features: list[str] | None = None,
     column_types: dict[str, str] | None = None,
-) -> execution_plan.Invocation:
-    return execution_plan.Invocation(
+) -> plan_module.Invocation:
+    return plan_module.Invocation(
         id="invocation",
         function_kind=kind,
         entrypoint="test:calculate",
@@ -187,23 +189,30 @@ def test_candidate_dataset_skips_optional_checks_when_disabled(
     candidate.validate_merge_candidate(None, fragment, description="Merge result")
 
 
-def test_dataset_checks_vectorized_contract_and_preservation() -> None:
+def test_executor_checks_vectorized_contract_and_preservation() -> None:
     invocation = _invocation("vectorize", output_features=["new"])
+    backend = backend_module.PolarsBackend()
+    executor = execution_module.InvocationExecutor(
+        backend,
+        {},
+        {},
+        state_module.RuntimeState(),
+    )
     dataset = dataset_module.Dataset(
-        backend_module.PolarsBackend(),
+        backend,
         ["key"],
         pl.DataFrame({"key": ["A"], "value": [1]}),
     )
     comparison = dataset.dataframe
 
     with pytest.raises(ValueError, match="must preserve existing column values and row order"):
-        dataset.validate_vectorized_result(
+        executor._validate_vectorized_result(
             pl.DataFrame({"key": ["A"], "value": [9], "new": [2]}),
             invocation,
             comparison,
             preserve_data=True,
         )
-    assert dataset.validate_vectorized_result(
+    assert executor._validate_vectorized_result(
         pl.DataFrame({"key": ["A"], "value": [1], "new": [2]}),
         invocation,
         comparison,
@@ -221,17 +230,77 @@ def test_vectorized_validation_skips_content_comparison_when_disabled(
         ["key"],
         pl.DataFrame({"key": ["A"]}),
     )
+    executor = execution_module.InvocationExecutor(
+        backend,
+        {},
+        {},
+        state_module.RuntimeState(),
+    )
     monkeypatch.setattr(
         backend,
         "same_data",
         lambda *_args, **_kwargs: pytest.fail("Content comparison should be skipped"),
     )
 
-    assert dataset.validate_vectorized_result(
+    assert executor._validate_vectorized_result(
         pl.DataFrame({"key": ["A"], "new": [2]}),
         invocation,
         dataset.dataframe,
+        preserve_data=False,
     ) == ["new"]
+
+
+@pytest.mark.parametrize(
+    ("frame", "outputs", "comparison", "message"),
+    [
+        (
+            pl.DataFrame({"value": [1]}),
+            ["new"],
+            pl.DataFrame({"key": ["A"]}),
+            "missing dimension columns: key",
+        ),
+        (
+            pl.DataFrame({"key": ["A"]}),
+            ["new"],
+            pl.DataFrame({"key": ["A"]}),
+            "missing output columns: new",
+        ),
+        (
+            pl.DataFrame({"key": ["A"], "new": [1]}),
+            ["new"],
+            pl.DataFrame({"key": ["A"], "new": [2]}),
+            "cannot replace existing columns: new",
+        ),
+        (
+            pl.DataFrame({"key": ["A"], "new": [1]}),
+            ["new"],
+            pl.DataFrame({"key": ["A"], "value": [2]}),
+            "must preserve existing columns: value",
+        ),
+        (
+            pl.DataFrame({"key": ["A"], "new": [1], "extra": [2]}),
+            ["new"],
+            pl.DataFrame({"key": ["A"]}),
+            "returned undeclared columns: extra",
+        ),
+    ],
+)
+def test_executor_rejects_invalid_vectorized_schema(
+    frame: pl.DataFrame,
+    outputs: list[str],
+    comparison: pl.DataFrame,
+    message: str,
+) -> None:
+    invocation = _invocation("vectorize", output_features=outputs)
+    executor = execution_module.InvocationExecutor(
+        backend_module.PolarsBackend(),
+        {},
+        {},
+        state_module.RuntimeState(),
+    )
+
+    with pytest.raises(ValueError, match=message):
+        executor._validate_vectorized_result(frame, invocation, comparison, preserve_data=False)
 
 
 def test_owner_validation_logs_checks(caplog: pytest.LogCaptureFixture) -> None:

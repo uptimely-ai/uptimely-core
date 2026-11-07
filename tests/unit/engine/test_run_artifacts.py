@@ -13,8 +13,9 @@ import polars as pl
 import pytest
 from support import execution as execution_support
 
-from uptimely import engine, project_paths
+from uptimely import engine
 from uptimely import plan as execution_plan
+from uptimely.project import paths
 from uptimely.run import models, store
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures/plans/simple_engine.json"
@@ -282,7 +283,7 @@ def test_invalid_preview_limit_does_not_execute_or_publish(
     monkeypatch.setattr(runtime, "_execute", lambda **kwargs: pytest.fail("Must not execute"))
     with pytest.raises(ValueError, match="positive integer"):
         runtime.run(preview_rows=rows)
-    assert not (runtime.bundle.project_root / project_paths.RUN_OUTPUT_DIR).exists()
+    assert not (runtime.bundle.project_root / paths.RUN_OUTPUT_DIR).exists()
 
 
 def test_build_fingerprint_uses_loaded_objects_not_current_files(runtime: engine.Engine) -> None:

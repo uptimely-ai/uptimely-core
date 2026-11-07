@@ -256,10 +256,11 @@ or unambiguous cross-profile features.
 required dimensions, and declared
 outputs before projection; validation additionally checks optional type,
 uniqueness, and preservation contracts.
-`Dataset` owns checks for the accumulated dataframe, merge collisions and
-candidate results, and vectorized results. Structural and schema checks are
-mandatory even when runtime validation is disabled; declared type, key
-uniqueness, and data-preservation checks are enabled by `--validate`.
+`Dataset` owns checks for the accumulated dataframe, merge collisions, and merge
+candidates. The invocation executor owns vectorized-result contracts because
+they depend on invocation metadata. Structural and schema checks are mandatory
+even when runtime validation is disabled; declared type, key uniqueness, and
+data-preservation checks are enabled by `--validate`.
 `Dataset.merge()` independently guards direct physical assembly calls.
 
 Validation functions emit debug messages when checking a contract or skipping

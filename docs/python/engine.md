@@ -38,7 +38,8 @@ inspect values.
 `Dataset(backend, id_columns, dataframe=None)` needs neither a profile declaration
 nor a Spec. The invocation executor translates profile grain keys into physical ID
 column names. `Fragment` validates and projects staged results; `Dataset` validates
-its accumulated frame, merge candidates, and vectorized results before publication.
+its accumulated frame and merge candidates. The invocation executor checks
+vectorized results against invocation-specific contracts before publication.
 These operations use `invocation.id_columns`, `invocation.column_types`, and the
 invocation's function kind where needed. The compiler resolves these values from
 declarations. Runtime execution does not receive profile objects or traverse the

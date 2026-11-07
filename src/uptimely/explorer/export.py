@@ -5,7 +5,7 @@ import pathlib
 import zipfile
 
 from uptimely.explorer import presentation
-from uptimely.project import paths as project_paths
+from uptimely.project import paths
 from uptimely.run import store as run_store
 
 _BUILD_INSTRUCTION = "Run 'uptimely project build' to generate a valid Explorer snapshot."
@@ -43,7 +43,7 @@ def _read_run_snapshot(project_root: pathlib.Path) -> bytes:
 
 def _read_snapshot(project_root: pathlib.Path) -> bytes:
     """Read and validate the snapshot once, preserving its original JSON bytes."""
-    snapshot_path = project_root / project_paths.EXPLORER_DATA_FILE
+    snapshot_path = project_root / paths.EXPLORER_DATA_FILE
     try:
         contents = snapshot_path.read_bytes()
     except FileNotFoundError as error:

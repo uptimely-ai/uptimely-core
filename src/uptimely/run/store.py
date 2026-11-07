@@ -11,7 +11,7 @@ import typing
 import urllib.parse
 import uuid
 
-from uptimely.project import paths as project_paths
+from uptimely.project import paths
 
 from . import models
 
@@ -29,7 +29,7 @@ class RunStore:
 
     def __init__(self, project_root: pathlib.Path) -> None:
         """Locate the generated run snapshot beneath an analytics project."""
-        self.root = project_root.resolve() / project_paths.RUN_OUTPUT_DIR
+        self.root = project_root.resolve() / paths.RUN_OUTPUT_DIR
 
     @staticmethod
     def preview_path(profile_id: str) -> str:

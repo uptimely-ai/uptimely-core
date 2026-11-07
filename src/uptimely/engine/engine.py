@@ -4,7 +4,7 @@ import logging
 import time
 from collections import abc
 
-from uptimely.project import paths as project_paths
+from uptimely.project import paths
 from uptimely.project.build import models as build_models
 from uptimely.run import recording
 
@@ -52,7 +52,7 @@ class Engine:
         """Validate explicit values or load parameters from the project config file."""
         if parameters is not None:
             return config_module.Params.model_validate(dict(parameters)).root
-        path = bundle.project_root / project_paths.CONFIG_FILE
+        path = bundle.project_root / paths.CONFIG_FILE
         if not path.is_file():
             if path.exists():
                 raise ValueError(f"Parameter configuration is not a file: {path}")

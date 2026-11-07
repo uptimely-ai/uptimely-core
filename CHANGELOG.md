@@ -10,6 +10,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking (Python imports):** Removed the `uptimely.execution_plan` and
+  `uptimely.project_paths` forwarding modules. Import plan APIs from
+  `uptimely.plan` and project paths from `uptimely.project.paths`.
 - **Breaking (Python document models):** `Binding.args` now contains
   `BindingArgument` objects. Read raw values through `.root`, or serialize the
   binding with `model_dump()`. JSON remains unchanged. Bound arguments own

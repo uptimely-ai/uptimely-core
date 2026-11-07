@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import itertools
 
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.spec import function_kinds as functions
 from uptimely.spec.model import base as model_base
@@ -95,7 +95,7 @@ def _dimension_columns(
 class _DataLineageBuilder:
     """Resolve display metadata once and accumulate schemas in execution order."""
 
-    def __init__(self, definition: spec.Spec, plan: execution_plan.ExecutionPlan) -> None:
+    def __init__(self, definition: spec.Spec, plan: plan_module.ExecutionPlan) -> None:
         self.definition = definition
         self.ordered_stages = [
             sorted(stage, key=lambda invocation: invocation.id) for stage in plan.execution_stages
@@ -183,7 +183,7 @@ class _DataLineageBuilder:
 
     def _input_tables(
         self,
-        invocation: execution_plan.Invocation,
+        invocation: plan_module.Invocation,
         profile: spec.Profile,
         columns: list[DataLineageColumn],
     ) -> list[DataLineageInput]:
@@ -224,7 +224,7 @@ class _DataLineageBuilder:
         return tables
 
     def _main_columns(
-        self, invocation: execution_plan.Invocation, columns: list[DataLineageColumn]
+        self, invocation: plan_module.Invocation, columns: list[DataLineageColumn]
     ) -> list[DataLineageColumn]:
         """Keep materialized columns, moving replaced outputs to the end."""
         previous = self.accumulated.setdefault(invocation.dataset_id, {})
@@ -241,7 +241,7 @@ class _DataLineageBuilder:
                     previous[column.name] = column
         return list(current.values())
 
-    def _step(self, invocation: execution_plan.Invocation) -> DataLineageStep:
+    def _step(self, invocation: plan_module.Invocation) -> DataLineageStep:
         """Assemble one invocation's schema, input tables, and dependencies."""
         profile = self.definition.profiles[invocation.dataset_id]
         kind = functions.FUNCTION_KINDS[invocation.function_kind]
@@ -295,7 +295,7 @@ class _DataLineageBuilder:
 
 
 def _build_stages(
-    spec_definition: spec.Spec, execution_plan: execution_plan.ExecutionPlan
+    spec_definition: spec.Spec, execution_plan: plan_module.ExecutionPlan
 ) -> list[list[DataLineageStep]]:
     """Build typed table schemas with colors inherited from feature producers."""
     return _DataLineageBuilder(spec_definition, execution_plan).build()
@@ -303,7 +303,7 @@ def _build_stages(
 
 def build_context(
     spec_definition: spec.Spec,
-    execution_plan: execution_plan.ExecutionPlan,
+    execution_plan: plan_module.ExecutionPlan,
 ) -> dict[str, object]:
     """Prepare data-lineage display data without writing files.
 

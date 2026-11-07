@@ -3,9 +3,7 @@
 import logging
 from collections import abc
 
-from uptimely import plan as execution_plan
 from uptimely.library.merge import polars as merge_module
-from uptimely.spec import function_kinds as functions
 
 from . import backend as backend_module
 from . import fragment as fragment_module
@@ -124,92 +122,6 @@ class Dataset:
             self._validate_unique_dimension_keys(self.dataframe, description)
             self._validate_declared_types(self.dataframe, column_types)
 
-    def validate_vectorized_result(
-        self,
-        frame: object,
-        invocation: execution_plan.Invocation,
-        comparison_frame: object,
-        *,
-        preserve_data: bool = False,
-    ) -> list[str]:
-        """Validate a vectorized result against its complete accumulated target.
-
-        Args:
-            frame: Candidate dataframe returned by the vectorize invocation.
-            invocation: Invocation whose output and preservation contracts apply.
-            comparison_frame: Original target used for collision and preservation checks.
-            preserve_data: Whether to compare existing values, row order, and types.
-
-        Returns:
-            Declared output feature names, excluding identifier columns.
-
-        Raises:
-            ValueError: The result omits, replaces, or adds undeclared columns, or
-                changes existing data when preservation checking is enabled.
-        """
-        description = f"Vectorize result {invocation.function_id}"
-        logger.debug("  Enriched target frame:")
-        self._validate_frame_structure(frame, description)
-        output_features = [
-            output for output in invocation.output_features if output not in self.id_columns
-        ]
-        logger.debug("    - checking declared vectorize outputs")
-        columns = set(self.backend.column_names(frame))
-        missing_outputs = sorted(set(output_features) - columns)
-        if missing_outputs:
-            raise ValueError(
-                f"Vectorize operator {invocation.operator_id} is missing output columns: "
-                + ", ".join(missing_outputs)
-            )
-
-        logger.debug("    - checking vectorize output collisions")
-        existing_columns = set(self.backend.column_names(comparison_frame))
-        existing_features = existing_columns - set(self.id_columns)
-        collisions = sorted(set(output_features) & existing_features)
-        if collisions:
-            raise ValueError(
-                f"Vectorize operator {invocation.operator_id} cannot replace existing "
-                "columns: " + ", ".join(collisions)
-            )
-
-        logger.debug("    - checking preservation of existing columns")
-        missing_existing = sorted(existing_columns - columns)
-        if missing_existing:
-            raise ValueError(
-                f"Vectorize operator {invocation.operator_id} must preserve existing "
-                "columns: " + ", ".join(missing_existing)
-            )
-
-        logger.debug("    - checking undeclared added columns")
-        allowed_columns = existing_columns | set(output_features)
-        unexpected = sorted(columns - allowed_columns)
-        if unexpected:
-            raise ValueError(
-                f"Vectorize operator {invocation.operator_id} returned undeclared columns: "
-                + ", ".join(unexpected)
-            )
-
-        if preserve_data:
-            definition = functions.FUNCTION_KINDS[invocation.function_kind]
-            if (
-                definition.row_order_relation == "preserve"
-                or definition.existing_data_relation == "preserve"
-            ):
-                logger.debug("    - checking existing values and row order")
-                existing_names = self.backend.column_names(comparison_frame)
-                if not self.backend.same_data(comparison_frame, frame, existing_names):
-                    raise ValueError(
-                        f"Vectorize operator {invocation.operator_id} must preserve existing "
-                        "column values and row order"
-                    )
-            logger.debug("    - checking types of target keys and outputs")
-            self._validate_column_types(
-                frame,
-                invocation.column_types,
-                [*self.id_columns, *output_features],
-            )
-        return output_features
-
     def _validate_frame_structure(self, frame: object, description: str) -> None:
         logger.debug("    - checking dataframe type")
         if not self.backend.is_frame(frame):
@@ -247,16 +159,6 @@ class Dataset:
         types = {
             name: expected for name, expected in (column_types or {}).items() if name in columns
         }
-        logger.debug("      Declared types: %s", types)
-        self.backend.validate_types(frame, types)
-
-    def _validate_column_types(
-        self,
-        frame: object,
-        column_types: abc.Mapping[str, str],
-        columns: abc.Sequence[str],
-    ) -> None:
-        types = {name: column_types[name] for name in columns if name in column_types}
         logger.debug("      Declared types: %s", types)
         self.backend.validate_types(frame, types)
 

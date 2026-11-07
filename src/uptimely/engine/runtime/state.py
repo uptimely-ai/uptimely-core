@@ -2,7 +2,7 @@
 
 import dataclasses
 
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
 
@@ -16,7 +16,7 @@ class RuntimeState:
     calculated_outputs: dict[tuple[str, str], object] = dataclasses.field(default_factory=dict)
 
     def staged_fragment_for(
-        self, invocation: execution_plan.Invocation
+        self, invocation: plan_module.Invocation
     ) -> tuple[str, fragment_module.Fragment]:
         """Find the single staged fragment dependency of a merge invocation.
 

@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import typing
 
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.explorer import common
 from uptimely.explorer import graph_style as graph_style_module
@@ -18,10 +18,10 @@ __all__ = ["build_context", "_build_step"]
 
 def _build_step(
     position: int,
-    invocation: execution_plan.Invocation,
-    plan: execution_plan.ExecutionPlan,
+    invocation: plan_module.Invocation,
+    plan: plan_module.ExecutionPlan,
     spec_definition: spec.Spec,
-    invocations_by_id: typing.Mapping[str, execution_plan.Invocation] | None = None,
+    invocations_by_id: typing.Mapping[str, plan_module.Invocation] | None = None,
     feature_labels: typing.Mapping[str, str] | None = None,
 ) -> dict[str, typing.Any]:
     """Build a plan step's display model, optionally reusing lookup indexes."""
@@ -126,7 +126,7 @@ def _step_sort_key(step: dict[str, typing.Any]) -> tuple[str, str, str, str]:
 
 
 def build_context(
-    plan: execution_plan.ExecutionPlan,
+    plan: plan_module.ExecutionPlan,
     spec_definition: spec.Spec,
 ) -> dict[str, object]:
     """Prepare overview, invocation-lineage, and stage data.

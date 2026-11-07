@@ -19,7 +19,7 @@ from starlette.background import BackgroundTask
 
 from uptimely.explorer import export as explorer_export
 from uptimely.explorer import presentation
-from uptimely.project import paths as project_paths
+from uptimely.project import paths
 from uptimely.run import store as run_store
 
 logger = logging.getLogger(__name__)
@@ -106,7 +106,7 @@ def create_app(project_root: pathlib.Path) -> FastAPI:
 
     @app.get("/api/explorer", include_in_schema=False)
     def explorer_data() -> Response:
-        return _read_snapshot(project_root / project_paths.EXPLORER_DATA_FILE)
+        return _read_snapshot(project_root / paths.EXPLORER_DATA_FILE)
 
     @app.get("/api/run", include_in_schema=False)
     def run_data() -> Response:
