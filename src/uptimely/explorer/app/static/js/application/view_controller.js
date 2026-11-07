@@ -31,7 +31,7 @@ const VIEWS = {
   home: { stylesheet: "dashboard", initialize: icons, render: content(dashboard) },
   plan: { stylesheet: "spec", initialize: icons, render: content(planOverview) },
   features: catalog("features"),
-  profiles: catalog("profiles"),
+  profiles: catalog("profiles", true),
   dimensions: catalog("dimensions"),
   functions: catalog("functions", true),
   stages: catalog("stages"),

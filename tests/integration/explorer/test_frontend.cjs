@@ -74,15 +74,13 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.ok(!profiles.includes("2 columns"));
   assert.equal((profiles.match(/Pump readings per machine\./g) || []).length, 2);
   assert.doesNotMatch(profiles, />Profile details</);
-  assert.match(profiles, /class="ui-section-title">Grain<\/h3>/);
-  assert.match(profiles, /class="ui-section-title">Scope<\/h3>/);
-  assert.match(profiles, /data-grain-dimension="machine" data-grain-resolution="machine"/);
-  assert.match(profiles, /profile-grain-label">Dimension<\/span>\s*<h4>Machine<\/h4>/);
-  assert.match(profiles, /<dl class="profile-grain-fields">\s*<div><dt>Resolution<\/dt><dd><code>machine<\/code>/);
-  assert.match(profiles, /Data key<\/dt><dd><code>id<\/code>/);
-  assert.match(profiles, /Data type<\/dt><dd><span class="data-type-label">[^]*?data-type="string"/);
+  assert.match(profiles, /profile-detail-subheading[^>]*>[^]*?<span>Grain<\/span><\/h3>/);
+  assert.match(profiles, /profile-detail-subheading[^>]*>[^]*?<span>Scope<\/span><\/h3>/);
+  assert.match(profiles, /profile-summary-grain-path" aria-label="Machine dimension at machine resolution"[^]*?<code>machine<\/code>[^]*?<strong>Machine<\/strong>/);
+  assert.doesNotMatch(profiles, /data-grain-dimension|profile-grain-label|profile-grain-fields/);
+  assert.match(profiles, /data-type="string"/);
   assert.match(profiles, /data-lucide="hash" class="data-type-label-icon" data-type="float"/);
-  assert.match(profiles, /aria-label="&lt;Value&gt; \(float\)"/);
+  assert.match(profiles, /aria-label="value \(float\)"/);
   assert.doesNotMatch(profiles, /<th[^>]*>Data type<\/th>/);
   assert.ok(!profiles.includes("one row per machine <source>"));
   assert.ok(!profiles.includes("Filtering"));
@@ -157,8 +155,9 @@ test("merge phases expose their invocation metadata and owning operator", async 
   assert.match(stages, /Fragment source/);
   assert.match(stages, /Merge keys/);
   assert.match(profiles, /id="operator-readings-calculate"/);
-  assert.match(profiles, /Merge function/);
-  assert.match(profiles, /Merge argument bindings/);
+  assert.match(profiles, /profile-operator-merge-indicator/);
+  assert.match(profiles, /data-lucide="git-merge"/);
+  assert.match(profiles, /The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset\./);
   assert.match(topology, /"phase":"merge"/);
   assert.match(topology, /"dependency_type":"fragment"/);
 });
@@ -232,7 +231,7 @@ test("profile scope and logical order share a responsive row only when both exis
   const html = renderCatalog(data, "profiles").content;
   assert.match(html, /class="grid gap-6 md:grid-cols-2" data-profile-context/);
   assert.match(html, /Logical order/);
-  assert.match(html, /class="ui-section-title">Logical order<\/h3>/);
+  assert.match(html, /profile-detail-subheading[^>]*>[^]*?<span>Logical order<\/span><\/h3>/);
   assert.match(html, /Machine · id asc/);
   delete profile.scope;
   assert.doesNotMatch(renderCatalog(data, "profiles").content, /gap-6 md:grid-cols-2" data-profile-context/);
@@ -254,21 +253,30 @@ test("profile operator expose engineering contracts and inspectable bindings", a
     compute: { function: "external", args: {} },
     interface: { inputs: [], outputs: ["$features.<logical>"] },
   };
+  data.stages[0].steps.push({
+    profile: "readings",
+    operator_id: "aggregate",
+    phase: "compute",
+    args: {
+      dataset: { value: "$profiles.source.dataframe", type: { engine: "DataFrame" } },
+      options: { value: { method: "<max>" }, type: { function: "dict" } },
+    },
+  });
   const html = renderCatalog(data, "profiles").content;
-  assert.ok(html.indexOf("Produced schema</h3>") < html.indexOf("Assembly</h3>"));
-  assert.match(html, /Produced schema<\/h3><div class="ui-table-scroll profile-schema-scroll/);
-  assert.match(html, /class="ui-section-title">Assembly<\/h3>/);
-  assert.match(html, /profile-operator-label">OPERATOR<\/span>/);
+  assert.ok(html.indexOf("<span>Produced schema</span></h3>") < html.indexOf("<span>Assembly</span></h3>"));
+  assert.match(html, /<span>Produced schema<\/span><\/h3><div class="ui-table-scroll profile-schema-scroll/);
+  assert.match(html, /profile-detail-subheading[^>]*>[^]*?<span>Assembly<\/span><\/h3>/);
+  assert.match(html, /profile-operator-kicker">OPERATION<\/span>/);
   assert.match(html, /<div class="profile-operator-list">/);
   assert.doesNotMatch(html, /<div class="profile-operator">/);
   assert.match(html, /data-profile-operator="aggregate" data-operator-kind="collapse"/);
   assert.match(html, /href="\?view=functions#function-aggregate">Maximum &lt;reading&gt;<\/a>/);
   assert.match(html, /Input features<\/dt><dd><code>raw<\/code>/);
   assert.match(html, /Output features<\/dt><dd><code>value<\/code>/);
-  assert.match(html, /<details class="profile-operator-bindings"><summary>Compute argument bindings <span>2<\/span>/);
-  assert.match(html, /<span class="ui-badge ui-badge--neutral">collapse<\/span>\s*<\/header>\s*<details class="profile-operator-bindings">/);
-  assert.match(html, /<th scope="row">options<\/th><td><code>\{&quot;method&quot;:&quot;&lt;max&gt;&quot;\}/);
-  assert.match(html, /Group by grain keys:/);
+  assert.match(html, /<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Resolved arguments<\/summary>/);
+  assert.match(html, /<code class="language-json">\{&quot;method&quot;:&quot;&lt;max&gt;&quot;\}<\/code>/);
+  assert.match(html, /This value will be bound only during the engine execution\./);
+  assert.doesNotMatch(html, /Group by grain keys:|ui-badge--neutral">collapse/);
   assert.match(html, /Output features \(logical\)<\/dt><dd><code>&lt;logical&gt;<\/code>/);
   assert.match(html, /None declared/);
   assert.match(html, /escape outputs are not materialized/);

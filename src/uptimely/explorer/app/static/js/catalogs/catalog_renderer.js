@@ -28,7 +28,24 @@ export function features(configuration) {
 const label = (id, value) => value.name || id;
 const description = value => `<p class="mt-4 text-sm leading-6 text-slate-400">${escape(value || "No description provided.")}</p>`;
 const itemTitle = (id, item, tag = "h2", size = "text-2xl", type = null) => `<${tag} class="break-words font-display ${size} font-semibold text-white">${type === null ? escape(label(id, item)) : typedName(label(id, item), type)}</${tag}>${item.name ? `<p class="mt-1 font-mono text-xs text-slate-500">${escape(id)}</p>` : ""}`;
-const subheading = title => `<h3 class="ui-section-title">${escape(title)}</h3>`;
+const subheading = (title, iconKey = null) => iconKey
+  ? `<h3 class="ui-section-title profile-detail-subheading">${icon(iconKey, "profile-detail-icon")}<span>${escape(title)}</span></h3>`
+  : `<h3 class="ui-section-title">${escape(title)}</h3>`;
+const profileGrain = (config, grain) => grain.map(({ dimension, resolution }) => {
+  const dimensionDefinition = config.dimensions[dimension];
+  const resolutionDefinition = dimensionDefinition?.resolutions[resolution];
+  return {
+    dimension: dimensionDefinition?.name || dimension,
+    resolution: resolutionDefinition?.id ?? resolution,
+  };
+});
+const profileGrainMarkup = grain => grain.length
+  ? `<ul class="profile-summary-grain-list">${grain.map(({ dimension, resolution }) => `<li class="profile-summary-grain-path" aria-label="${escape(`${dimension} dimension at ${resolution} resolution`)}">
+      <span class="profile-summary-grain-badge profile-summary-grain-resolution">${icon("resolutions", "profile-summary-grain-icon")}<code>${escape(resolution)}</code></span>
+      <i class="profile-summary-grain-relation" data-lucide="at-sign" aria-hidden="true"></i>
+      <span class="profile-summary-grain-badge profile-summary-grain-dimension">${icon("dimensions", "profile-summary-grain-icon")}<strong>${escape(dimension)}</strong></span>
+    </li>`).join("")}</ul>`
+  : '<span class="profile-summary-grain-empty">No grain defined</span>';
 const chip = (value, isType = false) => isType
   ? dataTypeLabel(value, "rounded-md bg-slate-800 px-2.5 py-1 text-slate-300")
   : `<span class="inline-flex items-center gap-1.5 rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">${escape(value)}</span>`;
@@ -148,14 +165,7 @@ function profileOverview(data) {
   );
   const cards = profileItems.map(({ id, profile }) => {
     const operatorCount = Object.keys(profile.assembly).length;
-    const grain = profile.grain.map(({ dimension, resolution }) => {
-      const dimensionDefinition = config.dimensions[dimension];
-      const resolutionDefinition = dimensionDefinition?.resolutions[resolution];
-      return {
-        dimension: dimensionDefinition?.name || dimension,
-        resolution: resolutionDefinition?.id ?? resolution,
-      };
-    });
+    const grain = profileGrain(config, profile.grain);
     const width = maximumOperators ? operatorCount / maximumOperators * 100 : 0;
     return `<a class="profile-summary-card" href="#profile-${encodeURIComponent(id)}"
       aria-label="${escape(`${label(id, profile)}: ${operatorCount} operator${operatorCount === 1 ? "" : "s"}`)}">
@@ -173,11 +183,7 @@ function profileOverview(data) {
       </div>
       <div class="profile-summary-grain" aria-label="Profile grain">
         <span class="profile-summary-grain-label">Grain</span>
-        ${grain.length ? `<ul class="profile-summary-grain-list">${grain.map(({ dimension, resolution }) => `<li class="profile-summary-grain-path" aria-label="${escape(`${dimension} dimension at ${resolution} resolution`)}">
-          <span class="profile-summary-grain-badge profile-summary-grain-resolution">${icon("resolutions", "profile-summary-grain-icon")}<code>${escape(resolution)}</code></span>
-          <i class="profile-summary-grain-relation" data-lucide="at-sign" aria-hidden="true"></i>
-          <span class="profile-summary-grain-badge profile-summary-grain-dimension">${icon("dimensions", "profile-summary-grain-icon")}<strong>${escape(dimension)}</strong></span>
-        </li>`).join("")}</ul>` : '<span class="profile-summary-grain-empty">No grain defined</span>'}
+        ${profileGrainMarkup(grain)}
       </div>
     </a>`;
   });
@@ -287,73 +293,61 @@ export function schemaColumns(config, profile) {
   ].map(column => ({ ...column, operators: [...(producingOperators.get(column.id) || [])] }));
 }
 
-function grainCards(config, grain) {
-  return grain.map(({ dimension, resolution }) => {
-    const dimensionDefinition = config.dimensions[dimension];
-    const resolutionDefinition = dimensionDefinition?.resolutions[resolution];
-    const resolutionId = resolutionDefinition?.id ?? resolution;
-    return `<li class="profile-grain-card" data-grain-dimension="${escape(dimension)}" data-grain-resolution="${escape(resolutionId)}">
-      <header class="profile-grain-heading">
-        <span class="profile-grain-label">Dimension</span>
-        <h4>${escape(dimensionDefinition?.name || dimension)}</h4>
-      </header>
-      <dl class="profile-grain-fields">
-        <div><dt>Resolution</dt><dd><code>${escape(resolutionId)}</code></dd></div>
-        <div><dt>Data key</dt><dd><code>${escape(resolutionDefinition?.key || resolution)}</code></dd></div>
-        <div><dt>Data type</dt><dd>${dataTypeLabel(resolutionDefinition?.type)}</dd></div>
-      </dl>
-    </li>`;
-  }).join("");
-}
-
-function profileOperatorCards(config, profileId, profile, operators) {
+function profileOperatorCards(config, profileId, profile, operators, invocations) {
   const featureList = references => references.length
     ? references.map(reference => `<code>${escape(reference.replace(/^\$features\./, ""))}</code>`).join("")
     : '<span class="profile-operator-empty">None declared</span>';
-  const bindingDetails = (operatorId, title, args) => args.length
-    ? `<details class="profile-operator-bindings"><summary>${title} <span>${args.length}</span></summary>
-      <div class="ui-table-scroll" tabindex="0" role="region" aria-label="Argument bindings for ${escape(operatorId)}"><table class="ui-table"><caption class="sr-only">Argument bindings for ${escape(operatorId)}</caption>
-        <thead><tr><th scope="col">Argument</th><th scope="col">Binding</th></tr></thead>
-        <tbody>${args.map(([name, value]) => `<tr><th scope="row">${escape(name)}</th><td><code>${display(value)}</code></td></tr>`).join("")}</tbody>
-      </table></div></details>` : "";
+  const isEngineBound = (value, type) => /\b(?:lazy\s*)?(?:dataframes?|lazyframes?)\b/i.test(type)
+    || (typeof value === "string" && (value.startsWith("$params.") || value === "$params"))
+    || (Array.isArray(value) && value.some(item => isEngineBound(item, "")))
+    || (value !== null && typeof value === "object"
+      && Object.values(value).some(item => isEngineBound(item, "")));
+  const resolvedArgumentDetails = (operatorId, title, invocations) => invocations.length
+    ? `<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>${title}</summary>
+      ${invocations.map(invocation => `<div class="ui-table-scroll" tabindex="0" role="region" aria-label="Resolved arguments for ${escape(operatorId)}">
+        <table class="ui-table"><caption class="sr-only">Resolved arguments for ${escape(operatorId)}</caption>
+          <thead><tr><th scope="col">Argument</th><th scope="col">Resolved value</th></tr></thead>
+          <tbody>${Object.entries(invocation.args || {}).map(([name, argument]) => {
+            const type = argument.type.engine || argument.type.function || "";
+            const engineBound = isEngineBound(argument.value, type);
+            const resolvedValue = escape(JSON.stringify(argument.value));
+            return `<tr><th scope="row">${typedName(name, type || "—")}</th>
+              <td><span class="profile-operator-resolved-value">${engineBound ? `<span class="ui-badge"><code class="language-json">${resolvedValue}</code></span>` : `<code class="language-json">${resolvedValue}</code>`}${engineBound ? `<span class="profile-operator-engine-bind" tabindex="0" data-tooltip="This value will be bound only during the engine execution." aria-label="This value will be bound only during the engine execution.">${icon("engine-bind")}</span>` : ""}</span></td></tr>`;
+          }).join("")}</tbody>
+        </table></div>`).join("")}</details>` : "";
   return `<div class="profile-operator-list">${operators.map(([id, operator]) => {
     const functionId = operator.compute.function;
     const fn = config.functions[functionId] || {};
-    const args = Object.entries(operator.compute.args || {});
-    const mergeId = operator.merge?.function;
-    const merge = mergeId ? config.functions[mergeId] || {} : null;
-    const mergeArgs = Object.entries(operator.merge?.args || {});
+    const computeInvocations = invocations.filter(invocation =>
+      invocation.profile === profileId && invocation.operator_id === id && invocation.phase === "compute"
+      && Object.keys(invocation.args).length);
+    const hasMerge = Boolean(operator.merge);
+    const operatorName = operator.name || id.replace(/[_-]+/g, " ").replace(/\b\w/g, character => character.toUpperCase());
     return `<article id="operator-${escape(profileId)}-${escape(id)}" class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(fn.kind)}">
       <header class="profile-operator-header">
-        <span class="profile-operator-symbol">${kindIcon(fn.kind, "profile-operator-icon")}</span>
-        <div class="profile-operator-identity"><span class="profile-operator-label">OPERATOR</span><h4>${escape(id)}</h4></div>
-        ${badge(fn.kind || "Unspecified", fn.kind === "escape" ? "violet" : fn.kind === "merge" ? "amber" : "neutral")}
+        <div class="profile-operator-identity"><span class="profile-operator-kicker">OPERATION</span><h4>${escape(operatorName)}</h4></div>
+        ${hasMerge ? `<span class="profile-operator-merge-indicator" title="The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset." aria-label="The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset.">${kindIcon("merge", "profile-operator-icon")}</span>` : ""}
       </header>
-      ${bindingDetails(id, "Compute argument bindings", args)}
-      <div class="profile-operator-function"><span class="profile-operator-label">Function</span>
-        <a href="${href("functions", `function-${functionId}`)}">${escape(fn.name || functionId)}</a>
-        ${fn.name && fn.name !== functionId ? `<code>${escape(functionId)}</code>` : ""}
+      <div class="profile-operator-compute">
+        <div class="profile-operator-function">
+          ${kindIcon(fn.kind, "profile-operator-function-icon")}
+          <a href="${href("functions", `function-${functionId}`)}">${escape(fn.name || functionId)}</a>
+        </div>
+        ${resolvedArgumentDetails(id, "Resolved arguments", computeInvocations)}
       </div>
-      ${merge ? `<div class="profile-operator-function profile-operator-merge"><span class="profile-operator-label">Merge function</span>
-        ${kindIcon(merge.kind, "profile-operator-icon")}
-        <a href="${href("functions", `function-${mergeId}`)}">${escape(merge.name || mergeId)}</a>
-        ${merge.name && merge.name !== mergeId ? `<code>${escape(mergeId)}</code>` : ""}
-        ${bindingDetails(id, "Merge argument bindings", mergeArgs)}
-      </div>` : ""}
       <dl class="profile-operator-contract">
-        <div><dt>Input features</dt><dd>${featureList(operator.interface.inputs)}</dd></div>
-        <div><dt>Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
+        <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${featureList(operator.interface.inputs)}</dd></div>
+        <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
       </dl>
-      ${fn.kind === "collapse" ? `<div class="profile-operator-note">Group by grain keys: <code>${display(profileGrainKeys(config, profile))}</code></div>` : ""}
       ${fn.kind === "escape" ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</div>' : ""}
     </article>`;
   }).join("")}</div>`;
 }
 
-function profileCards(config) {
+function profileCards(config, invocations) {
   return profiles(config).map(({ id, profile }) => {
     const columns = schemaColumns(config, profile);
-    const grain = profile.grain;
+    const grain = profileGrain(config, profile.grain);
     const operators = Object.entries(profile.assembly);
     return `<article id="profile-${escape(id)}" data-context-item>
       <div hidden>
@@ -362,28 +356,31 @@ function profileCards(config) {
       </div>
       <section aria-label="Profile details">
         <div class="space-y-6">
-          ${grain.length ? `<div>${subheading("Grain")}<ul class="profile-grain-grid">${grainCards(config, grain)}</ul></div>` : ""}
+          <div class="profile-detail-grain">${subheading("Grain", "grain")}
+            <p class="mt-2 text-sm leading-6 text-slate-400">A profile is identified by its grain.</p>
+            ${profileGrainMarkup(grain)}
+          </div>
           ${profile.scope || profile.order?.length ? `<div class="grid gap-6 ${profile.scope && profile.order?.length ? "md:grid-cols-2" : ""}" data-profile-context>
-          ${profile.scope ? `<div class="min-w-0">${subheading("Scope")}${description(profile.scope)}</div>` : ""}
-          ${profile.order?.length ? `<div class="min-w-0">${subheading("Logical order")}<p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>${chips(profile.order.map(key => {
+          ${profile.scope ? `<div class="min-w-0">${subheading("Scope", "scope")}<blockquote class="profile-scope-quote">${description(profile.scope)}</blockquote></div>` : ""}
+          ${profile.order?.length ? `<div class="min-w-0">${subheading("Logical order", "order")}<p class="mt-2 text-xs text-slate-500">Not a physical row-order guarantee.</p>${chips(profile.order.map(key => {
             const dimensionId = key.dimension;
             const dimension = config.dimensions[dimensionId];
             const resolution = dimension?.resolutions[key.resolution];
             return `${dimension?.name || dimensionId} · ${resolution?.key || key.resolution} ${key.direction}`;
           }))}</div>` : ""}</div>` : ""}
-          <div>${subheading("Produced schema")}<div class="ui-table-scroll profile-schema-scroll" tabindex="0" role="region" aria-label="${escape(label(id, profile))} produced schema">
+          <div>${subheading("Produced schema", "schema")}<div class="ui-table-scroll profile-schema-scroll" tabindex="0" role="region" aria-label="${escape(label(id, profile))} produced schema">
         <table data-dataset-schema="${escape(id)}" class="ui-table profile-schema-table">
           <caption class="sr-only">Produced schema for ${escape(label(id, profile))}: declared column types and units; no sample records.</caption>
           <colgroup><col class="profile-schema-name-col"><col class="profile-schema-role-col"><col class="profile-schema-unit-col"><col class="profile-schema-operator-col"></colgroup>
           <thead><tr>${["Column", "Role", "Unit", "Producing operator"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
           <tbody>${columns.map(column => `<tr data-schema-column="${escape(column.id)}">
-            <th scope="row">${typedName(label(column.id, column), column.type)}${label(column.id, column) !== column.id ? `<span class="profile-schema-column-id">${escape(column.id)}</span>` : ""}</th>
+            <th scope="row">${typedName(column.id, column.type)}</th>
             <td>${badge(column.role, { dimension: "blue", teal: "green", amber: "amber", escape: "violet" }[column.color])}</td>
             <td class="profile-schema-unit">${escape(column.unit || "—")}</td>
             <td>${column.operators.length ? column.operators.map(operator => `<code class="profile-schema-operator">${escape(operator)}</code>`).join("") : '<span class="text-slate-500">None declared</span>'}</td>
           </tr>`).join("")}</tbody>
         </table></div></div>
-          ${operators.length ? `<div>${subheading("Assembly")}${profileOperatorCards(config, id, profile, operators)}</div>` : ""}
+          ${operators.length ? `<div>${subheading("Assembly", "assembly")}${profileOperatorCards(config, id, profile, operators, invocations)}</div>` : ""}
         </div></section></article>`;
   }).join("");
 }
@@ -456,7 +453,8 @@ export function stageCards(data) {
 
 export function renderCatalog(data, view) {
   const config = data.catalogs.configuration;
-  const renderers = { features: () => featureCards(config), profiles: () => profileCards(config),
+  const invocations = (data.stages || []).flatMap(stage => stage.steps);
+  const renderers = { features: () => featureCards(config), profiles: () => profileCards(config, invocations),
     dimensions: () => dimensionCards(config),
     functions: () => functionCards(data), stages: () => stageCards(data) };
   const title = view[0].toUpperCase() + view.slice(1);

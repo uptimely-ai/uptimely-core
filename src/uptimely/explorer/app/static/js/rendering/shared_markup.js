@@ -16,6 +16,9 @@ const ICONS = {
   overview: "layout-grid", features: "sigma",
   profiles: "layers-2", datasets: "table-2",
   dimensions: "axis-3d", resolutions: "scan-square", functions: "square-function",
+  grain: "rows-3", scope: "filter", order: "list-ordered",
+  schema: "table-2", assembly: "blocks", key: "key-round", "data-type": "braces",
+  input: "arrow-right-to-line", output: "arrow-right-from-line", "engine-bind": "circle-play",
   invocations: "square-function", "feature-lineage": "diagram-flow-horizontal", "invocation-lineage": "layout-arrow-right",
   "data-lineage": "monitor-play", stages: "list-ordered", reset: "scan-search",
   "zoom-in": "zoom-in", "zoom-out": "zoom-out",
@@ -79,7 +82,8 @@ export function icon(key, className = "nav-icon") {
 }
 
 export function kindIcon(kind, className = "nav-icon") {
-  return `<i class="site-icon icon--functions ${className}" data-lucide="${KINDS[kind]?.icon || "braces"}" aria-hidden="true"></i>`;
+  const label = KINDS[kind]?.label || kind || "Unspecified";
+  return `<i class="site-icon icon--functions ${className}" data-lucide="${KINDS[kind]?.icon || "braces"}" title="Function kind: ${escape(label)}" aria-hidden="true"></i>`;
 }
 
 export function href(view, target = "") {
