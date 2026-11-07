@@ -1,10 +1,9 @@
-"""Contract tests for spec-in atomic rules and their dependency runner."""
+"""Contract tests for spec-in atomic rules and grouped validation."""
 
 from __future__ import annotations
 
 import collections.abc
 import dataclasses
-import graphlib
 import inspect
 import json
 import pathlib
@@ -176,7 +175,12 @@ def test_dimension_change_uses_dimension_identities_not_cardinality(
 
 @pytest.mark.parametrize(
     "validate",
-    validation.VALIDATION_DEPENDENCIES,
+    [
+        validate
+        for _, group in validation.VALIDATION_GROUPS
+        for validate in group
+        if validate is not operator_outputs.warn_unproduced_features
+    ],
     ids=lambda validate: f"{validate.__module__.rsplit('.', 1)[-1]}.{validate.__name__}",
 )
 def test_atomic_rules_accept_spec_and_do_not_mutate(
@@ -250,7 +254,7 @@ def test_source_discovery_does_not_choose_an_ambiguous_owner(
     assert spec.input_sources[key] is None
 
 
-def test_every_rule_is_registered_with_one_spec_parameter() -> None:
+def test_every_rule_is_registered_in_one_validation_group() -> None:
     modules = (
         operator_contracts,
         operator_inputs,
@@ -270,14 +274,19 @@ def test_every_rule_is_registered_with_one_spec_parameter() -> None:
         for name, function in inspect.getmembers(module, inspect.isfunction)
         if name.startswith("validate_")
     }
-    assert rules == validation.VALIDATION_DEPENDENCIES.keys()
+    grouped_rules = [
+        validate
+        for _, group in validation.VALIDATION_GROUPS
+        for validate in group
+        if validate is not operator_outputs.warn_unproduced_features
+    ]
+    assert len(grouped_rules) == len(set(grouped_rules))
+    assert rules == set(grouped_rules)
     for validate in rules:
         assert list(inspect.signature(validate).parameters) == ["spec"]
-    for prerequisites in validation.VALIDATION_DEPENDENCIES.values():
-        assert set(prerequisites) <= rules
 
 
-def test_runner_orders_dependencies_and_runs_shared_prerequisites_once(
+def test_runner_runs_validation_groups_in_order(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     spec = make_spec()
@@ -297,14 +306,14 @@ def test_runner_orders_dependencies_and_runs_shared_prerequisites_once(
 
     monkeypatch.setattr(
         validation,
-        "VALIDATION_DEPENDENCIES",
-        {third: (first, second), second: (first,), first: ()},
+        "VALIDATION_GROUPS",
+        (("first group", (first, second)), ("next", (third,))),
     )
     validation.validate_spec(spec)
     assert seen == ["first", "second", "third"]
 
 
-def test_failed_prerequisite_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch) -> None:
     seen: list[str] = []
 
     def first(spec: model.Spec) -> None:
@@ -317,25 +326,14 @@ def test_failed_prerequisite_stops_runner_and_warnings(monkeypatch: pytest.Monke
     def warn(spec: model.Spec) -> None:
         pytest.fail("Warnings must not be emitted for invalid specs")
 
-    monkeypatch.setattr(validation, "VALIDATION_DEPENDENCIES", {dependent: (first,), first: ()})
-    monkeypatch.setattr(operator_outputs, "warn_unproduced_features", warn)
+    monkeypatch.setattr(
+        validation,
+        "VALIDATION_GROUPS",
+        (("first group", (first,)), ("later group", (dependent,)), ("warnings", (warn,))),
+    )
     with pytest.raises(ValueError, match="invalid prerequisite"):
         validation.validate_spec(make_spec())
     assert seen == ["first"]
-
-
-def test_dependency_configuration_cycle_fails_before_running_rules(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    def independent(spec: model.Spec) -> None:
-        pytest.fail("Invalid configuration must fail before any rule runs")
-
-    def cyclic(spec: model.Spec) -> None:
-        pytest.fail("Cyclic rule must not run")
-
-    monkeypatch.setattr(validation, "VALIDATION_DEPENDENCIES", {independent: (), cyclic: (cyclic,)})
-    with pytest.raises(graphlib.CycleError):
-        validation.validate_spec(make_spec())
 
 
 @pytest.mark.parametrize(
@@ -372,13 +370,13 @@ def test_dependency_configuration_cycle_fails_before_running_rules(
             "repeats dimension",
         ),
         (
-            function_rules.validate_return_kind,
+            function_rules.validate_function_contracts,
             "vectorize",
             lambda s: setattr(s.functions["compute"], "returns", "none"),
             "must declare returns",
         ),
         (
-            function_rules.validate_dataframe_count,
+            function_rules.validate_function_contracts,
             "vectorize",
             lambda s: s.functions["compute"].args.clear(),
             "requires 1 dataframe",

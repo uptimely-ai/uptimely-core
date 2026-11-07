@@ -1,4 +1,4 @@
-"""Invoke plan operations and publish their results to profile main frames."""
+"""Invoke plan operations and publish their results to materialized datasets."""
 
 import collections
 import functools
@@ -8,8 +8,8 @@ import typing
 from uptimely import entrypoint as entrypoint_module
 from uptimely import plan as execution_plan
 from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import main_frame as main_frame_module
 from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.spec import arg_types
 from uptimely.spec import function_kinds as functions
@@ -21,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class InvocationExecutor:
-    """Dispatch invocations and publish results into per-profile main frames."""
+    """Dispatch invocations and publish results into per-profile datasets."""
 
     def __init__(
         self,
@@ -134,7 +134,7 @@ class InvocationExecutor:
             )
         return source_id
 
-    def _check_foreign_source_available(self, source_id: str) -> main_frame_module.MainFrame:
+    def _check_foreign_source_available(self, source_id: str) -> dataset_module.Dataset:
         """Require the referenced source profile to be available."""
         logger.debug("    - checking foreign source availability")
         source = self.state.main_frames.get(source_id)
@@ -143,7 +143,7 @@ class InvocationExecutor:
         return source
 
     def _check_foreign_input_features(
-        self, invocation: execution_plan.Invocation, source: main_frame_module.MainFrame
+        self, invocation: execution_plan.Invocation, source: dataset_module.Dataset
     ) -> None:
         """Require declared features in the validated foreign source."""
         logger.debug("    - checking foreign input features")
@@ -158,13 +158,13 @@ class InvocationExecutor:
     def _execute_dataframe_operator(self, invocation: execution_plan.Invocation) -> None:
         """Produce and retain a fragment for its scheduled merge invocation."""
         dataset_id = self._profile_id(invocation)
-        main_frame = self.state.main_frames.get(dataset_id)
+        dataset = self.state.main_frames.get(dataset_id)
         fragment = fragment_module.Fragment.stage(
             self.backend,
             invocation,
             functools.partial(self._invoke, invocation),
             validate=self.validate,
-            comparison_frame=main_frame.dataframe if main_frame is not None else None,
+            comparison_frame=dataset.dataframe if dataset is not None else None,
         )
         self.state.staged_fragments[invocation.id] = fragment
 
@@ -177,7 +177,7 @@ class InvocationExecutor:
         logger.debug("  Merge:\n    Target profile: %s", dataset_id)
         arguments = self.bindings.resolve_args(invocation, staged_fragment=fragment.dataframe)
         if target is not None:
-            dataframe_validation.MainFrameValidator(
+            dataframe_validation.DatasetValidator(
                 self.backend,
                 target,
                 invocation.id_columns,
@@ -186,7 +186,7 @@ class InvocationExecutor:
             ).validate_merge(fragment.dataframe, validate=self.validate)
 
         result = self._invoke(invocation, arguments=arguments)
-        result_validator = dataframe_validation.MainFrameValidator(
+        result_validator = dataframe_validation.DatasetValidator(
             self.backend,
             result,
             invocation.id_columns,
@@ -195,22 +195,22 @@ class InvocationExecutor:
         )
         result_validator.validate_merge_result(target, fragment.dataframe, validate=self.validate)
 
-        main_frame = current or main_frame_module.MainFrame(
+        dataset = current or dataset_module.Dataset(
             self.backend,
             invocation.id_columns,
         )
-        main_frame.dataframe = result
-        main_frame.fragments[fragment.invocation.operator_id] = fragment
-        self.state.main_frames[dataset_id] = main_frame
+        dataset.dataframe = result
+        dataset.fragments[fragment.invocation.operator_id] = fragment
+        self.state.main_frames[dataset_id] = dataset
         del self.state.staged_fragments[fragment_id]
 
     def _execute_column_operator(self, invocation: execution_plan.Invocation) -> None:
         """Publish vectorized columns on the target frame without fragment assembly."""
         dataset_id = self._profile_id(invocation)
-        main_frame = self.state.main_frames.get(dataset_id)
-        if main_frame is None or main_frame.dataframe is None:
+        dataset = self.state.main_frames.get(dataset_id)
+        if dataset is None or dataset.dataframe is None:
             raise ValueError(f"Profile dataframe is unavailable: {dataset_id}")
-        comparison_frame = main_frame.dataframe
+        comparison_frame = dataset.dataframe
         if self.validate:
             comparison_frame = self.backend.snapshot(comparison_frame)
             arguments = self.bindings.resolve_args(invocation)
@@ -237,7 +237,7 @@ class InvocationExecutor:
             (dataset_id, output): self.backend.select(frame, [*invocation.id_columns, output])
             for output in validator.output_features
         }
-        main_frame.dataframe = frame
+        dataset.dataframe = frame
         self.state.calculated_outputs.update(calculated_outputs)
 
     @staticmethod

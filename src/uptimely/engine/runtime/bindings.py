@@ -54,7 +54,7 @@ class RuntimeBindings:
                 raise ValueError("Staged fragment is unavailable")
             return staged_fragment
         if arg_types.is_dataframe(argument_type or "") and isinstance(value, str):
-            frame = self.state.resolve_main_frame_or_fragment_dataframe(value)
+            frame = self.state.resolve_dataset_or_fragment_dataframe(value)
             if frame is None:
                 if argument_type == arg_types.OPTIONAL_DATAFRAME:
                     return None

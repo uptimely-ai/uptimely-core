@@ -7,8 +7,8 @@ from support import execution as execution_support
 
 from uptimely import plan as execution_plan
 from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import main_frame as main_frame_module
 from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
@@ -19,7 +19,7 @@ from uptimely.spec import function_kinds as functions
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("strict_cardinality", [False, True])
 @pytest.mark.parametrize("grain", ["same", "subset", "global"])
-def test_main_frame_selects_merge_by_fragment_dimensions(
+def test_dataset_selects_merge_by_fragment_dimensions(
     lazy: bool, strict_cardinality: bool, grain: str, caplog: pytest.LogCaptureFixture
 ) -> None:
     caplog.set_level(logging.DEBUG, logger=merge_module.__name__)
@@ -38,7 +38,7 @@ def test_main_frame_selects_merge_by_fragment_dimensions(
         expected = [("A", 1, 2), ("A", 2, 2), ("B", 3, 2)]
     left = initial.lazy() if lazy else initial
     right = contribution.lazy() if lazy else contribution
-    main = execution_support.main_frame(left, ["group", "id"])
+    main = execution_support.dataset(left, ["group", "id"])
     fragment = fragment_module.Fragment(right, dimensions)
 
     projected = main.merge(
@@ -67,11 +67,11 @@ def test_main_frame_selects_merge_by_fragment_dimensions(
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-def test_main_frame_adopts_first_fragment(lazy: bool, caplog: pytest.LogCaptureFixture) -> None:
+def test_dataset_adopts_first_fragment(lazy: bool, caplog: pytest.LogCaptureFixture) -> None:
     caplog.set_level(logging.DEBUG, logger=merge_module.__name__)
     data = pl.DataFrame({"id": [1], "value": [2]})
     frame = data.lazy() if lazy else data
-    main = execution_support.main_frame(None, ["id"])
+    main = execution_support.dataset(None, ["id"])
     fragment = fragment_module.Fragment(frame, ("id",))
 
     assert main.merge(fragment) is fragment
@@ -80,10 +80,10 @@ def test_main_frame_adopts_first_fragment(lazy: bool, caplog: pytest.LogCaptureF
 
 
 @pytest.mark.parametrize("dimensions", [(), ("other",)])
-def test_main_frame_rejects_unassemblable_dimensions_without_mutation(
+def test_dataset_rejects_unassemblable_dimensions_without_mutation(
     dimensions: tuple[str, ...],
 ) -> None:
-    main = execution_support.main_frame(None, ["id"])
+    main = execution_support.dataset(None, ["id"])
     fragment = fragment_module.Fragment(pl.DataFrame({"other": [1], "value": [2]}), dimensions)
 
     with pytest.raises(ValueError, match="requires the accumulated|must be a subset"):
@@ -94,7 +94,7 @@ def test_main_frame_rejects_unassemblable_dimensions_without_mutation(
 @pytest.mark.parametrize("invalid", ["duplicates", "collision"])
 def test_runtime_validation_failure_does_not_replace_accumulator(invalid: str) -> None:
     initial = pl.DataFrame({"id": [1], "value": [2]})
-    main = execution_support.main_frame(initial, ["id"])
+    main = execution_support.dataset(initial, ["id"])
     contribution = (
         pl.DataFrame({"id": [1, 1], "new": [3, 4]})
         if invalid == "duplicates"
@@ -114,7 +114,7 @@ def test_fragment_preserves_raw_data_until_validation_and_projects_declared_outp
     data = pl.DataFrame({"asset_id": ["A"], "reading": [2], "extra": [3]})
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     invocation = plan.invocations[0]
-    main = execution_support.main_frame(None, ["asset_id"])
+    main = execution_support.dataset(None, ["asset_id"])
     fragment = fragment_module.Fragment(data, main.id_columns, invocation)
 
     projected = execution_support.merge_fragment(main, fragment)
@@ -162,7 +162,7 @@ def test_fragment_stage_loads_once_and_returns_merge_ready_data(
     assert staged.invocation is invocation
     assert backend.column_names(staged.dataframe) == ["asset_id", "reading"]
     assert backend.column_names(raw) == ["asset_id", "reading", "extra"]
-    main = main_frame_module.MainFrame(backend, invocation.id_columns)
+    main = dataset_module.Dataset(backend, invocation.id_columns)
     assert main.merge(staged) is staged
     result = main.dataframe.collect() if lazy else main.dataframe
     assert result.to_dicts() == [{"asset_id": "A", "reading": 2}]
@@ -241,10 +241,10 @@ def test_fragment_stage_does_not_collect_lazy_result_without_validation(
     assert staged.dataframe.collect_schema().names() == ["asset_id", "reading"]
 
 
-def test_main_frame_requires_only_physical_id_columns() -> None:
+def test_dataset_requires_only_physical_id_columns() -> None:
     columns = ["asset_id"]
     data = pl.DataFrame({"asset_id": [1], "reading": [2], "extra": [3]})
-    main = main_frame_module.MainFrame(backend_module.PolarsBackend(), columns)
+    main = dataset_module.Dataset(backend_module.PolarsBackend(), columns)
     columns.append("other")
     fragment = fragment_module.Fragment(data, ("asset_id",))
 
@@ -256,10 +256,10 @@ def test_main_frame_requires_only_physical_id_columns() -> None:
     assert main.fragments == {"source": fragment}
 
 
-def test_main_frame_does_not_interpret_invocation_outputs_or_ids() -> None:
+def test_dataset_does_not_interpret_invocation_outputs_or_ids() -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     data = pl.DataFrame({"asset_id": ["A"], "reading": [2], "extra": [3]})
-    main = execution_support.main_frame(None, ["asset_id"])
+    main = execution_support.dataset(None, ["asset_id"])
     fragment = fragment_module.Fragment(data, ("asset_id",), plan.invocations[0])
 
     assert main.merge(fragment) is fragment
@@ -271,7 +271,7 @@ def test_main_frame_does_not_interpret_invocation_outputs_or_ids() -> None:
 @pytest.mark.parametrize("subset", [False, True])
 def test_failed_physical_join_preserves_dataframe_and_retained_fragment(subset: bool) -> None:
     initial = pl.DataFrame({"id": [1], "group": ["A"], "value": [2]})
-    main = execution_support.main_frame(None, ["id", "group"])
+    main = execution_support.dataset(None, ["id", "group"])
     retained = fragment_module.Fragment(initial, ("id", "group"))
     main.merge(retained, fragment_id="source")
     contribution = pl.DataFrame({"id": [1, 1], "group": ["A", "A"], "new": [3, 4]})
@@ -293,7 +293,7 @@ def test_failed_physical_join_preserves_dataframe_and_retained_fragment(subset: 
 
 def test_runtime_validation_uses_column_types_from_invocation() -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
-    main = execution_support.main_frame(None, ["asset_id"])
+    main = execution_support.dataset(None, ["asset_id"])
 
     fragment = fragment_module.Fragment(
         pl.DataFrame({"asset_id": [1], "reading": [2]}),
@@ -306,9 +306,9 @@ def test_runtime_validation_uses_column_types_from_invocation() -> None:
     assert main.fragments == {}
 
 
-def test_runtime_bindings_unwrap_main_frame_and_fragment() -> None:
+def test_runtime_bindings_unwrap_dataset_and_fragment() -> None:
     data = pl.DataFrame({"id": [1], "value": [2]})
-    main = execution_support.main_frame(None, ["id"])
+    main = execution_support.dataset(None, ["id"])
     projected = main.merge(fragment_module.Fragment(data, ("id",)))
     main.fragments["source"] = projected
     state = state_module.RuntimeState(main_frames={"dataset": main})
@@ -340,8 +340,8 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
 def test_failed_merge_preserves_retained_fragments_and_other_main_frames() -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     invocation = plan.invocations[0]
-    main = execution_support.main_frame(None, ["asset_id"])
-    other = execution_support.main_frame(None)
+    main = execution_support.dataset(None, ["asset_id"])
+    other = execution_support.dataset(None)
     valid = pl.DataFrame({"asset_id": ["A"], "reading": [1]})
     retained = execution_support.merge_fragment(
         main,

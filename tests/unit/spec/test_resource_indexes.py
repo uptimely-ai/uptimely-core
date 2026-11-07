@@ -121,7 +121,7 @@ def test_profiles_keep_only_their_own_dimension_context() -> None:
     assert restored.model_dump() == serialized
 
 
-def test_new_model_discovers_edits_without_invalidation_machinery() -> None:
+def test_rebuild_discovers_edits_after_cached_views_are_warmed() -> None:
     document = _sample_spec()
     previous = document.features
     assert document.arguments
@@ -129,7 +129,8 @@ def test_new_model_discovers_edits_without_invalidation_machinery() -> None:
     document.functions["load"].args["extra"] = model.Argument(id="extra", type="str")
     assert "new" not in previous
     assert ("load", "extra") not in document.arguments
-    reconstructed = model.Spec.model_validate(document.model_dump())
+    reconstructed = document.rebuild()
+    assert reconstructed is not document
     assert reconstructed.features["new"] is reconstructed.profiles["first"].features["new"]
     assert ("load", "extra") in reconstructed.arguments
 

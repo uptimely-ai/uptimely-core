@@ -65,6 +65,22 @@ class FunctionTemplate(base.StrictModel):
                 f"got {dataframe_inputs}." + functions.kind_hint(self.returns, dataframe_inputs)
             )
 
+    def check_argument_contracts(self) -> None:
+        """Validate argument rules that depend only on this function declaration."""
+        logger.debug("    - checking function argument contracts: %s", self.id)
+        if self.kind != functions.MERGE and any(
+            argument.type == arg_types.OPTIONAL_DATAFRAME for argument in self.args.values()
+        ):
+            raise ValueError("Nullable dataframe arguments are reserved for merge functions")
+        if self.kind != functions.MERGE:
+            return
+        target = self.args.get("target")
+        if target is None or target.type != arg_types.OPTIONAL_DATAFRAME:
+            raise ValueError("Merge functions must declare target as 'dataframe | null'")
+        fragment = self.args.get("fragment")
+        if fragment is None or fragment.type != arg_types.DATAFRAME:
+            raise ValueError("Merge functions must declare fragment as 'dataframe'")
+
     @pydantic.model_validator(mode="after")
     def generate_name(self) -> typing.Self:
         """Generate a display name from the function ID when one is not supplied."""

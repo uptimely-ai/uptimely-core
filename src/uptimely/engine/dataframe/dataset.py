@@ -8,7 +8,7 @@ from . import backend as backend_module
 from . import fragment as fragment_module
 
 
-class MainFrame:
+class Dataset:
     """Own an accumulated dataframe and assemble fragments by identifier columns."""
 
     def __init__(

@@ -1,4 +1,4 @@
-"""Validate raw fragments and accumulated main frames at runtime boundaries."""
+"""Validate raw fragments and accumulated datasets at runtime boundaries."""
 
 from __future__ import annotations
 
@@ -289,14 +289,14 @@ class ColumnsValidator(_FrameValidator):
 
 
 @dataclasses.dataclass(frozen=True)
-class MainFrameValidator(_FrameValidator):
+class DatasetValidator(_FrameValidator):
     """Validate accumulated frame structure and types of present columns."""
 
     def validate(self) -> None:
         """Check structure before inspecting declared types of existing columns.
 
         Raises:
-            ValueError: The main frame violates its structural or type contract.
+            ValueError: The dataset violates its structural or type contract.
         """
         logger.debug("  Main frame:")
         super().validate()

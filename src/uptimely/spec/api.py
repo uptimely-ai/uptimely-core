@@ -19,7 +19,7 @@ def load_spec(
         log_structure: Emit structural validation debug messages.
 
     Returns:
-        A structurally parsed spec document with reusable resource indexes.
+        A structurally parsed spec document with reusable cached views.
 
     Raises:
         OSError: The JSON document cannot be read.
@@ -49,7 +49,7 @@ def from_python(
         validate: Run semantic checks. Declaration and structural checks always run.
 
     Returns:
-        A structurally parsed spec document with reusable resource indexes.
+        A structurally parsed spec document with reusable cached views.
 
     Raises:
         TypeError: Declarations have unsupported types.

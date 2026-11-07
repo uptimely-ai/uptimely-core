@@ -250,7 +250,7 @@ def test_engine_merges_fragments_by_profile_grain_keys(
         operation for operation in engine.plan.invocations if operation.dataset_id == "pump_profile"
     )
     grain_keys = engine.spec_definition.grain_keys_by_profile[operation.dataset_id]
-    main = execution_support.main_frame(
+    main = execution_support.dataset(
         existing,
         grain_keys,
         backend=engine.backend,
@@ -284,7 +284,7 @@ def test_engine_assembly_accepts_mixed_eager_and_lazy_frames(
     if fragment_lazy:
         fragment = fragment.lazy()
 
-    main = execution_support.main_frame(
+    main = execution_support.dataset(
         existing,
         ["key"],
         backend=engine.backend,
@@ -323,7 +323,7 @@ def test_engine_assembly_preserves_partial_and_disjoint_keys(
     if lazy:
         existing, fragment = existing.lazy(), fragment.lazy()
 
-    main = execution_support.main_frame(
+    main = execution_support.dataset(
         existing,
         ["key"],
         backend=engine.backend,
@@ -359,7 +359,7 @@ def test_engine_assembly_rejects_duplicate_keys_on_either_side(
     if lazy:
         existing, fragment = existing.lazy(), fragment.lazy()
 
-    main = execution_support.main_frame(
+    main = execution_support.dataset(
         existing,
         ["key"],
         backend=engine.backend,
@@ -401,7 +401,7 @@ def test_engine_validates_required_fragment_columns_and_types(
         "output": f"Output column {output} has type",
         "missing": f"missing output columns: {output}",
     }[invalid_column]
-    main = execution_support.main_frame(
+    main = execution_support.dataset(
         None,
         grain_keys,
         backend=engine.backend,
@@ -433,7 +433,7 @@ def test_engine_assembly_rejects_feature_collisions(
     if lazy:
         result, existing = result.lazy(), existing.lazy()
 
-    main = execution_support.main_frame(
+    main = execution_support.dataset(
         existing,
         grain_keys,
         backend=engine.backend,
@@ -469,7 +469,7 @@ def test_engine_rejects_invalid_fragments(
         operation for operation in engine.plan.invocations if operation.dataset_id == "pump_profile"
     )
 
-    main = execution_support.main_frame(
+    main = execution_support.dataset(
         None,
         engine.spec_definition.grain_keys_by_profile[operation.dataset_id],
         backend=engine.backend,
@@ -483,10 +483,10 @@ def test_engine_rejects_invalid_fragments(
 
 def test_engine_looks_up_profiles_by_project_wide_id() -> None:
     frame = pl.LazyFrame({"id": [1]})
-    state = state_module.RuntimeState(main_frames={"shared": execution_support.main_frame(frame)})
+    state = state_module.RuntimeState(main_frames={"shared": execution_support.dataset(frame)})
 
-    assert state.resolve_main_frame_or_fragment_dataframe("shared") is frame
-    assert state.resolve_main_frame_or_fragment_dataframe("missing") is None
+    assert state.resolve_dataset_or_fragment_dataframe("shared") is frame
+    assert state.resolve_dataset_or_fragment_dataframe("missing") is None
 
 
 def test_example_deltas_are_partitioned_and_ordered() -> None:

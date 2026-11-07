@@ -1,4 +1,4 @@
-"""The spec document and its cached resource indexes."""
+"""The spec document and its cached declaration views."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ class SpecSource(base.StrictModel):
 
 
 class Spec(base.StrictModel):
-    """The complete JSON document; cached views assume declarations are unchanged."""
+    """The complete JSON document with cached views of its declarations."""
 
     name: str | None = None
     spec_version: typing.Literal[6] = SPEC_VERSION
@@ -49,6 +49,14 @@ class Spec(base.StrictModel):
     def model_post_init(self, context: typing.Any, /) -> None:
         """Run Spec post-initialization hooks."""
         merge.bind_default_merges(self)
+
+    def rebuild(self) -> typing.Self:
+        """Return a fresh Spec after declarations have been edited.
+
+        Cached views on this instance are not invalidated when nested declarations
+        change. Rebuild before validating or compiling an edited document.
+        """
+        return type(self).model_validate(self.model_dump())
 
     @functools.cached_property
     def profile_items(self) -> list[tuple[ProfileKey, profile_module.Profile]]:

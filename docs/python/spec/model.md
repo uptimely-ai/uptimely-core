@@ -6,10 +6,10 @@ describes the document structure.
 
 The compiler constructs executable invocations from these declarations.
 
-## Resource indexes
+## Derived views
 
-The document model indexes profiles, features, operators, and arguments once, on
-the first index access. Use `document.profiles["telemetry"]` or
+The document caches commonly used views of profiles, features, operators, and
+arguments when first accessed. Use `document.profiles["telemetry"]` or
 `document.features["pressure"]` rather than repeatedly traversing the document.
 These dictionaries reference the original declarations, not copies. Selected
 grain-key features are included in `features`; the top-level dimension catalog
@@ -38,15 +38,16 @@ retains aliases for validation without introducing additional Operator classes.
 `profiles_by_key`, `feature_owners`, `feature_producers`, and
 `operators_by_function` provide keyed lookups and relationships.
 `feature_owners` excludes global
-dimensions, which can occur in multiple profiles. ID-keyed indexes use the last
+dimensions, which can occur in multiple profiles. ID-keyed views use the last
 declaration when IDs collide; validate a document before relying on unique ownership.
 
 Views use `functools.cached_property`; treat declarations and cached collections
 as read-only once accessed. Loading and compilation validate the document and
-can warm these caches. After edits, construct a new document with
-`Spec.model_validate(document.model_dump())` before reading or validating it.
-`model_copy(update=...)` can retain warmed caches and is not a cache-reset
-mechanism. Cached views are not serialized to JSON.
+can warm these caches. After editing declarations, use `document.rebuild()` and
+then validate or compile the returned document. This reconstructs the spec from
+its serialized fields and starts with fresh cached views. `model_copy(update=...)`
+can retain warmed caches and is not a cache-reset mechanism. Cached views are not
+serialized to JSON.
 
 ### Nested model views
 
@@ -63,9 +64,10 @@ normalize their children:
 | `FunctionTemplate` | `arguments_by_type` |
 | `FunctionCatalog` | `arguments`, `functions_by_kind`, `by_kind(kind)` |
 
-`FunctionTemplate` owns checks for its return kind and dataframe argument count.
-The whole-document validation runner invokes these checks, so changes made to
-an already constructed mutable declaration are still detected.
+`FunctionTemplate` owns checks for its return kind, dataframe argument count,
+and argument contracts. Semantic validation runs these checks on the function
+models. Rebuild an edited Spec before validating it again so all cached views
+reflect the edits.
 
 Raw child dictionaries such as `profile.features`, `profile.assembly`, and
 `function.args` remain available. Bound arguments wrap values; catalog arguments

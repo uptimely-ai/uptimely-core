@@ -457,10 +457,10 @@ def test_default_execution_skips_expensive_fragment_validation(
             unexpected_content_check,
         )
     monkeypatch.setattr(
-        dataframe_validation_module.MainFrameValidator, "validate", unexpected_content_check
+        dataframe_validation_module.DatasetValidator, "validate", unexpected_content_check
     )
     monkeypatch.setattr(
-        dataframe_validation_module.MainFrameValidator,
+        dataframe_validation_module.DatasetValidator,
         "validate_merge",
         unexpected_content_check,
     )
@@ -514,7 +514,7 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
     assert main.dataframe["doubled"].to_list() == [4]
     assert "doubled" not in source.dataframe.columns
     assert "extra" in raw_source.columns
-    assert state.resolve_main_frame_or_fragment_dataframe("telemetry") is main.dataframe
+    assert state.resolve_dataset_or_fragment_dataframe("telemetry") is main.dataframe
     assert executor.bindings.resolve_value("telemetry", "dataframe") is main.dataframe
     assert executor.validate is validate
 
@@ -593,9 +593,9 @@ def test_executor_validates_inputs_against_current_runtime_state(
     caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
     runtime_state = state_module.RuntimeState(
         main_frames={
-            "dataset": execution_support.main_frame(pl.DataFrame({"local": [1]})),
-            "first": execution_support.main_frame(pl.DataFrame({"shared": [1], "unique": [1]})),
-            "second": execution_support.main_frame(pl.DataFrame({"shared": [1]})),
+            "dataset": execution_support.dataset(pl.DataFrame({"local": [1]})),
+            "first": execution_support.dataset(pl.DataFrame({"shared": [1], "unique": [1]})),
+            "second": execution_support.dataset(pl.DataFrame({"shared": [1]})),
         }
     )
     executor = execution_module.InvocationExecutor(
@@ -1245,14 +1245,14 @@ def test_engine_rejects_malformed_parameter_references(
 
 
 def test_engine_rejects_ambiguous_fragment_references() -> None:
-    first = execution_support.main_frame(None)
-    second = execution_support.main_frame(None)
+    first = execution_support.dataset(None)
+    second = execution_support.dataset(None)
     first.fragments["shared"] = fragment_module.Fragment(pl.DataFrame({"asset_id": ["A"]}), ())
     second.fragments["shared"] = fragment_module.Fragment(pl.DataFrame({"asset_id": ["B"]}), ())
     state = state_module.RuntimeState(main_frames={"first": first, "second": second})
 
     with pytest.raises(ValueError, match="Ambiguous fragment reference: shared"):
-        state.resolve_main_frame_or_fragment_dataframe("shared")
+        state.resolve_dataset_or_fragment_dataframe("shared")
 
 
 def test_fragment_names_are_scoped_by_dataset_not_entity(
@@ -1299,7 +1299,7 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
     assert set(state.main_frames) == {"first", "second"}
     assert all(set(main.fragments) == {"shared"} for main in state.main_frames.values())
     with pytest.raises(ValueError, match="Ambiguous fragment reference: shared"):
-        state.resolve_main_frame_or_fragment_dataframe("shared")
+        state.resolve_dataset_or_fragment_dataframe("shared")
 
 
 def test_input_validation_reads_each_dataset_schema_once(
@@ -1308,8 +1308,8 @@ def test_input_validation_reads_each_dataset_schema_once(
     engine = engine_for_plan(_plan())
     state = state_module.RuntimeState(
         main_frames={
-            "telemetry": execution_support.main_frame(pl.DataFrame({"asset_id": ["A"]})),
-            "source": execution_support.main_frame(
+            "telemetry": execution_support.dataset(pl.DataFrame({"asset_id": ["A"]})),
+            "source": execution_support.dataset(
                 pl.DataFrame({"asset_id": ["A"], "reading": [1], "other": [2]})
             ),
         }
@@ -1375,7 +1375,7 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
     elif invalid == "missing_feature":
         invocation.input_features[:] = ["missing"]
     state = state_module.RuntimeState(
-        main_frames={"source": execution_support.main_frame(pl.DataFrame({"reading": [1]}))}
+        main_frames={"source": execution_support.dataset(pl.DataFrame({"reading": [1]}))}
     )
     executor = execution_module.InvocationExecutor(
         backend_module.PolarsBackend(), {}, {}, state, validate=True
@@ -1405,7 +1405,7 @@ def test_input_validation_rejects_missing_or_ambiguous_foreign_features(
     engine = engine_for_plan(_plan())
     state = state_module.RuntimeState(
         main_frames={
-            f"source_{index}": execution_support.main_frame(pl.DataFrame({"reading": [index]}))
+            f"source_{index}": execution_support.dataset(pl.DataFrame({"reading": [index]}))
             for index in range(sources)
         }
     )
@@ -1420,17 +1420,17 @@ def test_input_validation_rejects_missing_or_ambiguous_foreign_features(
 def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:
     dataset = pl.DataFrame({"asset_id": ["dataset"]})
     fragment = pl.DataFrame({"asset_id": ["fragment"]})
-    main = execution_support.main_frame(dataset)
+    main = execution_support.dataset(dataset)
     main.fragments["shared"] = fragment_module.Fragment(fragment, ())
     state = state_module.RuntimeState(main_frames={"shared": main})
 
-    assert state.resolve_main_frame_or_fragment_dataframe("shared") is dataset
+    assert state.resolve_dataset_or_fragment_dataframe("shared") is dataset
 
 
 def test_runtime_state_is_not_shared_between_instances() -> None:
     first = state_module.RuntimeState()
     second = state_module.RuntimeState()
-    first.main_frames["telemetry"] = execution_support.main_frame(pl.DataFrame({"asset_id": ["A"]}))
+    first.main_frames["telemetry"] = execution_support.dataset(pl.DataFrame({"asset_id": ["A"]}))
 
     assert second.main_frames == {}
 
@@ -1459,8 +1459,8 @@ def test_column_projection_failure_preserves_published_state(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     original = pl.DataFrame({"reading": [3]})
-    main_frame = execution_support.main_frame(original)
-    state = state_module.RuntimeState(main_frames={"telemetry": main_frame})
+    dataset = execution_support.dataset(original)
+    state = state_module.RuntimeState(main_frames={"telemetry": dataset})
     adapter = backend_module.PolarsBackend()
     executor = execution_module.InvocationExecutor(adapter, {}, {}, state)
     invocation = uptimely_plan.Invocation(
@@ -1490,9 +1490,9 @@ def test_column_projection_failure_preserves_published_state(
     with pytest.raises(ValueError, match="Cannot project second output"):
         executor.execute(invocation)
 
-    assert main_frame.dataframe is original
+    assert dataset.dataframe is original
     assert state.calculated_outputs == {}
-    assert main_frame.fragments == {}
+    assert dataset.fragments == {}
 
 
 @pytest.mark.parametrize("validate", [False, True])
@@ -1518,8 +1518,8 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
             slice_pushdown=False,
         )
     )
-    main_frame = execution_support.main_frame(original)
-    state = state_module.RuntimeState(main_frames={"dataset": main_frame})
+    dataset = execution_support.dataset(original)
+    state = state_module.RuntimeState(main_frames={"dataset": dataset})
     executor = execution_module.InvocationExecutor(
         backend_module.PolarsBackend(), {}, {}, state, validate=validate
     )
@@ -1548,11 +1548,11 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
     if validate and reverse:
         with pytest.raises(ValueError, match="preserve existing column values and row order"):
             executor.execute(invocation)
-        assert main_frame.dataframe is original
+        assert dataset.dataframe is original
         assert state.calculated_outputs == {}
     else:
         executor.execute(invocation)
-        assert isinstance(main_frame.dataframe, pl.LazyFrame)
+        assert isinstance(dataset.dataframe, pl.LazyFrame)
         assert ("dataset", "doubled") in state.calculated_outputs
     assert calls == 1
     assert collections == (1 if validate else 0)

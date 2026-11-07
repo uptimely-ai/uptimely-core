@@ -1,6 +1,6 @@
 """Public semantic-validation entry points.
 
-Atomic rules accept a spec and raise on failure. The runner orders their prerequisites.
+Atomic rules accept a spec and raise on failure. The runner runs them in explicit groups.
 """
 
 from __future__ import annotations

@@ -136,7 +136,7 @@ def merge_by_grain(
         fragment_keys = [key for key in target_keys if key in fragment_columns]
     if not set(fragment_keys).issubset(target_keys):
         raise ValueError(
-            "Fragment identifier columns must be a subset of main frame identifier columns"
+            "Fragment identifier columns must be a subset of accumulated dataset identifier columns"
         )
 
     same_grain = set(fragment_keys) == set(target_keys)

@@ -31,7 +31,7 @@ def _validator(
     fragment: bool,
     invalid_frame_message: str | None = None,
     column_types: dict[str, str] | None = None,
-) -> dataframe_validation.FragmentValidator | dataframe_validation.MainFrameValidator:
+) -> dataframe_validation.FragmentValidator | dataframe_validation.DatasetValidator:
     types = column_types if column_types is not None else {}
     if fragment:
         return dataframe_validation.FragmentValidator(
@@ -43,7 +43,7 @@ def _validator(
             column_types=types,
             invocation=_invocation(),
         )
-    return dataframe_validation.MainFrameValidator(
+    return dataframe_validation.DatasetValidator(
         adapter,
         frame,
         dimensions,
@@ -239,7 +239,7 @@ def test_fragment_ignores_types_of_undeclared_extra_columns() -> None:
     validator.validate()
 
 
-def test_main_frame_checks_structure_once(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dataset_checks_structure_once(monkeypatch: pytest.MonkeyPatch) -> None:
     adapter = backend.PolarsBackend()
     calls: list[object] = []
     is_frame = adapter.is_frame
@@ -250,17 +250,17 @@ def test_main_frame_checks_structure_once(monkeypatch: pytest.MonkeyPatch) -> No
 
     monkeypatch.setattr(adapter, "is_frame", count_frame_checks)
     frame = pl.DataFrame({"key": ["A"]})
-    dataframe_validation.MainFrameValidator(adapter, frame, ["key"], "Main frame").validate()
+    dataframe_validation.DatasetValidator(adapter, frame, ["key"], "Main frame").validate()
     assert len(calls) == 1
     assert calls[0] is frame
 
 
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("collision", [False, True])
-def test_main_frame_merge_validation(lazy: bool, collision: bool) -> None:
+def test_dataset_merge_validation(lazy: bool, collision: bool) -> None:
     frame = pl.DataFrame({"key": ["A"], "value": [1]})
     fragment = pl.DataFrame({"key": ["A"], "value" if collision else "new": [2]})
-    validator = dataframe_validation.MainFrameValidator(
+    validator = dataframe_validation.DatasetValidator(
         backend.PolarsBackend(), frame.lazy() if lazy else frame, ["key"], "Main frame"
     )
     contribution = fragment.lazy() if lazy else fragment
@@ -291,7 +291,7 @@ def test_main_frame_merge_validation(lazy: bool, collision: bool) -> None:
 def test_merge_result_validation_reports_schema_errors(
     result: pl.DataFrame, target: pl.DataFrame | None, fragment: pl.DataFrame, message: str
 ) -> None:
-    validator = dataframe_validation.MainFrameValidator(
+    validator = dataframe_validation.DatasetValidator(
         backend.PolarsBackend(),
         result,
         ["key"],
@@ -306,7 +306,7 @@ def test_merge_result_validation_skips_optional_checks_when_disabled(
 ) -> None:
     adapter = backend.PolarsBackend()
     frame = pl.DataFrame({"key": ["A", "A"], "value": ["wrong", "wrong"]})
-    validator = dataframe_validation.MainFrameValidator(
+    validator = dataframe_validation.DatasetValidator(
         adapter,
         frame,
         ["key"],
@@ -374,7 +374,7 @@ def test_dimensionless_and_merge_validation_debug_logs(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.DEBUG, logger=dataframe_validation.__name__)
-    validator = dataframe_validation.MainFrameValidator(
+    validator = dataframe_validation.DatasetValidator(
         backend.PolarsBackend(), pl.DataFrame({"value": [1]}), [], "Global data"
     )
     validator.validate()

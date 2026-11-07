@@ -9,25 +9,25 @@ from uptimely import plan as execution_plan
 from uptimely import project as project_module
 from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import main_frame as main_frame_module
 from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.spec import model as spec_model
 
 
-def main_frame(
+def dataset(
     dataframe: object | None,
     id_columns: typing.Sequence[str] = (),
     *,
     backend: backend_module.DataFrameBackend | None = None,
-) -> main_frame_module.MainFrame:
+) -> dataset_module.Dataset:
     """Create an independent physical accumulator for runtime tests."""
     adapter = backend if backend is not None else backend_module.PolarsBackend()
-    return main_frame_module.MainFrame(adapter, id_columns, dataframe)
+    return dataset_module.Dataset(adapter, id_columns, dataframe)
 
 
 def merge_fragment(
-    main: main_frame_module.MainFrame,
+    main: dataset_module.Dataset,
     fragment: fragment_module.Fragment,
     *,
     dimension_types: typing.Mapping[str, str] | None = None,
@@ -61,7 +61,7 @@ def merge_fragment(
             output_features=[],
         ).validate()
     if main.dataframe is not None:
-        validator = dataframe_validation.MainFrameValidator(
+        validator = dataframe_validation.DatasetValidator(
             main.backend,
             main.dataframe,
             invocation.id_columns,
