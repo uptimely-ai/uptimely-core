@@ -79,6 +79,15 @@ without a declared producer show "None declared"; multiple producers are listed.
 The Operator section lists every declared operator, including vectorized
 transformations, with its function, argument bindings, and input/output features.
 
+Feature details group labeled role, data type, unit, and profile values beneath
+the feature name. The producing operator card uses
+the same layout as profile details, including its function, resolved arguments,
+and all declared input and output features.
+The Used by section at the bottom lists linked badges for features produced by
+operators in the same profile that directly consume the selected feature.
+Both views connect the input and output columns with a small operator icon and
+directional arrows, stacking the flow vertically on narrow screens.
+
 The Preview context menu groups datasets by profile category when categories are
 available. Profiles without a category appear under Uncategorized; without any
 categories, the menu remains a flat list.

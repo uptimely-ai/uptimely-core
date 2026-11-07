@@ -266,13 +266,13 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.ok(html.indexOf("<span>Produced schema</span></h3>") < html.indexOf("<span>Assembly</span></h3>"));
   assert.match(html, /<span>Produced schema<\/span><\/h3><div class="ui-table-scroll profile-schema-scroll/);
   assert.match(html, /profile-detail-subheading[^>]*>[^]*?<span>Assembly<\/span><\/h3>/);
-  assert.match(html, /profile-operator-kicker">OPERATION<\/span>/);
+  assert.doesNotMatch(html, /profile-operator-kicker|>OPERATION</);
   assert.match(html, /<div class="profile-operator-list">/);
   assert.doesNotMatch(html, /<div class="profile-operator">/);
   assert.match(html, /data-profile-operator="aggregate" data-operator-kind="collapse"/);
   assert.match(html, /href="\?view=functions#function-aggregate">Maximum &lt;reading&gt;<\/a>/);
   assert.match(html, /Input features<\/dt><dd><code>raw<\/code>/);
-  assert.match(html, /Output features<\/dt><dd><code>value<\/code>/);
+  assert.match(html, /Output features<\/dt><dd><code>&lt;Value&gt;<\/code>/);
   assert.match(html, /<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Resolved arguments<\/summary>/);
   assert.match(html, /<code class="language-json">\{&quot;method&quot;:&quot;&lt;max&gt;&quot;\}<\/code>/);
   assert.match(html, /This value will be bound only during the engine execution\./);
@@ -281,7 +281,10 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.match(html, /None declared/);
   assert.match(html, /escape outputs are not materialized/);
   assert.match(html, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
-  assert.match(html, /data-lucide="table-properties"/);
+  const operator = html.match(/<article id="operator-readings-aggregate"[^]*?<\/article>/)[0];
+  assert.match(operator, /profile-operator-header[^]*profile-operator-contract[^]*profile-operator-compute/);
+  assert.match(operator, /profile-operator-flow-node[^]*?data-lucide="square-function"/);
+  assert.match(operator, /class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"/);
   assert.ok(!html.includes("<max>"));
 });
 

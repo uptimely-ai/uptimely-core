@@ -25,9 +25,14 @@ export function features(configuration) {
   });
 }
 
+const SOURCE_FEATURE_KINDS = new Set(["read", "conform", "expand", "collapse"]);
+const featureReferenceId = reference => reference.startsWith("$features.")
+  ? reference.slice("$features.".length)
+  : null;
+const operatorInputs = operator => operator.interface.inputs || [];
 const label = (id, value) => value.name || id;
 const description = value => `<p class="mt-4 text-sm leading-6 text-slate-400">${escape(value || "No description provided.")}</p>`;
-const itemTitle = (id, item, tag = "h2", size = "text-2xl", type = null) => `<${tag} class="break-words font-display ${size} font-semibold text-white">${type === null ? escape(label(id, item)) : typedName(label(id, item), type)}</${tag}>${item.name ? `<p class="mt-1 font-mono text-xs text-slate-500">${escape(id)}</p>` : ""}`;
+const itemTitle = (id, item, tag = "h2", size = "text-2xl", type = null, showId = true) => `<${tag} class="break-words font-display ${size} font-semibold text-white">${type === null ? escape(label(id, item)) : typedName(label(id, item), type)}</${tag}>${item.name && showId ? `<p class="mt-1 font-mono text-xs text-slate-500">${escape(id)}</p>` : ""}`;
 const subheading = (title, iconKey = null) => iconKey
   ? `<h3 class="ui-section-title profile-detail-subheading">${icon(iconKey, "profile-detail-icon")}<span>${escape(title)}</span></h3>`
   : `<h3 class="ui-section-title">${escape(title)}</h3>`;
@@ -209,23 +214,49 @@ function functionOverview(data) {
     }), { total: data.catalogs.summary.function_count })}</div></section>`;
 }
 
-function featureCards(config) {
+function featureCards(config, invocations) {
   return features(config).map(item => {
     const fn = config.functions[item.operator.compute.function] || {};
+    const role = SOURCE_FEATURE_KINDS.has(fn.kind) ? "Input"
+      : Object.values(item.profile.assembly).some(operator =>
+        config.functions[operator.compute.function]?.kind === "vectorize"
+        && operatorInputs(operator).some(reference =>
+          featureReferenceId(reference) === item.featureId))
+        ? "Intermediate" : "Output";
+    const grainKeys = new Set(profileGrainKeys(config, item.profile));
+    const producedFeatures = new Set(Object.values(item.profile.assembly).flatMap(operator =>
+      operator.interface.outputs.map(featureReferenceId).filter(id => id && !grainKeys.has(id))));
+    const linkedFeatures = featureIds => [...new Set(featureIds)]
+      .filter(id => id !== item.featureId)
+      .map(id => {
+        const feature = item.profile.features[id] || {};
+        const title = label(id, feature);
+        return producedFeatures.has(id)
+          ? `<a class="feature-lineage-link" href="${href("features", `feature-${item.id}-${id}`)}">${escape(title)}</a>`
+          : `<span class="feature-lineage-link">${escape(title)}</span>`;
+      });
+    const consumers = Object.values(item.profile.assembly).flatMap(operator =>
+      operatorInputs(operator).some(reference => featureReferenceId(reference) === item.featureId)
+        ? operator.interface.outputs.map(featureReferenceId).filter(Boolean)
+        : []);
     return `<article id="feature-${escape(item.id)}-${escape(item.featureId)}" data-context-item>
-      ${itemTitle(item.featureId, item.feature, "h2", "text-2xl", item.feature.type || "unspecified")}
+      ${itemTitle(item.featureId, item.feature, "h2", "text-2xl", item.feature.type || "unspecified", false)}
+      <dl class="feature-meta">
+        <div><dt>Role</dt><dd>${badge(role, role === "Input" ? "blue" : role === "Intermediate" ? "amber" : "green")}</dd></div>
+        <div><dt>Data type</dt><dd>${dataTypeLabel(item.feature.type || "unspecified", "feature-meta-type")}</dd></div>
+        <div><dt>Unit</dt><dd><span class="feature-meta-unit">${escape(item.feature.unit || "Not specified")}</span></dd></div>
+        <div><dt>Profile</dt><dd><a class="feature-meta-profile" href="${href("profiles", `profile-${item.id}`)}">${icon("profiles", "feature-detail-icon")}<span>${escape(label(item.id, item.profile))}</span></a></dd></div>
+      </dl>
       <p data-feature-description class="mt-4 text-sm leading-6 text-slate-400">${escape(item.feature.description || "No description provided.")}</p>
-      <section class="mt-6 rounded-xl border border-cyan-900/60 bg-cyan-950/20 p-4 sm:p-5">
-        <h3 class="ui-section-title">Producing function: ${escape(fn.name || item.operator.compute.function)}</h3>
-        <p class="mt-3 flex items-center gap-2 text-xs text-slate-400">${kindIcon(fn.kind, "h-3.5 w-3.5")}<span class="font-mono text-cyan-100">${escape(fn.kind || "Unspecified")}</span></p>
-        ${description(fn.description)}
-      </section>
-      <dl class="mt-6 grid gap-6 sm:grid-cols-2">${[
-        ["Profile", label(item.id, item.profile), href("profiles", `profile-${item.id}`)],
-        ["Unit", item.feature.unit || "Not specified"],
-      ].map(([title, value, url]) => `<div><dt class="text-xs text-slate-500">${title}</dt>
-        <dd class="mt-2 break-words text-slate-300">${url ? `<a href="${url}">${escape(value)}</a>` : escape(value)}</dd></div>`).join("")}</dl>
       ${fn.kind === "escape" ? '<p class="mt-6 text-sm leading-6 text-violet-300">Declared logical output only; escape outputs are not materialized as dataframe columns.</p>' : ""}
+      <section class="mt-6" aria-label="Producing operator">
+        ${subheading("Produced by operator", "assembly")}
+        ${profileOperatorCards(config, item.id, item.profile, [[item.operatorId, item.operator]], invocations, `feature-${item.featureId}-operator`)}
+      </section>
+      <section class="mt-6" aria-label="Used by">
+        ${subheading("Used by", "output")}
+        <div class="feature-lineage-links">${linkedFeatures(consumers).join("") || '<span class="feature-lineage-empty">None declared</span>'}</div>
+      </section>
     </article>`;
   }).join("");
 }
@@ -296,9 +327,12 @@ export function schemaColumns(config, profile) {
   ].map(column => ({ ...column, operators: [...(producingOperators.get(column.id) || [])] }));
 }
 
-function profileOperatorCards(config, profileId, profile, operators, invocations) {
+function profileOperatorCards(config, profileId, profile, operators, invocations, idPrefix = "operator") {
   const featureList = references => references.length
-    ? references.map(reference => `<code>${escape(reference.replace(/^\$features\./, ""))}</code>`).join("")
+    ? references.map(reference => {
+      const id = reference.replace(/^\$features\./, "");
+      return `<code>${escape(label(id, profile.features[id] || {}))}</code>`;
+    }).join("")
     : '<span class="profile-operator-empty">None declared</span>';
   const isEngineBound = (value, type) => /\b(?:lazy\s*)?(?:dataframes?|lazyframes?)\b/i.test(type)
     || (typeof value === "string" && (value.startsWith("$params.") || value === "$params"))
@@ -326,23 +360,28 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       && Object.keys(invocation.args).length);
     const hasMerge = Boolean(operator.merge);
     const operatorName = operator.name || id.replace(/[_-]+/g, " ").replace(/\b\w/g, character => character.toUpperCase());
-    return `<article id="operator-${escape(profileId)}-${escape(id)}" class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(fn.kind)}">
+    return `<article id="${escape(idPrefix)}-${escape(profileId)}-${escape(id)}" class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(fn.kind)}">
       <header class="profile-operator-header">
-        <div class="profile-operator-identity"><span class="profile-operator-kicker">OPERATION</span><h4>${escape(operatorName)}</h4></div>
+        <div class="profile-operator-identity"><h4>${escape(operatorName)}</h4></div>
         ${hasMerge ? `<span class="profile-operator-merge-indicator" title="The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset." aria-label="The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset.">${kindIcon("merge", "profile-operator-icon")}</span>` : ""}
       </header>
+      <dl class="profile-operator-contract">
+        <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${featureList(operatorInputs(operator))}</dd></div>
+        <div class="profile-operator-flow"><dt class="sr-only">Operator</dt><dd>
+          <span class="profile-operator-flow-arrow" aria-hidden="true">&rarr;</span>
+          <span class="profile-operator-flow-node" title="${escape(operatorName)}" role="img" aria-label="${escape(`Operator: ${operatorName}`)}">${icon("functions", "profile-operator-icon")}</span>
+          <span class="profile-operator-flow-arrow" aria-hidden="true">&rarr;</span>
+        </dd></div>
+        <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
+      </dl>
+      ${fn.kind === "escape" ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</div>' : ""}
       <div class="profile-operator-compute">
         <div class="profile-operator-function">
-          ${kindIcon(fn.kind, "profile-operator-function-icon")}
+          ${icon("functions", "profile-operator-function-icon")}
           <a href="${href("functions", `function-${functionId}`)}">${escape(fn.name || functionId)}</a>
         </div>
         ${resolvedArgumentDetails(id, "Resolved arguments", computeInvocations)}
       </div>
-      <dl class="profile-operator-contract">
-        <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${featureList(operator.interface.inputs)}</dd></div>
-        <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
-      </dl>
-      ${fn.kind === "escape" ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</div>' : ""}
     </article>`;
   }).join("")}</div>`;
 }
@@ -457,7 +496,7 @@ export function stageCards(data) {
 export function renderCatalog(data, view) {
   const config = data.catalogs.configuration;
   const invocations = (data.stages || []).flatMap(stage => stage.steps);
-  const renderers = { features: () => featureCards(config), profiles: () => profileCards(config, invocations),
+  const renderers = { features: () => featureCards(config, invocations), profiles: () => profileCards(config, invocations),
     dimensions: () => dimensionCards(config),
     functions: () => functionCards(data), stages: () => stageCards(data) };
   const title = view[0].toUpperCase() + view.slice(1);
