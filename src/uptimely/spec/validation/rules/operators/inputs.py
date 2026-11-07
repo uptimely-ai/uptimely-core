@@ -153,13 +153,13 @@ def validate_feature_reference(spec: spec_model.Spec) -> None:
                 raise ValueError(f"Operator {operator.id} references unknown feature: {feature}")
 
 
-def validate_dataset_reference(spec: spec_model.Spec) -> None:
+def validate_profile_reference(spec: spec_model.Spec) -> None:
     """Require a structural profile reference to be declared."""
     logger.debug("    - checking structural profile references")
     for operator in spec.operators:
-        for dataset in operator.dataset_references:
-            if dataset != selectors.CURRENT_ID and dataset not in spec.profiles:
-                raise ValueError(f"Operator {operator.id} references unknown profile: {dataset}")
+        for profile_id in operator.profile_references:
+            if profile_id != selectors.CURRENT_ID and profile_id not in spec.profiles:
+                raise ValueError(f"Operator {operator.id} references unknown profile: {profile_id}")
 
 
 def validate_dimension_reference(spec: spec_model.Spec) -> None:

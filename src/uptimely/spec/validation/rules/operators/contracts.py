@@ -14,23 +14,23 @@ EXPAND_INPUT_ERROR = (
 )
 
 
-def validate_dataset_argument_reference(spec: spec_model.Spec) -> None:
+def validate_dataframe_argument_profile_reference(spec: spec_model.Spec) -> None:
     """Require each dataframe argument to reference a profile."""
     logger.debug("    - checking dataframe arguments use profile references")
-    for key, arguments in spec.operator_arguments.items():
+    for key, arguments in spec.operator_dataframe_arguments.items():
         for name, value, _ in arguments:
             if not isinstance(value, str) or not value.startswith(selectors.PROFILE_PREFIX):
                 raise errors.SpecError(
                     f"DataFrame argument {name} must reference a profile",
-                    code="invalid_mapping_dataset_input",
+                    code="invalid_mapping_dataframe_input",
                     path=(*spec.operator_paths[key], "compute", "args", name),
                 )
 
 
-def validate_dataset_argument_selector(spec: spec_model.Spec) -> None:
+def validate_dataframe_argument_selector(spec: spec_model.Spec) -> None:
     """Reject identifier and grain-key selectors for dataframe arguments."""
     logger.debug("    - checking dataframe arguments select profile data, not IDs or grain keys")
-    for key, arguments in spec.operator_arguments.items():
+    for key, arguments in spec.operator_dataframe_arguments.items():
         for name, value, _ in arguments:
             if isinstance(value, str) and (
                 value.endswith(selectors.ID_SELECTOR)
@@ -39,25 +39,25 @@ def validate_dataset_argument_selector(spec: spec_model.Spec) -> None:
                 raise errors.SpecError(
                     f"DataFrame argument {name} must select profile data, not an identifier "
                     "or grain-key list",
-                    code="invalid_mapping_dataset_input",
+                    code="invalid_mapping_dataframe_input",
                     path=(*spec.operator_paths[key], "compute", "args", name),
                 )
 
 
-def validate_dataset_argument_source(spec: spec_model.Spec) -> None:
+def validate_dataframe_argument_profile_source(spec: spec_model.Spec) -> None:
     """Require each dataframe argument to resolve to a declared profile."""
     logger.debug("    - checking dataframe argument profiles are declared")
-    for key, arguments in spec.operator_arguments.items():
+    for key, arguments in spec.operator_dataframe_arguments.items():
         for name, _, source_id in arguments:
             if source_id not in spec.profiles:
                 raise errors.SpecError(
                     f"DataFrame argument {name} references unknown profile {source_id}",
-                    code="invalid_mapping_dataset_input",
+                    code="invalid_mapping_dataframe_input",
                     path=(*spec.operator_paths[key], "compute", "args", name),
                 )
 
 
-def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
+def validate_dataframe_argument_count(spec: spec_model.Spec) -> None:
     """Require operator to consume the foreign profile count in their kind contract."""
     logger.debug("    - checking foreign profile input counts match function kinds")
     for key, operator in spec.operator_items:
@@ -68,13 +68,13 @@ def validate_dataset_argument_count(spec: spec_model.Spec) -> None:
         expected = definition.dataframe_inputs
         if definition.dataframe_input_scope != "foreign" or expected is None:
             continue
-        if len(spec.operator_arguments[key]) != expected or (
-            len(spec.dataset_argument_ids[key]) != expected
+        if len(spec.operator_dataframe_arguments[key]) != expected or (
+            len(spec.dataframe_argument_profile_ids[key]) != expected
         ):
             raise errors.SpecError(
                 f"{function.kind.capitalize()} operator must consume exactly "
                 f"{expected} foreign profile(s)",
-                code="invalid_mapping_dataset_input",
+                code="invalid_mapping_dataframe_input",
                 path=(*spec.operator_paths[key], "compute", "args"),
             )
 
@@ -83,7 +83,7 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
     """Require matching keys on every participating profile."""
     logger.debug("    - checking matching keys exist on every participating profile")
     for key, matches in spec.matching_profile_keys.items():
-        participants = (spec.operator_profile_keys[key], *spec.dataset_argument_sources[key])
+        participants = (spec.operator_profile_keys[key], *spec.dataframe_argument_profiles[key])
         for grain_key, path in matches:
             for participant in participants:
                 if grain_key not in spec.grain_keys_by_profile[participant]:
@@ -103,16 +103,16 @@ def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
             "dataframe"
         ):
             continue
-        dataset_ids = {owner for _, owners in spec.input_candidates[key] for owner in owners}
-        if len(dataset_ids) > 1:
+        profile_ids = {owner for _, owners in spec.input_candidates[key] for owner in owners}
+        if len(profile_ids) > 1:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} operator inputs must belong to one source profile",
-                code="invalid_mapping_dataset_input",
+                code="invalid_mapping_dataframe_input",
                 path=(*spec.operator_paths[key], "interface", "inputs"),
             )
 
 
-def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
+def validate_foreign_profile_argument(spec: spec_model.Spec) -> None:
     """Reject the target profile when a kind requires a foreign profile input."""
     logger.debug("    - checking foreign profile arguments do not reference the target")
     for key, operator in spec.operator_items:
@@ -120,16 +120,16 @@ def validate_foreign_dataset_argument(spec: spec_model.Spec) -> None:
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
-        if "target_as_foreign_input" in _dataset_input_violations(spec, key, definition):
-            name = spec.operator_arguments[key][0][0]
+        if "target_as_foreign_input" in _dataframe_input_violations(spec, key, definition):
+            name = spec.operator_dataframe_arguments[key][0][0]
             raise errors.SpecError(
                 f"{function.kind.capitalize()} operator must reference a foreign source profile",
-                code="invalid_mapping_dataset_input",
+                code="invalid_mapping_dataframe_input",
                 path=(*spec.operator_paths[key], "compute", "args", name),
             )
 
 
-def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
+def validate_dataframe_argument_feature_source(spec: spec_model.Spec) -> None:
     """Require a feature source to match the operator's profile input."""
     logger.debug("    - checking feature sources match profile arguments")
     for key, operator in spec.operator_items:
@@ -137,7 +137,7 @@ def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
-        arguments = spec.operator_arguments[key]
+        arguments = spec.operator_dataframe_arguments[key]
         source = spec.input_sources[key]
         if (
             definition.feature_input_scope != "dataframe"
@@ -152,12 +152,12 @@ def validate_dataset_argument_feature_source(spec: spec_model.Spec) -> None:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} operator must reference its foreign source profile "
                 f"{source}",
-                code="invalid_mapping_dataset_input",
+                code="invalid_mapping_dataframe_input",
                 path=(*spec.operator_paths[key], "compute", "args", name),
             )
 
 
-def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
+def validate_dataframe_argument_features(spec: spec_model.Spec) -> None:
     """Require profile-scoped feature inputs to belong to the operator's profile inputs."""
     logger.debug("    - checking feature inputs belong to profile arguments")
     for key, operator in spec.operator_items:
@@ -170,10 +170,10 @@ def validate_dataset_argument_features(spec: spec_model.Spec) -> None:
             feature
             for feature in operator.input_features
             if (
-                feature not in spec.dataset_argument_grain_keys[key]
+                feature not in spec.dataframe_argument_grain_keys[key]
                 if feature in spec.grain_key_ids
                 else not any(
-                    owner in spec.dataset_argument_ids[key]
+                    owner in spec.dataframe_argument_profile_ids[key]
                     for owner in spec.feature_owners.get(feature, [])
                 )
             )
@@ -204,7 +204,7 @@ def validate_feature_input_scope(spec: spec_model.Spec) -> None:
             )
 
 
-def validate_target_dataset_input(spec: spec_model.Spec) -> None:
+def validate_target_profile_input(spec: spec_model.Spec) -> None:
     """Require target-scoped operator to consume their target profile."""
     logger.debug("    - checking target-scoped operator consume their target profile")
     for key, operator in spec.operator_items:
@@ -212,15 +212,15 @@ def validate_target_dataset_input(spec: spec_model.Spec) -> None:
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
-        if "missing_target" in _dataset_input_violations(spec, key, definition):
+        if "missing_target" in _dataframe_input_violations(spec, key, definition):
             raise errors.SpecError(
                 f"{function.kind.capitalize()} operator must consume its target profile",
-                code="invalid_mapping_dataset_input",
+                code="invalid_mapping_dataframe_input",
                 path=(*spec.operator_paths[key], "compute", "args"),
             )
 
 
-def validate_target_dataset_only(spec: spec_model.Spec) -> None:
+def validate_target_profile_only(spec: spec_model.Spec) -> None:
     """Reject foreign profile inputs on target-scoped operator."""
     logger.debug("    - checking target-scoped operator do not consume foreign profiles")
     for key, operator in spec.operator_items:
@@ -228,14 +228,16 @@ def validate_target_dataset_only(spec: spec_model.Spec) -> None:
         if function is None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
-        if "foreign_target_input" not in _dataset_input_violations(spec, key, definition):
+        if "foreign_target_input" not in _dataframe_input_violations(spec, key, definition):
             continue
-        foreign = sorted(spec.dataset_argument_ids[key] - {spec.operator_profile_keys[key]})
+        foreign = sorted(
+            spec.dataframe_argument_profile_ids[key] - {spec.operator_profile_keys[key]}
+        )
         if foreign:
             raise errors.SpecError(
                 f"{function.kind.capitalize()} operator cannot publish a foreign profile: "
                 + ", ".join(foreign),
-                code="invalid_mapping_dataset_input",
+                code="invalid_mapping_dataframe_input",
                 path=(*spec.operator_paths[key], "compute", "args"),
             )
 
@@ -249,27 +251,29 @@ def validate_dimension_source(spec: spec_model.Spec) -> None:
             continue
         definition = functions.FUNCTION_KINDS[function.kind]
         source = spec.input_sources[key]
-        if source is not None and "missing_source" in _dataset_input_violations(
+        if source is not None and "missing_source" in _dataframe_input_violations(
             spec, key, definition
         ):
             raise errors.SpecError(
                 f"{function.kind.capitalize()} operator must consume its source profile {source}",
-                code="invalid_mapping_dataset_input",
+                code="invalid_mapping_dataframe_input",
                 path=(*spec.operator_paths[key], "compute", "args"),
             )
 
 
-def _dataset_input_violations(
+def _dataframe_input_violations(
     spec: spec_model.Spec,
     key: spec_model.OperatorKey,
     definition: functions.FunctionKind,
-) -> tuple[functions.DatasetInputViolation, ...]:
+) -> tuple[functions.DataFrameInputViolation, ...]:
     source = spec.input_sources[key]
-    return definition.dataset_input_violations(
-        target_dataset_id=spec.operator_profile_keys[key],
-        argument_dataset_ids=tuple(source_id for _, _, source_id in spec.operator_arguments[key]),
-        resolved_dataset_ids=spec.dataset_argument_ids[key],
-        inferred_source_id=source,
+    return definition.dataframe_input_violations(
+        target_profile_id=spec.operator_profile_keys[key],
+        argument_profile_ids=tuple(
+            source_id for _, _, source_id in spec.operator_dataframe_arguments[key]
+        ),
+        resolved_profile_ids=spec.dataframe_argument_profile_ids[key],
+        inferred_profile_id=source,
     )
 
 
@@ -285,7 +289,7 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
             continue
         target_profile = spec.operator_profile_keys[key]
         target = spec.profiles_by_key[target_profile].grain_reference_set
-        for source_key in spec.dataset_argument_sources[key]:
+        for source_key in spec.dataframe_argument_profiles[key]:
             source = spec.profiles_by_key[source_key].grain_reference_set
             valid = (
                 source == target
@@ -325,7 +329,7 @@ def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
             continue
         lower = {
             source
-            for source in spec.dataset_argument_sources[key]
+            for source in spec.dataframe_argument_profiles[key]
             if (
                 spec.grain_refines(source, spec.operator_profile_keys[key])
                 and spec.profiles_by_key[source].grain_reference_set

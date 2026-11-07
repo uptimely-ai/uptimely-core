@@ -13,6 +13,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 - **Breaking (Python authoring):** Renamed `row_context.dataset()` to
   `row_context.all_rows()` to describe its row-context behavior without implying
   a spec-level Dataset.
+- **Breaking (spec Python API):** Renamed profile-reference and dataframe-input
+  helpers, cached views, and validators to distinguish profile IDs from engine
+  Datasets. The mapping-input validation error code is now
+  `invalid_mapping_dataframe_input`.
 - **Breaking:** Renamed `RuntimeState.main_frames` and
   `ExecutionResult.main_frames` to `datasets`. Values remain final dataframes
   keyed by dataset ID.

@@ -130,10 +130,11 @@ class Operator(base.StrictModel):
         )
 
     @functools.cached_property
-    def dataset_references(self) -> tuple[str, ...]:
-        """Return normalized compute dataset IDs in reference order, retaining duplicates."""
+    def profile_references(self) -> tuple[str, ...]:
+        """Return normalized profile IDs in reference order, retaining duplicates."""
         return tuple(
-            dataset for dataset, _ in self.compute.references_by_prefix[selectors.PROFILE_PREFIX]
+            profile_id
+            for profile_id, _ in self.compute.references_by_prefix[selectors.PROFILE_PREFIX]
         )
 
     @functools.cached_property

@@ -57,10 +57,10 @@ normalize their children:
 | Model | Views |
 | --- | --- |
 | `Profile` | `all_features`, `arguments` keyed by `(operator_key, argument_name)`, `feature_producers`, `dimension_ids`, `dimension_id_set`, `order_dimensions`, `order_references` |
-| `Operator` | `bindings`, `arguments`, `input_features`, `output_features`, `feature_selectors`, `dataset_references`, `dimensions_references`, `dimension_reference_paths` |
+| `Operator` | `bindings`, `arguments`, `input_features`, `output_features`, `feature_selectors`, `profile_references`, `dimensions_references`, `dimension_reference_paths` |
 | `Interface` | `input_ids`, `output_ids` |
-| `Binding` | `values_with_paths`, `references_by_prefix`, `metadata_references_with_paths`, `grain_references_with_paths`, `feature_references`, `uses_current_feature`, `dataset_input_references` |
-| `BindingArgument` | `root`, `children`, `leaves_with_paths`, `references_with_paths`, `prefix`, `identifier`, `selector`, `selector_value_type`, `is_current_dataset`, `is_current_fragment`, `is_current_feature_reference`, `is_grain_reference`, `dataset_input_references`, `inferred_feature_inputs` |
+| `Binding` | `values_with_paths`, `references_by_prefix`, `metadata_references_with_paths`, `grain_references_with_paths`, `feature_references`, `uses_current_feature`, `profile_dataframe_references` |
+| `BindingArgument` | `root`, `children`, `leaves_with_paths`, `references_with_paths`, `prefix`, `identifier`, `selector`, `selector_value_type`, `is_current_profile_dataframe`, `is_current_fragment`, `is_current_feature_reference`, `is_grain_reference`, `profile_dataframe_references`, `inferred_feature_inputs` |
 | `FunctionTemplate` | `arguments_by_type` |
 | `FunctionCatalog` | `arguments`, `functions_by_kind`, `by_kind(kind)` |
 
@@ -73,7 +73,7 @@ Raw child dictionaries such as `profile.features`, `profile.assembly`, and
 `function.args` remain available. Bound arguments wrap values; catalog arguments
 are declarations. Feature and operator references retain declaration order.
 
-`operator.dataset_references` contains normalized profile IDs from nested binding
+`operator.profile_references` contains normalized profile IDs from nested binding
 arguments, retaining duplicates and the current-profile marker `@`. It reuses
 the binding's cached traversal and does not require a Spec.
 `operator.feature_selectors` exposes normalized feature IDs from compute
@@ -133,13 +133,13 @@ profiles and output features.
 Python authoring infers omitted interface inputs from bare feature references,
 including their string forms, but excludes metadata selectors, the current-output
 marker, and declared outputs. An explicit interface, including `inputs=[]`, always
-overrides inference. Dataset dependencies are inferred only from profile-data
-references, never from profile IDs, grain keys, or descriptive metadata.
+overrides inference. Profile dependencies are inferred from dataframe
+references, not from grain keys or descriptive metadata.
 
 Context-dependent views live on the Spec rather than wrapper objects:
 `dimensions_by_profile` uses profile keys;
-`input_candidates`, `input_sources`, `operator_arguments`, `dataset_argument_sources`,
-`dataset_argument_ids`, `dataset_argument_grain_keys`, and `matching_profile_keys`
+`input_candidates`, `input_sources`, `operator_dataframe_arguments`, `dataframe_argument_profiles`,
+`dataframe_argument_profile_ids`, `dataframe_argument_grain_keys`, and `matching_profile_keys`
 use operator keys. Unresolved and ambiguous resources remain
 visible to validators. `declaration_paths` preserves operator dictionary keys for
 binding diagnostics; `operator_paths` preserves model IDs for contract diagnostics.
@@ -148,7 +148,7 @@ operator's context describes, and `get_row_context_dimensions(operator_key)` ret
 its dimension IDs. Dimension-removing operations use the inferred source;
 other operations use the target. Both return `None` for an unresolved source.
 Row context itself remains available directly as `operator.row_context`.
-`Binding.dataset_input_references` contains ordered profile dataframe references,
+`Binding.profile_dataframe_references` contains ordered profile dataframe references,
 retaining duplicates and `@` while excluding identifier and dimension-list selectors.
 `binding_arguments_with_paths` returns ordered
 `(binding_args_path, argument, argument_type)` tuples for validation, deriving each

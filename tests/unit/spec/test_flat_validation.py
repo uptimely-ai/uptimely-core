@@ -471,7 +471,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "unknown feature",
         ),
         (
-            operator_inputs.validate_dataset_reference,
+            operator_inputs.validate_profile_reference,
             "vectorize",
             lambda s: compute(s).compute.args.update(
                 {"data": model.BindingArgument("$profiles.missing.dataframe")}
@@ -561,13 +561,13 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "unknown source dimensions",
         ),
         (
-            operator_contracts.validate_dataset_argument_reference,
+            operator_contracts.validate_dataframe_argument_profile_reference,
             "vectorize",
             lambda s: compute(s).compute.args.update({"data": model.BindingArgument(42)}),
             "must reference a profile",
         ),
         (
-            operator_contracts.validate_dataset_argument_selector,
+            operator_contracts.validate_dataframe_argument_selector,
             "vectorize",
             lambda s: compute(s).compute.args.update(
                 {"data": model.BindingArgument("$profiles.target.id")}
@@ -575,7 +575,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "must select profile data",
         ),
         (
-            operator_contracts.validate_dataset_argument_source,
+            operator_contracts.validate_dataframe_argument_profile_source,
             "vectorize",
             lambda s: compute(s).compute.args.update(
                 {"data": model.BindingArgument("$profiles.missing.dataframe")}
@@ -583,13 +583,13 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "unknown profile",
         ),
         (
-            operator_contracts.validate_dataset_argument_count,
+            operator_contracts.validate_dataframe_argument_count,
             "collapse",
             lambda s: s.functions["compute"].args.clear(),
             "exactly 1 foreign",
         ),
         (
-            operator_contracts.validate_foreign_dataset_argument,
+            operator_contracts.validate_foreign_profile_argument,
             "collapse",
             lambda s: compute(s).compute.args.update(
                 {"data": model.BindingArgument("$profiles.target.dataframe")}
@@ -603,7 +603,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "one source profile",
         ),
         (
-            operator_contracts.validate_dataset_argument_feature_source,
+            operator_contracts.validate_dataframe_argument_feature_source,
             "conform",
             lambda s: compute(s).compute.args.update(
                 {"data": model.BindingArgument("$profiles.target.dataframe")}
@@ -611,7 +611,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "foreign source profile source",
         ),
         (
-            operator_contracts.validate_dataset_argument_features,
+            operator_contracts.validate_dataframe_argument_features,
             "expand",
             lambda s: compute(s).interface.inputs.append("$features.time"),
             "profile inputs",
@@ -623,7 +623,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "cannot declare",
         ),
         (
-            operator_contracts.validate_target_dataset_input,
+            operator_contracts.validate_target_profile_input,
             "vectorize",
             lambda s: compute(s).compute.args.update(
                 {"data": model.BindingArgument("$profiles.source.dataframe")}
@@ -631,7 +631,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "consume its target",
         ),
         (
-            operator_contracts.validate_target_dataset_only,
+            operator_contracts.validate_target_profile_only,
             "write",
             lambda s: compute(s).compute.args.update(
                 {"data": model.BindingArgument("$profiles.source.dataframe")}
@@ -704,7 +704,12 @@ def test_atomic_rules_reject_their_own_invariant(
 @pytest.mark.parametrize(
     ("validate", "dimension", "before", "message"),
     [
-        (row_context.validate_dataset_order, None, {"rows": 1}, "requires profile order"),
+        (
+            row_context.validate_row_context_profile_order,
+            None,
+            {"rows": 1},
+            "requires profile order",
+        ),
         (row_context.validate_dimension, "$dimensions.missing", {"steps": 1}, "input profile"),
         (
             row_context.validate_dimension_type,
@@ -730,7 +735,7 @@ def test_row_context_rules(
     compute(spec).row_context = row_context_model.RowContext.model_validate(
         {"dimension": dimension, "before": before}
     )
-    if validate is row_context.validate_dataset_order:
+    if validate is row_context.validate_row_context_profile_order:
         target(spec).order.clear()
     with pytest.raises(ValueError, match=message):
         validate(spec)

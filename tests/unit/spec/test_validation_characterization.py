@@ -123,8 +123,8 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
             "$profiles.pump_profile.dataframe"
         )
         expected_id = "alias"
-        expected_code = "invalid_mapping_dataset_input"
-        validate = contracts_validation.validate_target_dataset_input
+        expected_code = "invalid_mapping_dataframe_input"
+        validate = contracts_validation.validate_target_profile_input
     with pytest.raises(validation.SpecError) as error:
         validate(document)
     assert error.value.code == expected_code
@@ -334,7 +334,7 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     function_id, function, dataframe_inputs = next(document.functions.iter_functions())
     assert function_id == function.id
     assert dataframe_inputs == len(function.arguments_by_type.get("dataframe", {}))
-    assert document.operator_arguments
+    assert document.operator_dataframe_arguments
     assert document == original
 
 

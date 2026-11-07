@@ -106,14 +106,14 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         )
 
     @property
-    def is_dataset_input(self) -> bool:
-        """Whether this scalar references profile data rather than metadata."""
+    def is_profile_dataframe_reference(self) -> bool:
+        """Whether this scalar selects a profile dataframe rather than metadata."""
         return self.prefix == selectors.PROFILE_PREFIX and (
             self.selector is None or self.selector == "dataframe"
         )
 
     @property
-    def is_current_dataset(self) -> bool:
+    def is_current_profile_dataframe(self) -> bool:
         """Whether this value explicitly selects the current profile dataframe."""
         return self.root == (
             f"{selectors.PROFILE_PREFIX}{selectors.CURRENT_ID}{selectors.DATAFRAME_SELECTOR}"
@@ -177,20 +177,20 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         )
 
     @functools.cached_property
-    def dataset_input_references(self) -> tuple[str, ...]:
-        """Return ordered profile data IDs, excluding metadata and retaining duplicates."""
+    def profile_dataframe_references(self) -> tuple[str, ...]:
+        """Return ordered profile IDs selected as dataframes, retaining duplicates."""
         return tuple(
             leaf.identifier
             for leaf, _ in self.references_with_paths
-            if leaf.is_dataset_input and leaf.identifier is not None
+            if leaf.is_profile_dataframe_reference and leaf.identifier is not None
         )
 
-    def dataset_dependencies(self, current_profile_id: str) -> list[str]:
-        """Return unique inferred profile-data dependencies in supplied order."""
+    def profile_dependencies(self, current_profile_id: str) -> list[str]:
+        """Return unique referenced profile IDs in supplied order."""
         return list(
             dict.fromkeys(
                 current_profile_id if identifier == selectors.CURRENT_ID else identifier
-                for identifier in self.dataset_input_references
+                for identifier in self.profile_dataframe_references
             )
         )
 

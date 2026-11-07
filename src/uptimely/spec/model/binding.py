@@ -109,12 +109,12 @@ class Binding(base.StrictModel):
         }
 
     @functools.cached_property
-    def dataset_input_references(self) -> tuple[str, ...]:
+    def profile_dataframe_references(self) -> tuple[str, ...]:
         """Return ordered profile data references from all arguments."""
         return tuple(
             identifier
             for argument in self.args.values()
-            for identifier in argument.dataset_input_references
+            for identifier in argument.profile_dataframe_references
         )
 
     @property
@@ -128,13 +128,13 @@ class Binding(base.StrictModel):
             )
         )
 
-    def dataset_dependencies(self, current_dataset: str) -> list[str]:
+    def profile_dependencies(self, current_profile_id: str) -> list[str]:
         """Aggregate unique inferred profile-data dependencies."""
         return list(
             dict.fromkeys(
                 dependency
                 for argument in self.args.values()
-                for dependency in argument.dataset_dependencies(current_dataset)
+                for dependency in argument.profile_dependencies(current_profile_id)
             )
         )
 

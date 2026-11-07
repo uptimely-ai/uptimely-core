@@ -81,7 +81,7 @@ def validate_merge_target(spec: spec_model.Spec) -> None:
         if operator.merge is None:
             continue
         target = operator.merge.args.get("target")
-        if target is None or not target.is_current_dataset:
+        if target is None or not target.is_current_profile_dataframe:
             raise errors.SpecError(
                 "Merge target must reference the current profile dataframe",
                 code="invalid_merge_binding",

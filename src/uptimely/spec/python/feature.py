@@ -1,4 +1,4 @@
-"""Python-friendly dataset feature declarations."""
+"""Python-friendly profile feature declarations."""
 
 from __future__ import annotations
 

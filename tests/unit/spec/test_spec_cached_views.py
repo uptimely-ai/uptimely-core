@@ -258,7 +258,7 @@ def test_nested_models_expose_cached_children_and_normalized_ids() -> None:
         assert operator.output_features == ["key", "value"]
         assert profile.order_dimensions == (("key", frozenset()), ("key", frozenset({"key"})))
         assert profile.order_references == frozenset({"$dimensions.key"})
-        assert operator.dataset_references == ()
+        assert operator.profile_references == ()
         assert operator.feature_selectors == ()
         assert operator.dimensions_references == ()
     assert profile.grain.traversals == 1

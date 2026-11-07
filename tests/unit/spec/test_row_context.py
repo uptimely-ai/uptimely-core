@@ -344,12 +344,12 @@ def test_row_context_dataset_selection_follows_dimension_contract(
         document.get_row_context_dimensions(key) == document.dimensions_by_profile[expected_source]
     )
     if dimension_change == "remove":
-        row_context_rules.validate_dataset_order(document)
+        row_context_rules.validate_row_context_profile_order(document)
         row_context_rules.validate_dimension(document)
         row_context_rules.validate_dimension_order(document)
     else:
         with pytest.raises(ValueError, match="requires profile order"):
-            row_context_rules.validate_dataset_order(document)
+            row_context_rules.validate_row_context_profile_order(document)
         with pytest.raises(ValueError, match="not in the input profile"):
             row_context_rules.validate_dimension(document)
         with pytest.raises(ValueError, match="must occur in profile order"):

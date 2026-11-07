@@ -180,6 +180,6 @@ def test_conversion_rejects_invalid_inputs(
         conversion.to_dict(**kwargs)
 
 
-def test_conversion_rejects_removed_dataset_argument() -> None:
+def test_conversion_rejects_removed_dataframe_argument() -> None:
     with pytest.raises(TypeError, match="unexpected keyword argument 'datasets'"):
         conversion.to_dict(datasets=[_profile("readings")])
