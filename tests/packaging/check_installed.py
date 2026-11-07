@@ -111,7 +111,11 @@ class InstalledImportsTest(unittest.TestCase):
                 "installed_analytics.functions:Readers.values": {
                     "distribution": "uptimely-import-fixture",
                     "version": "1.2.3",
-                }
+                },
+                "uptimely.library.merge.polars:merge_by_grain": {
+                    "distribution": "uptimely-core",
+                    "version": importlib.metadata.version("uptimely-core"),
+                },
             },
         )
         config = project / "config" / "config.json"
