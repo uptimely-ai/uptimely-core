@@ -8,7 +8,7 @@ const scriptDirectory = path.resolve(__dirname, '../../../src/uptimely/explorer/
 
 for (const withSectionCount of [false, true]) {
 	test(`catalog selects one function without removed badges (section count: ${withSectionCount})`, () => {
-		const overview = { ...createElement(), id: 'catalog-overview' };
+		const overview = { ...createElement(), id: 'overview' };
 		const first = { ...createElement(), id: 'function-first' };
 		const second = { ...createElement(), id: 'function-second' };
 		const items = [overview, first, second];
@@ -94,7 +94,7 @@ for (const withSectionCount of [false, true]) {
 for (const catalog of ['features', 'profiles']) {
 test(`${catalog} selection displays its description in the section header`, () => {
 	const resource = catalog === 'profiles' ? 'profile' : 'feature';
-	const overview = { ...createElement(), id: 'catalog-overview' };
+	const overview = { ...createElement(), id: 'overview' };
 	const first = { ...createElement(), id: 'feature-first' };
 	const second = { ...createElement(), id: 'feature-second' };
 	const items = [overview, first, second];
@@ -177,7 +177,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 }
 
 test('dimension selection displays its description in the section header', () => {
-	const overview = { ...createElement(), id: 'catalog-overview' };
+	const overview = { ...createElement(), id: 'overview' };
 	const dimension = { ...createElement(), id: 'dimension-machine' };
 	const items = [overview, dimension];
 	const dimensionDescription = { ...createElement(), textContent: 'Machine and production hierarchy' };

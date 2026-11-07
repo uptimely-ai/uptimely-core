@@ -96,7 +96,7 @@ export function catalogContext(data, view) {
   return `<aside class="site-context" id="catalog-context" aria-label="${title} context" data-context-label="${view}">
     ${contextHeader(title, view, "catalog-context")}
     <nav class="context-links" aria-label="${title} on this page">${contextLink(
-      "catalog-overview", "Overview", "overview",
+      "overview", "Overview", "overview",
     )}
       <hr class="context-separator">${links || `<p class="context-empty">No ${view}.</p>`}
     </nav></aside>`;
@@ -153,7 +153,7 @@ function catalogOverview(data, view) {
   if (view === "functions") return functionOverview(data);
   const { stats, charts } = overviewData[view](data);
   const title = view[0].toUpperCase() + view.slice(1);
-  return `<section id="catalog-overview" data-context-item aria-label="${title} overview" class="mb-12">
+  return `<section id="overview" data-context-item aria-label="${title} overview" class="mb-12">
     ${view === "features" ? "" : `<h2 class="ui-section-title mb-6">${title} overview</h2>`}
     ${stats.length ? `<div class="grid gap-3 sm:grid-cols-2${stats.length > 2 ? " lg:grid-cols-4" : ""}">${stats.map(args => statistic(...args)).join("")}</div>` : ""}
     <div class="catalog-charts${view === "features" ? " lg:grid-cols-2" : ""}">${charts.join("")}</div>
@@ -190,14 +190,14 @@ function profileOverview(data) {
       </div>
     </a>`;
   });
-  return `<section id="catalog-overview" data-context-item aria-label="Profiles overview" class="mb-12">
+  return `<section id="overview" data-context-item aria-label="Profiles overview" class="mb-12">
     <div class="profile-summary-grid">${cards.join("") || '<p class="text-sm text-slate-400">No profiles are defined.</p>'}</div>
   </section>`;
 }
 
 function functionOverview(data) {
   const groups = Object.entries(data.catalogs.function_groups);
-  return `<section id="catalog-overview" data-context-item aria-label="Functions overview" class="mb-12">
+  return `<section id="overview" data-context-item aria-label="Functions overview" class="mb-12">
     <h2 class="ui-section-title mb-6">Functions overview</h2>
     <div class="grid gap-3 sm:grid-cols-2">${[
       ["Functions", data.catalogs.summary.function_count],
