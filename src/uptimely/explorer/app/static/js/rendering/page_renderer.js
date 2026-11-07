@@ -53,7 +53,7 @@ export function dashboard(data) {
 export function planOverview(data) {
   const plan = data.plan;
   return page(`<p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Execution plan</p>
-    ${heading("Stats", "Plan compiled from the spec, ordered by dependency resolution.", "stats")}
+    ${heading("Overview", "Plan compiled from the spec, ordered by dependency resolution.", "overview")}
     <section id="plan-overview" class="mb-16">
       <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">${[
         ["Invocations", plan.invocation_count], ["Functions", plan.function_count],
