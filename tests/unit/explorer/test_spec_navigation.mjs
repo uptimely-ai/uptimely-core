@@ -5,8 +5,10 @@ import test from "node:test";
 const root = new URL("../../../src/uptimely/explorer/app/static/js/", import.meta.url);
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
 const shared = moduleUrl(await readFile(new URL("rendering/shared_markup.js", root), "utf8"));
+const lineageConfig = moduleUrl(await readFile(new URL("lineage/lineage_config.js", root), "utf8"));
 const pages = moduleUrl((await readFile(new URL("rendering/page_renderer.js", root), "utf8"))
-  .replace("./shared_markup.js", shared));
+  .replace("./shared_markup.js", shared)
+  .replace("../lineage/lineage_config.js", lineageConfig));
 const catalog = (await readFile(new URL("catalogs/catalog_renderer.js", root), "utf8"))
   .replace("../rendering/shared_markup.js", shared)
   .replace("../rendering/page_renderer.js", pages);
@@ -547,7 +549,7 @@ test("home journey matches menu sections and distinguishes saved results from an
 
 test("topology controls use topology labels while retaining graph hooks", () => {
   const { context } = lineage({
-    graphs: { invocation_lineage: {}, invocation_style: {} },
+    graphs: { invocation_lineage: { nodes: [], links: [] }, invocation_style: {} },
   }, true);
   assert.match(context, /aria-label="Topology context"/);
   assert.match(context, /aria-label="Topology view"/);
@@ -578,7 +580,8 @@ test("Dataset endpoint wording and graph payload honor scoped builds", () => {
 test("lineage and topology reset controls use accessible icon-only buttons", () => {
   for (const topology of [false, true]) {
     const { context } = lineage({
-      graphs: { feature_lineage: {}, feature_style: {}, invocation_lineage: {}, invocation_style: {} },
+      graphs: { feature_lineage: { nodes: [], links: [] }, feature_style: {},
+        invocation_lineage: { nodes: [], links: [] }, invocation_style: {} },
     }, topology);
     const label = "Reset view";
     assert.match(context, new RegExp(`<button class="ui-button lineage-reset" id="reset-lineage" type="button" aria-label="${label}" title="${label}" aria-controls="lineage"><i[^>]*data-lucide="scan-search" aria-hidden="true"><\\/i><\\/button>`));
@@ -592,7 +595,7 @@ test("lineage and topology reset controls use accessible icon-only buttons", () 
 
 test("feature lineage exposes a pressed accessible function-icon toggle beside dimension controls", () => {
   const { context } = lineage({
-    graphs: { feature_lineage: {}, feature_style: {} },
+    graphs: { feature_lineage: { nodes: [], links: [] }, feature_style: {} },
   }, false);
   assert.match(context, /class="lineage-control-groups">[\s\S]*data-dimension="3d"[\s\S]*class="ui-button lineage-operator-toggle"/);
   assert.match(context, /<button class="ui-button lineage-operator-toggle" id="show-operators" type="button" aria-label="Show operators" title="Show operators" aria-pressed="true" aria-controls="lineage"><i[^>]*data-lucide="square-function" aria-hidden="true"><\/i><\/button>/);
@@ -602,7 +605,8 @@ test("feature lineage exposes a pressed accessible function-icon toggle beside d
 test("2D and 3D controls use square and box icons with preserved selection and labels", () => {
   for (const topology of [false, true]) {
     const { context } = lineage({
-      graphs: { feature_lineage: {}, feature_style: {}, invocation_lineage: {}, invocation_style: {} },
+      graphs: { feature_lineage: { nodes: [], links: [] }, feature_style: {},
+        invocation_lineage: { nodes: [], links: [] }, invocation_style: {} },
     }, topology);
     for (const [dimension, name, pressed] of [["2d", "square", "true"], ["3d", "box", "false"]]) {
       const button = [...context.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)]
@@ -621,10 +625,11 @@ test("2D and 3D controls use square and box icons with preserved selection and l
 test("every lineage and topology graph control has a tooltip matching its accessible label", () => {
   for (const topology of [false, true]) {
     const { context } = lineage({
-      graphs: { feature_lineage: {}, feature_style: {}, invocation_lineage: {}, invocation_style: {} },
+      graphs: { feature_lineage: { nodes: [], links: [] }, feature_style: {},
+        invocation_lineage: { nodes: [], links: [] }, invocation_style: {} },
     }, topology);
     const controls = context.slice(context.indexOf('<div class="lineage-control-groups">'),
-      context.indexOf('<details class="panel"'));
+      context.indexOf('<details class="lineage-legend-panel"'));
     const buttons = [...controls.matchAll(/<button\b[^>]*>/g)].map(match => match[0]);
     assert.equal(buttons.length, 6);
     for (const button of buttons) {
@@ -639,7 +644,8 @@ test("every lineage and topology graph control has a tooltip matching its access
 test("lineage and topology zoom buttons use the corresponding accessible icons", () => {
   for (const topology of [false, true]) {
     const { context } = lineage({
-      graphs: { feature_lineage: {}, feature_style: {}, invocation_lineage: {}, invocation_style: {} },
+      graphs: { feature_lineage: { nodes: [], links: [] }, feature_style: {},
+        invocation_lineage: { nodes: [], links: [] }, invocation_style: {} },
     }, topology);
     for (const [factor, name, label] of [["1.25", "zoom-in", "Zoom in"], ["0.8", "zoom-out", "Zoom out"]]) {
       const button = [...context.matchAll(/<button\b[^>]*>[\s\S]*?<\/button>/g)]

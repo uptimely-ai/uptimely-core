@@ -93,7 +93,17 @@ available. Profiles without a category appear under Uncategorized; without any
 categories, the menu remains a flat list.
 
 Lineage and topology offer interactive **2D** and **3D** views, zoom, reset,
-profile legends, and selectable node details. Every graph-control button has
+profile legends, and selectable node details. **Graph legend** is a collapsed visual key:
+expand it for profile-color chips and node or function-kind icons. It explains
+the graph rather than filtering it; profile colors do not indicate run status.
+The operator key follows the operator visibility toggle. Selected-node details
+show the node name and icon above labeled sections for its definition, profile,
+and data flow. Invocation details also separate argument bindings and connection
+scope, link to the owning operator, and distinguish flow notes from metadata.
+Flow notes explain what the selected step does, clarify that dataset-ready
+markers describe the plan rather than a completed run, and explain highlighted arrows.
+Long identifiers and argument values wrap without being truncated.
+Every graph-control button has
 a tooltip identifying its action. The reset icon sits alongside zoom in and
 zoom out in the viewport button group. It clears selection
 and fits the current graph.

@@ -19,67 +19,60 @@ export function initializeInvocationLineage(signal) {
 		return Array.isArray(values) && values.length ? values.join(', ') : 'none';
 	}
 
-	function formatArguments(arguments_) {
-		return Object.entries(arguments_ || {})
-			.map(([name, value]) => `${name}=${JSON.stringify(value)}`)
-			.join(', ') || 'none';
-	}
-
-	function appendOperatorLink(node) {
-		if (!node.operator_id || !node.dataset_id) return;
-		const row = document.createElement('div');
-		row.className = 'meta';
-		const label = document.createElement('strong');
-		label.textContent = 'Owning operator: ';
-		const link = document.createElement('a');
-		const target = `operator-${node.dataset_id}-${node.operator_id}`;
-		link.href = `?view=profiles#${encodeURIComponent(target)}`;
-		link.textContent = node.operator_name || node.operator_id.replace(/[_-]/g, ' ')
-			.replace(/\b\w/g, letter => letter.toUpperCase());
-		row.append(label, link);
-		invocationNodeDetails.append(row);
-	}
-
 	function updateInvocationDetails(node, fullLineage = true) {
 		if (!node) {
-			ExplorerLineage.showDetails(invocationNodeDetails, 'invocation details', [],
-				'Select an invocation to inspect its function kind, arguments, profile, declared features, and invocation dependencies.');
+			ExplorerLineage.showDetails(invocationNodeDetails, 'No node selected', [],
+				'Select an invocation to inspect its function, arguments, and dependencies.');
 			return;
 		}
-		const rows = [
-			['Highlight', fullLineage ? 'All upstream sources and downstream consumers'
-				: 'Immediate inputs and consumers only'],
-			['Profile', node.dataset_name || node.dataset_id],
-			['Profile ID', node.dataset_id],
+		const definitionRows = [
+			['Invocation ID', node.id],
 			['Phase', invocationRole(node) === 'merge' ? 'merge' : 'compute'],
 			['Stage', node.stage],
-			['Function kind', node.function_kind || 'n/a'],
-			['Function', invocationLabel(node)],
+			['Function kind', KINDS[node.function_kind]?.label || node.function_kind || 'n/a'],
 			['Function ID', node.function_id || 'n/a'],
-			['Arguments', formatArguments(node.arguments)],
-			['Profile', node.profile || 'n/a'],
+		];
+		if (node.operator_id && node.dataset_id) {
+			const operatorName = node.operator_name || node.operator_id.replace(/[_-]/g, ' ')
+				.replace(/\b\w/g, letter => letter.toUpperCase());
+			definitionRows.push(['Owning operator', operatorName, null,
+				`?view=profiles#${encodeURIComponent(`operator-${node.dataset_id}-${node.operator_id}`)}`]);
+		}
+		const outputRows = [
 			[node.is_effect ? 'Declared feature outputs' : 'Produces',
 				node.feature || (node.is_effect ? 'None' : 'n/a')],
 		];
 		if (invocationRole(node) === 'merge') {
-			rows.push(
+			outputRows.push(
 				['Merge target', node.merge_target ?? node.arguments?.target],
 				['Fragment source', node.fragment_source ?? node.arguments?.fragment],
 				['Merge keys', formatList(node.merge_keys ?? node.arguments?.target_keys)],
 			);
-			if (isDefaultMerge(node)) rows.push(['Binding', 'Automatically supplied default merge']);
+			if (isDefaultMerge(node)) outputRows.push(['Binding', 'Automatically supplied default merge']);
 		}
 		if (node.is_effect && node.input_features?.length) {
-			rows.push(['Declared inputs', formatList(node.input_features)]);
+			outputRows.push(['Declared inputs', formatList(node.input_features)]);
 		}
-		rows.push(['invocation dependencies', formatList(node.dependency_ids)]);
-		ExplorerLineage.showDetails(invocationNodeDetails, 'invocation details', rows,
-			`${invocationFlowDetails(node, scoped)} ${invocationRole(node) === 'merge'
-				? 'Publishes the operator fragment; compute and merge are separate invocations.'
-				: node.is_effect
-				? 'Declared feature inputs and outputs define logical dependencies only. Dataframes are passed only through explicitly bound arguments; escape return values are ignored.'
-				: ''}`.trim());
-		appendOperatorLink(node);
+		ExplorerLineage.showDetails(invocationNodeDetails, invocationLabel(node), [
+			{ title: 'Invocation', icon: 'square-function', rows: definitionRows },
+			{ title: 'Arguments', icon: 'braces', rows: Object.entries(node.arguments || {}).length
+				? Object.entries(node.arguments).map(([name, value]) => [name, JSON.stringify(value)])
+				: [['Bindings', 'None']] },
+			{ title: 'Profile', icon: 'layers-2', rows: [
+				['Name', node.dataset_name || node.dataset_id || node.profile],
+				['Profile ID', node.dataset_id || node.profile],
+			] },
+			{ title: 'Data flow', icon: 'arrow-right-from-line', rows: outputRows },
+			{ title: 'Connections', icon: 'git-branch', rows: [
+				['Highlight', fullLineage ? 'All upstream sources and downstream consumers'
+					: 'Immediate inputs and consumers only'],
+				['Invocation dependencies', formatList(node.dependency_ids)],
+			] },
+		],
+			invocationFlowDetails(node, scoped), {
+				kind: 'Invocation', icon: KINDS[node.function_kind]?.icon || 'square-function',
+				color: invocationColor(node),
+			});
 	}
 
 	function drawStageColumns(layout, ctx, scale) {

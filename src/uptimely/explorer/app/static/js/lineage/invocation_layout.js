@@ -42,11 +42,16 @@ export function invocationContribution(node) {
 
 export function invocationFlowDetails(node, scoped = false) {
 	const role = invocationRole(node);
-	const placement = ['merge', 'enrich'].includes(role)
-		? 'Profile color: Dataset contributor. Same-stage groups imply no order.'
-		: role === 'effect' ? 'Gray: separate Dataset consumer or effect.'
-			: 'Gray: compute branch above the Dataset spine.';
-	return `${placement} Spine / start / ${scoped ? 'Selected outputs ready' : 'Dataset ready'}: plan accumulation, not runtime status. Arrows: dependencies; direct links are strongest, full lineage lighter.`;
+	const description = role === 'merge'
+		? "This step adds the operator's calculated results to the profile's dataset. Calculating the results and merging them are separate steps."
+		: role === 'enrich'
+			? "This step adds calculated columns directly to the profile's dataset."
+			: role === 'effect'
+				? node.function_kind === 'escape'
+					? 'This step performs an external action. Declared features describe dependencies, not stored output columns. Only explicit arguments pass data to the function; its return value is ignored.'
+					: "This step uses data without adding columns to the profile's dataset. Declared features describe dependencies; explicit arguments determine which data is passed to the function."
+				: "This step calculates data separately from the profile's dataset. Follow its outgoing arrows to see which steps use the results.";
+	return `${description}\n\nThe thick line shows how the dataset is built. "${scoped ? 'Selected outputs ready' : 'Dataset ready'}" marks the end of that plan, not a completed run.\n\nArrows show which steps depend on others. Brighter arrows connect directly to the selected step; lighter highlights trace the rest of its lineage.`;
 }
 
 export function prepareInvocationLayout(data) {

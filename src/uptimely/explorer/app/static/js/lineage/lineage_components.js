@@ -13,48 +13,78 @@ function tooltip(text) {
 	return element;
 }
 
-function showDetails(panel, title, rows, summary = '') {
+function detailIcon(name) {
+	const icon = document.createElement('i');
+	icon.setAttribute('data-lucide', name);
+	icon.setAttribute('aria-hidden', 'true');
+	return icon;
+}
+
+function showDetails(panel, title, sections, summary = '', {
+	kind = '', icon = 'mouse-pointer-2', color = null,
+} = {}) {
+	const header = document.createElement('header');
+	header.className = sections.length ? 'lineage-details-header' : 'lineage-details-empty';
+	const identity = document.createElement('div');
+	const label = document.createElement('p');
+	label.className = 'lineage-details-kind';
+	label.textContent = kind || 'Selection';
 	const heading = document.createElement('h2');
 	heading.textContent = title;
-	panel.replaceChildren(heading);
-	let hasTypeIcons = false;
-	for (const [label, value, type] of rows) {
-		const row = document.createElement('div');
-		row.className = 'meta';
-		const name = document.createElement('strong');
-		name.textContent = `${label}: `;
-		const iconName = dataTypeIconName(type);
-		if (iconName) {
-			const typeLabel = document.createElement('span');
-			typeLabel.className = 'data-type-label lineage-data-type';
-			const icon = document.createElement('i');
-			icon.className = 'data-type-label-icon';
-			icon.setAttribute('data-lucide', iconName);
-			icon.setAttribute('data-type', type);
-			icon.setAttribute('aria-hidden', 'true');
-			const typeText = document.createElement('span');
-			typeText.className = 'data-type-label-text';
-			typeText.textContent = value == null ? 'n/a' : String(value);
-			typeLabel.append(icon, typeText);
-			row.append(name, typeLabel);
-			hasTypeIcons = true;
-		} else {
-			row.append(name, document.createTextNode(value == null ? 'n/a' : String(value)));
+	identity.append(label, heading);
+	header.append(detailIcon(icon), identity);
+	if (color) header.style.setProperty('--node-color', color);
+	panel.replaceChildren(header);
+	for (const { title: sectionTitle, icon: sectionIcon, rows } of sections) {
+		if (!rows.length) continue;
+		const section = document.createElement('section');
+		section.className = 'lineage-details-section';
+		section.setAttribute('aria-label', sectionTitle);
+		const sectionHeading = document.createElement('h3');
+		const sectionLabel = document.createElement('span');
+		sectionLabel.textContent = sectionTitle;
+		sectionHeading.append(detailIcon(sectionIcon), sectionLabel);
+		const list = document.createElement('dl');
+		for (const [label, value, type, href] of rows) {
+			const row = document.createElement('div');
+			const name = document.createElement('dt');
+			name.textContent = label;
+			const description = document.createElement('dd');
+			const text = document.createElement(href ? 'a' : 'span');
+			text.textContent = value == null ? 'n/a' : String(value);
+			if (href) text.href = href;
+			const iconName = dataTypeIconName(type);
+			if (iconName) {
+				description.className = 'data-type-label';
+				text.className = 'data-type-label-text';
+				const typeIcon = detailIcon(iconName);
+				typeIcon.className = 'data-type-label-icon';
+				typeIcon.setAttribute('data-type', type);
+				description.append(typeIcon);
+			}
+			description.append(text);
+			row.append(name, description);
+			list.append(row);
 		}
-		panel.append(row);
+		section.append(sectionHeading, list);
+		panel.append(section);
 	}
-	if (hasTypeIcons) lucide.createIcons({ root: panel });
 	if (summary) {
-		const text = document.createElement('div');
-		text.className = 'summary';
+		const note = document.createElement('div');
+		note.className = sections.length ? 'lineage-details-note' : 'lineage-details-hint';
+		const text = document.createElement('p');
 		text.textContent = summary;
-		panel.append(text);
+		if (sections.length) note.append(detailIcon('info'));
+		note.append(text);
+		panel.append(note);
 	}
+	lucide.createIcons({ root: panel });
 }
 
 function appendLegend(container, entries) {
 	for (const { label, color } of entries) {
 		const item = document.createElement('span');
+		item.className = 'lineage-profile-key';
 		item.style.setProperty('--color', color);
 		item.textContent = label;
 		container.append(item);

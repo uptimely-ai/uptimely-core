@@ -300,8 +300,8 @@ function loadLineageScript(context, filename) {
 		source += '\nglobalThis.initializeLineage = initializeLineage;';
 	} else {
 		source = source.replace(
-			/^import \{ KINDS \} from '\.\.\/rendering\/shared_markup\.js';\n/m,
-			'const { KINDS } = globalThis;\n',
+			/^import \{([^}]*?)\} from '\.\.\/rendering\/shared_markup\.js';\n/m,
+			'const {$1} = globalThis;\n',
 		).replace(
 			/^import \{([^}]*?)\} from '\.\/invocation_layout\.js';/m,
 			'const {$1} = globalThis.InvocationLayout;',
@@ -357,9 +357,53 @@ function createElement() {
 		setAttribute(name, value) { this.attributes[name] = value; },
 		removeAttribute(name) { delete this.attributes[name]; },
 		cloneNode() { return { ...createElement(), attributes: { ...this.attributes } }; },
-		append(child) { this.children.push(child); }, replaceChildren() {}, remove() {},
+		append(...children) { this.children.push(...children); },
+		replaceChildren(...children) { this.children = children; }, remove() {},
 	};
 }
+
+test('node details render icon-led sections, safe complete values, links, and an empty state', () => {
+	const panel = createElement();
+	const iconRoots = [];
+	const context = vm.createContext({
+		document: { createElement: tag => ({ ...createElement(), tagName: tag }) },
+		lucide: { createIcons: options => iconRoots.push(options.root) },
+		panel,
+	});
+	loadLineageDependencies(context);
+	vm.runInContext(`
+		ExplorerLineage.showDetails(panel, '<Selected feature>', [
+			{ title: 'Definition', icon: 'sigma', rows: [
+				['Feature ID', '<script>' + 'long-id'.repeat(100)],
+				['Data type', 'float', 'float'],
+				['Owning operator', 'Calculate', null, '?view=profiles#operator-readings-calculate'],
+			] },
+			{ title: 'Empty section', icon: 'info', rows: [] },
+		], 'Logical dependencies only.', { kind: 'Feature', icon: 'hash', color: '#abcdef' });
+	`, context);
+	const [header, section, note] = panel.children;
+	assert.equal(header.className, 'lineage-details-header');
+	assert.equal(header.children[0].attributes['data-lucide'], 'hash');
+	assert.equal(header.children[1].children[1].textContent, '<Selected feature>');
+	assert.equal(section.tagName, 'section');
+	assert.equal(section.attributes['aria-label'], 'Definition');
+	const rows = section.children[1].children;
+	assert.equal(section.children[1].tagName, 'dl');
+	assert.equal(rows[0].children[0].tagName, 'dt');
+	assert.equal(rows[0].children[1].tagName, 'dd');
+	assert.equal(rows[0].children[1].children[0].textContent, '<script>' + 'long-id'.repeat(100));
+	assert.equal(rows[1].children[1].children[0].attributes['data-lucide'], 'hash');
+	assert.equal(rows[2].children[1].children[0].href, '?view=profiles#operator-readings-calculate');
+	assert.equal(note.className, 'lineage-details-note');
+	assert.equal(note.children[0].attributes['data-lucide'], 'info');
+	assert.equal(note.children[1].textContent, 'Logical dependencies only.');
+	assert.deepEqual(iconRoots, [panel]);
+	vm.runInContext(`ExplorerLineage.showDetails(panel, 'No node selected', [], 'Select a node.');`, context);
+	assert.equal(panel.children.length, 2);
+	assert.equal(panel.children[0].className, 'lineage-details-empty');
+	assert.equal(panel.children[1].className, 'lineage-details-hint');
+	assert.equal(iconRoots.length, 2);
+});
 
 function createGraph(dimension) {
 	const properties = new Map();
@@ -464,7 +508,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			ResizeObserver: class { observe() {} disconnect() { disconnected = true; } },
 			console,
 			Path2D: class { constructor(path) { this.path = path; } },
-			lucide: { icons: {
+			lucide: { createIcons() {}, icons: {
 				Braces: [['path', { d: 'M1 2' }]],
 				Database: [['path', { d: 'M1 2' }]],
 				ArrowUpRight: [['path', { d: 'M1 2' }]],
@@ -532,7 +576,12 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		loadLineageDependencies(context);
 		loadLineageScript(context, 'lineage/lineage_view_controller.js');
 		vm.runInContext(`
-			ExplorerLineage.showDetails = (panel, title, rows) => { panel.rows = rows; };
+			const renderDetails = ExplorerLineage.showDetails;
+			ExplorerLineage.showDetails = (panel, title, sections, ...rest) => {
+				panel.sections = sections;
+				panel.rows = sections.flatMap(section => section.rows);
+				renderDetails(panel, title, sections, ...rest);
+			};
 		`, context);
 		loadLineageScript(context, filename);
 		buttons[1].listeners.click();
@@ -566,8 +615,13 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		graph.properties.get('onNodeClick')(node);
 		if (filename === 'lineage/invocation_lineage.js') {
 			assert.deepEqual(
-				Array.from(element('invocation-node-details').rows.slice(1, 3), row => Array.from(row)),
-				[['Profile', 'Selected Profile'], ['Profile ID', 'selected']],
+				Array.from(element('invocation-node-details').sections, section => section.title),
+				['Invocation', 'Arguments', 'Profile', 'Data flow', 'Connections'],
+			);
+			assert.deepEqual(
+				Array.from(element('invocation-node-details').sections
+					.find(section => section.title === 'Profile').rows, row => Array.from(row)),
+				[['Name', 'Selected Profile'], ['Profile ID', 'selected']],
 			);
 		}
 		const highlightedColors = filename === 'lineage/invocation_lineage.js'
@@ -714,6 +768,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		node.function_kind = 'escape';
 		node.is_effect = false;
 		graph.properties.get('onNodeClick')(node);
+		assert.equal(details.children[0].children[1].children[1].textContent, 'selected');
 		assert.ok(details.rows.some(([label]) => label === 'Produces'));
 		assert.ok(!details.rows.some(([label]) => label === 'Declared inputs'));
 		context.viewController.abort();

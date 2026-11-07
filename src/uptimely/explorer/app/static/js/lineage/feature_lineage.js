@@ -1,55 +1,61 @@
 import { ExplorerLineage } from './lineage_components.js';
 import { initializeLineage } from './lineage_initializer.js';
 import { projectFeatureLineage } from './feature_projection.js';
+import { KINDS, dataTypeIconName } from '../rendering/shared_markup.js';
 
 export function initializeFeatureLineage(signal) {
-	const DETAIL_VALUE_MAX_LENGTH = 220;
 	const LINEAGE_LAYOUT_2D = Object.freeze({
 		nodeRelativeSize: 6, functionValue: 7, featureValue: 5,
 	});
 	const { DATASET_LAYOUT } = ExplorerLineage;
 	const nodeDetails = document.getElementById('node-details');
 
-	function formatDetailValue(value) {
-		return value == null ? 'n/a' : String(value).slice(0, DETAIL_VALUE_MAX_LENGTH);
-	}
-
 	function updateDetails(node) {
 		if (!node) {
-			ExplorerLineage.showDetails(nodeDetails, 'Selected item', [],
-				'Select a feature or visible operator to see its identifier and details.');
+			ExplorerLineage.showDetails(nodeDetails, 'No node selected', [],
+				'Select a feature or operator to inspect its definition and connections.');
 			return;
 		}
 		const label = node.label || node.id || 'Unknown';
+		const profileSection = {
+			title: 'Profile', icon: 'layers-2', rows: [
+				['Name', node.dataset_name || node.dataset_id || node.profile],
+				['Profile ID', node.dataset_id || node.profile],
+			],
+		};
 		if (node.is_operator === true) {
 			const entrypoint = node.entrypoint || null;
 			const features = Array.isArray(node.features) ? node.features : [];
 			const outputLabel = node.is_effect ? 'Declared logical outputs' : 'Produces';
-			const rows = [
-				['Node type', 'Operator'],
-				['Profile', node.profile || 'n/a'],
-				['Profile', node.dataset_name || node.dataset_id],
-				['Profile ID', node.dataset_id],
-				['Operator', node.operator_id || label],
+			const functionRows = [
 				['Function', node.function_name || node.function_id || 'n/a'],
 				['Function ID', node.function_id || 'n/a'],
-				['Function kind', node.function_kind || 'n/a'],
+				['Function kind', KINDS[node.function_kind]?.label || node.function_kind || 'n/a'],
 			];
-			if (features.length) rows.push([outputLabel, formatDetailValue(features.join(', '))]);
-			if (entrypoint) rows.push(['Entrypoint', formatDetailValue(entrypoint)]);
-			ExplorerLineage.showDetails(nodeDetails, 'Selected item', rows,
+			if (entrypoint) functionRows.push(['Entrypoint', entrypoint]);
+			ExplorerLineage.showDetails(nodeDetails, label, [
+				{ title: 'Definition', icon: 'square-function', rows: [
+					['Operator ID', node.operator_id || label], ...functionRows,
+				] },
+				profileSection,
+				{ title: 'Outputs', icon: 'arrow-right-from-line', rows: [
+					[outputLabel, features.length ? features.join(', ') : 'None'],
+				] },
+			],
 				node.is_effect
 					? 'Declared feature dependencies only; outputs are not materialized as dataframe columns.'
-					: '');
+					: '', {
+					kind: 'Operator', icon: KINDS[node.function_kind]?.icon || 'square-function',
+				});
 			return;
 		}
 		const dataType = node.data_type || node.type || 'unknown';
-		const profile = node.profile || 'n/a';
-		ExplorerLineage.showDetails(nodeDetails, 'Selected item', [
-			['Node type', 'Feature'], ['Feature', label], ['Feature ID', node.feature_id || node.id],
-			['Profile', node.dataset_name || node.dataset_id], ['Profile ID', node.dataset_id],
-			['Profile', formatDetailValue(profile)], ['Data type', formatDetailValue(dataType), dataType],
-		]);
+		ExplorerLineage.showDetails(nodeDetails, label, [
+			{ title: 'Definition', icon: 'sigma', rows: [
+				['Feature ID', node.feature_id || node.id], ['Data type', dataType, dataType],
+			] },
+			profileSection,
+		], '', { kind: 'Feature', icon: dataTypeIconName(dataType) || 'sigma', color: node.datasetColor });
 	}
 
 	function createLineage2D(lineageContainer, graphData, updateSelection, style, highlight) {
