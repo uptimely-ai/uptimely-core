@@ -32,5 +32,20 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert data["plan"]["stage_count"] == len(bundle.execution_plan.execution_stages)
     assert data["stages"]
     assert data["animation"]["stages"]
+    merge_steps = [
+        step for stage in data["stages"] for step in stage["steps"] if step["phase"] == "merge"
+    ]
+    merge_nodes = [
+        node for node in data["graphs"]["invocation_lineage"]["nodes"] if node["phase"] == "merge"
+    ]
+    assert merge_steps
+    assert merge_nodes
+    assert dict(data["plan"]["function_kind_counts"])["merge"] == len(merge_steps)
+    assert all(step["merge_target"] and step["fragment_source"] for step in merge_steps)
+    assert all(node["merge_keys"] is not None for node in merge_nodes)
+    assert any(
+        link["dependency_type"] == "fragment"
+        for link in data["graphs"]["invocation_lineage"]["links"]
+    )
     assert "graph_data" not in serialized
     assert "invocation_lineage_data" not in serialized

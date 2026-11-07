@@ -271,29 +271,40 @@ function grainCards(config, grain) {
   }).join("");
 }
 
-function profileOperatorCards(config, profile, operators) {
+function profileOperatorCards(config, profileId, profile, operators) {
   const featureList = references => references.length
     ? references.map(reference => `<code>${escape(reference.replace(/^\$features\./, ""))}</code>`).join("")
     : '<span class="profile-operator-empty">None declared</span>';
+  const bindingDetails = (operatorId, title, args) => args.length
+    ? `<details class="profile-operator-bindings"><summary>${title} <span>${args.length}</span></summary>
+      <div class="ui-table-scroll" tabindex="0" role="region" aria-label="Argument bindings for ${escape(operatorId)}"><table class="ui-table"><caption class="sr-only">Argument bindings for ${escape(operatorId)}</caption>
+        <thead><tr><th scope="col">Argument</th><th scope="col">Binding</th></tr></thead>
+        <tbody>${args.map(([name, value]) => `<tr><th scope="row">${escape(name)}</th><td><code>${display(value)}</code></td></tr>`).join("")}</tbody>
+      </table></div></details>` : "";
   return `<div class="profile-operator-list">${operators.map(([id, operator]) => {
     const functionId = operator.compute.function;
     const fn = config.functions[functionId] || {};
     const args = Object.entries(operator.compute.args || {});
-    return `<article class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(fn.kind)}">
+    const mergeId = operator.merge?.function;
+    const merge = mergeId ? config.functions[mergeId] || {} : null;
+    const mergeArgs = Object.entries(operator.merge?.args || {});
+    return `<article id="operator-${escape(profileId)}-${escape(id)}" class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(fn.kind)}">
       <header class="profile-operator-header">
         <span class="profile-operator-symbol">${kindIcon(fn.kind, "profile-operator-icon")}</span>
         <div class="profile-operator-identity"><span class="profile-operator-label">OPERATOR</span><h4>${escape(id)}</h4></div>
-        ${badge(fn.kind || "Unspecified", fn.kind === "escape" ? "violet" : "neutral")}
+        ${badge(fn.kind || "Unspecified", fn.kind === "escape" ? "violet" : fn.kind === "merge" ? "amber" : "neutral")}
       </header>
-      ${args.length ? `<details class="profile-operator-bindings"><summary>Argument bindings <span>${args.length}</span></summary>
-        <div class="ui-table-scroll" tabindex="0" role="region" aria-label="Argument bindings for ${escape(id)}"><table class="ui-table"><caption class="sr-only">Argument bindings for ${escape(id)}</caption>
-          <thead><tr><th scope="col">Argument</th><th scope="col">Binding</th></tr></thead>
-          <tbody>${args.map(([name, value]) => `<tr><th scope="row">${escape(name)}</th><td><code>${display(value)}</code></td></tr>`).join("")}</tbody>
-        </table></div></details>` : ""}
+      ${bindingDetails(id, "Compute argument bindings", args)}
       <div class="profile-operator-function"><span class="profile-operator-label">Function</span>
         <a href="${href("functions", `function-${functionId}`)}">${escape(fn.name || functionId)}</a>
         ${fn.name && fn.name !== functionId ? `<code>${escape(functionId)}</code>` : ""}
       </div>
+      ${merge ? `<div class="profile-operator-function profile-operator-merge"><span class="profile-operator-label">Merge function</span>
+        ${kindIcon(merge.kind, "profile-operator-icon")}
+        <a href="${href("functions", `function-${mergeId}`)}">${escape(merge.name || mergeId)}</a>
+        ${merge.name && merge.name !== mergeId ? `<code>${escape(mergeId)}</code>` : ""}
+        ${bindingDetails(id, "Merge argument bindings", mergeArgs)}
+      </div>` : ""}
       <dl class="profile-operator-contract">
         <div><dt>Input features</dt><dd>${featureList(operator.interface.inputs)}</dd></div>
         <div><dt>Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
@@ -337,7 +348,7 @@ function profileCards(config) {
             <td>${column.operators.length ? column.operators.map(operator => `<code class="profile-schema-operator">${escape(operator)}</code>`).join("") : '<span class="text-slate-500">None declared</span>'}</td>
           </tr>`).join("")}</tbody>
         </table></div></div>
-          ${operators.length ? `<div>${subheading("Assembly")}${profileOperatorCards(config, profile, operators)}</div>` : ""}
+          ${operators.length ? `<div>${subheading("Assembly")}${profileOperatorCards(config, id, profile, operators)}</div>` : ""}
         </div></section></article>`;
   }).join("");
 }
@@ -382,7 +393,9 @@ export function stageCards(data) {
     <div class="mb-3 flex items-center gap-3"><h2 class="rounded-lg bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">Stage ${stage.stage}</h2>
       <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">${stage.steps.length} invocation${stage.steps.length === 1 ? "" : "s"}</span></div>
     <div class="grid grid-cols-1 gap-10">${stage.steps.map(step => `<div>
-      <h3 class="mb-2 break-words font-display text-lg font-semibold text-white">${escape(step.title)}</h3><article>
+      <h3 class="mb-2 break-words font-display text-lg font-semibold text-white">${escape(step.title)}</h3><article data-invocation-id="${escape(step.invocation_id)}" data-phase="${escape(step.phase)}">
+        <div class="mb-3 flex flex-wrap items-center gap-2">${badge(step.phase === "merge" ? "Merge phase" : "Compute phase", step.phase === "merge" ? "amber" : "neutral")}
+          <span class="font-mono text-xs text-slate-500">Operator: ${escape(step.operator_id)}</span></div>
         <dl class="grid overflow-hidden rounded-lg border border-slate-800 bg-slate-950/55 font-mono text-xs md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]">
           ${[["Function kind", step.function_kind, "text-amber-200"], ["Function", step.function_label, "text-white"],
             [step.uncontrolled ? "Declared logical outputs" : "Profile feature output", step.feature || "None", "text-cyan-200"],
@@ -391,6 +404,10 @@ export function stageCards(data) {
           <div class="min-w-0 p-3 md:col-span-4"><dt class="mb-1 uppercase tracking-wider text-slate-500">Depends on invocations</dt>
             <dd class="flex flex-wrap gap-1.5">${step.depends_on_invocations.map(dep => `<span class="rounded-md bg-slate-950/70 px-2 py-1 text-slate-300">${escape(dep.function)}</span>`).join("") || '<span class="text-slate-400">No invocation dependencies</span>'}</dd></div>
         </dl>
+        ${step.phase === "merge" ? `<dl class="mt-3 grid gap-2 rounded-lg border border-amber-900/50 bg-amber-950/15 p-3 font-mono text-xs sm:grid-cols-3">
+          ${[["Merge target", step.merge_target], ["Fragment source", step.fragment_source], ["Merge keys", step.merge_keys]].map(([title, value]) =>
+            `<div class="min-w-0"><dt class="mb-1 uppercase tracking-wider text-slate-500">${title}</dt><dd class="break-all text-amber-100">${display(value)}</dd></div>`).join("")}
+        </dl>` : ""}
         ${step.dataset_label ? `<p class="mt-3 font-mono text-xs text-slate-500">Profile: ${escape(step.dataset_label)}</p>` : ""}
         ${step.uncontrolled ? `<p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Declared inputs: ${escape(step.input_features.join(", ") || "none")}. Declared outputs: ${escape(step.output_features.join(", ") || "none")}. These are logical dependencies only; dataframes are passed only through explicit arguments, and escape return values are ignored.</p>` : ""}
         ${step.row_context !== null ? `<div class="mt-3 font-mono text-xs text-slate-400">Row context: ${display(step.row_context)}</div>` : ""}

@@ -6,7 +6,8 @@ export function initializeLineage(
 ) {
 	const graphData = ExplorerLineage.readPayload('graph-data');
 	const style = ExplorerLineage.readPayload('lineage-style');
-	ExplorerLineage.prepareDatasetColors(graphData, document.getElementById('dataset-legend'));
+	ExplorerLineage.prepareDatasetColors(
+		graphData, document.getElementById('dataset-legend'), style);
 
 	const createView = create => (container, data, updateSelection) =>
 		create(container, data, updateSelection, style, ExplorerLineage.createLineageHighlight(data));

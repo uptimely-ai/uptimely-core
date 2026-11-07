@@ -215,10 +215,12 @@ function createLineageLinkRenderer(data, style, highlight) {
 		const scale = Math.max(globalScale, MIN_RENDER_SCALE);
 		const isHighlighted = highlight.isLinkHighlighted(link);
 		const hasSelection = highlight.hasSelection();
+		const linkColor = link.dependency_type === 'fragment'
+			? style.function_colors?.merge || style.link_color : style.link_color;
 		ctx.save();
 		ctx.strokeStyle = isHighlighted
 			? LINK_STYLE.highlightColor
-			: hasSelection ? LINK_STYLE.dimmedColor : style.link_color;
+			: hasSelection ? LINK_STYLE.dimmedColor : linkColor;
 		ctx.lineWidth = (isHighlighted ? LINK_STYLE.highlightWidth : LINK_STYLE.width2D) / scale;
 		ctx.lineCap = 'round';
 		ctx.lineJoin = 'round';
@@ -260,7 +262,7 @@ function createLineageLinkRenderer(data, style, highlight) {
 		const progress = distance / segmentLengths[segmentIndex];
 		ctx.fillStyle = isHighlighted
 			? LINK_STYLE.highlightParticleColor
-			: hasSelection ? LINK_STYLE.dimmedColor : LINK_ROUTE.particleColor;
+			: hasSelection ? LINK_STYLE.dimmedColor : linkColor;
 		ctx.beginPath();
 		ctx.arc(
 			segmentStart[0] + (segmentEnd[0] - segmentStart[0]) * progress,

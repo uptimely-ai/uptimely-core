@@ -69,6 +69,77 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.doesNotMatch(stages, /Binding type|Function type|Engine type|<th[^>]*>Data type<\/th>/);
 });
 
+test("merge phases expose their invocation metadata and owning operator", async () => {
+  const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
+  const { lineage } = await moduleAt("rendering/page_renderer.js");
+  const data = sampleData();
+  const merge = {
+    invocation_id: "invocation:merge:join:readings:calculate",
+    operator_id: "calculate",
+    phase: "merge",
+    function: "join",
+    function_kind: "merge",
+    title: "Join results",
+    function_label: "Join results",
+    merge_target: "readings",
+    fragment_source: "$operators.calculate.fragment",
+    merge_keys: ["id"],
+    profile: "readings",
+    dataset: "readings",
+    dataset_label: "Readings",
+    input_features: [],
+    output_features: [],
+    input_feature_ids: [],
+    output_feature_ids: [],
+    uncontrolled: false,
+    row_context: null,
+    depends_on_invocations: [{ id: "read", function: "Read values", phase: "compute" }],
+    args: {
+      target: { value: "readings", type: { function: "dataframe | null" } },
+      fragment: { value: "$operators.calculate.fragment", type: { function: "dataframe" } },
+      target_keys: { value: ["id"], type: { function: "array[string]" } },
+    },
+    returns: { type: { engine: "DataFrame" } },
+  };
+  data.stages = [{ stage: 1, steps: [merge] }];
+  data.graphs.invocation_lineage = {
+    nodes: [{
+      id: merge.invocation_id,
+      phase: "merge",
+      function_kind: "merge",
+      function_name: merge.function_label,
+      operator_id: merge.operator_id,
+      dataset_id: "readings",
+      merge_target: merge.merge_target,
+      fragment_source: merge.fragment_source,
+      merge_keys: merge.merge_keys,
+      arguments: { target: "readings" },
+      dependency_ids: ["read"],
+      stage: 1,
+    }],
+    links: [{ source: "read", target: merge.invocation_id, dependency_type: "fragment" }],
+  };
+  data.catalogs.configuration.profiles.readings.assembly.calculate.merge = {
+    function: "join",
+    args: { target: "$profiles.@.dataframe", fragment: "$operators.@.fragment", target_keys: ["id"] },
+  };
+  data.catalogs.configuration.functions.join = { name: "Join results", kind: "merge" };
+  data.catalogs.function_groups.merge = { join: data.catalogs.configuration.functions.join };
+
+  const stages = renderCatalog(data, "stages").content;
+  const profiles = renderCatalog(data, "profiles").content;
+  const topology = lineage(data, true).content;
+  assert.match(stages, /data-phase="merge"/);
+  assert.match(stages, /Merge target/);
+  assert.match(stages, /Fragment source/);
+  assert.match(stages, /Merge keys/);
+  assert.match(profiles, /id="operator-readings-calculate"/);
+  assert.match(profiles, /Merge function/);
+  assert.match(profiles, /Merge argument bindings/);
+  assert.match(topology, /"phase":"merge"/);
+  assert.match(topology, /"dependency_type":"fragment"/);
+});
+
 test("mobile navigation separates the main menu from page controls", async () => {
   const { shell } = await moduleAt("rendering/shared_markup.js");
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
@@ -171,7 +242,7 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.match(html, /href="\?view=functions#function-aggregate">Maximum &lt;reading&gt;<\/a>/);
   assert.match(html, /Input features<\/dt><dd><code>raw<\/code>/);
   assert.match(html, /Output features<\/dt><dd><code>value<\/code>/);
-  assert.match(html, /<details class="profile-operator-bindings"><summary>Argument bindings <span>2<\/span>/);
+  assert.match(html, /<details class="profile-operator-bindings"><summary>Compute argument bindings <span>2<\/span>/);
   assert.match(html, /<span class="ui-badge ui-badge--neutral">collapse<\/span>\s*<\/header>\s*<details class="profile-operator-bindings">/);
   assert.match(html, /<th scope="row">options<\/th><td><code>\{&quot;method&quot;:&quot;&lt;max&gt;&quot;\}/);
   assert.match(html, /Group by grain keys:/);

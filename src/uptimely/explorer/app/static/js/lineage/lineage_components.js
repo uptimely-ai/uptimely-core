@@ -61,7 +61,7 @@ function appendLegend(container, entries) {
 	}
 }
 
-function prepareDatasetColors(data, container) {
+function prepareDatasetColors(data, container, style = {}) {
 	const datasets = new Map(data.nodes
 		.filter(node => !node.is_operator)
 		.map(node => [
@@ -76,9 +76,14 @@ function prepareDatasetColors(data, container) {
 	appendLegend(container, datasetIds.map(dataset => ({
 		label: datasets.get(dataset), color: colors.get(dataset),
 	})));
+	const mergeColor = style.function_colors?.merge || style.function_color;
+	if (data.nodes.some(node => node.phase === 'merge')) {
+		appendLegend(container, [{ label: 'Merge invocation', color: mergeColor }]);
+	}
 	for (const node of data.nodes) {
 		node.dataset_id = node.dataset_id || LineageConfig.UNASSIGNED_DATASET;
 		node.datasetColor = colors.get(node.dataset_id);
+		node.mergeColor = mergeColor;
 	}
 }
 
@@ -87,7 +92,9 @@ function datasetNodeObject(node, text, style) {
 		new THREE.SphereGeometry(style.feature_node_size,
 			LineageConfig.NODE_STYLE_3D.sphereWidthSegments,
 			LineageConfig.NODE_STYLE_3D.sphereHeightSegments),
-		new THREE.MeshLambertMaterial({ color: node.datasetColor }),
+		new THREE.MeshLambertMaterial({
+			color: node.phase === 'merge' ? node.mergeColor : node.datasetColor,
+		}),
 	);
 	return labeledMesh(mesh, text, style, LineageConfig.NODE_STYLE_3D.labelOffset,
 		node.data_type || node.type || 'unknown');
@@ -292,7 +299,10 @@ function createLineage2D(container, graphData, style, layout, highlight, {
 		.nodePointerAreaPaint(paintPointerArea)
 		.linkColor(link => highlight.isLinkHighlighted(link)
 			? LineageConfig.LINK_STYLE.highlightColor
-			: highlight.hasSelection() ? LineageConfig.LINK_STYLE.dimmedColor : style.link_color)
+			: highlight.hasSelection() ? LineageConfig.LINK_STYLE.dimmedColor
+				: link.dependency_type === 'fragment'
+					? style.function_colors?.merge || style.link_color
+					: style.link_color)
 		.linkWidth(link => highlight.isLinkHighlighted(link)
 			? LineageConfig.LINK_STYLE.highlightWidth : style.link_width)
 		.linkCanvasObjectMode(() => 'replace')
@@ -351,7 +361,10 @@ function createLineage3D(container, graphData, style, {
 			: style.link_width)
 		.linkColor(link => highlight?.isLinkHighlighted(link)
 			? LineageConfig.LINK_STYLE.highlightColor
-			: highlight?.hasSelection() ? LineageConfig.DIMMED_COLOR : style.link_color)
+			: highlight?.hasSelection() ? LineageConfig.DIMMED_COLOR
+				: link.dependency_type === 'fragment'
+					? style.function_colors?.merge || style.link_color
+					: style.link_color)
 		.linkOpacity(style.link_opacity)
 		.linkDirectionalParticles(LineageConfig.LINK_STYLE.particleCount)
 		.linkDirectionalParticleWidth(LineageConfig.LINK_STYLE.particleWidth)
