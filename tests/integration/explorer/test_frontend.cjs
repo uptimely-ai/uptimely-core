@@ -244,7 +244,8 @@ test("mobile navigation separates the main menu from page controls", async () =>
   for (const view of ["lineage", "topology"]) {
     const markup = lineage(data, view === "topology");
     const html = shell(data, view, markup.context, markup.content);
-    assert.match(html, /<span>Legend &amp; details<\/span>/);
+    assert.match(html, /aria-label="Open graph legend and node details"/);
+    assert.doesNotMatch(html, /Legend &amp; details|<span>Open graph legend and node details<\/span>/);
     assert.doesNotMatch(html, /<span>Graph controls<\/span>/);
   }
 });

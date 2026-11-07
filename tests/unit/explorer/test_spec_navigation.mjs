@@ -666,7 +666,10 @@ test("all lineage buttons share sizing and alignment with larger mobile touch ta
     "height: 40px", "min-width: 40px", "line-height: 1"]) {
     assert.ok(shared.includes(rule), rule);
   }
-  assert.match(styles, /@media \(max-width: 640px\) \{\s*\.lineage-control-groups \.ui-button \{ height: 44px; min-width: 44px; \}/);
+  const mobile = styles.slice(styles.indexOf("@media (max-width: 640px)"));
+  assert.match(mobile, /\.lineage-control-groups \.ui-button \{ height: 44px; min-width: 44px; \}/);
+  assert.match(mobile, /\.lineage-page \.mobile-context-bar \{[^}]*padding-block: 6px;/);
+  assert.match(mobile, /\.lineage-page #lineage-context \{ padding-block: max\(22px, env\(safe-area-inset-bottom\)\); \}/);
 });
 
 test("lineage groups have additional horizontal spacing without changing spacing within groups", async () => {
@@ -676,6 +679,8 @@ test("lineage groups have additional horizontal spacing without changing spacing
   ]);
   assert.match(lineage, /\.lineage-control-groups \{[^}]*gap: 8px 12px;/);
   assert.match(base, /\.mobile-primary-controls \.lineage-control-groups \{[^}]*gap: 6px 10px;/);
+  assert.match(base, /\.mobile-context-bar \{[^}]*padding: 6px 12px;/);
+  assert.match(base, /\.mobile-primary-controls \{[^}]*padding: 0;/);
   assert.match(lineage, /\.lineage-buttons \{[^}]*gap: 4px;/);
 });
 

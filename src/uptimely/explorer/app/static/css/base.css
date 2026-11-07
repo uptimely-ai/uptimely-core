@@ -216,7 +216,7 @@ html.with-navigation body:has(.site-menus > .site-context) .site-content { grid-
     border: 0; background: #02061766; }
   body.context-sheet-open { overflow: hidden; }
   .mobile-context-bar { position: fixed; inset: 56px 0 auto; z-index: 45;
-    display: flex; flex-direction: column; gap: 0; padding: 0 12px;
+    display: flex; flex-direction: column; gap: 0; padding: 6px 12px;
     border-bottom: 1px solid var(--color-border); background: var(--color-surface); }
   .mobile-context-toggle { display: flex; align-items: center; gap: 8px; width: 100%;
     min-height: 44px; padding: 0; border: 0; border-radius: 0;
@@ -227,7 +227,7 @@ html.with-navigation body:has(.site-menus > .site-context) .site-content { grid-
   .mobile-context-toggle > svg { box-sizing: border-box; width: 44px; height: 44px;
     padding: 12px; flex-shrink: 0; }
   .mobile-primary-controls { display: flex; align-items: center; gap: 8px;
-    padding-bottom: 4px; overflow-x: auto; }
+    padding: 0; overflow-x: auto; }
   .mobile-primary-controls:empty { display: none; }
   .mobile-primary-controls .ui-button { min-height: 44px; padding: 6px 8px; font-size: 12px; }
   .mobile-primary-controls .lineage-control-groups { flex-wrap: nowrap; gap: 6px 10px; }

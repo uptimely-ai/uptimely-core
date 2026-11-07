@@ -78,6 +78,11 @@ html:has(.lineage-page), .lineage-page { height: 100%; overflow: hidden; }
 .lineage-details-empty .lineage-details-kind { display: none; }
 .lineage-details-hint { padding: 0 12px 20px; text-align: center; }
 @media (max-width: 640px) {
+	.lineage-page .mobile-context-bar { flex-direction: row; align-items: center; gap: 8px;
+		padding-block: 6px; }
+	.lineage-page .mobile-context-toggle { order: 1; width: 44px; flex: 0 0 44px; }
+	.lineage-page .mobile-primary-controls { flex: 1; min-width: 0; padding-bottom: 0; }
+	.lineage-page #lineage-context { padding-block: max(22px, env(safe-area-inset-bottom)); }
 	.lineage-control-groups .ui-button { height: 44px; min-width: 44px; }
 	#lineage-error, .lineage-error { top: 64px; }
 	.lineage-page .site-content {

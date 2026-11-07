@@ -168,7 +168,8 @@ export function contextLink(target, label, key, count = null, kind = null, type 
 
 export function shell(data, view, context, content) {
   const projectName = escape(data.project.name || "Untitled analytics project");
-  const contextTitle = ["lineage", "topology"].includes(view) ? "Legend & details"
+  const graphContext = ["lineage", "topology"].includes(view);
+  const contextTitle = graphContext ? "Open graph legend and node details"
     : view === "animation" ? "Animation steps" : view[0].toUpperCase() + view.slice(1);
   const projectLink = `<a class="site-product" href="${href("home")}" title="${projectName}" aria-label="${projectName}"${view === "home" ? ' aria-current="page"' : ""}><span>${projectName}</span></a>`;
   const navigationGroups = [
@@ -192,8 +193,8 @@ export function shell(data, view, context, content) {
       <button class="mobile-nav-toggle" type="button" aria-label="Open navigation" aria-expanded="false" aria-controls="explorer-navigation">${icon("menu")}</button>${projectLink}
     </header>
     ${context ? `<section class="mobile-context-bar" aria-label="Page controls">
-      <button class="mobile-context-toggle ui-button" type="button" aria-expanded="false">
-        <span>${escape(contextTitle)}</span><i data-lucide="chevron-down" aria-hidden="true"></i>
+      <button class="mobile-context-toggle ui-button" type="button" aria-expanded="false"${graphContext ? ` aria-label="${contextTitle}"` : ""}>
+        ${graphContext ? "" : `<span>${escape(contextTitle)}</span>`}<i data-lucide="chevron-down" aria-hidden="true"></i>
       </button><div class="mobile-primary-controls"></div>
     </section><button class="context-backdrop" type="button" aria-label="Close page controls" tabindex="-1"></button>` : ""}
     <div class="site-menus" id="explorer-menus">
