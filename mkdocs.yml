@@ -98,7 +98,7 @@ nav:
           - Overview: python/spec.md
           - api: python/spec/api.md
           - model: python/spec/model.md
-          - json: python/spec/json.md
+          - serialization: python/spec/serialization.md
           - validation: python/spec/validation.md
           - python: python/python.md
           - feature_graph: python/feature-graph.md

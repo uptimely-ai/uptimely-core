@@ -1,6 +1,6 @@
 # Row context
 
-`uptimely.row_context` defines the runtime row-window values passed to analytical
+`uptimely.spec.row_context` defines the runtime row-window values passed to analytical
 functions. Python declarations for requesting those windows live in
 [uptimely.spec.python.row_context](python.md#row_context).
 
@@ -8,11 +8,12 @@ functions. Python declarations for requesting those windows live in
 
 ## row_context
 
-Import `RowContext`, `ContextExtent`, and `UNBOUNDED` from `uptimely.row_context`.
+Import `RowContext`, `ContextExtent`, and `UNBOUNDED` from
+`uptimely.spec.row_context`.
 The Python authoring module provides binding helpers, not aliases of these
 runtime types and constants.
 
-::: uptimely.row_context
+::: uptimely.spec.row_context
     options:
       heading_level: 3
       show_root_heading: false

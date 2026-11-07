@@ -63,6 +63,10 @@ normalize their children:
 | `FunctionTemplate` | `arguments_by_type` |
 | `FunctionCatalog` | `arguments`, `functions_by_kind`, `by_kind(kind)` |
 
+`FunctionTemplate` owns checks for its return kind and dataframe argument count.
+The whole-document validation runner invokes these checks, so changes made to
+an already constructed mutable declaration are still detected.
+
 Raw child dictionaries such as `profile.features`, `profile.assembly`, and
 `function.args` remain available. Bound arguments wrap values; catalog arguments
 are declarations. Feature and operator references retain declaration order.

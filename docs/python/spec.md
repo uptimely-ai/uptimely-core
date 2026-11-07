@@ -16,7 +16,7 @@ contract. See [Python authoring](python.md) for declarations that produce it, or
 | --- | --- |
 | [api](spec/api.md) | Load and convert spec with semantic validation. |
 | [model](spec/model.md) | Define the spec document, profiles, bindings, and function metadata. |
-| [json](spec/json.md) | Write spec documents as JSON. |
+| [serialization](spec/serialization.md) | Write spec documents as JSON. |
 | [validation](spec/validation.md) | Check document relationships and inspect structured validation errors. |
 | [python](python.md) | Author spec using Python declarations. |
 | [feature_graph](feature-graph.md) | Inspect feature dependencies and select subgraphs. |
@@ -29,7 +29,7 @@ contract. See [Python authoring](python.md) for declarations that produce it, or
 3. Inspect feature dependencies using [feature graphs](feature-graph.md), or
    pass the document to the [compiler](compiler.md) to create executable
    invocations.
-4. Write the spec document using [json](spec/json.md). After editing a document
+4. Write the spec document using [serialization](spec/serialization.md). After editing a document
    directly, call [validate_spec](spec/validation.md) to check its semantics again.
 
 Public convenience imports such as `uptimely.spec.Spec` and

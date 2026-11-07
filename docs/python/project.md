@@ -14,8 +14,8 @@ default. Pass `validate=False` only when the saved Spec has already been
 validated and has not changed; all other bundle checks remain enabled.
 
 Project path constants and `resolve_path` are defined in
-`uptimely.project_paths` and also exported by `uptimely.project`.
-The former `uptimely.project.paths` forwarding module is removed.
+`uptimely.project.paths` and exported by `uptimely.project`. The former
+`uptimely.project_paths` module remains as a compatibility import.
 
 ::: uptimely.project
     options:

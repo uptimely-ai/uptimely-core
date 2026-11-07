@@ -247,11 +247,10 @@ checked with validation. Vectorize's enriched target-frame type and schema are
 checked before publication in either mode; preserving existing values and row
 order is checked only with validation enabled.
 
-`InvocationValidator` runs only when validation is enabled. It holds its
-backend, runtime state, and invocation directly, and checks inputs in fail-fast
-order: foreign
-dataframe argument, source reference, source availability, then source features;
-other invocation kinds check local or unambiguous cross-profile features.
+The invocation executor checks input requirements only when validation is
+enabled, in fail-fast order: foreign dataframe argument, source reference,
+source availability, then source features; other invocation kinds check local
+or unambiguous cross-profile features.
 `FragmentValidator` always checks raw dataframe type, required dimensions, and
 declared output columns before projection; validation additionally checks
 optional type, uniqueness, and preservation contracts.
