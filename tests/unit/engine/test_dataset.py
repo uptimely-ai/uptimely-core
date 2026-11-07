@@ -9,7 +9,6 @@ from uptimely import plan as execution_plan
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.library.merge import polars as merge_module
@@ -138,23 +137,38 @@ def test_fragment_stage_loads_once_and_returns_merge_ready_data(
     data = pl.DataFrame({"asset_id": ["A"], "reading": [2], "extra": [3]})
     raw = data.lazy() if lazy else data
     events: list[str] = []
-    validate_fragment = dataframe_validation.FragmentValidator.validate
+    validate_fragment = fragment_module.Fragment.validate_invocation_result
 
     def load() -> object:
         events.append("load")
         return raw
 
     def check_raw(
-        fragment_validator: dataframe_validation.FragmentValidator,
+        fragment_validator: fragment_module.Fragment,
+        backend: backend_module.DataFrameBackend,
+        invocation: execution_plan.Invocation,
         *,
+        output_features: list[str] | None = None,
+        comparison_frame: object | None = None,
         validate_content: bool = True,
     ) -> None:
         events.append("validate")
-        assert fragment_validator.frame is raw
-        assert "extra" in fragment_validator.columns
-        validate_fragment(fragment_validator, validate_content=validate_content)
+        assert fragment_validator.dataframe is raw
+        assert "extra" in backend.column_names(fragment_validator.dataframe)
+        validate_fragment(
+            fragment_validator,
+            backend,
+            invocation,
+            output_features=output_features,
+            comparison_frame=comparison_frame,
+            validate_content=validate_content,
+        )
 
-    monkeypatch.setattr(dataframe_validation.FragmentValidator, "validate", check_raw)
+    monkeypatch.setattr(
+        fragment_module.Fragment,
+        "validate_invocation_result",
+        check_raw,
+    )
     staged = fragment_module.Fragment.stage(backend, invocation, load, validate=validate)
 
     assert events == ["load", "validate"]

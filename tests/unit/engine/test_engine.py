@@ -13,8 +13,8 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely import plan as uptimely_plan
 from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import validation as dataframe_validation_module
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
@@ -444,24 +444,11 @@ def test_default_execution_skips_expensive_fragment_validation(
         "check_input_requirements",
         unexpected_content_check,
     )
-    for method in (
-        "validate_dimensionless_row_count",
-        "validate_unique_dimension_keys",
-        "_validate_row_count",
-        "_validate_declared_types",
-        "_validate_key_coverage",
-    ):
-        monkeypatch.setattr(
-            dataframe_validation_module.FragmentValidator,
-            method,
-            unexpected_content_check,
-        )
+    for method in ("row_count", "is_duplicated", "same_keys", "validate_types"):
+        monkeypatch.setattr(backend_module.PolarsBackend, method, unexpected_content_check)
     monkeypatch.setattr(
-        dataframe_validation_module.DatasetValidator, "validate", unexpected_content_check
-    )
-    monkeypatch.setattr(
-        dataframe_validation_module.DatasetValidator,
-        "validate_merge",
+        dataset_module.Dataset,
+        "validate_accumulated_frame",
         unexpected_content_check,
     )
 

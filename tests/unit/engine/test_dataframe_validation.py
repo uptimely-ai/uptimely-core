@@ -1,18 +1,23 @@
-"""Dataframe validation contracts and fail-fast ordering."""
+"""Dataframe validation contracts owned by fragments and datasets."""
 
-import dataclasses
 import logging
 
 import polars as pl
 import pytest
 
 from uptimely import plan as execution_plan
-from uptimely.engine.dataframe import backend
-from uptimely.engine.dataframe import validation as dataframe_validation
+from uptimely.engine.dataframe import backend as backend_module
+from uptimely.engine.dataframe import dataset as dataset_module
+from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.spec import function_kinds as functions
 
 
-def _invocation(kind: functions.FunctionKindId = "read") -> execution_plan.Invocation:
+def _invocation(
+    kind: functions.FunctionKindId = "read",
+    *,
+    output_features: list[str] | None = None,
+    column_types: dict[str, str] | None = None,
+) -> execution_plan.Invocation:
     return execution_plan.Invocation(
         id="invocation",
         function_kind=kind,
@@ -20,259 +25,112 @@ def _invocation(kind: functions.FunctionKindId = "read") -> execution_plan.Invoc
         function_id="calculate",
         operator_id="calculate",
         dataset_id="dataset",
-    )
-
-
-def _validator(
-    adapter: backend.PolarsBackend,
-    frame: object,
-    dimensions: list[str],
-    *,
-    fragment: bool,
-    invalid_frame_message: str | None = None,
-    column_types: dict[str, str] | None = None,
-) -> dataframe_validation.FragmentValidator | dataframe_validation.DatasetValidator:
-    types = column_types if column_types is not None else {}
-    if fragment:
-        return dataframe_validation.FragmentValidator(
-            adapter,
-            frame,
-            dimensions,
-            "Frame",
-            invalid_frame_message=invalid_frame_message,
-            column_types=types,
-            invocation=_invocation(),
-        )
-    return dataframe_validation.DatasetValidator(
-        adapter,
-        frame,
-        dimensions,
-        "Frame",
-        invalid_frame_message=invalid_frame_message,
-        column_types=types,
+        id_columns=["key"],
+        output_features=output_features or [],
+        column_types=column_types or {},
     )
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-@pytest.mark.parametrize("fragment", [False, True])
 @pytest.mark.parametrize(
     ("data", "dimensions", "message"),
     [
-        ({"value": [1]}, ["key"], "missing dimension columns: key"),
-        ({"key": ["A", "A"]}, ["key"], "duplicate dimension keys"),
-        ({"value": [1, 2]}, [], "dimensionless profile frames allow at most one row"),
+        ({"value": [1]}, ("key",), "missing dimension columns: key"),
+        ({"key": ["A", "A"]}, ("key",), "duplicate dimension keys"),
+        ({"value": [1, 2]}, (), "dimensionless profile frames allow at most one row"),
     ],
 )
-def test_shared_structural_contracts(
+def test_fragment_checks_structure_and_keys(
     lazy: bool,
-    fragment: bool,
     data: dict[str, list[str] | list[int]],
-    dimensions: list[str],
+    dimensions: tuple[str, ...],
     message: str,
 ) -> None:
-    frame = pl.DataFrame(data)
-    validator = _validator(
-        backend.PolarsBackend(),
-        frame.lazy() if lazy else frame,
-        dimensions,
-        fragment=fragment,
-    )
+    invocation = _invocation()
+    fragment = fragment_module.Fragment(pl.DataFrame(data), dimensions, invocation)
+    if lazy:
+        fragment = fragment_module.Fragment(fragment.dataframe.lazy(), dimensions, invocation)
+
     with pytest.raises(ValueError, match=message):
-        validator.validate()
+        fragment.validate_invocation_result(backend_module.PolarsBackend(), invocation)
 
 
-@pytest.mark.parametrize("fragment", [False, True])
-def test_invalid_frame_fails_before_schema_access(
-    monkeypatch: pytest.MonkeyPatch, fragment: bool
-) -> None:
-    adapter = backend.PolarsBackend()
+def test_fragment_checks_required_outputs_even_without_content_validation() -> None:
+    invocation = _invocation(output_features=["result"])
+    fragment = fragment_module.Fragment(pl.DataFrame({"key": ["A"]}), ("key",), invocation)
 
-    def unexpected_schema(frame: object) -> list[str]:
-        pytest.fail("Schema access must not follow failed frame validation")
-
-    monkeypatch.setattr(adapter, "column_names", unexpected_schema)
-    validator = _validator(
-        adapter, object(), ["key"], fragment=fragment, invalid_frame_message="invalid raw frame"
-    )
-    with pytest.raises(ValueError, match="invalid raw frame"):
-        validator.validate()
-
-
-@pytest.mark.parametrize("fragment", [False, True])
-def test_missing_dimensions_fail_before_key_checks(
-    monkeypatch: pytest.MonkeyPatch, fragment: bool
-) -> None:
-    adapter = backend.PolarsBackend()
-
-    def unexpected_select(frame: object, columns: object) -> object:
-        pytest.fail("Key checks must not follow missing dimensions")
-
-    monkeypatch.setattr(adapter, "select", unexpected_select)
-    validator = _validator(adapter, pl.DataFrame({"value": [1]}), ["key"], fragment=fragment)
-    with pytest.raises(ValueError, match="missing dimension columns: key"):
-        validator.validate()
-
-
-def _vectorize_validator(
-    frame: pl.DataFrame, comparison_frame: pl.DataFrame | None
-) -> dataframe_validation.ColumnsValidator:
-    if comparison_frame is None:
-        comparison_frame = pl.DataFrame({"key": ["existing"]})
-    return dataframe_validation.ColumnsValidator(
-        backend.PolarsBackend(),
-        frame,
-        ["key"],
-        "Enriched target frame",
-        invocation=_invocation("vectorize"),
-        comparison_frame=comparison_frame,
-    )
-
-
-def test_vectorize_preserves_existing_keys_and_values_in_order() -> None:
-    validator = _vectorize_validator(
-        pl.DataFrame({"key": ["new"]}), pl.DataFrame({"key": ["existing"]})
-    )
-    with pytest.raises(ValueError, match="preserve existing column values and row order"):
-        validator.validate(preserve_data=True)
-
-
-def test_vectorize_detects_changes_to_existing_feature_values() -> None:
-    validator = _vectorize_validator(
-        pl.DataFrame({"key": ["existing"], "value": [9], "new": [2]}),
-        pl.DataFrame({"key": ["existing"], "value": [1]}),
-    )
-    validator.invocation.output_features.append("new")
-    with pytest.raises(ValueError, match="preserve existing column values and row order"):
-        validator.validate(preserve_data=True)
-
-
-def test_vectorize_preservation_detects_row_count_changes() -> None:
-    validator = _vectorize_validator(
-        pl.DataFrame({"key": ["existing", "new"]}), pl.DataFrame({"key": ["existing"]})
-    )
-    with pytest.raises(ValueError, match="preserve existing column values and row order"):
-        validator.validate(preserve_data=True)
-
-
-def test_vectorize_requires_existing_columns_even_without_content_validation() -> None:
-    validator = _vectorize_validator(
-        pl.DataFrame({"key": ["existing"], "new": [2]}),
-        pl.DataFrame({"key": ["existing"], "value": [1]}),
-    )
-    with pytest.raises(ValueError, match="must preserve existing columns: value"):
-        validator.validate()
-
-
-def test_vectorize_rejects_undeclared_added_columns_without_content_validation() -> None:
-    validator = _vectorize_validator(
-        pl.DataFrame({"key": ["existing"], "unexpected": [2]}),
-        pl.DataFrame({"key": ["existing"]}),
-    )
-    with pytest.raises(ValueError, match="returned undeclared columns: unexpected"):
-        validator.validate()
-
-
-def test_vectorize_structural_validation_does_not_compare_lazy_data(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    validator = _vectorize_validator(
-        pl.DataFrame({"key": ["existing"], "new": [2]}).lazy(),
-        pl.DataFrame({"key": ["existing"]}).lazy(),
-    )
-    validator.invocation.output_features.append("new")
-
-    def unexpected_comparison(*args: object, **kwargs: object) -> bool:
-        pytest.fail("Content comparison must be skipped when validation is disabled")
-
-    monkeypatch.setattr(validator.backend, "same_data", unexpected_comparison)
-    validator.validate()
-
-
-def test_fragment_output_override_preserves_empty_outputs() -> None:
-    validator = dataframe_validation.FragmentValidator(
-        backend.PolarsBackend(),
-        pl.DataFrame({"key": ["existing"]}),
-        ["key"],
-        "Fragment",
-        invocation=_invocation(),
-    )
-    validator.invocation.output_features.append("result")
-    assert validator.effective_output_features == ["result"]
     with pytest.raises(ValueError, match="missing output columns: result"):
-        validator.validate()
-    overridden = dataclasses.replace(validator, output_features=[])
-    assert overridden.effective_output_features == []
-    overridden.validate()
+        fragment.validate_invocation_result(
+            backend_module.PolarsBackend(), invocation, validate_content=False
+        )
+
+
+def test_fragment_checks_only_declared_column_types() -> None:
+    invocation = _invocation(
+        output_features=["value"],
+        column_types={"key": "string", "value": "integer", "future": "float"},
+    )
+    fragment = fragment_module.Fragment(
+        pl.DataFrame({"key": ["A"], "value": [2], "extra": ["ignored"]}),
+        ("key",),
+        invocation,
+    )
+
+    fragment.validate_invocation_result(backend_module.PolarsBackend(), invocation)
+
+    invalid = fragment_module.Fragment(
+        pl.DataFrame({"key": ["A"], "value": ["wrong"]}),
+        ("key",),
+        invocation,
+    )
+    with pytest.raises(ValueError, match="Output column value.*expected integer"):
+        invalid.validate_invocation_result(backend_module.PolarsBackend(), invocation)
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-@pytest.mark.parametrize("fragment", [False, True])
-@pytest.mark.parametrize("value", [2, "wrong"])
-def test_declared_types_without_spec(lazy: bool, fragment: bool, value: int | str) -> None:
-    frame = pl.DataFrame({"key": ["A"], "value": [value]})
-    validator = _validator(
-        backend.PolarsBackend(),
+def test_dataset_validates_structure_keys_and_types(lazy: bool) -> None:
+    frame = pl.DataFrame({"key": ["A", "A"], "value": [1, 2]})
+    dataset = dataset_module.Dataset(
+        backend_module.PolarsBackend(),
+        ["key"],
         frame.lazy() if lazy else frame,
-        ["key"],
-        fragment=fragment,
-        column_types={"key": "string", "value": "integer", "future_output": "float"},
     )
-    assert not hasattr(validator, "dataset")
-    if isinstance(validator, dataframe_validation.FragmentValidator):
-        validator = dataclasses.replace(validator, output_features=["value"])
-    if isinstance(value, str):
-        with pytest.raises(ValueError, match="Output column value.*expected integer"):
-            validator.validate()
-    else:
-        validator.validate()
+    with pytest.raises(ValueError, match="duplicate dimension keys"):
+        dataset.validate_accumulated_frame()
 
-
-def test_fragment_ignores_types_of_undeclared_extra_columns() -> None:
-    validator = dataframe_validation.FragmentValidator(
-        backend.PolarsBackend(),
-        pl.DataFrame({"key": ["A"], "extra": ["not an integer"]}),
+    valid = dataset_module.Dataset(
+        backend_module.PolarsBackend(),
         ["key"],
-        "Fragment",
-        column_types={"key": "string", "extra": "integer"},
-        invocation=_invocation(),
+        pl.DataFrame({"key": ["A"], "value": ["wrong"]}),
     )
-    validator.validate()
-
-
-def test_dataset_checks_structure_once(monkeypatch: pytest.MonkeyPatch) -> None:
-    adapter = backend.PolarsBackend()
-    calls: list[object] = []
-    is_frame = adapter.is_frame
-
-    def count_frame_checks(frame: object) -> bool:
-        calls.append(frame)
-        return is_frame(frame)
-
-    monkeypatch.setattr(adapter, "is_frame", count_frame_checks)
-    frame = pl.DataFrame({"key": ["A"]})
-    dataframe_validation.DatasetValidator(adapter, frame, ["key"], "Main frame").validate()
-    assert len(calls) == 1
-    assert calls[0] is frame
+    with pytest.raises(ValueError, match="Output column value.*expected integer"):
+        valid.validate_accumulated_frame(column_types={"key": "string", "value": "integer"})
 
 
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("collision", [False, True])
-def test_dataset_merge_validation(lazy: bool, collision: bool) -> None:
-    frame = pl.DataFrame({"key": ["A"], "value": [1]})
-    fragment = pl.DataFrame({"key": ["A"], "value" if collision else "new": [2]})
-    validator = dataframe_validation.DatasetValidator(
-        backend.PolarsBackend(), frame.lazy() if lazy else frame, ["key"], "Main frame"
+def test_dataset_rejects_merge_feature_collisions(lazy: bool, collision: bool) -> None:
+    backend = backend_module.PolarsBackend()
+    dataset = dataset_module.Dataset(
+        backend,
+        ["key"],
+        pl.DataFrame({"key": ["A"], "value": [1]}),
     )
-    contribution = fragment.lazy() if lazy else fragment
+    frame = pl.DataFrame({"key": ["A"], "value" if collision else "new": [2]})
+    fragment = fragment_module.Fragment(
+        frame.lazy() if lazy else frame,
+        ("key",),
+    )
+
     if collision:
         with pytest.raises(ValueError, match="overlap the accumulated profile frame: value"):
-            validator.validate_merge(contribution)
+            dataset.validate_fragment_merge(fragment)
     else:
-        validator.validate_merge(contribution)
+        dataset.validate_fragment_merge(fragment)
 
 
 @pytest.mark.parametrize(
-    ("result", "target", "fragment", "message"),
+    ("result", "target", "fragment_frame", "message"),
     [
         (
             pl.DataFrame({"key": ["A"]}),
@@ -288,109 +146,112 @@ def test_dataset_merge_validation(lazy: bool, collision: bool) -> None:
         ),
     ],
 )
-def test_merge_result_validation_reports_schema_errors(
-    result: pl.DataFrame, target: pl.DataFrame | None, fragment: pl.DataFrame, message: str
+def test_candidate_dataset_checks_complete_merge_schema(
+    result: pl.DataFrame,
+    target: pl.DataFrame | None,
+    fragment_frame: pl.DataFrame,
+    message: str,
 ) -> None:
-    validator = dataframe_validation.DatasetValidator(
-        backend.PolarsBackend(),
-        result,
-        ["key"],
-        "Merge result",
-    )
+    backend = backend_module.PolarsBackend()
+    candidate = dataset_module.Dataset(backend, ["key"], result)
+    fragment = fragment_module.Fragment(fragment_frame, ("key",))
+
     with pytest.raises(ValueError, match=message):
-        validator.validate_merge_result(target, fragment)
+        candidate.validate_merge_candidate(
+            target,
+            fragment,
+            description="Merge result",
+        )
 
 
-def test_merge_result_validation_skips_optional_checks_when_disabled(
+def test_candidate_dataset_skips_optional_checks_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    adapter = backend.PolarsBackend()
-    frame = pl.DataFrame({"key": ["A", "A"], "value": ["wrong", "wrong"]})
-    validator = dataframe_validation.DatasetValidator(
-        adapter,
-        frame,
+    backend = backend_module.PolarsBackend()
+    candidate = dataset_module.Dataset(
+        backend,
         ["key"],
-        "Merge result",
-        column_types={"key": "string", "value": "integer"},
+        pl.DataFrame({"key": ["A", "A"], "value": ["wrong", "wrong"]}),
+    )
+    fragment = fragment_module.Fragment(
+        pl.DataFrame({"key": ["A"], "value": ["wrong"]}),
+        ("key",),
     )
 
     def unexpected_check(*args: object, **kwargs: object) -> object:
-        pytest.fail("Optional merge-result checks must be skipped when validation is disabled")
+        pytest.fail("Optional candidate checks must be skipped when validation is disabled")
 
-    monkeypatch.setattr(adapter, "row_count", unexpected_check)
-    monkeypatch.setattr(adapter, "is_duplicated", unexpected_check)
-    monkeypatch.setattr(adapter, "validate_types", unexpected_check)
-    validator.validate_merge_result(
-        None,
-        pl.DataFrame({"key": ["A"], "value": ["wrong"]}),
-    )
+    monkeypatch.setattr(backend, "row_count", unexpected_check)
+    monkeypatch.setattr(backend, "is_duplicated", unexpected_check)
+    monkeypatch.setattr(backend, "validate_types", unexpected_check)
+    candidate.validate_merge_candidate(None, fragment, description="Merge result")
 
 
-@pytest.mark.parametrize("fragment", [False, True])
-def test_validation_debug_logs_identify_checks_and_inapplicable_contracts(
-    caplog: pytest.LogCaptureFixture, fragment: bool
-) -> None:
-    caplog.set_level(logging.DEBUG, logger=dataframe_validation.__name__)
-    validator = _validator(
-        backend.PolarsBackend(),
-        pl.DataFrame({"key": ["A"]}),
+def test_dataset_checks_vectorized_contract_and_preservation() -> None:
+    invocation = _invocation("vectorize", output_features=["new"])
+    dataset = dataset_module.Dataset(
+        backend_module.PolarsBackend(),
         ["key"],
-        fragment=fragment,
-        column_types={"key": "string"},
+        pl.DataFrame({"key": ["A"], "value": [1]}),
     )
-    validator.validate()
+    comparison = dataset.dataframe
 
-    messages = [record.getMessage() for record in caplog.records]
-    assert messages[:4] == [
-        "  Fragment:" if fragment else "  Main frame:",
-        "    - checking dataframe type",
-        "    - checking required dimension columns",
-        "    - skipping dimensionless row count (data has dimensions)",
-    ]
-    assert messages.count("  Fragment:" if fragment else "  Main frame:") == 1
-    assert "    - checking dimension-key uniqueness" in messages
-    assert "      Declared types: {'key': 'string'}" in messages
-    if fragment:
-        assert "    - checking declared output columns" in messages
-        assert "    - checking dimension and output types" in messages
-        assert "    - skipping row-count preservation (not required)" in messages
-        assert "    - skipping dimension-key preservation (not required)" in messages
-    else:
-        assert "    - checking types of present columns" in messages
-    assert all(record.levelno == logging.DEBUG for record in caplog.records)
+    with pytest.raises(ValueError, match="must preserve existing column values and row order"):
+        dataset.validate_vectorized_result(
+            pl.DataFrame({"key": ["A"], "value": [9], "new": [2]}),
+            invocation,
+            comparison,
+            preserve_data=True,
+        )
+    assert dataset.validate_vectorized_result(
+        pl.DataFrame({"key": ["A"], "value": [1], "new": [2]}),
+        invocation,
+        comparison,
+        preserve_data=True,
+    ) == ["new"]
 
 
-def test_validation_failure_logs_only_attempted_checks(
-    caplog: pytest.LogCaptureFixture,
+def test_vectorized_validation_skips_content_comparison_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    caplog.set_level(logging.DEBUG, logger=dataframe_validation.__name__)
-    validator = _validator(backend.PolarsBackend(), object(), ["key"], fragment=True)
-    with pytest.raises(ValueError, match="must be a Polars"):
-        validator.validate()
-    assert caplog.messages == ["  Fragment:", "    - checking dataframe type"]
-
-
-def test_dimensionless_and_merge_validation_debug_logs(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    caplog.set_level(logging.DEBUG, logger=dataframe_validation.__name__)
-    validator = dataframe_validation.DatasetValidator(
-        backend.PolarsBackend(), pl.DataFrame({"value": [1]}), [], "Global data"
+    invocation = _invocation("vectorize", output_features=["new"])
+    backend = backend_module.PolarsBackend()
+    dataset = dataset_module.Dataset(
+        backend,
+        ["key"],
+        pl.DataFrame({"key": ["A"]}),
     )
-    validator.validate()
-    validator.validate_merge(pl.DataFrame({"other": [2]}))
-    assert caplog.messages[0] == "  Main frame:"
+    monkeypatch.setattr(
+        backend,
+        "same_data",
+        lambda *_args, **_kwargs: pytest.fail("Content comparison should be skipped"),
+    )
+
+    assert dataset.validate_vectorized_result(
+        pl.DataFrame({"key": ["A"], "new": [2]}),
+        invocation,
+        dataset.dataframe,
+    ) == ["new"]
+
+
+def test_owner_validation_logs_checks(caplog: pytest.LogCaptureFixture) -> None:
+    caplog.set_level(logging.DEBUG, logger=fragment_module.__name__)
+    invocation = _invocation()
+    fragment_module.Fragment(
+        pl.DataFrame({"key": ["A"]}),
+        ("key",),
+        invocation,
+    ).validate_invocation_result(backend_module.PolarsBackend(), invocation)
+    assert "  Fragment:" in caplog.messages
+    assert "    - checking dataframe type" in caplog.messages
+    assert "    - checking declared output columns" in caplog.messages
+
+    caplog.clear()
+    caplog.set_level(logging.DEBUG, logger=dataset_module.__name__)
+    dataset_module.Dataset(
+        backend_module.PolarsBackend(),
+        [],
+        pl.DataFrame({"value": [1]}),
+    ).validate_accumulated_frame()
+    assert "  Dataset:" in caplog.messages
     assert "    - checking dimensionless row count" in caplog.messages
-    assert "    - skipping dimension-key uniqueness (no dimensions)" in caplog.messages
-    assert caplog.messages[-1] == "    - checking fragment feature collisions"
-
-
-def test_preservation_validation_debug_logs(caplog: pytest.LogCaptureFixture) -> None:
-    caplog.set_level(logging.DEBUG, logger=dataframe_validation.__name__)
-    validator = _vectorize_validator(pl.DataFrame({"key": ["A"]}), pl.DataFrame({"key": ["A"]}))
-    validator.validate(preserve_data=True)
-    assert "    - checking declared vectorize outputs" in caplog.messages
-    assert "    - checking vectorize output collisions" in caplog.messages
-    assert "    - checking preservation of existing columns" in caplog.messages
-    assert "    - checking undeclared added columns" in caplog.messages
-    assert "    - checking existing values and row order" in caplog.messages
