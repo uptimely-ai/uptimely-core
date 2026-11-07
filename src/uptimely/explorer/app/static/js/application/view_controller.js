@@ -52,7 +52,7 @@ const VIEWS = {
   },
   info: {
     stylesheet: "engine", engine: true, initialize: icons, load: loadInfo,
-    render: (data, runData) => infoPage(runData),
+    render: (data, runData) => infoPage(runData, data.stages),
   },
   logs: {
     stylesheet: "engine", engine: true, initialize: icons, load: loadLogs,

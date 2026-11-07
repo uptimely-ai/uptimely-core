@@ -177,6 +177,44 @@ test("run pages use shared panels and avoid duplicate empty-state icons or misle
   assert.match(rendered, /class="ui-badge ui-badge--green">succeeded/);
 });
 
+test("saved run details show compute and merge outcomes independently", () => {
+  const run = {
+    status: "failed",
+    started_at: "2026-11-07T10:00:00Z",
+    finished_at: "2026-11-07T10:00:01Z",
+    duration_seconds: 1,
+    uptimely_version: "test",
+    runtime_validation: true,
+    preview_rows: 10,
+    run_id: "run-1",
+    build: { fingerprint: "fingerprint", manifest: { features: null } },
+    invocations: {
+      "invocation:merge:join:data:source": {
+        status: "failed", duration_seconds: 0.2, error: "Merge failed",
+      },
+      "invocation:read:load:data:source": {
+        status: "succeeded", duration_seconds: 0.1, error: null,
+      },
+    },
+  };
+  const stages = [{ steps: [
+    {
+      invocation_id: "invocation:read:load:data:source",
+      phase: "compute", title: "Load data", operator_id: "source",
+    },
+    {
+      invocation_id: "invocation:merge:join:data:source",
+      phase: "merge", title: "Join data", operator_id: "source",
+    },
+  ] }];
+  const { content } = infoPage({ run }, stages);
+  assert.match(content, /Invocation outcomes/);
+  assert.match(content, /data-phase="compute" data-status="succeeded"/);
+  assert.match(content, /data-phase="merge" data-status="failed"/);
+  assert.match(content, /Join data · source/);
+  assert.match(content, /Merge failed/);
+});
+
 test("single-profile previews have no context menu and failed previews remain explicit", () => {
   const { context, content } = previewPage(data, {
     run: { profiles: { first: {} } },

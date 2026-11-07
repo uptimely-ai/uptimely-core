@@ -92,7 +92,7 @@ function logEntry(entry, lineNumber) {
   </article>`;
 }
 
-export function infoPage({ run }) {
+export function infoPage({ run }, stages = []) {
   if (!run) {
     return {
       context: "",
@@ -104,6 +104,32 @@ export function infoPage({ run }) {
   }
 
   const statusClass = `engine-status-${escape(run.status)}`;
+  const planSteps = stages.flatMap(stage => stage.steps);
+  const stepsById = new Map(planSteps.map(step => [step.invocation_id, step]));
+  const stepPositions = new Map(planSteps.map((step, index) => [step.invocation_id, index]));
+  const invocationResults = Object.entries(run.invocations || {}).sort(([first], [second]) => {
+    const firstPosition = stepPositions.get(first) ?? Number.MAX_SAFE_INTEGER;
+    const secondPosition = stepPositions.get(second) ?? Number.MAX_SAFE_INTEGER;
+    return firstPosition - secondPosition || first.localeCompare(second);
+  });
+  const invocationOutcomes = invocationResults.length ? panel("Invocation outcomes", `
+    <ol class="engine-invocation-results">${invocationResults.map(([id, result]) => {
+      const step = stepsById.get(id);
+      const phase = step?.phase || (id.split(":")[1] === "merge" ? "merge" : "compute");
+      const title = step
+        ? `${step.title}${step.operator_id ? ` · ${step.operator_id}` : ""}`
+        : id;
+      const duration = typeof result.duration_seconds === "number"
+        ? `${result.duration_seconds.toFixed(3)} s` : "—";
+      return `<li class="engine-invocation-result" data-phase="${escape(phase)}" data-status="${escape(result.status)}">
+        <div class="engine-invocation-result-heading">
+          <div><span class="engine-kicker">${escape(phase)} invocation</span><h3>${escape(title)}</h3></div>
+          ${badge(result.status, result.status === "succeeded" ? "green" : result.status === "failed" ? "red" : "amber")}
+        </div>
+        <p class="engine-invocation-id"><code>${escape(id)}</code><span>Duration: ${escape(duration)}</span></p>
+        ${result.error ? `<p class="engine-error-text">${escape(result.error)}</p>` : ""}
+      </li>`;
+    }).join("")}</ol>`) : "";
   const runDetails = `<dl class="engine-fields">
       ${field("Status", run.status)}${field("Started", run.started_at)}
       ${field("Finished", run.finished_at)}${field("Duration", `${run.duration_seconds.toFixed(3)} s`)}
@@ -118,6 +144,7 @@ export function infoPage({ run }) {
     content: page(`<section id="run-overview">${heading("Info", "Information about the latest saved run.")}
         <section class="engine-run-banner ${statusClass}"><span>Latest run</span><strong>${escape(run.status)}</strong></section>
         ${panel("Run details", runDetails)}
+        ${invocationOutcomes}
       </section>`),
   };
 }

@@ -4,6 +4,7 @@ export const KINDS = {
   expand: { icon: "expand", label: "Expand" },
   collapse: { icon: "combine", label: "Collapse" },
   vectorize: { icon: "table-properties", label: "Vectorize" },
+  merge: { icon: "git-merge", label: "Merge" },
   write: { icon: "send", label: "Write" },
   escape: { icon: "arrow-up-right", label: "Escape" },
 };
@@ -116,7 +117,7 @@ export function distribution(title, counts, { total = null, note = null, typeLab
       const tag = target ? "a" : "div";
       return `<${tag}${target ? ` href="${escape(target)}"` : ""} class="ui-chart-row" data-category="${escape(label)}" data-count="${escape(value)}">
         <span class="break-words text-slate-400">${typeLabels ? dataTypeLabel(label) : escape(label)}</span>
-        <div class="h-2 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "escape" ? "bg-violet-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
+        <div class="h-2 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "merge" ? "bg-amber-400" : label === "escape" ? "bg-violet-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
         <span class="text-right font-mono text-xs text-white">${escape(value)}</span>
       </${tag}>`;
     }).join("") || '<p class="text-sm text-slate-400">No categories to display.</p>'}</div>

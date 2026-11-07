@@ -723,7 +723,7 @@ function lineageLayout(filename, nodes, links) {
 	element('graph-data').textContent = JSON.stringify({ nodes, links });
 	element('lineage-style').textContent = JSON.stringify({
 		link_color: '#8fa3b5', function_color: '#abcdef',
-		function_colors: { read: '#abcdef' },
+		function_colors: { read: '#abcdef', merge: '#facc15' },
 	});
 	const context = vm.createContext({
 		document: { getElementById: element, createElement },
@@ -736,8 +736,9 @@ function lineageLayout(filename, nodes, links) {
 	const rectangles = [];
 	const labels = [];
 	const paths = [];
+	const strokes = [];
 	const canvas = {
-		save() {}, restore() {}, fill() {}, stroke() {}, closePath() {},
+		save() {}, restore() {}, fill() {}, stroke() { strokes.push(this.strokeStyle); }, closePath() {},
 		beginPath() { paths.push([]); },
 		moveTo(x, y) { paths.at(-1).push([x, y]); },
 		lineTo(x, y) { paths.at(-1).push([x, y]); },
@@ -749,7 +750,7 @@ function lineageLayout(filename, nodes, links) {
 	return {
 		graph, view, container, nodes: graph.properties.get('graphData').nodes,
 		rectangles, labels: labels.filter(label => !/^Stage \d+$/.test(label[0])),
-		stageLabels: labels.filter(label => /^Stage \d+$/.test(label[0])), paths, canvas,
+		stageLabels: labels.filter(label => /^Stage \d+$/.test(label[0])), paths, strokes, canvas,
 	};
 }
 
@@ -897,6 +898,18 @@ test('invocation lanes use execution stages, not inferred dependency depths', ()
 		layout.graph.properties.get('linkCanvasObject')(link, layout.canvas, 1);
 		assert.ok(layout.paths.every(route => route.flat().every(Number.isFinite)));
 	}
+});
+
+test('fragment assembly edges use merge function-kind styling', () => {
+	const layout = lineageLayout('lineage/invocation_lineage.js', [
+		{ id: 'compute', label: 'Read values', function_id: 'read', function_kind: 'read', dataset_id: 'data', stage: 1 },
+		{ id: 'merge', label: 'Join values', function_id: 'join', function_kind: 'merge', dataset_id: 'data', stage: 2, phase: 'merge' },
+	], [{ source: 'compute', target: 'merge', dependency_type: 'fragment' }]);
+	const link = layout.graph.properties.get('graphData').links[0];
+
+	layout.graph.properties.get('linkCanvasObject')(link, layout.canvas, 1);
+
+	assert.equal(layout.strokes.at(-1), '#facc15');
 });
 
 test('invocation stage columns span dataset rows and contain their cards', () => {

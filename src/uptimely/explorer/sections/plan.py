@@ -41,8 +41,12 @@ def _build_step(
         if kind.is_effect or kind.is_transformer or kind.dimension_change == "remove"
         else None
     )
+    is_merge = invocation.function_kind == functions.MERGE
     return {
         "position": position,
+        "invocation_id": invocation.id,
+        "operator_id": invocation.operator_id,
+        "phase": "merge" if is_merge else "compute",
         "function": invocation.function_id,
         "function_kind": invocation.function_kind,
         "title": function_name,
@@ -56,13 +60,29 @@ def _build_step(
         "output_features": output_labels,
         "input_feature_ids": invocation.input_features,
         "output_feature_ids": invocation.output_features,
+        "merge_target": (_display_value(invocation.arguments.get("target")) if is_merge else None),
+        "fragment_source": (
+            _display_value(invocation.arguments.get("fragment")) if is_merge else None
+        ),
+        "merge_keys": (
+            _display_value(invocation.arguments.get("target_keys")) if is_merge else None
+        ),
         "uncontrolled": kind.is_effect,
         "row_context": invocation.row_context.to_dict() if invocation.row_context else None,
         "depends_on_invocations": [
             {
+                "id": dependency_id,
                 "function": (
                     spec_definition.functions[invocations_by_id[dependency_id].function_id].name
                 )
+                or invocations_by_id[dependency_id].function_id,
+                "operator_id": invocations_by_id[dependency_id].operator_id,
+                "function_kind": invocations_by_id[dependency_id].function_kind,
+                "phase": (
+                    "merge"
+                    if invocations_by_id[dependency_id].function_kind == functions.MERGE
+                    else "compute"
+                ),
             }
             for dependency_id in invocation.dependency_ids
         ],

@@ -61,6 +61,71 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
     assert {name: argument["value"] for name, argument in step["args"].items()} == arguments
 
 
+def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
+    definition = spec.Spec.model_validate(
+        {
+            "functions": {
+                "read": {
+                    "kind": "read",
+                    "returns": "dataframe",
+                    "entrypoint": "example:read",
+                },
+                "join": {
+                    "kind": "merge",
+                    "returns": "dataframe",
+                    "entrypoint": "example:join",
+                    "args": {
+                        "target": {"type": "dataframe | null"},
+                        "fragment": {"type": "dataframe"},
+                        "target_keys": {"type": "array[string]"},
+                    },
+                },
+            },
+            "profiles": {"data": {"features": {"value": {"type": "float"}}}},
+        }
+    )
+    read_id = "invocation:read:read:data:source"
+    merge_id = "invocation:merge:join:data:source"
+    read = execution_plan.Invocation(
+        id=read_id,
+        function_kind="read",
+        entrypoint="example:read",
+        function_id="read",
+        operator_id="source",
+        dataset_id="data",
+        output_features=["value"],
+    )
+    merge = execution_plan.Invocation(
+        id=merge_id,
+        function_kind="merge",
+        entrypoint="example:join",
+        function_id="join",
+        operator_id="source",
+        dataset_id="data",
+        arguments={
+            "target": "data",
+            "fragment": "$operators.source.fragment",
+            "target_keys": ["id"],
+        },
+        dependency_ids=[read_id],
+    )
+    compiled = execution_plan.ExecutionPlan(
+        execution_plan.PLAN_VERSION, "polars", {}, [read, merge], [[read_id], [merge_id]]
+    )
+
+    nodes, links = invocation_lineage.invocation_lineage_payload(compiled, definition)
+    context = plan_render.build_context(compiled, definition)
+    card = context["stages"][1]["steps"][0]
+    merge_node = next(node for node in nodes if node["id"] == merge_id)
+
+    assert merge_node["phase"] == card["phase"] == "merge"
+    assert merge_node["operator_id"] == card["operator_id"] == "source"
+    assert merge_node["merge_target"] == card["merge_target"] == "data"
+    assert merge_node["fragment_source"] == card["fragment_source"] == "$operators.source.fragment"
+    assert merge_node["merge_keys"] == card["merge_keys"] == ["id"]
+    assert links == [{"source": read_id, "target": merge_id, "dependency_type": "fragment"}]
+
+
 def test_graph_payload_serialization_is_stable_and_script_safe() -> None:
     payload = common.serialize_graph_payload(
         nodes=[{"id": "z", "label": "</script>"}, {"id": "a", "label": "first"}],

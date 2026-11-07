@@ -21,6 +21,7 @@ class GraphStyle:
             functions.CONFORM: "#72b7b2",
             functions.EXPAND: "#b279a2",
             functions.WRITE: "#ff9da6",
+            functions.MERGE: "#facc15",
         }
     )
     background_color: str = "#101820"
