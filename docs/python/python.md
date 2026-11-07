@@ -8,6 +8,22 @@ under `uptimely.spec.python`; the reference sections below follow those modules.
 For a runnable example, see the
 [analytics project structure](../project-layout/project-structure.md).
 
+## Build-time declarations and runtime configuration
+
+Python declarations define the build-time workflow. Operators, bindings, and
+profile grain are compiled into the plan, so changes to them require a rebuild.
+Runtime parameters, source/sink locations, and validation controls normally
+change execution without changing the graph.
+
+| Setting | Ownership | Rebuild required? |
+| --- | --- | --- |
+| Operators, bindings, and profile grain | Build-time declarations | Yes |
+| Runtime parameters, source/sink locations, and validation controls | Project/runtime configuration and run options | Normally no |
+
+Runtime parameters can change calculation results without changing the plan.
+The plan's required backend is fixed at build time; an incompatible backend
+setting fails rather than reinterpreting the plan.
+
 ## Declarative profiles
 
 ```python
@@ -151,17 +167,30 @@ refinement.
 Declare dimensional matching keys explicitly with
 `ref.profile().grain.ids` (or a named profile's `.grain.ids` selector).
 Grouping and ordering references do not implicitly select matching keys.
-Data-producing functions return Polars `DataFrame` or `LazyFrame` fragments;
-other dataframe types and custom adapters are not currently supported. The
-engine assembles fragments for the same profile by complete keys with a full
-outer join, preserving partial coverage while rejecting duplicate keys and
-feature collisions. An
+Fragment-producing functions (`read`, `conform`, `expand`, and `collapse`)
+return Polars `DataFrame` or `LazyFrame` fragments; other dataframe types and
+custom adapters are not currently supported. The engine assembles fragments
+for the same profile by complete keys with a full outer join, preserving
+partial coverage while rejecting duplicate keys and feature collisions. An
 `expand` fragment may omit dimension keys its lower-dimensional source cannot
 supply; the engine left-joins such a fragment onto the accumulated profile frame by
 the keys it carries, broadcasting a dimensionless fragment to every
 observation. See the runnable
 [dimensional operations example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/dimensional_operations)
 and [engine fragment contract](../components/engine.md#fragments).
+
+`vectorize` functions instead receive the accumulated target dataframe and
+return that complete dataframe enriched with their declared outputs. They must
+preserve existing columns and values, row count, key identities, and row order;
+they do not return fragments and cannot declare a merge binding. The engine
+always checks the returned schema, while opt-in runtime validation checks
+preservation of existing values and row order. Functions must not mutate their
+input dataframes: publishing by assignment cannot roll back mutations made by
+user code.
+
+Fragment-producing operators without an explicit `merge` binding use the
+builtin merge-by-grain function. A custom merge binding overrides the default.
+Changing an operator's merge binding requires rebuilding the project.
 The implementation module's package must be installed in the build and runtime
 environments; install a local project package in editable mode for development.
 
@@ -305,6 +334,7 @@ references to functions and spec objects. It does not construct or load data.
 | --- | --- |
 | `up.ref.data()` | Current profile's dataframe. |
 | `up.ref.data("telemetry")` | Named profile's dataframe. |
+| `up.ref.fragment()` | Staged fragment for the current operator's merge binding. |
 | `up.ref.feature("temperature")` | Input feature column; infers a dependency unless `inputs` is explicit. |
 | `up.ref.feature("maximum")` | Identifier of a feature in the containing operator's `outputs`; no input dependency. |
 

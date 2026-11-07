@@ -68,6 +68,18 @@ For example, dimensions and profiles use their identifiers as object keys:
 project. Increment it when the format changes incompatibly; readers reject
 unsupported values.
 
+The Spec defines the build-time workflow; project/runtime configuration supplies
+values and controls for execution. Runtime parameters can change results without
+changing the invocation graph.
+
+| Setting | Ownership | Rebuild required? |
+| --- | --- | --- |
+| Operators, bindings, and profile grain | Build-time workflow definition in the Spec | Yes |
+| Runtime parameters, source/sink locations, and validation controls | Project/runtime configuration and run options | Normally no |
+
+The saved plan records its required backend. Runtime configuration cannot
+reinterpret it for an incompatible backend, which fails explicitly.
+
 When supplied, `source` requires `name` (string) and `generated` (boolean).
 The default is `{"name": "manual", "generated": false}`. Generated documents
 can identify their generator in `name` and set `generated` to `true`.
@@ -225,7 +237,10 @@ execution plans and Explorer snapshots.
 Version 5 documents are rejected rather than parsed with compatibility rules.
 Set `spec_version` to `6` and rebuild generated plans and Explorer snapshots.
 Operators may now declare `merge` beside `compute`; version 6 does not infer
-custom merge behavior from older operator or assembly fields.
+custom merge behavior from older operator or assembly fields. Review vectorize
+implementations that returned fragments: they must now return the complete
+enriched target dataframe, preserving existing columns, values, rows, and row
+order while adding declared outputs. Rebuild saved plans after migrating.
 
 ### Feature and Operator Identifiers
 
@@ -422,6 +437,13 @@ fragment argument is bound to the staged fragment for its own operator. A
 merge function returns the complete accumulated target dataframe and does not
 declare feature outputs.
 
+`vectorize` is not fragment-producing: it receives the accumulated target
+dataframe and returns the complete enriched dataframe. It must preserve every
+existing column and value, the row count, key identities, and row order; it may
+add only its declared output columns. It does not stage a fragment or support a
+merge binding. The complete result schema is always checked; runtime validation
+also checks preservation of existing values and row order.
+
 ### Arguments
 
 The `args` schema must declare the number of `dataframe` arguments required by
@@ -547,7 +569,9 @@ details.
 
 Fragment-producing operators without a declared merge binding receive the
 builtin merge-by-grain binding during Spec construction. Declare `merge` to
-override this default.
+override this default. The resolved binding is part of the build-time Spec and
+plan; changing it requires rebuilding. Runtime configuration does not select or
+change the merge function.
 
 When declared, `merge.args.target` must be `$profiles.@.dataframe` and
 `merge.args.fragment` must be `$operators.@.fragment`. The target is nullable
