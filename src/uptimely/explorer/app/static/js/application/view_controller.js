@@ -30,7 +30,7 @@ const content = render => data => ({ context: "", content: render(data) });
 const VIEWS = {
   home: { stylesheet: "dashboard", initialize: icons, render: content(dashboard) },
   plan: { stylesheet: "spec", initialize: icons, render: content(planOverview) },
-  features: catalog("features"),
+  features: catalog("features", true),
   profiles: catalog("profiles", true),
   dimensions: catalog("dimensions"),
   functions: catalog("functions", true),

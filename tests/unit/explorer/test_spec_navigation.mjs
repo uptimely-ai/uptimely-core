@@ -154,7 +154,7 @@ test("profile details show every declared operator in order including vectorized
   configuration.profiles.telemetry.assembly = { calculate: assembly.operator_1 };
   const vectorizedOnly = render();
   assert.match(vectorizedOnly, /profile-detail-subheading[^>]*>[\s\S]*?<span>Assembly<\/span><\/h3>/);
-  assert.match(vectorizedOnly, /profile-operator-kicker">OPERATION<\/span>/);
+  assert.doesNotMatch(vectorizedOnly, /OPERATION|profile-operator-kicker/);
   assert.match(vectorizedOnly, /profile-operator-list/);
   assert.doesNotMatch(vectorizedOnly, /<div class="profile-operator">/);
   assert.match(vectorizedOnly, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
@@ -184,11 +184,13 @@ test("feature and function type displays use matching data type icons", () => {
     },
     configuration: {
       dimensions: {},
-      functions: { load: { kind: "read", name: "Load" } },
+      functions: { load: { kind: "read", name: "Load", description: "Read <telemetry> & timestamps." } },
       profiles: { telemetry: {
-        grain: [], features: { temperature: { type: "float64" } },
+        grain: [], features: { temperature: { name: "Temperature", type: "float64" } },
         assembly: { load: {
+          name: "Read Telemetry",
           compute: { function: "load" },
+          merge: { function: "merge" },
           interface: { outputs: ["$features.temperature"] },
         } },
       } },
@@ -200,13 +202,39 @@ test("feature and function type displays use matching data type icons", () => {
       doc: { params: { source: "Input table", path: "Source location" } },
       return_type: "pandas.DataFrame",
     } } },
-  } };
+  }, stages: [{ steps: [{
+    profile: "telemetry", operator_id: "load", phase: "compute",
+    args: { source: { type: { function: "string" }, value: "telemetry.csv" } },
+  }] }] };
   const { content: featureContent, context: featureContext } = renderCatalog(data, "features");
   assert.match(featureContent, /data-lucide="hash"[^>]*data-type="float64"/);
-  const featureCard = featureContent.match(/<article id="feature-telemetry-temperature"[\s\S]*?<\/article>/)[0];
-  assert.doesNotMatch(featureCard, />Data type<|>float64</);
+  const featureCard = featureContent.match(/<article id="feature-telemetry-temperature"[\s\S]*?<\/section>\s*<\/article>/)[0];
+  assert.match(featureCard, /<dt>Data type<\/dt>/);
+  assert.match(featureCard, /<h2[^>]*>[\s\S]*?<span>Temperature<\/span><\/span><\/h2>/);
+  assert.doesNotMatch(featureCard, /<p class="mt-1 font-mono text-xs text-slate-500">temperature<\/p>/);
+  assert.match(featureCard, /<span>Produced by operator<\/span>[\s\S]*?<h4>Read Telemetry<\/h4>/);
+  assert.match(featureCard, /<section class="mt-6" aria-label="Producing operator">[\s\S]*<\/section>\s*<\/article>$/);
+  assert.doesNotMatch(featureCard, /Producing function:|<span class="font-mono text-cyan-100">|Unspecified/);
+  assert.match(featureCard, /profile-operator-function">[\s\S]*?<a href="\?view=functions#function-load">Load<\/a>/);
+  assert.match(featureCard, /Output features<\/dt><dd><code>Temperature<\/code>/);
+  assert.match(featureCard, /<dt>Unit<\/dt><dd><span class="feature-meta-unit">Not specified<\/span>/);
+  assert.match(featureCard, /data-feature-role="Input"|ui-badge--blue">Input<\/span>/);
+  assert.match(featureCard, /data-lucide="hash"[^>]*data-type="float64"/);
+  assert.match(featureCard, /class="site-icon icon--assembly profile-detail-icon" data-lucide="blocks"/);
+  const profileContent = renderCatalog(data, "profiles").content;
+  const profileOperator = profileContent.match(/<article id="operator-telemetry-load"[\s\S]*?<\/article>/)[0];
+  const featureOperator = featureCard.match(/<article id="feature-temperature-operator-telemetry-load"[\s\S]*?<\/article>/)[0];
+  assert.equal(featureOperator.replace("feature-temperature-operator-telemetry-load", "operator-telemetry-load"),
+    profileOperator);
+  assert.match(featureOperator, /Resolved arguments/);
+  assert.match(featureOperator, /telemetry\.csv/);
+  assert.match(featureOperator, /<div class="profile-operator-function">\s*<i[^>]*class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
+  assert.match(featureOperator, /profile-operator-merge-indicator/);
+  assert.match(featureOperator, /Input features[\s\S]*class="profile-operator-flow"[\s\S]*Output features/);
+  assert.match(featureOperator, /role="img" aria-label="Operator: Read Telemetry"><i[^>]*data-lucide="square-function"/);
+  assert.equal((featureOperator.match(/class="profile-operator-flow-arrow"/g) || []).length, 2);
   assert.match(featureContent, /data-category="float64" data-count="1"/);
-  assert.match(featureContent, /data-lucide="hash"[^>]*><\/i><span>temperature<\/span>/);
+  assert.match(featureContent, /data-lucide="hash"[^>]*><\/i><span>Temperature<\/span>/);
   assert.match(featureContext, /href="#feature-telemetry-temperature"[\s\S]*?data-lucide="hash"/);
   const featureLink = featureContext.match(/<a href="#feature-telemetry-temperature">[\s\S]*?<\/a>/)[0];
   assert.doesNotMatch(featureLink, /data-lucide="sigma"/);
@@ -218,6 +246,68 @@ test("feature and function type displays use matching data type icons", () => {
   assert.match(argumentTable, /data-lucide="table-2"[^>]*><\/i><span>source<\/span>[\s\S]*<td>Input table<\/td>/);
   assert.match(argumentTable, /data-lucide="case-sensitive"[^>]*><\/i><span>path<\/span>[\s\S]*<td>Source location<\/td>/);
   assert.doesNotMatch(argumentTable, />Data type<|>dataframe<|>string<|data-type-label-text/);
+});
+
+test("feature details show metadata and direct used-by badges below the operator", () => {
+  const { content } = renderCatalog({ catalogs: { summary: {
+    feature_buckets: { input: 1, intermediate: 1, output: 1 },
+  }, configuration: {
+    dimensions: {},
+    functions: {
+      read: { kind: "read" },
+      vectorize: { kind: "vectorize" },
+    },
+    profiles: { telemetry: {
+      grain: [],
+      features: {
+        raw: { name: "Raw temperature", type: "float64", unit: "C" },
+        adjusted: { name: "Adjusted temperature", type: "float64", unit: "C" },
+        offset: { name: "Temperature offset", type: "float64" },
+        alarm: { name: "High temperature alarm", type: "boolean" },
+      },
+      assembly: {
+        load: { compute: { function: "read" }, interface: {
+          inputs: [], outputs: ["$features.raw"],
+        } },
+        normalize: { compute: { function: "vectorize" }, interface: {
+          inputs: ["$features.raw"], outputs: ["$features.adjusted", "$features.offset"],
+        } },
+        flag: { compute: { function: "vectorize" }, interface: {
+          inputs: ["$features.adjusted"], outputs: ["$features.alarm"],
+        } },
+      },
+    } },
+  } } }, "features");
+  const card = id => content.match(new RegExp(`<article id="feature-telemetry-${id}"[\\s\\S]*?<\\/section>\\s*<\\/article>`))[0];
+  const raw = card("raw");
+  assert.doesNotMatch(raw, /Depends on|Showing only direct dependencies|aria-label="Dependencies"/);
+  assert.match(raw, /ui-badge--blue">Input<\/span>/);
+  assert.match(raw, /data-type-label-text">float64<\/span>/);
+  assert.match(raw, /feature-meta-unit">C<\/span>/);
+  const metadata = raw.match(/<dl class="feature-meta">[\s\S]*?<\/dl>/)[0];
+  assert.deepEqual([...metadata.matchAll(/<dt>(.*?)<\/dt>/g)].map(match => match[1]),
+    ["Role", "Data type", "Unit", "Profile"]);
+  assert.match(metadata, /href="\?view=profiles#profile-telemetry"><i[^>]*data-lucide="layers-2"[^>]*><\/i><span>telemetry<\/span>/);
+  assert.match(raw, /aria-label="Used by">[\s\S]*?<span>Used by<\/span>[\s\S]*?href="\?view=features#feature-telemetry-adjusted">Adjusted temperature<\/a>/);
+  assert.match(raw, /aria-label="Used by">[\s\S]*?href="\?view=features#feature-telemetry-offset">Temperature offset<\/a>/);
+  const usedBy = raw.match(/<section class="mt-6" aria-label="Used by">[\s\S]*?<\/section>/)[0];
+  assert.doesNotMatch(usedBy, /High temperature alarm|Depends on|<p/);
+
+  const adjusted = card("adjusted");
+  assert.doesNotMatch(adjusted, /Operator lineage|operator-lineage-preview/);
+  const operatorBox = adjusted.match(/<section class="mt-6" aria-label="Producing operator">[\s\S]*?<\/section>/)[0];
+  assert.match(operatorBox, /profile-operator-header[\s\S]*profile-operator-contract[\s\S]*profile-operator-compute/);
+  assert.match(operatorBox, /Output features<\/dt><dd><code>Adjusted temperature<\/code><code>Temperature offset<\/code>/);
+  assert.match(operatorBox, /Input features<\/dt><dd><code>Raw temperature<\/code>/);
+  assert.match(card("offset"), /id="feature-offset-operator-telemetry-normalize"/);
+  const ids = [...content.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+  assert.equal(new Set(ids).size, ids.length);
+  assert.match(adjusted, /ui-badge--amber">Intermediate<\/span>/);
+  assert.match(adjusted, /aria-label="Producing operator">[\s\S]*<\/section>\s*<section class="mt-6" aria-label="Used by">[\s\S]*href="\?view=features#feature-telemetry-alarm">High temperature alarm<\/a>[\s\S]*<\/section>\s*<\/article>$/);
+
+  const alarm = card("alarm");
+  assert.match(alarm, /ui-badge--green">Output<\/span>/);
+  assert.match(alarm, /feature-lineage-empty">None declared<\/span>/);
 });
 
 test("dimension details distinguish the dimension from its nested resolution levels", () => {
