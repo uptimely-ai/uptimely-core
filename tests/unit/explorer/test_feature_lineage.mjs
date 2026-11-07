@@ -161,11 +161,13 @@ test("selected feature details render and initialize a data type icon", () => {
   globalThis.lucide = { createIcons: options => iconRoots.push(options.root) };
   try {
     ExplorerLineage.showDetails(panel, "Selected item", [
-      ["Data type", "Float64", "Float64"],
+      { title: "Definition", icon: "sigma", rows: [["Data type", "Float64", "Float64"]] },
     ]);
-    const typeLabel = panel.children[1].children[1];
+    const section = panel.children[1];
+    assert.equal(section.attributes["aria-label"], "Definition");
+    const typeLabel = section.children[1].children[0].children[1];
     const icon = typeLabel.children[0];
-    assert.equal(typeLabel.className, "data-type-label lineage-data-type");
+    assert.equal(typeLabel.className, "data-type-label");
     assert.equal(typeLabel.children[1].textContent, "Float64");
     assert.equal(icon.attributes["data-lucide"], "hash");
     assert.equal(icon.attributes["data-type"], "Float64");

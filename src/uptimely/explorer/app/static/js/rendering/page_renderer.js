@@ -1,4 +1,5 @@
-import { contextHeader, distribution, escape, heading, href, icon, page } from "./shared_markup.js";
+import { KINDS, contextHeader, distribution, escape, heading, href, icon, kindIcon, page } from "./shared_markup.js";
+import { UNASSIGNED_DATASET } from "../lineage/lineage_config.js";
 
 export function dashboard(data) {
   const summary = data.catalogs.summary;
@@ -72,6 +73,9 @@ export function lineage(data, topology) {
     ? { ...data.graphs.invocation_lineage, is_scoped: data.scope?.is_scoped === true }
     : data.graphs.feature_lineage;
   const style = topology ? data.graphs.invocation_style : data.graphs.feature_style;
+  const profileCount = new Set(graphData.nodes.filter(node => !node.is_operator)
+    .map(node => node.dataset_id || UNASSIGNED_DATASET)).size;
+  const kinds = [...new Set(graphData.nodes.map(node => node.function_kind).filter(Boolean))];
   const payload = (id, value) => `<script id="${id}" type="application/json">${JSON.stringify(value).replace(/</g, "\\u003c")}</script>`;
   return {
     context: `<aside class="site-context" id="lineage-context" aria-label="${title} context" data-context-label="${title.toLowerCase()}">
@@ -89,13 +93,23 @@ export function lineage(data, topology) {
           <button class="ui-button lineage-reset" id="reset-lineage" type="button" aria-label="Reset view" title="Reset view" aria-controls="lineage">${icon("reset")}</button>
         </div>
       </div>
-      <details class="panel" open><summary>Legend</summary><div class="legend" aria-label="Legend">
-        ${topology ? "" : '<span class="function" id="operator-legend">Operator</span>'}<span class="legend-heading">Profiles</span>
+      <details class="lineage-legend-panel"><summary>${icon("schema")}<span>Graph legend</span>
+        <span class="lineage-legend-count">${profileCount} ${profileCount === 1 ? "profile" : "profiles"}</span>
+        <i class="lineage-legend-chevron" data-lucide="chevron-down" aria-hidden="true"></i></summary>
+        <div class="legend" aria-label="Graph legend">
+        <p class="lineage-legend-note">Colors show profiles, not run status. Arrows show dependencies.</p>
+        <h3 class="legend-heading">${topology ? "Function kinds" : "Nodes"}</h3>
+        <div class="lineage-legend-kinds">${topology
+          ? kinds.map(kind => `<span class="lineage-legend-item">${kindIcon(kind)}<span>${escape(KINDS[kind]?.label || kind)}</span></span>`).join("")
+          : `<span class="lineage-legend-item">${icon("features")}<span>Feature</span></span>
+            <span class="lineage-legend-item" id="operator-legend">${icon("functions")}<span>Operator</span></span>`}</div>
+        <h3 class="legend-heading">Profiles</h3>
         <div class="dataset-legend" id="dataset-legend"></div>
+        ${topology ? '<p class="lineage-legend-note">Colored nodes add data; gray nodes compute or consume it.</p>' : ""}
         </div></details>
-      <div class="details" id="${panelId}" role="region" aria-label="${topology ? "Invocation details" : "Selected item"}" aria-live="polite">
-        <h2>${topology ? "Invocation details" : "Selected item"}</h2><div class="meta">Click a node</div>
-        <div class="summary">${topology ? "Select an invocation to inspect its function kind, arguments, profile, declared features, and invocation dependencies." : "Select a feature or visible operator to see its identifier and details."}</div>
+      <div class="lineage-details" id="${panelId}" role="region" aria-label="${topology ? "Invocation details" : "Selected item"}" aria-live="polite">
+        <div class="lineage-details-empty">${icon("scope")}<h2>No node selected</h2>
+          <p>${topology ? "Select an invocation to inspect its function, arguments, and dependencies." : "Select a feature or operator to inspect its definition and connections."}</p></div>
       </div></aside>`,
     content: `<main class="lineage-workspace"><div class="lineage-stage">
       <p id="lineage-error" role="alert" hidden></p>

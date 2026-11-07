@@ -95,15 +95,19 @@ test("contribution tooltips describe only declared outputs by invocation role", 
   }
   assert.equal(invocationContribution(node("write", 1, "write")), "Declared outputs: none declared");
 });
-test("selected-node flow details replace the legend with compact role and scope information", () => {
-  for (const kind of ["merge", "vectorize", "read", "write"]) {
+test("selected-node flow notes explain the step, plan markers and connections in short paragraphs", () => {
+  for (const kind of ["merge", "vectorize", "read", "write", "escape"]) {
     const details = invocationFlowDetails(node("selected", 1, kind));
-    assert.match(details, /plan accumulation, not runtime status/);
-    assert.match(details, /Arrows: dependencies; direct links are strongest, full lineage lighter/);
+    assert.match(details, /not a completed run/);
+    assert.match(details, /Brighter arrows connect directly to the selected step/);
     assert.match(details, /Dataset ready/);
-    assert.match(details, ["merge", "vectorize"].includes(kind) ? /Profile color.*groups imply no order/
-      : kind === "write" ? /Gray: separate Dataset consumer or effect/ : /Gray: compute branch above/);
-    assert.ok(details.length < 300);
+    assert.equal(details.split("\n\n").length, 3);
+    assert.match(details, kind === "merge" ? /merging them are separate steps/
+      : kind === "vectorize" ? /adds calculated columns directly/
+      : kind === "write" ? /uses data without adding columns/
+      : kind === "escape" ? /return value is ignored/
+      : /calculates data separately/);
+    assert.ok(details.length < 600);
   }
   assert.match(invocationFlowDetails(node("selected", 1, "merge"), true), /Selected outputs ready/);
 });

@@ -25,23 +25,58 @@ html:has(.lineage-page), .lineage-page { height: 100%; overflow: hidden; }
 #lineage-error, .lineage-error { position: absolute; top: 16px; left: 16px; right: 16px;
 	z-index: 3; padding: 12px; border: 1px solid #fbbf24; border-radius: 8px;
 	background: #422006; color: #fef3c7; }
-.panel, .details { min-width: 0; padding: 0 0 20px;
+.lineage-legend-panel { min-width: 0; border: 1px solid var(--color-border); border-radius: 10px;
+	background: var(--color-background); }
+.lineage-legend-panel summary { display: flex; align-items: center; gap: 8px; padding: 12px;
+	cursor: pointer; list-style: none; font-size: 12px; font-weight: 600; }
+.lineage-legend-panel summary::-webkit-details-marker { display: none; }
+.lineage-legend-panel summary:hover { color: var(--color-accent); }
+.lineage-legend-panel summary > svg { width: 15px; height: 15px; flex-shrink: 0; }
+.lineage-legend-count { margin-left: auto; color: var(--color-muted); font-size: 10px; font-weight: 400; }
+.lineage-legend-panel[open] .lineage-legend-chevron { transform: rotate(180deg); }
+.legend { display: grid; gap: 10px; padding: 0 12px 14px; border-top: 1px solid var(--color-border); }
+.lineage-legend-note { margin: 12px 0 0; color: var(--color-muted); font-size: 11px; line-height: 1.6; }
+.legend-heading { margin: 4px 0 0; color: var(--color-muted); font-size: 10px; font-weight: 600;
+	text-transform: uppercase; letter-spacing: .1em; }
+.lineage-legend-kinds, .dataset-legend { display: flex; flex-wrap: wrap; gap: 6px; }
+.lineage-legend-item, .lineage-profile-key { display: inline-flex; align-items: center; gap: 6px;
+	min-width: 0; padding: 5px 8px; border: 1px solid var(--color-border); border-radius: 6px;
+	font-size: 11px; line-height: 1.5; overflow-wrap: anywhere; }
+.lineage-legend-item svg { width: 14px; height: 14px; flex-shrink: 0; }
+#operator-legend svg { color: var(--color); }
+.lineage-profile-key::before { content: ''; width: 8px; height: 8px; flex: 0 0 8px;
+	border-radius: 50%; background: var(--color); }
+.lineage-details { min-width: 0; color: var(--color-text); }
+.lineage-details-header { display: flex; align-items: flex-start; gap: 12px; padding: 16px 0;
 	border-bottom: 1px solid var(--color-border); }
-.panel summary { cursor: pointer; color: var(--color-muted); font-size: 12px; }
-.panel[open] summary { margin-bottom: 10px; }
-.legend { display: grid; gap: 6px; }
-.legend span:not(.legend-heading)::before { content: ''; display: inline-block; width: 10px; height: 10px;
-	margin-right: 7px; background: var(--color); border-radius: 50%; }
-.legend .function::before { border-radius: 2px; }
-.legend-heading { margin-top: 4px; color: #9fb3c3; font-size: 11px; text-transform: uppercase;
-	letter-spacing: .06em; }
-.dataset-legend { display: grid; gap: 5px; }
-.dataset-legend span { overflow-wrap: anywhere; }
-.details { color: var(--color-text); }
-.details h2 { margin: 0 0 8px; font-size: 14px; text-transform: uppercase; letter-spacing: .08em; color: #b7c5cf; }
-.details .meta { font-size: 12px; color: #cfe0ea; margin-bottom: 6px; white-space: normal; word-break: break-word; }
-.details .lineage-data-type { margin-left: 4px; }
-.details .summary { font-size: 13px; line-height: 1.5; color: #e8edf2; white-space: normal; word-break: break-word; }
+.lineage-details-header > svg { box-sizing: content-box; width: 20px; height: 20px; padding: 10px;
+	flex-shrink: 0; border: 1px solid var(--node-color, var(--color-border)); border-radius: 10px;
+	background: var(--color-background); color: var(--node-color, var(--color-text)); }
+.lineage-details-header > div { min-width: 0; }
+.lineage-details-kind { margin: 0 0 5px; color: var(--color-muted); font-size: 10px;
+	text-transform: uppercase; letter-spacing: .1em; }
+.lineage-details h2 { margin: 0; font-size: 17px; font-weight: 600; line-height: 1.4;
+	overflow-wrap: anywhere; }
+.lineage-details-section { padding: 16px 0; border-bottom: 1px solid var(--color-border); }
+.lineage-details-section h3 { display: flex; align-items: center; gap: 7px; margin: 0 0 12px;
+	color: var(--color-muted); font-size: 11px; font-weight: 600; }
+.lineage-details-section h3 svg { width: 14px; height: 14px; }
+.lineage-details-section dl { display: grid; gap: 12px; margin: 0; }
+.lineage-details-section dt { margin-bottom: 3px; color: var(--color-muted); font-size: 10px; }
+.lineage-details-section dd { margin: 0; font: 12px/1.6 var(--font-mono); overflow-wrap: anywhere; }
+.lineage-details-section a { color: var(--color-accent); text-decoration: none; }
+.lineage-details-section a:hover { text-decoration: underline; }
+.lineage-details-note { display: flex; align-items: flex-start; gap: 8px; margin-top: 16px; padding: 12px;
+	border: 1px solid var(--color-border); border-radius: 8px; background: var(--color-background); }
+.lineage-details-note svg { width: 15px; height: 15px; flex-shrink: 0; margin-top: 2px; color: var(--color-muted); }
+.lineage-details-note p, .lineage-details-hint p, .lineage-details-empty p {
+	margin: 0; color: var(--color-muted); font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
+.lineage-details-note p { white-space: pre-line; }
+.lineage-details-empty { padding: 28px 12px 12px; text-align: center; }
+.lineage-details-empty > svg { width: 24px; height: 24px; margin: 0 auto 12px; color: var(--color-muted); }
+.lineage-details-empty h2 { margin-bottom: 8px; font-size: 14px; }
+.lineage-details-empty .lineage-details-kind { display: none; }
+.lineage-details-hint { padding: 0 12px 20px; text-align: center; }
 @media (max-width: 640px) {
 	.lineage-control-groups .ui-button { height: 44px; min-width: 44px; }
 	#lineage-error, .lineage-error { top: 64px; }

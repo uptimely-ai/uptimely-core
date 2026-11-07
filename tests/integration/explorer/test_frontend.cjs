@@ -407,10 +407,28 @@ test("lineage views expose original canvases, controls and script-safe graph dat
   assert.match(feature.content, /id="lineage-3d"/);
   assert.match(feature.context, /data-dimension="3d"/);
   assert.match(feature.context, /id="node-details"/);
+  assert.match(feature.context, /<details class="lineage-legend-panel"><summary>/);
+  assert.match(feature.context, /Graph legend/);
+  assert.equal((feature.context.match(/class="lineage-legend-note"/g) || []).length, 1);
+  assert.match(feature.context, /Colors show profiles, not run status\. Arrows show dependencies\./);
+  assert.match(feature.context, /1 profile<\/span>/);
+  assert.match(feature.context, /id="operator-legend"/);
+  assert.match(feature.context, /No node selected/);
   assert.ok(!feature.content.includes("</script><script>"));
   const payload = feature.content.match(/id="graph-data" type="application\/json">([\s\S]*?)<\/script>/)[1];
   assert.deepEqual(JSON.parse(payload), sampleData().graphs.feature_lineage);
   assert.match(lineage(sampleData(), true).context, /id="invocation-node-details"/);
+  const topologyData = sampleData();
+  topologyData.graphs.invocation_lineage.nodes = [
+    { id: "first", dataset_id: "readings", function_kind: "merge" },
+    { id: "second", dataset_id: "readings", function_kind: "merge" },
+    { id: "third", function_kind: "<custom>" },
+  ];
+  const topology = lineage(topologyData, true).context;
+  assert.match(topology, /2 profiles<\/span>/);
+  assert.equal((topology.match(/data-lucide="git-merge"/g) || []).length, 1);
+  assert.match(topology, /&lt;custom&gt;/);
+  assert.doesNotMatch(topology, /id="operator-legend"/);
 });
 
 test("animation restores dataset selection, table schemas and playback component contracts", async () => {
