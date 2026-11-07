@@ -50,6 +50,15 @@ body { margin: 0; background: var(--color-background); color: var(--color-text);
   font: 600 18px/1.5 "Space Grotesk", sans-serif; }
 .ui-panel-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;
   gap: 8px; margin-bottom: 20px; }
+.ui-chart-title { display: inline-flex; align-items: center; gap: 8px; }
+.ui-chart-tooltip { position: relative; display: inline-flex; color: #94a3b8; cursor: help; }
+.ui-chart-tooltip-icon { width: 15px; height: 15px; }
+.ui-chart-tooltip::after { position: absolute; z-index: 20; bottom: calc(100% + 8px); left: 50%;
+  width: max-content; max-width: 260px; padding: 6px 9px; transform: translateX(-50%);
+  border: 1px solid #475569; border-radius: 6px; background: #0f172a; color: #e2e8f0;
+  content: attr(data-tooltip); font: 11px/1.5 var(--font-body); opacity: 0; pointer-events: none;
+  transition: opacity .12s ease; visibility: hidden; white-space: normal; }
+.ui-chart-tooltip:hover::after, .ui-chart-tooltip:focus::after { opacity: 1; visibility: visible; }
 .ui-panel-meta { color: #94a3b8; font: 11px/1.5 var(--font-mono); }
 .ui-panel-description { margin: -8px 0 20px; color: #94a3b8; font-size: 13px; line-height: 1.7; }
 .ui-chart-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 3rem;

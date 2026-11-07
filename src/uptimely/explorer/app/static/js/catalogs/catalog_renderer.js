@@ -107,14 +107,17 @@ const overviewData = {
     const config = data.catalogs.configuration;
     const produced = features(config);
     const summary = data.catalogs.summary;
+    const typeCounts = new Map();
+    produced.forEach(({ feature }) => {
+      const type = feature.type || "unspecified";
+      typeCounts.set(type, (typeCounts.get(type) || 0) + 1);
+    });
     return {
-      stats: [["Features", produced.length],
-        ["Profiles with features", new Set(produced.map(item => item.id)).size]],
+      stats: [],
       charts: [distribution("Features by role",
         ["input", "intermediate", "output"].map(key => [key, summary.feature_buckets[key] || 0]),
-        { total: summary.feature_count, note: `Vectorized features: ${summary.vectorized_feature_count ?? 0}` }),
-        distribution("Features by profile", profiles(config).map(({ id, profile }) =>
-        [label(id, profile), produced.filter(item => item.id === id).length]))],
+        { iconLabels: true, tooltip: "Inputs are source features counted per profile. Intermediate features are used by another calculation; other calculated features are outputs." }),
+        distribution("Features by data type", [...typeCounts], { typeLabels: true })],
     };
   },
   dimensions(data) {
@@ -151,9 +154,9 @@ function catalogOverview(data, view) {
   const { stats, charts } = overviewData[view](data);
   const title = view[0].toUpperCase() + view.slice(1);
   return `<section id="catalog-overview" data-context-item aria-label="${title} overview" class="mb-12">
-    <h2 class="ui-section-title mb-6">${title} overview</h2>
-    <div class="grid gap-3 sm:grid-cols-2${stats.length > 2 ? " lg:grid-cols-4" : ""}">${stats.map(args => statistic(...args)).join("")}</div>
-    <div class="catalog-charts">${charts.join("")}</div>
+    ${view === "features" ? "" : `<h2 class="ui-section-title mb-6">${title} overview</h2>`}
+    ${stats.length ? `<div class="grid gap-3 sm:grid-cols-2${stats.length > 2 ? " lg:grid-cols-4" : ""}">${stats.map(args => statistic(...args)).join("")}</div>` : ""}
+    <div class="catalog-charts${view === "features" ? " lg:grid-cols-2" : ""}">${charts.join("")}</div>
   </section>`;
 }
 
@@ -469,7 +472,7 @@ export function renderCatalog(data, view) {
     content: page(`<section id="${view}" class="mb-16">
       ${view === "stages" ? '<p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Execution plan</p>' : ""}
       ${view === "dimensions" ? '<p data-dimension-label class="dimension-detail-label" hidden>Dimension</p>' : ""}
-      ${heading(title, descriptions[view] ?? null, view, view === "features" ? features(config).length : null)}
+      ${heading(title, descriptions[view] ?? null, view, view === "features" ? data.catalogs.summary.feature_count : null)}
       ${catalogOverview(data, view)}<div class="space-y-8">${renderers[view]()}</div></section>`),
   };
 }

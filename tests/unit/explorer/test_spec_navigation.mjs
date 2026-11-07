@@ -203,7 +203,9 @@ test("feature and function type displays use matching data type icons", () => {
   } };
   const { content: featureContent, context: featureContext } = renderCatalog(data, "features");
   assert.match(featureContent, /data-lucide="hash"[^>]*data-type="float64"/);
-  assert.doesNotMatch(featureContent, />Data type<|>float64</);
+  const featureCard = featureContent.match(/<article id="feature-telemetry-temperature"[\s\S]*?<\/article>/)[0];
+  assert.doesNotMatch(featureCard, />Data type<|>float64</);
+  assert.match(featureContent, /data-category="float64" data-count="1"/);
   assert.match(featureContent, /data-lucide="hash"[^>]*><\/i><span>temperature<\/span>/);
   assert.match(featureContext, /href="#feature-telemetry-temperature"[\s\S]*?data-lucide="hash"/);
   const featureLink = featureContext.match(/<a href="#feature-telemetry-temperature">[\s\S]*?<\/a>/)[0];
@@ -247,10 +249,22 @@ test("dimension details distinguish the dimension from its nested resolution lev
   assert.doesNotMatch(content, /Parent resolution:|Top-level resolution|dimension-resolution-level|dimension-resolution-fields/);
 });
 
-test("Features overview contains the former spec feature role summary", () => {
+test("Features overview shows role and data type charts without summary cards", () => {
   const data = {
     catalogs: {
-      configuration: { profiles: {} },
+      configuration: {
+        functions: { load: {} },
+        profiles: {
+          readings: {
+            features: { temperature: { type: "float" }, label: { type: "string" } },
+            grain: [],
+            assembly: { load: {
+              compute: { function: "load" },
+              interface: { outputs: ["$features.temperature", "$features.label"] },
+            } },
+          },
+        },
+      },
       summary: {
         feature_buckets: { input: 3, intermediate: 2, output: 1 },
         feature_count: 6, vectorized_feature_count: 2,
@@ -258,12 +272,23 @@ test("Features overview contains the former spec feature role summary", () => {
     },
   };
   const { content } = renderCatalog(data, "features");
+  assert.match(content, /data-section-count class="ui-badge">6 features<\/span>/);
+  assert.match(content, /aria-label="Features overview"/);
+  assert.doesNotMatch(content, /<h2[^>]*>Features overview<\/h2>|data-stat=/);
   assert.match(content, /data-category="input" data-count="3"/);
   assert.match(content, /data-category="intermediate" data-count="2"/);
   assert.match(content, /data-category="output" data-count="1"/);
-  assert.match(content, /total 6/);
-  assert.match(content, /Vectorized features: 2/);
-  assert.match(content, /<div class="catalog-charts">/);
+  const roleChart = content.match(/<h3>Features by role<\/h3>[\s\S]*?<\/section>/)[0];
+  assert.doesNotMatch(roleChart, /ui-panel-meta|total 6/);
+  assert.match(roleChart, /icon--input h-4 w-4 shrink-0" data-lucide="arrow-right-to-line"/);
+  assert.match(roleChart, /icon--intermediate h-4 w-4 shrink-0" data-lucide="workflow"/);
+  assert.match(roleChart, /icon--output h-4 w-4 shrink-0" data-lucide="arrow-right-from-line"/);
+  assert.match(roleChart, /class="ui-chart-tooltip" tabindex="0" data-tooltip="Inputs are source features counted per profile\. Intermediate features are used by another calculation; other calculated features are outputs\."/);
+  assert.doesNotMatch(content, /Vectorized features: 2|Features by profile/);
+  assert.match(content, /<h3>Features by data type<\/h3>/);
+  assert.match(content, /data-category="float" data-count="1"/);
+  assert.match(content, /data-category="string" data-count="1"/);
+  assert.match(content, /<div class="catalog-charts lg:grid-cols-2">/);
 });
 
 test("catalog overview navigation uses the appropriate label and profile cards show profile size", () => {
@@ -320,8 +345,12 @@ test("catalog overviews use the shared dashboard icon and summary panels", () =>
     const title = view[0].toUpperCase() + view.slice(1);
     assert.match(context, /href="#catalog-overview"[\s\S]*?data-lucide="layout-grid"[\s\S]*?>Overview/);
     assert.match(content, new RegExp(`aria-label="${title} overview"`));
-    assert.match(content, new RegExp(`<h2 class="ui-section-title mb-6">${title} overview</h2>`));
-    assert.match(content, /class="ui-panel" data-stat=/);
+    if (view === "features") {
+      assert.doesNotMatch(content, /<h2[^>]*>Features overview<\/h2>|data-stat=/);
+    } else {
+      assert.match(content, new RegExp(`<h2 class="ui-section-title mb-6">${title} overview</h2>`));
+      assert.match(content, /class="ui-panel" data-stat=/);
+    }
     assert.match(content, /class="ui-panel ui-chart"/);
     assert.doesNotMatch(content + context, />Stats| stats/);
   }
