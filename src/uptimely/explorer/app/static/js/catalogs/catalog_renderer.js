@@ -126,17 +126,18 @@ const overviewData = {
     };
   },
   dimensions(data) {
-    const { configuration: config, summary } = data.catalogs;
+    const config = data.catalogs.configuration;
     const dimensions = Object.values(config.dimensions);
     const resolutions = dimensions.flatMap(item => Object.values(item.resolutions));
     const types = new Map();
     resolutions.forEach(item => types.set(item.type, (types.get(item.type) || 0) + 1));
-    const roots = resolutions.filter(item => !item.parent).length;
     return {
-      stats: [["Dimensions", summary.dimension_count], ["Resolutions", resolutions.length],
-        ["Types", types.size], ["Root resolutions", roots],
-        ["Child resolutions", resolutions.length - roots]],
-      charts: [distribution("Resolutions by type", [...types], { typeLabels: true })],
+      stats: [],
+      charts: [
+        distribution("Resolutions by type", [...types], { typeLabels: true }),
+        distribution("Resolutions by dimension", Object.entries(config.dimensions).map(([id, item]) =>
+          [label(id, item), Object.keys(item.resolutions).length]), { dimensionLabels: true }),
+      ],
     };
   },
   stages(data) {
@@ -158,10 +159,11 @@ function catalogOverview(data, view) {
   if (view === "functions") return functionOverview(data);
   const { stats, charts } = overviewData[view](data);
   const title = view[0].toUpperCase() + view.slice(1);
-  return `<section id="overview" data-context-item aria-label="${title} overview" class="mb-12">
-    ${view === "features" ? "" : `<h2 class="ui-section-title mb-6">${title} overview</h2>`}
+  const ariaLabel = view === "dimensions" ? "Dimension resolution charts" : `${title} overview`;
+  return `<section id="overview" data-context-item aria-label="${ariaLabel}" class="mb-12">
+    ${["features", "dimensions"].includes(view) ? "" : `<h2 class="ui-section-title mb-6">${title} overview</h2>`}
     ${stats.length ? `<div class="grid gap-3 sm:grid-cols-2${stats.length > 2 ? " lg:grid-cols-4" : ""}">${stats.map(args => statistic(...args)).join("")}</div>` : ""}
-    <div class="catalog-charts${view === "features" ? " lg:grid-cols-2" : ""}">${charts.join("")}</div>
+    <div class="catalog-charts${["features", "dimensions"].includes(view) ? " lg:grid-cols-2" : ""}">${charts.join("")}</div>
   </section>`;
 }
 
@@ -295,12 +297,27 @@ function resolutionHierarchy(resolutions) {
 function dimensionCards(config) {
   return Object.entries(config.dimensions).map(([key, item]) => {
     const id = item.id ?? key;
+    const usages = Object.entries(config.profiles || {}).flatMap(([profileId, profile]) => {
+      const resolutions = profile.grain
+        .filter(grain => grain.dimension === key)
+        .map(grain => grain.resolution);
+      return resolutions.length ? [{ id: profileId, profile, resolutions }] : [];
+    });
     return `<article id="dimension-${escape(id)}" data-context-item class="min-w-0">
     <h2 class="break-words font-display text-lg font-semibold text-white">${escape(label(id, item))}</h2>
     <section class="dimension-levels" aria-label="Resolution levels">
-      <h3 class="ui-section-title">Resolution levels</h3>
+      ${subheading("Resolution levels", "resolutions")}
       <p class="dimension-levels-description">Resolution levels, from parent to child.</p>
       ${resolutionHierarchy(item.resolutions)}
+    </section>
+    <section class="function-usage dimension-usage" aria-label="Profile usage">
+      ${subheading("Used by profiles", "profiles")}
+      ${usages.length ? `<ul class="function-usage-list">${usages.map(({ id: profileId, profile, resolutions }) =>
+        `<li class="function-usage-item function-detail-box">
+          <a class="function-usage-profile" href="${href("profiles", `profile-${profileId}`)}">${escape(label(profileId, profile))}</a>
+          <ul>${resolutions.map(resolution =>
+            `<li><span class="function-usage-feature">${icon("resolutions", "profile-summary-grain-icon")} <code>${escape(resolution)}</code></span></li>`).join("")}</ul>
+        </li>`).join("")}</ul>` : '<p class="function-usage-empty">Not used by any profile.</p>'}
     </section>
     <p data-dimension-description class="mt-4 text-sm leading-6 text-slate-400">${escape(item.description || "No description provided.")}</p></article>`;
   }).join("");
