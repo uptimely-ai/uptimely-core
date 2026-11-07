@@ -68,6 +68,8 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert legacy_execution_plan.ExecutionPlan is execution_plan.ExecutionPlan
     assert legacy_execution_plan.Invocation is execution_plan.Invocation
     assert uptimely.Engine is engine.Engine is EngineImplementation
+    assert engine.Dataset.__module__ == "uptimely.engine.dataframe.dataset"
+    assert not hasattr(engine, "MainFrame")
     assert engine.EngineConfig is EngineConfig
     assert engine.ParameterConfig is ParameterConfig
     assert engine.Config is Config

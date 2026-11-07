@@ -199,8 +199,7 @@ def test_function_kind_contracts_validate_every_kind(
             }
         }
     )
-    assert validation_functions.validate_return_kind(model) is None
-    assert validation_functions.validate_dataframe_count(model) is None
+    assert validation_functions.validate_function_contracts(model) is None
 
 
 @pytest.mark.parametrize("dataframe_input_count", [0, 1, 3])
@@ -223,8 +222,7 @@ def test_escape_contract_accepts_any_number_of_dataframe_arguments(
         }
     )
 
-    assert validation_functions.validate_return_kind(model) is None
-    assert validation_functions.validate_dataframe_count(model) is None
+    assert validation_functions.validate_function_contracts(model) is None
 
 
 @pytest.mark.parametrize("argument_type", ["array[dataframe]", "object{str: array[dataframe]}"])
@@ -242,8 +240,7 @@ def test_escape_contract_allows_nested_dataframe_arguments(argument_type: str) -
         }
     )
 
-    assert validation_functions.validate_return_kind(model) is None
-    assert validation_functions.validate_dataframe_count(model) is None
+    assert validation_functions.validate_function_contracts(model) is None
 
 
 def test_escape_contract_accepts_no_dataframe_arguments() -> None:
@@ -260,8 +257,7 @@ def test_escape_contract_accepts_no_dataframe_arguments() -> None:
         }
     )
 
-    assert validation_functions.validate_return_kind(model) is None
-    assert validation_functions.validate_dataframe_count(model) is None
+    assert validation_functions.validate_function_contracts(model) is None
 
 
 def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
@@ -298,8 +294,7 @@ def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
 
     assert bindings.validate_arguments(model) is None
     assert bindings.validate_selector_type(model) is None
-    assert validation_functions.validate_return_kind(model) is None
-    assert validation_functions.validate_dataframe_count(model) is None
+    assert validation_functions.validate_function_contracts(model) is None
 
 
 @pytest.mark.parametrize(
@@ -352,8 +347,8 @@ def test_fixed_function_kind_contracts_remain_enforced(
     model = spec_model.Spec.model_validate({"functions": {"function": function}})
 
     with pytest.raises(ValueError, match=expected_error):
-        validation_functions.validate_return_kind(model)
-        validation_functions.validate_dataframe_count(model)
+        validation_functions.validate_function_contracts(model)
+        validation_functions.validate_function_contracts(model)
 
 
 def test_function_model_uses_the_shared_kind_contract() -> None:

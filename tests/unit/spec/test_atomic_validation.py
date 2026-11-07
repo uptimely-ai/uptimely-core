@@ -20,7 +20,9 @@ from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 
 @pytest.mark.parametrize(
     "validate",
-    [*spec_validation.VALIDATION_DEPENDENCIES, operator_outputs.warn_unproduced_features],
+    [
+        *(validate for _, group in spec_validation.VALIDATION_GROUPS for validate in group),
+    ],
     ids=lambda validate: f"{validate.__module__.rsplit('.', 1)[-1]}.{validate.__name__}",
 )
 def test_each_spec_rule_logs_its_check(
@@ -51,10 +53,11 @@ def test_spec_validation_logs_heading_and_all_checks_only_at_debug(
     if level == logging.INFO:
         assert not caplog.records
         return
-    assert caplog.messages[0] == "  Semantic checks:"
-    assert len(caplog.messages) == len(spec_validation.VALIDATION_DEPENDENCIES) + 2
-    assert all(message.startswith("    - checking ") for message in caplog.messages[1:])
-    assert caplog.messages[-1] == ("    - checking declared features have producers (warning only)")
+    assert caplog.messages[0] == "  Reference checks:"
+    assert sum(message.endswith(":") for message in caplog.messages) == len(
+        spec_validation.VALIDATION_GROUPS
+    )
+    assert caplog.messages[-1] == "    - checking declared features have producers (warning only)"
     assert all(record.levelno == logging.DEBUG for record in caplog.records)
 
 
@@ -247,47 +250,39 @@ def test_nullable_dataframe_argument_is_rejected_for_non_merge_function(
     )
     function.args["nullable"] = spec.model.Argument(id="nullable", type="dataframe | null")
 
-    with pytest.raises(errors.SpecError, match="reserved for merge functions") as error:
-        functions.validate_nullable_dataframe_arguments(document)
-
-    assert error.value.code == "invalid_function_input_contract"
+    with pytest.raises(ValueError, match="reserved for merge functions"):
+        function.check_argument_contracts()
 
 
 def test_merge_target_argument_is_validated_independently(document: spec.Spec) -> None:
     function = _add_merge_function(document)
     function.args["target"].type = "dataframe"
 
-    with pytest.raises(errors.SpecError, match="target as 'dataframe \\| null'") as error:
-        functions.validate_merge_target_argument(document)
-
-    assert error.value.code == "invalid_function_input_contract"
+    with pytest.raises(ValueError, match="target as 'dataframe \\| null'"):
+        function.check_argument_contracts()
 
 
 def test_merge_fragment_argument_is_validated_independently(document: spec.Spec) -> None:
     function = _add_merge_function(document)
     function.args["fragment"].type = "string"
 
-    with pytest.raises(errors.SpecError, match="fragment as 'dataframe'") as error:
-        functions.validate_merge_fragment_argument(document)
-
-    assert error.value.code == "invalid_function_input_contract"
+    with pytest.raises(ValueError, match="fragment as 'dataframe'"):
+        function.check_argument_contracts()
 
 
 def test_function_rules_raise_independently(document: spec.Spec) -> None:
     function = next(f for f in document.functions.root.values() if f.kind == "vectorize")
     function.returns = "none"
-    assert functions.validate_dataframe_count(document) is None
-    with pytest.raises(errors.SpecError) as error:
-        functions.validate_return_kind(document)
-    assert error.value.code == "invalid_function_return_contract"
+    with pytest.raises(ValueError) as error:
+        function.check_return_contract()
     assert "fit kind(s): write" in str(error.value)
 
     function.returns = "dataframe"
     function.args.clear()
-    assert functions.validate_return_kind(document) is None
-    with pytest.raises(errors.SpecError) as error:
-        functions.validate_dataframe_count(document)
-    assert error.value.code == "invalid_function_input_contract"
+    function.check_return_contract()
+    with pytest.raises(ValueError) as error:
+        function.check_dataframe_input_contract()
+    assert "requires 1 dataframe argument" in str(error.value)
 
 
 @pytest.mark.parametrize("kind", ["conform", "collapse", "expand"])
@@ -361,4 +356,4 @@ def test_none_dataframe_input_count_is_unrestricted(document: spec.Spec) -> None
         "second": spec.Argument(id="second", type="dataframe"),
     }
 
-    assert functions.validate_dataframe_count(document) is None
+    assert functions.validate_function_contracts(document) is None

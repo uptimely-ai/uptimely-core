@@ -13,11 +13,12 @@ upstream queries. Configuration and saved-build checks are always enabled.
 The engine checks plan/backend compatibility during construction,
 independently of the run's `validate` flag.
 
-## Main frames and fragments
+## Materialized datasets and fragments
 
-Each profile has one `MainFrame`, which owns its accumulated physical
-`dataframe` and explicit `id_columns`. `Fragment.stage(...)` calls a compute
-invocation's loader, checks the raw result with `FragmentValidator` when
+The spec's `Profile` describes the analytical model. The engine's `Dataset` is
+only the accumulated physical dataframe materialized for that profile; it is not
+a spec declaration. Each runtime Dataset owns its `dataframe` and explicit `id_columns`.
+`Fragment.stage(...)` calls a compute invocation's loader, checks the raw result with `FragmentValidator` when
 `validate=True`, derives its carried keys, and projects declared outputs. The
 executor retains that fragment by compute invocation ID without changing the
 profile's accumulated dataframe.
@@ -28,35 +29,37 @@ merge function uses `merge_by_grain`; a custom merge replaces it and is never
 silently retried with the default. A merge function returns the complete new
 target dataframe. The executor checks its structure and declared columns, then
 publishes it by assignment; it does not merge the returned frame a second time.
-The fragment is retained on the `MainFrame` by operator ID only after successful
+The fragment is retained on the `Dataset` by operator ID only after successful
 publication, reusing the staged object rather than copying the dataframe.
 Staging and merging preserve lazy execution unless enabled validation needs to
 inspect values.
 
-`MainFrame(backend, id_columns, dataframe=None)` needs neither a profile declaration nor
+`Dataset(backend, id_columns, dataframe=None)` needs neither a profile declaration nor
 a Spec. The invocation executor translates profile grain keys into physical ID
 column names. Invocation-based result validation and output projection happen during
-fragment staging, before assembly; `MainFrame` does not interpret invocation metadata.
+fragment staging, before assembly; `Dataset` does not interpret invocation metadata.
 Argument binding uses `invocation.argument_types`; staging and validation use
 `invocation.id_columns`, `invocation.column_types`, and the invocation's function
 kind. The compiler resolves these values from declarations. Runtime execution
 does not receive profile objects or traverse the bundled Spec.
 
-`MainFrame.merge(fragment)` remains the direct physical assembly helper and
+`Dataset.merge(fragment)` remains the direct physical assembly helper and
 selects assembly by its keys:
 
 - Equal dimension sets: full join, retaining partial or disjoint key coverage.
 - A strict subset of dimensions: left join over the existing profile frame.
 - An empty strict subset: cross join to broadcast a global value.
 
-The first full-grain fragment initializes the main dataframe. A lower-grain
-fragment requires an existing main dataframe. Successful calls update the accumulator and return the fragment unchanged.
+The first full-grain fragment initializes the accumulated dataframe. A
+lower-grain fragment requires an existing Dataset. Successful calls update the
+accumulator and return the fragment unchanged.
 Validation failures leave the accumulated dataframe unchanged.
 
-`RuntimeState.main_frames` indexes accumulators by profile ID. Each main frame owns its `fragments` mapping. Fragment lookup searches these
-owners and rejects names ambiguous across profiles; profile IDs take precedence
+`RuntimeState.main_frames` maps profile IDs to materialized Datasets. Each
+Dataset owns its `fragments` mapping. Fragment lookup searches these datasets and
+rejects names ambiguous across profiles; profile IDs take precedence
 over fragment names.
-`RuntimeState.resolve_main_frame_or_fragment_dataframe(identifier)` explicitly
+`RuntimeState.resolve_dataset_or_fragment_dataframe(identifier)` explicitly
 resolves either reference kind to its underlying dataframe. Pending fragments
 are keyed by compute invocation ID and become operator-name references only
 after their merge succeeds.
@@ -68,13 +71,13 @@ checks declared types and key uniqueness before publishing. Regardless of the
 flag, merge output must be a dataframe with required dimensions and the complete
 expected target schema; overlapping feature columns are rejected.
 Publishing is transactional with respect to the executor's assignment: a failed
-merge leaves the previously published main frame unchanged. It cannot undo
+merge leaves the previously published Dataset unchanged. It cannot undo
 mutation performed by an arbitrary user function, so merge functions must not
 mutate their target input. User functions and `ExecutionResult.main_frames`
 continue to receive ordinary Polars dataframes or lazy frames, not these
 internal runtime wrappers.
 
-`MainFrame` and `Fragment` are available from `uptimely.engine`. They replace
+`Dataset` and `Fragment` are available from `uptimely.engine`. They replace
 the internal `DataFrameExecution` assembly helper.
 
 <div class="api-reference" markdown="1">
@@ -171,11 +174,11 @@ preview, not silently altered data.
 
 ## runtime frames
 
-::: uptimely.engine.dataframe.main_frame
+::: uptimely.engine.dataframe.dataset
     options:
       heading_level: 3
       show_root_heading: false
-      members: [MainFrame]
+      members: [Dataset]
 
 ::: uptimely.engine.dataframe.fragment
     options:
@@ -190,9 +193,9 @@ implementations.
 
 Backend methods operate only on dataframe values, column names, keys, and join
 cardinalities. Full, left, and cross joins are reusable operations. Backends do
-not know about profiles, main frames, fragments, or invocation contracts;
+not know about profiles, materialized Datasets, fragments, or invocation contracts;
 dimension-aware assembly is handled by the stateless Polars merge library.
-`MainFrame` delegates assembly to that library and owns accumulator state.
+`Dataset` delegates assembly to that library and owns accumulator state.
 
 ### Merge functions
 

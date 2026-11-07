@@ -26,7 +26,7 @@ def _bindings(
 def test_runtime_bindings_resolve_nested_runtime_values_and_dataframe_ids() -> None:
     dataset = pl.DataFrame({"asset_id": ["A"]})
     fragment = pl.DataFrame({"reading": [2]})
-    main = execution_support.main_frame(dataset)
+    main = execution_support.dataset(dataset)
     main.fragments["reading"] = fragment_module.Fragment(fragment, ())
     state = state_module.RuntimeState(main_frames={"telemetry": main})
     bindings = _bindings(

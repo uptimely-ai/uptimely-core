@@ -83,12 +83,12 @@ def test_project_build_examples(
 
     assert not result.err
     if debug:
-        assert "\n  Semantic checks:" in result.out
+        assert "\n  Reference checks:" in result.out
         assert "    - checking operator feature dependencies are acyclic" in result.out
         assert result.out.count("Compiler validation:") == 1
         assert (
             result.out.index("Document structure:")
-            < result.out.index("  Semantic checks:")
+            < result.out.index("  Reference checks:")
             < result.out.index("Compiler validation:")
         )
         assert "  Invocation graph:" in result.out

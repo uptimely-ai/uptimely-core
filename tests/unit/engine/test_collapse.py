@@ -364,8 +364,8 @@ def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> Non
     invocation = copy.replace(invocation, input_features=["maximum"])
     state = state_module.RuntimeState(
         main_frames={
-            "summary": execution_support.main_frame(pl.DataFrame({"group": ["A"], "maximum": [4]})),
-            "observations": execution_support.main_frame(
+            "summary": execution_support.dataset(pl.DataFrame({"group": ["A"], "maximum": [4]})),
+            "observations": execution_support.dataset(
                 pl.DataFrame({"group": ["A"], "id": [1], "value": [2], "doubled": [4]})
             ),
         }
@@ -587,7 +587,7 @@ def test_dimensionless_alignment_rejects_multiple_global_rows(lazy):
     if lazy:
         left, right = left.lazy(), right.lazy()
 
-    main = execution_support.main_frame(left)
+    main = execution_support.dataset(left)
     with pytest.raises(ValueError, match="at most one row"):
         execution_support.merge_fragment(main, fragment_module.Fragment(right, ()))
 

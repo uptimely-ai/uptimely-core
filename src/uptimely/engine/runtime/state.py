@@ -3,15 +3,15 @@
 import dataclasses
 
 from uptimely import plan as execution_plan
+from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import main_frame as main_frame_module
 
 
 @dataclasses.dataclass
 class RuntimeState:
-    """Main frames, retained fragments, and calculated outputs for one execution."""
+    """Materialized profile datasets, retained fragments, and outputs for one run."""
 
-    main_frames: dict[str, main_frame_module.MainFrame] = dataclasses.field(default_factory=dict)
+    main_frames: dict[str, dataset_module.Dataset] = dataclasses.field(default_factory=dict)
     staged_fragments: dict[str, fragment_module.Fragment] = dataclasses.field(default_factory=dict)
     calculated_outputs: dict[tuple[str, str], object] = dataclasses.field(default_factory=dict)
 
@@ -35,10 +35,10 @@ class RuntimeState:
         dependency_id = dependencies[0]
         return dependency_id, self.staged_fragments[dependency_id]
 
-    def resolve_main_frame_or_fragment_dataframe(self, identifier: str) -> object | None:
-        """Resolve a main-frame dataset ID or fragment mapping ID to its dataframe.
+    def resolve_dataset_or_fragment_dataframe(self, identifier: str) -> object | None:
+        """Resolve a materialized dataset ID or fragment mapping ID to its dataframe.
 
-        Main-frame IDs take precedence over fragment names.
+        Dataset IDs take precedence over fragment names.
 
         Args:
             identifier: Dataset ID or fragment mapping ID.
@@ -47,15 +47,15 @@ class RuntimeState:
             The underlying dataframe, or None when neither kind of reference exists.
 
         Raises:
-            ValueError: A fragment name matches multiple main frames.
+            ValueError: A fragment name matches multiple datasets.
         """
-        main_frame = self.main_frames.get(identifier)
-        if main_frame is not None:
-            return main_frame.dataframe
+        dataset = self.main_frames.get(identifier)
+        if dataset is not None:
+            return dataset.dataframe
         matches = [
-            main.fragments[identifier].dataframe
-            for main in self.main_frames.values()
-            if identifier in main.fragments
+            dataset.fragments[identifier].dataframe
+            for dataset in self.main_frames.values()
+            if identifier in dataset.fragments
         ]
         if len(matches) > 1:
             raise ValueError(f"Ambiguous fragment reference: {identifier}")

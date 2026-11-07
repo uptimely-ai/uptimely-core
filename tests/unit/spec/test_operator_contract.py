@@ -257,7 +257,7 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
 def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
     frame = read_values()
     state = state_module.RuntimeState(
-        main_frames={"observations": execution_support.main_frame(frame)}
+        main_frames={"observations": execution_support.dataset(frame)}
     )
     bindings = bindings_module.RuntimeBindings(state, {})
     assert bindings.resolve_value([None, 1]) == [None, 1]

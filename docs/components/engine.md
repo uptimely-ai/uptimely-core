@@ -177,7 +177,7 @@ explicitly declare and implement their ordering inputs.
 
 ## Fragment merging and row coverage
 
-The runtime represents each profile with a physical `MainFrame` holding
+The runtime materializes each profile as an engine-only physical `Dataset` holding
 its accumulated dataframe and ID column names, without profile declaration or
 Spec dependencies. `Fragment.stage()` loads a compute invocation's result,
 optionally validates it against the invocation's compiled contract, and
@@ -191,7 +191,7 @@ merge function delegates key-based assembly to the stateless
 `uptimely.library.merge.polars.merge_by_grain`; custom merge functions replace
 that behavior and are not retried with the default. The executor does not merge
 the returned dataframe a second time. After successful publication, it retains
-the staged fragment on the `MainFrame` under the operator ID without copying
+the staged fragment on the `Dataset` under the operator ID without copying
 the dataframe. Merge functions must not mutate their target input because
 arbitrary function-side mutations cannot be rolled back. The same limitation
 applies to any user function that mutates input state: assigning a result only
@@ -256,11 +256,11 @@ declared output columns before projection; validation additionally checks
 optional type, uniqueness, and preservation contracts.
 `ColumnsValidator` always checks the vectorize result type and complete
 schema, and checks existing values and row order when validation is enabled.
-`MainFrameValidator` checks the accumulated dataframe's structure and declared
+`DatasetValidator` checks the accumulated dataframe's structure and declared
 types of columns already present. Merge-result structural checks and feature
 collision checks are mandatory even when runtime validation is disabled;
 declared type and key uniqueness checks are enabled by `--validate`.
-`MainFrame.merge()` independently guards direct physical assembly calls.
+`Dataset.merge()` independently guards direct physical assembly calls.
 
 Validation functions emit debug messages when checking a contract or skipping
 an inapplicable check. Enable `DEBUG` logging for the `uptimely.engine` logger

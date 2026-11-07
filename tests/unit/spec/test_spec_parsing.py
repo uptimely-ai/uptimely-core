@@ -24,7 +24,7 @@ def test_loading_can_suppress_structure_debug_without_disabling_checks(
     spec.load_spec(path, log_structure=False)
 
     assert not any("Document structure:" in message for message in caplog.messages)
-    assert "  Semantic checks:" in caplog.messages
+    assert "  Reference checks:" in caplog.messages
     caplog.clear()
     path.write_text('{"spec_version": true}', encoding="utf-8")
     with pytest.raises(ValueError, match="spec_version must be an integer"):
@@ -49,15 +49,20 @@ def test_document_structure_checks_emit_debug_bullets(caplog: pytest.LogCaptureF
     assert all(record.levelno == logging.DEBUG for record in caplog.records)
 
 
-def test_loading_logs_one_spec_validation_heading(caplog: pytest.LogCaptureFixture) -> None:
+def test_loading_logs_one_document_and_each_validation_group(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     caplog.set_level(logging.DEBUG, logger="uptimely.spec")
 
     spec.load_spec(SPEC_PATH)
 
     assert caplog.messages.count("\nSpec validation:\n  Document structure:") == 1
-    assert caplog.messages.count("  Semantic checks:") == 1
+    assert caplog.messages.count("  Reference checks:") == 1
+    assert caplog.messages.count("  Declaration checks:") == 1
+    assert caplog.messages.count("  Graph checks:") == 1
+    assert caplog.messages.count("  Warnings:") == 1
     assert sum(message.count("Spec validation:") for message in caplog.messages) == 1
-    assert caplog.messages.index("  Semantic checks:") > caplog.messages.index(
+    assert caplog.messages.index("  Reference checks:") > caplog.messages.index(
         "\nSpec validation:\n  Document structure:"
     )
 

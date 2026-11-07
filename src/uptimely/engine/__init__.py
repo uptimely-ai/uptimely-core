@@ -2,8 +2,8 @@
 
 from .config import Config, EngineBackendConfig, EngineConfig, ParameterConfig, Params
 from .dataframe.backend import DataFrameBackend, PolarsBackend
+from .dataframe.dataset import Dataset
 from .dataframe.fragment import Fragment
-from .dataframe.main_frame import MainFrame
 from .engine import Engine
 from .runtime.result import ExecutionResult
 
@@ -17,6 +17,6 @@ __all__ = [
     "ExecutionResult",
     "DataFrameBackend",
     "PolarsBackend",
-    "MainFrame",
+    "Dataset",
     "Fragment",
 ]
