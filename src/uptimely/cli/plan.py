@@ -2,7 +2,7 @@
 
 import logging
 
-from uptimely import execution_plan
+from uptimely import plan as execution_plan
 
 logger = logging.getLogger(__name__)
 

@@ -7,7 +7,7 @@ from collections import abc
 
 import pytest
 
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import assembly, bind, binding_conversion, conversion, profile, ref
 

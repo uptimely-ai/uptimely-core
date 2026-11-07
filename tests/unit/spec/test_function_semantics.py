@@ -5,7 +5,7 @@ import typing
 
 import pytest
 
-from uptimely.spec import functions as function_kinds
+from uptimely.spec import function_kinds
 from uptimely.spec import python as authoring
 from uptimely.spec.python import functions, ref
 

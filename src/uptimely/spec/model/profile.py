@@ -7,8 +7,9 @@ import typing
 
 import pydantic
 
-from uptimely import row_context as uptimely_row_context
-from uptimely.spec import functions, selectors
+from uptimely.spec import function_kinds as functions
+from uptimely.spec import row_context as uptimely_row_context
+from uptimely.spec import selectors
 
 from . import base, binding, binding_argument, merge
 

@@ -9,7 +9,7 @@ import pytest
 
 from uptimely import entrypoint
 from uptimely.compiler import validation
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 

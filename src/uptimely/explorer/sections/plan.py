@@ -5,10 +5,11 @@ from __future__ import annotations
 import dataclasses
 import typing
 
-from uptimely import execution_plan, spec
+from uptimely import plan as execution_plan
+from uptimely import spec
 from uptimely.explorer import common
 from uptimely.explorer import graph_style as graph_style_module
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 
 from . import invocation_lineage
 

@@ -3,29 +3,41 @@
 import logging
 
 import pytest
+from support import execution as execution_support
 
-from uptimely import execution_plan
-from uptimely.engine import validation
-from uptimely.engine.dataframe import backend
+from uptimely import plan as execution_plan
 
 
-def test_engine_validator_accepts_matching_backend(caplog: pytest.LogCaptureFixture) -> None:
-    caplog.set_level(logging.DEBUG, logger=validation.__name__)
-    plan = execution_plan.ExecutionPlan(execution_plan.PLAN_VERSION, "polars", {}, [], [])
-    polars_backend = backend.PolarsBackend()
-    validator = validation.EngineValidator(plan, polars_backend)
+def test_engine_checks_matching_backend(
+    caplog: pytest.LogCaptureFixture, engine_for_plan: execution_support.EngineFactory
+) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely.engine.engine")
+    plan = execution_plan.ExecutionPlan(
+        plan_version=execution_plan.PLAN_VERSION,
+        required_backend="polars",
+        resources={},
+        invocations=[],
+        stages=[],
+    )
+    engine = engine_for_plan(plan)
 
-    assert validator.plan is plan
-    assert validator.backend is polars_backend
-    validator.validate()
+    assert engine.plan == plan
+    assert engine.backend.name == "polars"
     assert caplog.messages == [
         "Checking plan backend compatibility: required=polars, configured=polars"
     ]
 
 
-def test_engine_validator_rejects_mismatched_backend() -> None:
-    plan = execution_plan.ExecutionPlan(execution_plan.PLAN_VERSION, "pandas", {}, [], [])
-    validator = validation.EngineValidator(plan, backend.PolarsBackend())
+def test_engine_rejects_mismatched_backend(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    plan = execution_plan.ExecutionPlan(
+        plan_version=execution_plan.PLAN_VERSION,
+        required_backend="pandas",
+        resources={},
+        invocations=[],
+        stages=[],
+    )
 
     with pytest.raises(ValueError, match=r"Unsupported plan backend: pandas\. Expected polars\."):
-        validator.validate()
+        engine_for_plan(plan)

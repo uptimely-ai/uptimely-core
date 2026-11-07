@@ -7,6 +7,7 @@ from unittest import mock
 import pytest
 
 from uptimely import entrypoint, spec
+from uptimely import plan as execution_plan
 from uptimely.compiler import compiler, validation
 from uptimely.compiler import graph as invocation_graph
 from uptimely.spec import model as spec_model
@@ -52,22 +53,35 @@ def test_compilation_passes_explicit_arguments_in_fail_fast_order(
     monkeypatch.setattr(compiler.spec_validation, "validate_spec", operations["spec"])
     monkeypatch.setattr(invocation_graph, "InvocationGraph", operations["graph"])
 
-    def entrypoints(builder: compiler.Compiler) -> dict[str, object]:
+    def entrypoints(builder: compiler._Compilation) -> dict[str, object]:
         return operations["entrypoints"](
             [invocation.entrypoint for invocation in builder.invocations]
         )
 
-    def packages(builder: compiler.Compiler) -> dict[str, object]:
+    def packages(builder: compiler._Compilation) -> dict[str, object]:
         return operations["packages"](builder.entrypoints)
 
-    def signatures(builder: compiler.Compiler) -> dict[str, object]:
+    def signatures(builder: compiler._Compilation) -> dict[str, object]:
         _ = builder.packages
         return operations["signatures"](builder.spec_definition, builder.graph, builder.entrypoints)
 
     for reader in (entrypoints, packages, signatures):
         descriptor = functools.cached_property(reader)
-        descriptor.__set_name__(compiler.Compiler, reader.__name__)
-        monkeypatch.setattr(compiler.Compiler, reader.__name__, descriptor)
+        descriptor.__set_name__(compiler._Compilation, reader.__name__)
+        monkeypatch.setattr(compiler._Compilation, reader.__name__, descriptor)
+
+    compilations: list[compiler._Compilation] = []
+    original_init = compiler._Compilation.__init__
+
+    def initialize(
+        compilation: compiler._Compilation,
+        spec_definition: spec.Spec,
+        features: list[str] | None = None,
+    ) -> None:
+        original_init(compilation, spec_definition, features)
+        compilations.append(compilation)
+
+    monkeypatch.setattr(compiler._Compilation, "__init__", initialize)
 
     builder = compiler.Compiler()
     features = ["result", "result"]
@@ -79,7 +93,9 @@ def test_compilation_passes_explicit_arguments_in_fail_fast_order(
     else:
         with pytest.raises(ValueError, match="invalid compilation"):
             builder.compile(specification, features=features)
-    assert builder.features is features
+    assert builder.__dict__ == {}
+    if failure != "spec":
+        assert compilations[0].features is features
 
     expected = [
         mock.call.spec(specification),
@@ -94,19 +110,25 @@ def test_compilation_passes_explicit_arguments_in_fail_fast_order(
         expected = expected[: list(operations).index(failure) + 1]
     assert calls.mock_calls == expected
     if failure is None:
-        assert builder.resources is plan.resources
-        assert builder.invocations is plan.invocations
-        assert builder.stages is plan.stages
-        assert builder.signature_resources is plan.resources["signatures"]
-        assert builder.entrypoint_packages is plan.resources["entrypoint_packages"]
+        compilation = compilations[0]
+        assert compilation.resources == plan.resources
+        assert compilation.invocations == plan.invocations
+        assert compilation.stages == plan.stages
+        assert compilation.signature_resources == plan.resources["signatures"]
+        assert compilation.entrypoint_packages is plan.resources["entrypoint_packages"]
         assert calls.mock_calls == expected
     else:
         operations[failure].side_effect = None
     calls.reset_mock()
     replacement = spec.Spec(name="second")
     builder.compile(replacement, features=["different"])
-    assert builder.signature_resources is builder.resources["signatures"]
-    assert builder.entrypoint_packages is builder.resources["entrypoint_packages"]
+    latest = compilations[-1]
+    assert latest.spec_definition is replacement
+    assert latest.signature_resources is latest.resources["signatures"]
+    assert latest.entrypoint_packages is latest.resources["entrypoint_packages"]
+    if len(compilations) == 2:
+        assert latest is not compilations[0]
+        assert compilations[0].spec_definition is specification
     assert calls.mock_calls == [
         mock.call.spec(replacement),
         mock.call.graph(replacement),
@@ -118,17 +140,19 @@ def test_compilation_passes_explicit_arguments_in_fail_fast_order(
     ]
 
 
-def test_compiler_build_properties_require_a_specification() -> None:
-    with pytest.raises(RuntimeError, match="Call compile"):
-        _ = compiler.Compiler().graph
+def test_compiler_has_no_active_build_properties() -> None:
+    builder = compiler.Compiler()
+    assert builder.__dict__ == {}
+    assert not hasattr(builder, "graph")
+    assert not hasattr(builder, "spec_definition")
 
 
 @pytest.mark.parametrize("features", [None, [], (), set()])
-def test_compiler_retains_feature_collection(
+def test_compilation_retains_feature_collection(
     features: list[str] | tuple[str, ...] | set[str] | None,
 ) -> None:
-    builder = compiler.Compiler()
-    builder.compile(spec.Spec(), features=features)
+    builder = compiler._Compilation(spec.Spec(), features=features)
+    builder.build_plan()
     assert builder.features is features
 
 
@@ -139,16 +163,46 @@ def test_compiler_rejects_string_features_and_recovers() -> None:
 
     with pytest.raises(ValueError, match="features must be a collection"):
         builder.compile(specification, features="result")
-    with pytest.raises(RuntimeError, match="Call compile"):
-        _ = builder.graph
+    assert builder.__dict__ == {}
 
     replacement_plan = builder.compile(specification, features=[])
     assert replacement_plan == original_plan
     assert replacement_plan.resources is not original_plan.resources
-    assert builder.features == []
+    assert builder.__dict__ == {}
 
 
-def test_signatures_reuse_function_contracts_and_reset_on_compile(
+def test_nested_compilations_on_one_compiler_do_not_share_build_state(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    builder = compiler.Compiler()
+    outer_spec = spec.Spec(name="outer")
+    inner_spec = spec.Spec(name="inner")
+    original_build = compiler._Compilation.build_plan
+    builds: list[compiler._Compilation] = []
+
+    def build(compilation: compiler._Compilation) -> execution_plan.ExecutionPlan:
+        builds.append(compilation)
+        if compilation.spec_definition is outer_spec:
+            outer_graph = compilation.graph
+            inner_plan = builder.compile(inner_spec, features=[])
+            assert inner_plan.invocations == []
+            assert compilation.graph is outer_graph
+            assert compilation.spec_definition is outer_spec
+            assert compilation.features is None
+        return original_build(compilation)
+
+    monkeypatch.setattr(compiler._Compilation, "build_plan", build)
+    outer_plan = builder.compile(outer_spec)
+
+    assert outer_plan.invocations == []
+    assert len(builds) == 2
+    assert builds[0] is not builds[1]
+    assert builds[0].graph is not builds[1].graph
+    assert builds[0].resources is not builds[1].resources
+    assert builder.__dict__ == {}
+
+
+def test_signatures_reuse_function_contracts_only_within_one_compilation(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -179,8 +233,7 @@ def test_signatures_reuse_function_contracts_and_reset_on_compile(
     implementation.function.signature = signature
     validate = mock.Mock()
     monkeypatch.setattr(validation, "validation_callable_signature", validate)
-    builder = compiler.Compiler()
-    builder._spec_definition = specification
+    builder = compiler._Compilation(specification)
     builder.__dict__.update(
         graph=mock.Mock(invocations=nodes),
         entrypoints={function.entrypoint: implementation},
@@ -202,9 +255,9 @@ def test_signatures_reuse_function_contracts_and_reset_on_compile(
         "    - skipping 1 functions (validate_signature=false)",
     ]
 
-    builder.compile(spec.Spec())
-    assert builder.function_signatures == {}
-    assert builder.signatures == {}
+    replacement = compiler._Compilation(spec.Spec())
+    assert replacement.function_signatures == {}
+    assert replacement.signatures == {}
 
 
 @pytest.mark.parametrize("features", [None, [], ["missing"], "result"])

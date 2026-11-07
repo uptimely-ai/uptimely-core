@@ -121,10 +121,47 @@ def test_interface_rejects_duplicate_outputs_at_construction() -> None:
 
 
 def test_interface_rejects_non_feature_input_references() -> None:
-    interface = assembly.Interface(inputs=[ref.data()])
-    compute = assembly.Binding(function="unavailable_assembly_test_package:calculate").to_model()
     with pytest.raises(ValueError, match="Operator input must reference a feature"):
+        assembly.Interface(inputs=[ref.data()])
+
+
+@pytest.mark.parametrize(
+    ("inputs", "message"),
+    [
+        ([ref.feature("source"), "$features.source"], "input feature IDs must not repeat"),
+        (["$features.source.value"], "Invalid operator feature ID"),
+        (["@"], "Invalid operator feature ID"),
+        ([object()], "Operator inputs must be Feature objects"),
+    ],
+)
+def test_interface_validates_inputs_at_construction(inputs: list[object], message: str) -> None:
+    with pytest.raises((TypeError, ValueError), match=message):
+        assembly.Interface(inputs=inputs)
+
+
+def test_interface_validates_mutated_inputs_again_when_converted() -> None:
+    inputs = ["source"]
+    interface = assembly.Interface(inputs=inputs)
+    interface.inputs.append("$features.source")
+    compute = assembly.Binding(function="unavailable_assembly_test_package:calculate").to_model()
+
+    with pytest.raises(ValueError, match="input feature IDs must not repeat"):
         interface.to_model(compute=compute)
+
+
+@pytest.mark.parametrize(
+    ("outputs", "error", "message"),
+    [
+        ("result", TypeError, "outputs must be a sequence"),
+        ([object()], TypeError, "outputs must contain Features"),
+        ([feature.Feature(id="value.name")], ValueError, "Invalid operator feature ID"),
+    ],
+)
+def test_interface_validates_outputs_at_construction(
+    outputs: object, error: type[Exception], message: str
+) -> None:
+    with pytest.raises(error, match=message):
+        assembly.Interface(outputs=outputs)
 
 
 def test_operator_combines_binding_contracts_but_only_compute_row_context() -> None:

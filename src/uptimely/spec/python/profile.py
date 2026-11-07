@@ -6,9 +6,9 @@ import dataclasses
 import typing
 from collections import abc
 
-from uptimely.spec import catalog as function_catalog
-from uptimely.spec import functions, selectors
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
+from uptimely.spec import selectors
 from uptimely.spec.model import base as model_base
 
 from . import assembly, references
@@ -302,7 +302,7 @@ class Profile:
         for name, declaration in self._assembly_by_id.items():
             self._operator_model(name, declaration)
             catalogs.append(declaration.function_catalog())
-        return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))
+        return spec_model.FunctionCatalog.merge(catalogs)
 
 
 class ProfileRegistry:

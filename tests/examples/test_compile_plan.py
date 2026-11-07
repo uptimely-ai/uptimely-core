@@ -6,7 +6,8 @@ import sys
 import pytest
 from support import examples as example_support
 
-from uptimely import execution_plan, project
+from uptimely import plan as execution_plan
+from uptimely import project
 from uptimely.cli import cli
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]

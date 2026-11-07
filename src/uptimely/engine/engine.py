@@ -4,12 +4,11 @@ import logging
 import time
 from collections import abc
 
-from uptimely import project_paths
+from uptimely.project import paths as project_paths
 from uptimely.project.build import models as build_models
 from uptimely.run import recording
 
 from . import config as config_module
-from . import validation as validation_module
 from .dataframe import backend as backend_module
 from .runtime import execution as execution_module
 from .runtime import result as result_module
@@ -43,7 +42,7 @@ class Engine:
             configured_parameters = config_module.Params.model_validate(dict(parameters)).root
         self.parameters = configured_parameters
         self.backend = backend_module.create_backend(self.config.backend)
-        self._validate_engine()
+        self.check_plan_backend()
 
     @staticmethod
     def _load_parameters(
@@ -61,9 +60,22 @@ class Engine:
         configuration = config_module.Config.model_validate_json(path.read_text(encoding="utf-8"))
         return configuration.params.root
 
-    def _validate_engine(self) -> None:
-        """Validate that this engine can execute the plan."""
-        validation_module.EngineValidator(self.plan, self.backend).validate()
+    def check_plan_backend(self) -> None:
+        """Require the configured backend to support the saved plan.
+
+        Raises:
+            ValueError: The plan requires a different dataframe backend.
+        """
+        logger.debug(
+            "Checking plan backend compatibility: required=%s, configured=%s",
+            self.plan.required_backend,
+            self.backend.name,
+        )
+        if self.plan.required_backend != self.backend.name:
+            raise ValueError(
+                f"Unsupported plan backend: {self.plan.required_backend}. "
+                f"Expected {self.backend.name}."
+            )
 
     def run(
         self, *, validate: bool = False, preview_rows: int = config_module.DEFAULT_PREVIEW_ROWS

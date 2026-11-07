@@ -6,7 +6,6 @@ import logging
 import typing
 from collections import abc
 
-from .. import catalog
 from .. import model as spec_model
 from ..json import codec
 from . import profile as profile_module
@@ -92,12 +91,10 @@ def to_model(
         )
 
     if functions is None:
-        functions = spec_model.FunctionCatalog(
-            root=catalog.merge_function_catalogs(
-                declaration.function_catalog()
-                for declaration in declarations
-                if isinstance(declaration, profile_module.Profile)
-            )
+        functions = spec_model.FunctionCatalog.merge(
+            declaration.function_catalog()
+            for declaration in declarations
+            if isinstance(declaration, profile_module.Profile)
         )
     elif not isinstance(functions, (spec_model.FunctionCatalog, dict)):
         raise TypeError("functions must be a FunctionCatalog or dictionary")

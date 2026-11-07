@@ -12,9 +12,8 @@ from importlib import util
 import docstring_parser
 
 from uptimely import entrypoint as entrypoint_module
-from uptimely.spec import functions as function_kinds
+from uptimely.spec import function_kinds, selectors
 from uptimely.spec import model as spec_model
-from uptimely.spec import selectors
 
 __all__ = [
     "ExplorerContext",

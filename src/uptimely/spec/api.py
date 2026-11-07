@@ -4,8 +4,7 @@ from __future__ import annotations
 
 import pathlib
 
-from . import model, validation
-from .json import codec
+from . import model, serialization, validation
 from .python import conversion
 
 
@@ -27,7 +26,7 @@ def load_spec(
         ValueError: The document or its spec declarations are invalid.
     """
     document = model.Spec.model_validate(
-        codec.load_document(path), context={"log_structure": log_structure}
+        serialization.load_document(path), context={"log_structure": log_structure}
     )
     if validate:
         validation.validate_spec(document)

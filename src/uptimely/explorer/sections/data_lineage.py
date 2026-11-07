@@ -5,8 +5,9 @@ from __future__ import annotations
 import dataclasses
 import itertools
 
-from uptimely import execution_plan, spec
-from uptimely.spec import functions
+from uptimely import plan as execution_plan
+from uptimely import spec
+from uptimely.spec import function_kinds as functions
 from uptimely.spec.model import base as model_base
 
 UNASSIGNED_DATASET_LABEL = "Unassigned"

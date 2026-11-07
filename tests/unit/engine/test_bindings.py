@@ -1,10 +1,10 @@
-import dataclasses
+import copy
 
 import polars as pl
 import pytest
 from support import execution as execution_support
 
-from uptimely import execution_plan as plan_module
+from uptimely import plan as plan_module
 from uptimely.engine import config as config_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import bindings as bindings_module
@@ -80,7 +80,7 @@ def test_runtime_bindings_reject_unavailable_dataframe_reference() -> None:
 
 def test_runtime_bindings_resolve_staged_fragment_argument() -> None:
     staged = pl.DataFrame({"asset_id": ["A"], "reading": [2]})
-    invocation = dataclasses.replace(
+    invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"fragment": "$operators.@.fragment"},
         argument_types={"fragment": "dataframe"},
@@ -90,7 +90,7 @@ def test_runtime_bindings_resolve_staged_fragment_argument() -> None:
 
 
 def test_runtime_bindings_reject_staged_fragment_without_merge_context() -> None:
-    invocation = dataclasses.replace(
+    invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"fragment": "$operators.@.fragment"},
         argument_types={"fragment": "dataframe"},
@@ -101,7 +101,7 @@ def test_runtime_bindings_reject_staged_fragment_without_merge_context() -> None
 
 
 def test_runtime_bindings_reject_staged_fragment_with_incompatible_type() -> None:
-    invocation = dataclasses.replace(
+    invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"fragment": "$operators.@.fragment"},
         argument_types={"fragment": "string"},
@@ -129,7 +129,7 @@ def test_parameter_config_accepts_only_flat_scalar_values() -> None:
 
 
 def test_runtime_bindings_resolve_nested_parameter_references() -> None:
-    read_invocation = dataclasses.replace(
+    read_invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"source": ["$params.source"]},
         argument_types={"source": "array[string]"},
@@ -142,7 +142,7 @@ def test_runtime_bindings_resolve_nested_parameter_references() -> None:
 
 
 def test_runtime_bindings_use_invocation_types_independently_of_function_kind() -> None:
-    read_invocation = dataclasses.replace(PLAN.invocations[0], function_kind="write")
+    read_invocation = copy.replace(PLAN.invocations[0], function_kind="write")
     bindings = _bindings()
 
     bindings = _bindings(parameters={"source": "input.json"})

@@ -25,7 +25,7 @@ from .spec.python import (
     ref,
 )
 from .compiler import Compiler, InvocationGraph, InvocationNode
-from .execution_plan.models import ExecutionPlan
+from .plan.models import ExecutionPlan
 from .engine import Engine
 
 __all__ = [

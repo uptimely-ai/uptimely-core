@@ -1,7 +1,8 @@
 import uptimely
 import uptimely.compiler as compiler
 import uptimely.engine as engine
-import uptimely.execution_plan as execution_plan
+import uptimely.execution_plan as legacy_execution_plan
+import uptimely.plan as execution_plan
 import uptimely.spec as spec
 from uptimely.compiler.compiler import Compiler as CompilerImplementation
 from uptimely.compiler.graph import (
@@ -12,8 +13,8 @@ from uptimely.compiler.graph import (
 )
 from uptimely.engine.config import Config, EngineConfig, ParameterConfig, Params
 from uptimely.engine.engine import Engine as EngineImplementation
-from uptimely.execution_plan.models import ExecutionPlan, Invocation
 from uptimely.explorer import graph_style
+from uptimely.plan.models import ExecutionPlan, Invocation
 from uptimely.spec import feature_graph
 from uptimely.spec import model as spec_model
 from uptimely.spec import python as python_spec
@@ -64,6 +65,8 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert uptimely.Compiler is compiler.Compiler is CompilerImplementation
     assert uptimely.ExecutionPlan is execution_plan.ExecutionPlan is ExecutionPlan
     assert execution_plan.Invocation is Invocation
+    assert legacy_execution_plan.ExecutionPlan is execution_plan.ExecutionPlan
+    assert legacy_execution_plan.Invocation is execution_plan.Invocation
     assert uptimely.Engine is engine.Engine is EngineImplementation
     assert engine.EngineConfig is EngineConfig
     assert engine.ParameterConfig is ParameterConfig

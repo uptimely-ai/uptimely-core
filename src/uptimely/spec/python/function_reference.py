@@ -7,7 +7,7 @@ import inspect
 from collections import abc
 
 from uptimely import entrypoint as entrypoint_module
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 
 from . import functions as function_semantics
 

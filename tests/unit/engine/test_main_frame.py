@@ -1,11 +1,11 @@
-import dataclasses
+import copy
 import logging
 
 import polars as pl
 import pytest
 from support import execution as execution_support
 
-from uptimely import execution_plan
+from uptimely import plan as execution_plan
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import main_frame as main_frame_module
@@ -13,7 +13,7 @@ from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.library.merge import polars as merge_module
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -208,7 +208,7 @@ def test_fragment_stage_rejects_non_dataframe_invocations_without_loading(
     kind: functions.FunctionKindId,
 ) -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
-    invocation = dataclasses.replace(plan.invocations[0], function_kind=kind)
+    invocation = copy.replace(plan.invocations[0], function_kind=kind)
 
     def load() -> object:
         pytest.fail("A non-dataframe invocation must not be loaded during staging")
@@ -320,7 +320,7 @@ def test_runtime_bindings_unwrap_main_frame_and_fragment() -> None:
 
 def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
-    invocation = dataclasses.replace(
+    invocation = copy.replace(
         plan.invocations[0],
         function_kind="expand",
         output_features=["new"],

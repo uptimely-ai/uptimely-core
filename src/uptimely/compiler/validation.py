@@ -10,7 +10,8 @@ import types
 import typing
 
 from uptimely import entrypoint
-from uptimely.spec import arg_types, functions
+from uptimely.spec import arg_types
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 

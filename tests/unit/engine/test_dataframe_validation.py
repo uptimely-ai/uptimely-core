@@ -6,10 +6,10 @@ import logging
 import polars as pl
 import pytest
 
-from uptimely import execution_plan
+from uptimely import plan as execution_plan
 from uptimely.engine.dataframe import backend
 from uptimely.engine.dataframe import validation as dataframe_validation
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 
 
 def _invocation(kind: functions.FunctionKindId = "read") -> execution_plan.Invocation:

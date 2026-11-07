@@ -7,7 +7,8 @@ import tempfile
 import pytest
 from support import examples, execution
 
-from uptimely import engine, execution_plan, project, spec
+from uptimely import engine, project, spec
+from uptimely import plan as execution_plan
 
 
 @pytest.fixture(scope="session")

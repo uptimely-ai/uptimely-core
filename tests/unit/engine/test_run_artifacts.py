@@ -1,7 +1,7 @@
 """Persistence contracts for complete, failed, and replaced engine runs."""
 
 import concurrent.futures
-import dataclasses
+import copy
 import datetime
 import decimal
 import json
@@ -13,7 +13,8 @@ import polars as pl
 import pytest
 from support import execution as execution_support
 
-from uptimely import engine, execution_plan, project_paths
+from uptimely import engine, project_paths
+from uptimely import plan as execution_plan
 from uptimely.run import models, store
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures/plans/simple_engine.json"
@@ -108,7 +109,7 @@ def test_invocation_failure_persists_partial_results(
         item.id for item in runtime.plan.invocations if item.function_kind == "vectorize"
     )
     skipped_id = next(item.id for item in runtime.plan.invocations if item.function_kind == "write")
-    result = dataclasses.replace(
+    result = copy.replace(
         _result(pl.DataFrame({"reading": [1]})),
         invocation_statuses={
             read_id: "succeeded",
@@ -288,9 +289,9 @@ def test_build_fingerprint_uses_loaded_objects_not_current_files(runtime: engine
     identity = models.BuildIdentity.from_bundle(runtime.bundle)
     runtime.bundle.spec_path.write_text("changed after loading", encoding="utf-8")
     assert models.BuildIdentity.from_bundle(runtime.bundle) == identity
-    other = dataclasses.replace(
+    other = copy.replace(
         runtime.bundle,
-        execution_plan=dataclasses.replace(runtime.plan, invocations=[], stages=[]),
+        execution_plan=copy.replace(runtime.plan, invocations=[], stages=[]),
     )
     assert models.BuildIdentity.from_bundle(other).fingerprint != identity.fingerprint
 
@@ -299,7 +300,7 @@ def test_preview_paths_and_symlinks_cannot_escape_snapshot(
     runtime: engine.Engine, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
 ) -> None:
     unsafe_id = "../outside"
-    result = dataclasses.replace(_result(), main_frames={unsafe_id: pl.DataFrame({"x": [1]})})
+    result = copy.replace(_result(), main_frames={unsafe_id: pl.DataFrame({"x": [1]})})
     monkeypatch.setattr(runtime, "_execute", lambda **kwargs: result)
     runtime.run()
     saved = store.RunStore(runtime.bundle.project_root)

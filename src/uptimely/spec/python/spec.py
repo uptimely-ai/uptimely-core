@@ -7,7 +7,6 @@ import functools
 import typing
 from collections import abc
 
-from uptimely.spec import catalog as function_catalog
 from uptimely.spec import model as spec_model
 
 from . import conversion
@@ -62,10 +61,9 @@ class Spec:
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Collect and merge the function catalog across all profiles."""
-        functions = function_catalog.merge_function_catalogs(
+        return spec_model.FunctionCatalog.merge(
             (profile.function_catalog() for profile in self.profiles),
         )
-        return spec_model.FunctionCatalog(root=functions)
 
     def to_model(self) -> spec_model.Spec:
         """Return the spec document model without resolving entrypoints."""

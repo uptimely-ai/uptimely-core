@@ -19,9 +19,10 @@ import fastmcp
 import polars as pl
 
 from uptimely import engine as uptimely_engine
-from uptimely import entrypoint, project_paths, spec
+from uptimely import entrypoint, spec
 from uptimely.project import build as project_build
-from uptimely.spec import functions
+from uptimely.project import paths as project_paths
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 
 logger = logging.getLogger(__name__)

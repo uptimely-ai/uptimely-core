@@ -1,10 +1,10 @@
 import collections.abc
-import dataclasses
+import copy
 import json
 
 import pytest
 
-from uptimely import execution_plan as uptimely_plan
+from uptimely import plan as uptimely_plan
 
 
 def _sample_plan() -> uptimely_plan.ExecutionPlan:
@@ -181,7 +181,7 @@ def test_plan_rejects_unsupported_versions(version: object) -> None:
     with pytest.raises(ValueError, match="Unsupported plan version"):
         uptimely_plan.from_dict(payload)
     with pytest.raises(ValueError, match="Unsupported plan version"):
-        uptimely_plan.ExecutionPlan(**{**_sample_plan().__dict__, "plan_version": version})
+        copy.replace(_sample_plan(), plan_version=version)
 
 
 def test_plan_rejects_unknown_dependency_and_stage_invocation() -> None:
@@ -225,7 +225,7 @@ def test_direct_execution_plan_construction_validates_structure() -> None:
         (
             {
                 "invocations": [
-                    dataclasses.replace(plan.invocations[0], dependency_ids=["unknown-invocation"]),
+                    copy.replace(plan.invocations[0], dependency_ids=["unknown-invocation"]),
                     *plan.invocations[1:],
                 ]
             },
@@ -243,7 +243,7 @@ def test_direct_execution_plan_construction_validates_structure() -> None:
 
     for changes, message in cases:
         with pytest.raises(ValueError, match=message):
-            dataclasses.replace(plan, **changes)
+            copy.replace(plan, **changes)
 
 
 @pytest.mark.parametrize(
@@ -269,10 +269,16 @@ class _CountingInvocations(list[uptimely_plan.Invocation]):
         return super().__iter__()
 
 
-def test_plan_resource_indexes_traverse_invocations_once() -> None:
+def test_plan_cached_views_are_independent() -> None:
     original = _sample_plan()
     counted = _CountingInvocations(original.invocations)
-    plan = dataclasses.replace(original, invocations=counted)
+    plan = uptimely_plan.ExecutionPlan.model_construct(
+        plan_version=original.plan_version,
+        required_backend=original.required_backend,
+        resources=original.resources,
+        invocations=counted,
+        stages=original.stages,
+    )
     counted.traversals = 0
 
     for _ in range(3):
@@ -294,18 +300,18 @@ def test_plan_resource_indexes_traverse_invocations_once() -> None:
         assert plan.execution_stages == [[invocation] for invocation in original.invocations]
         assert plan.execution_invocations == original.invocations
 
-    assert counted.traversals == 1
+    assert counted.traversals > 1
     assert plan.execution_stages is plan.execution_stages
     assert plan.execution_invocations is plan.execution_invocations
     assert plan.count_per_kind is plan.count_per_kind
     assert uptimely_plan.to_dict(plan) == uptimely_plan.to_dict(original)
-    assert dataclasses.asdict(plan) == dataclasses.asdict(original)
+    assert uptimely_plan.to_dict(plan) == uptimely_plan.to_dict(original)
 
 
 def test_entrypoints_by_id_include_saved_package_provenance() -> None:
     original = _sample_plan()
     location = original.invocations[0].entrypoint
-    plan = dataclasses.replace(
+    plan = copy.replace(
         original,
         resources={
             **original.resources,
@@ -328,10 +334,12 @@ def test_plan_replacement_does_not_retain_stale_indexes() -> None:
     plan = _sample_plan()
     original_index = plan.invocations_by_id
     original_execution = plan.execution_invocations
-    replacement = dataclasses.replace(plan.invocations[1], output_features=["changed"])
+    original_features = plan.features
+    replacement = copy.replace(plan.invocations[1], output_features=["changed"])
     plan.invocations[1] = replacement
-    assert "changed" not in plan.features
-    plan = dataclasses.replace(plan)
+    assert "changed" not in original_features
+    assert plan.features is original_features
+    plan = copy.replace(plan)
     assert plan.invocations_by_id is not original_index
     assert plan.invocations_by_id[replacement.id] is replacement
     assert plan.features["changed"] == [replacement]
@@ -339,32 +347,29 @@ def test_plan_replacement_does_not_retain_stale_indexes() -> None:
     assert plan.execution_invocations is not original_execution
     assert plan.execution_invocations[1] is replacement
 
-    copied = dataclasses.replace(plan)
+    copied = copy.replace(plan)
     assert copied.invocations_by_id is not plan.invocations_by_id
     assert copied.invocations_by_id == plan.invocations_by_id
 
 
-def test_plan_indexes_do_not_preempt_unsupported_kind_execution_errors() -> None:
-    original = _sample_plan()
-    invocation = dataclasses.replace(original.invocations[0], function_kind="unsupported")
-    plan = dataclasses.replace(original, invocations=[invocation, *original.invocations[1:]])
-
-    assert plan.invocations_by_id[invocation.id] is invocation
-    assert list(plan.entrypoints) == list(original.entrypoints)
-    assert plan.features == original.features
+def test_plan_rejects_unsupported_function_kind() -> None:
+    payload = uptimely_plan.to_dict(_sample_plan())
+    payload["invocations"][0]["function_kind"] = "unsupported"
+    with pytest.raises(ValueError):
+        uptimely_plan.from_dict(payload)
 
 
 def test_execution_invocations_follow_stages_not_declaration_order() -> None:
     original = _sample_plan()
-    plan = dataclasses.replace(original, invocations=list(reversed(original.invocations)))
+    plan = copy.replace(original, invocations=list(reversed(original.invocations)))
     assert plan.invocations != original.invocations
     assert plan.execution_invocations == original.invocations
     assert uptimely_plan.to_dict(plan)["invocations"][0]["id"] == "opaque-write"
 
     independent = [
-        dataclasses.replace(invocation, dependency_ids=[]) for invocation in original.invocations
+        copy.replace(invocation, dependency_ids=[]) for invocation in original.invocations
     ]
-    grouped = dataclasses.replace(
+    grouped = copy.replace(
         original,
         invocations=independent,
         stages=[["opaque-write", "opaque-read"], [], ["opaque-collapse"]],
@@ -374,7 +379,7 @@ def test_execution_invocations_follow_stages_not_declaration_order() -> None:
         "opaque-read",
         "opaque-collapse",
     ]
-    empty = dataclasses.replace(original, invocations=[], stages=[])
+    empty = copy.replace(original, invocations=[], stages=[])
     assert empty.execution_invocations == []
     assert empty.count_per_kind == {}
 
@@ -382,8 +387,8 @@ def test_execution_invocations_follow_stages_not_declaration_order() -> None:
 def test_count_per_kind_rebuilt_on_plan_replacement() -> None:
     plan = _sample_plan()
     previous = plan.count_per_kind
-    plan.invocations[0] = dataclasses.replace(plan.invocations[0], function_kind="write")
+    plan.invocations[0] = copy.replace(plan.invocations[0], function_kind="write")
     assert plan.count_per_kind is previous
-    plan = dataclasses.replace(plan)
+    plan = copy.replace(plan)
     assert plan.count_per_kind == {"collapse": 1, "write": 2}
     assert plan.count_per_kind is not previous

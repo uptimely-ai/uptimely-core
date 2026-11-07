@@ -10,9 +10,9 @@ import pytest
 from support import execution as execution_support
 
 from uptimely import compiler, row_context, spec
-from uptimely import execution_plan as uptimely_plan
+from uptimely import plan as uptimely_plan
 from uptimely.explorer import presentation
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec.python import (
     assembly,
     binding_conversion,
