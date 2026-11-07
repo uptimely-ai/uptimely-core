@@ -19,6 +19,7 @@ const ICONS = {
   grain: "rows-3", scope: "filter", order: "list-ordered",
   schema: "table-2", assembly: "blocks", key: "key-round", "data-type": "braces",
   input: "arrow-right-to-line", output: "arrow-right-from-line", "engine-bind": "circle-play",
+  intermediate: "workflow",
   invocations: "square-function", "feature-lineage": "diagram-flow-horizontal", "invocation-lineage": "layout-arrow-right",
   "data-lineage": "monitor-play", stages: "list-ordered", reset: "scan-search",
   "zoom-in": "zoom-in", "zoom-out": "zoom-out",
@@ -111,16 +112,20 @@ export function statistic(label, value) {
   </div>`;
 }
 
-export function distribution(title, counts, { total = null, note = null, typeLabels = false } = {}) {
+export function distribution(title, counts, {
+  total = null, note = null, typeLabels = false, iconLabels = false, tooltip = null,
+} = {}) {
   const maximum = Math.max(0, ...counts.map(([, value]) => Number(value)));
   return `<section class="ui-panel ui-chart">
-    <div class="ui-panel-heading"><h3>${escape(title)}</h3>
+    <div class="ui-panel-heading"><div class="ui-chart-title"><h3>${escape(title)}</h3>
+      ${tooltip ? `<span class="ui-chart-tooltip" tabindex="0" data-tooltip="${escape(tooltip)}" aria-label="${escape(tooltip)}">${icon("info", "ui-chart-tooltip-icon")}</span>` : ""}
+      </div>
       ${total === null ? "" : `<span class="ui-panel-meta">total ${escape(total)}</span>`}</div>
     ${note ? `<p class="ui-panel-description">${escape(note)}</p>` : ""}
     <div class="space-y-4">${counts.map(([label, value, target]) => {
       const tag = target ? "a" : "div";
       return `<${tag}${target ? ` href="${escape(target)}"` : ""} class="ui-chart-row" data-category="${escape(label)}" data-count="${escape(value)}">
-        <span class="break-words text-slate-400">${typeLabels ? dataTypeLabel(label) : escape(label)}</span>
+        <span class="${iconLabels ? "inline-flex items-center gap-2 break-words text-slate-400" : "break-words text-slate-400"}">${iconLabels ? icon(label, "h-4 w-4 shrink-0") : ""}${typeLabels ? dataTypeLabel(label) : escape(label)}</span>
         <div class="h-2 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "merge" ? "bg-amber-400" : label === "escape" ? "bg-violet-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
         <span class="text-right font-mono text-xs text-white">${escape(value)}</span>
       </${tag}>`;

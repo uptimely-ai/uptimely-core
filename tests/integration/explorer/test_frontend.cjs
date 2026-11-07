@@ -325,7 +325,7 @@ test("dimension catalog renders resolutions as a parent-linked hierarchy", async
   assert.match(html, /data-dimension-description[^>]*>No description provided\./);
 });
 
-test("dashboard, Features overview and plan show visual components and counts", async () => {
+test("dashboard, Features charts and plan show visual components and counts", async () => {
   const { dashboard, planOverview } = await moduleAt("rendering/page_renderer.js");
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const data = sampleData();
@@ -338,6 +338,9 @@ test("dashboard, Features overview and plan show visual components and counts", 
   assert.equal((dashboard(data).match(/data-stat=/g) || []).length, 5);
   const features = renderCatalog(data, "features").content;
   assert.match(features, /Features by role/);
+  assert.match(features, /Features by data type/);
+  assert.match(features, /data-section-count class="ui-badge">1 features<\/span>/);
+  assert.doesNotMatch(features, /<h2[^>]*>Features overview<\/h2>|data-stat=/);
   assert.match(features, /data-category="output" data-count="1"/);
   assert.match(planOverview(data), /Max parallel invocations/);
 });
