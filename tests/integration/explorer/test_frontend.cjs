@@ -394,7 +394,10 @@ test("dashboard, Features charts and plan show visual components and counts", as
   assert.match(features, /data-section-count class="ui-badge">1 features<\/span>/);
   assert.doesNotMatch(features, /<h2[^>]*>Features overview<\/h2>|data-stat=/);
   assert.match(features, /data-category="output" data-count="1"/);
-  assert.match(planOverview(data), /Max parallel invocations/);
+  const plan = planOverview(data);
+  assert.match(plan, /Invocations by function kind/);
+  assert.match(plan, /Invocations by stage/);
+  assert.doesNotMatch(plan, /Max parallel invocations|data-stat=/);
 });
 
 test("lineage views expose original canvases, controls and script-safe graph data", async () => {

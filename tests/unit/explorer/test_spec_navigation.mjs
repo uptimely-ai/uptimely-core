@@ -377,6 +377,24 @@ test("Dimensions overview shows resolution charts without number cards or overvi
   assert.doesNotMatch(overview, /Dimensions overview|data-stat=/);
 });
 
+test("Stages overview shows only the invocations-by-stage chart", () => {
+  const { content } = renderCatalog({
+    catalogs: { summary: {}, configuration: {} },
+    plan: {
+      stage_count: 1, invocation_count: 2, max_parallel_invocations: 2,
+      dependency_count: 1, function_kind_counts: [["read", 2]],
+    },
+    stages: [{ stage: 1, steps: [] }],
+  }, "stages");
+  const overview = content.slice(0, content.indexOf('<div class="space-y-8">'));
+
+  assert.match(overview, /<h3>Invocations by stage<\/h3>/);
+  assert.match(overview, /data-category="Stage 1" data-count="0"/);
+  assert.equal((overview.match(/class="ui-panel ui-chart"/g) || []).length, 1);
+  assert.doesNotMatch(overview, /<h2[^>]*>Stages overview<\/h2>/);
+  assert.doesNotMatch(overview, /data-stat=|Invocations by function kind/);
+});
+
 test("Features overview shows role and data type charts without summary cards", () => {
   const data = {
     catalogs: {
@@ -482,6 +500,8 @@ test("catalog overviews use the shared dashboard icon and summary panels", () =>
       }
     } else if (view === "dimensions") {
       assert.doesNotMatch(content, /<h2[^>]*>Dimensions overview<\/h2>|data-stat=/);
+    } else if (view === "stages") {
+      assert.doesNotMatch(content, /<h2[^>]*>Stages overview<\/h2>|data-stat=/);
     } else {
       assert.match(content, new RegExp(`<h2 class="ui-section-title mb-6">${title} overview</h2>`));
       assert.match(content, /class="ui-panel" data-stat=/);
