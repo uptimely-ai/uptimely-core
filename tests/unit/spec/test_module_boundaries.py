@@ -11,8 +11,7 @@ import uptimely
 from uptimely import entrypoint, spec
 from uptimely.compiler import compiler
 from uptimely.plan import models as execution_plan_models
-from uptimely.spec import model, validation
-from uptimely.spec.json import codec
+from uptimely.spec import model, serialization, validation
 from uptimely.spec.python import conversion, dimension, profile
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -118,7 +117,7 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
         "uptimely.spec.validation.rules.operators.contracts",
         "uptimely.spec.validation.rules.operators.dependencies",
         "uptimely.spec.python.conversion",
-        "uptimely.spec.json.codec",
+        "uptimely.spec.serialization",
         "uptimely.spec.api",
         "uptimely.compiler.graph",
         "uptimely.compiler.compiler",
@@ -166,13 +165,13 @@ for name in {modules!r}:
 def test_json_round_trip_preserves_the_document_and_compiled_plan(
     tmp_path: pathlib.Path,
 ) -> None:
-    original_document = codec.load_document(SPEC_PATH)
+    original_document = serialization.load_document(SPEC_PATH)
     document = spec.load_spec(SPEC_PATH)
-    expected = codec.to_document(document)
+    expected = serialization.to_document(document)
     path = tmp_path / "nested" / "spec.json"
 
-    assert codec.write_document(document, path) == str(path)
-    assert codec.load_document(path) == expected == original_document
+    assert serialization.write_document(document, path) == str(path)
+    assert serialization.load_document(path) == expected == original_document
     assert not {"path", "calls", "resolved_functions"} & model.Spec.model_fields.keys()
     assert not {"path", "calls", "resolved_functions"} & expected.keys()
 
@@ -191,7 +190,7 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
     assert [set(stage) for stage in first.stages] == [set(stage) for stage in second.stages]
 
 
-def test_codec_preserves_function_descriptions_and_profile_ids() -> None:
+def test_serialization_preserves_function_descriptions_and_profile_ids() -> None:
     document = model.Spec.model_validate(
         {
             "functions": {
@@ -206,7 +205,7 @@ def test_codec_preserves_function_descriptions_and_profile_ids() -> None:
         }
     )
 
-    payload = codec.to_document(document)
+    payload = serialization.to_document(document)
 
     assert payload["functions"]["collapse"]["description"] is None
     assert list(payload["profiles"]) == ["first", "second"]
@@ -223,10 +222,10 @@ def test_structural_operations_do_not_inspect_python_entrypoints(
         pytest.fail("Structural operations must not inspect Python entrypoints")
 
     monkeypatch.setattr(entrypoint, "Entrypoint", unexpected_inspection)
-    payload = codec.load_document(SPEC_PATH)
+    payload = serialization.load_document(SPEC_PATH)
     document = model.Spec.model_validate(payload)
 
-    assert codec.to_document(document) == payload
+    assert serialization.to_document(document) == payload
     converted = conversion.to_model(profiles=[profile.Profile(id="assets")])
     assert converted.profiles["assets"].name == "Assets"
     validation.validate_spec(document)
@@ -242,12 +241,12 @@ def test_structural_operations_do_not_inspect_python_entrypoints(
 
 @pytest.mark.usefixtures("example_projects")
 def test_validation_does_not_mutate_the_document() -> None:
-    document = model.Spec.model_validate(codec.load_document(SPEC_PATH))
-    before = codec.to_document(document)
+    document = model.Spec.model_validate(serialization.load_document(SPEC_PATH))
+    before = serialization.to_document(document)
 
     validation.validate_spec(document)
 
-    assert codec.to_document(document) == before
+    assert serialization.to_document(document) == before
 
 
 def test_python_dictionary_and_json_export_share_the_same_encoding(
@@ -265,8 +264,12 @@ def test_python_dictionary_and_json_export_share_the_same_encoding(
     declaration = uptimely.Spec(profiles=[Readings])
     document = declaration.to_model()
     path = tmp_path / "spec.json"
-    codec.write_document(document, path)
+    serialization.write_document(document, path)
 
-    assert declaration.to_dict() == codec.to_document(document) == codec.load_document(path)
+    assert (
+        declaration.to_dict()
+        == serialization.to_document(document)
+        == serialization.load_document(path)
+    )
     assert declaration.to_dict()["name"] is None
     assert "id" not in declaration.to_dict()["profiles"]["readings"]

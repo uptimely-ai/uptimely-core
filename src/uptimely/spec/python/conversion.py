@@ -7,7 +7,7 @@ import typing
 from collections import abc
 
 from .. import model as spec_model
-from ..json import codec
+from .. import serialization
 from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
@@ -31,8 +31,8 @@ def to_dict(
     functions: Functions | None = None,
     name: str | None = None,
 ) -> dict[str, typing.Any]:
-    """Encode Python declarations using the same codec as JSON file exports."""
-    return codec.to_document(to_model(profiles, functions, name))
+    """Encode Python declarations using the same serializer as JSON file exports."""
+    return serialization.to_document(to_model(profiles, functions, name))
 
 
 def to_model(
