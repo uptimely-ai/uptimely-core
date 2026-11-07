@@ -10,14 +10,13 @@ from uptimely.spec import model, selectors
 from uptimely.spec.python import assembly, ref
 
 
-def _context(
-    profile_id: str = "telemetry", feature_id: str | None = "output"
-) -> model.BindingArgumentResolver:
-    return model.BindingArgumentResolver(
-        current_profile_id=profile_id,
-        feature_id=feature_id,
-        grain_keys_by_profile={"telemetry": ["pump", "time"], "source": ["pump"]},
-        resources={
+def _context() -> tuple[
+    dict[str, list[str]],
+    dict[str, dict[str, pydantic.BaseModel]],
+]:
+    return (
+        {"telemetry": ["pump", "time"], "source": ["pump"]},
+        {
             selectors.FEATURE_PREFIX: {
                 "pressure": model.Feature(id="pressure", name="Pressure", unit="bar"),
             },
@@ -34,6 +33,15 @@ def _context(
             },
         },
     )
+
+
+def _resolve(
+    argument: model.BindingArgument,
+    profile_id: str = "telemetry",
+    feature_id: str | None = "output",
+) -> object:
+    grain_keys_by_profile, resources = _context()
+    return argument.resolve(profile_id, feature_id, grain_keys_by_profile, resources)
 
 
 @pytest.mark.parametrize("value", [None, True, False, 0, 1.5, "literal", [], {}, {"x": [1, None]}])
@@ -115,7 +123,7 @@ def test_resolution_is_contextual_and_does_not_modify_bound_values() -> None:
         "literal": [True, 0, None, "ordinary.id", "$params.path", "$operators.@.fragment"],
     }
     argument = model.BindingArgument(value)
-    assert argument.resolve(_context()) == {
+    assert _resolve(argument) == {
         "current": "telemetry",
         "source_keys": ["pump"],
         "output": "output",
@@ -124,16 +132,16 @@ def test_resolution_is_contextual_and_does_not_modify_bound_values() -> None:
         "literal": value["literal"],
     }
     binding = model.Binding(function="calculate", args={"nested": argument})
-    context = _context()
+    grain_keys_by_profile, resources = _context()
     assert binding.resolve_args(
-        context.current_profile_id,
-        context.feature_id,
-        context.grain_keys_by_profile,
-        context.resources,
-    ) == {"nested": argument.resolve(context)}
+        "telemetry",
+        "output",
+        grain_keys_by_profile,
+        resources,
+    ) == {"nested": argument.resolve("telemetry", "output", grain_keys_by_profile, resources)}
     current = model.BindingArgument(["$profiles.@.dataframe", "$features.@"])
-    assert current.resolve(_context("source", "second")) == ["source", "second"]
-    assert current.resolve(_context("telemetry", None)) == ["telemetry", "$features.@"]
+    assert _resolve(current, "source", "second") == ["source", "second"]
+    assert _resolve(current, "telemetry", None) == ["telemetry", "$features.@"]
     assert argument.root == value
 
 
@@ -151,13 +159,12 @@ def test_resolution_is_contextual_and_does_not_modify_bound_values() -> None:
 )
 def test_unavailable_selectors_raise_explicit_errors(value: str, message: str) -> None:
     with pytest.raises(ValueError, match=message):
-        model.BindingArgument(value).resolve(_context())
+        _resolve(model.BindingArgument(value))
 
 
 def test_grain_resolution_requires_context() -> None:
-    context = model.BindingArgumentResolver("telemetry", None, None)
     with pytest.raises(ValueError, match="Cannot resolve grain keys for profile telemetry"):
-        model.BindingArgument("$profiles.@.grain.ids").resolve(context)
+        model.BindingArgument("$profiles.@.grain.ids").resolve("telemetry")
 
 
 def test_nested_argument_types_follow_each_container_segment() -> None:
@@ -169,18 +176,37 @@ def test_nested_argument_types_follow_each_container_segment() -> None:
     assert list(argument.typed_values("object")) == [(1, "string"), (2, "string")]
 
 
-def test_nested_pydantic_values_and_resolver_adapter() -> None:
+def test_nested_pydantic_values_are_resolved_by_binding() -> None:
     class Config(pydantic.BaseModel):
         column: str
 
     raw = {"config": Config(column="$features.pressure")}
-    context = _context()
-    argument = model.BindingArgument.model_validate(raw)
-    assert argument.root == {"config": {"column": "$features.pressure"}}
-    assert context.resolve_arguments(raw) == {"config": {"column": "pressure"}}
-    assert context.resolve_arguments({"value": argument}) == {
-        "value": {"config": {"column": "pressure"}}
-    }
+    grain_keys_by_profile, resources = _context()
+    binding = model.Binding(function="calculate", args={"value": raw})
+
+    assert binding.resolve_args(
+        "telemetry",
+        grain_keys_by_profile=grain_keys_by_profile,
+        resources=resources,
+    ) == {"value": {"config": {"column": "pressure"}}}
+
+
+def test_operator_resolves_compute_arguments_using_its_output_context() -> None:
+    operator = model.Operator(
+        id="calculate",
+        compute=model.Binding(function="calculate", args={"output": "$features.@"}),
+        interface=model.Interface(outputs=["$features.pressure"]),
+    )
+    grain_keys_by_profile, resources = _context()
+
+    assert operator.resolve_args(
+        function_id="calculate",
+        function_kind="vectorize",
+        profile_id="telemetry",
+        grain_keys_by_profile=grain_keys_by_profile,
+        resources=resources,
+        id_columns=["pump", "time"],
+    ) == {"output": "pressure"}
 
 
 def test_cached_views_do_not_change_equality_copy_or_round_trip() -> None:
@@ -188,7 +214,7 @@ def test_cached_views_do_not_change_equality_copy_or_round_trip() -> None:
     expected = model.BindingArgument(argument.model_dump())
     assert argument.dataset_dependencies("telemetry") == ["telemetry"]
     assert argument.inferred_feature_inputs == ("pressure",)
-    assert argument.resolve(_context()) == {"columns": ["pressure", "telemetry"]}
+    assert _resolve(argument) == {"columns": ["pressure", "telemetry"]}
     assert argument == expected
     assert expected == argument
     assert copy.deepcopy(argument) == expected

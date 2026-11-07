@@ -25,16 +25,15 @@ from uptimely.spec.feature_graph import (
 )
 from uptimely.spec.feature_graph import models as feature_graph_models
 from uptimely.spec.feature_graph.models import FeatureNode, OperatorNode
+from uptimely.spec.model import Profile as ProfileModel
+from uptimely.spec.model import Spec as SpecModel
 from uptimely.spec.model import (
-    BindingArgumentResolver,
     base,
     binding,
     binding_argument,
     dimension,
     functions,
 )
-from uptimely.spec.model import Profile as ProfileModel
-from uptimely.spec.model import Spec as SpecModel
 from uptimely.spec.model import spec as document
 
 
@@ -43,7 +42,7 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert spec.Profile is ProfileModel
     assert spec.model.Profile is ProfileModel
     assert not hasattr(spec.model, "Dataset")
-    assert spec.model.BindingArgumentResolver is BindingArgumentResolver
+    assert not hasattr(spec.model, "BindingArgumentResolver")
     assert uptimely.load_spec is spec.load_spec
     assert uptimely.from_python is spec.from_python
     assert uptimely.write_document is spec.write_document
@@ -94,7 +93,7 @@ def test_document_models_are_exported_from_focused_modules() -> None:
     assert spec_model.StrictModel is base.StrictModel
     assert spec_model.Binding is binding.Binding
     assert spec_model.BindingArgument is binding_argument.BindingArgument
-    assert spec_model.BindingArgumentResolver is binding_argument.BindingArgumentResolver
+    assert not hasattr(binding_argument, "BindingArgumentResolver")
     assert spec_model.Dimension is dimension.Dimension
     assert spec_model.Resolution is dimension.Resolution
     assert spec_model.Argument is functions.Argument

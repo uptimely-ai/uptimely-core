@@ -3,8 +3,6 @@
 from __future__ import annotations
 
 from uptimely import execution_plan, spec
-from uptimely.spec import functions
-from uptimely.spec import model as spec_model
 
 from . import graph as invocation_graph
 
@@ -23,19 +21,14 @@ def emit_invocation(
         )
     profile_key = spec_definition.profile_keys[node.dataset_id]
     id_columns = spec_definition.grain_keys_by_profile[profile_key]
-    current_outputs = [
-        feature
-        for feature in node.output_features
-        if functions.FUNCTION_KINDS[function.kind].dimension_change != "remove"
-        or feature not in id_columns
-    ]
-    resolver = spec_model.BindingArgumentResolver(
-        current_profile_id=node.dataset_id,
-        feature_id=current_outputs[0] if len(current_outputs) == 1 else None,
+    arguments = graph.operator_for(node).resolve_args(
+        function_id=node.function_id,
+        function_kind=function.kind,
+        profile_id=node.dataset_id,
         grain_keys_by_profile=spec_definition.grain_keys_by_profile,
         resources=spec_definition.binding_resources,
+        id_columns=id_columns,
     )
-    arguments = {name: argument.resolve(resolver) for name, argument in node.arguments.items()}
     profile = spec_definition.profiles[node.dataset_id]
     column_types = {
         feature_id: feature.type

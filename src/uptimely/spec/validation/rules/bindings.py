@@ -138,16 +138,14 @@ def validate_selector_metadata(spec: spec_model.Spec) -> None:
     logger.debug("    - checking binding selector metadata")
     for key, operator in spec.operator_items:
         profile_id, _ = key
-        resolver = spec_model.BindingArgumentResolver(
-            current_profile_id=profile_id,
-            feature_id=None,
-            grain_keys_by_profile=spec.grain_keys_by_profile,
-            resources=spec.binding_resources,
-        )
         for name, binding in operator.bindings.items():
             for argument, path in binding.metadata_references_with_paths:
                 try:
-                    argument.resolve(resolver)
+                    argument.resolve(
+                        profile_id,
+                        grain_keys_by_profile=spec.grain_keys_by_profile,
+                        resources=spec.binding_resources,
+                    )
                 except ValueError as error:
                     raise errors.SpecError(
                         str(error),

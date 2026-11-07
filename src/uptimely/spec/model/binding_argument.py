@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import dataclasses
 import functools
 import typing
 
@@ -24,6 +23,7 @@ VALUE_SELECTORS = {
     selectors.FEATURE_PREFIX: frozenset({"id"}),
     selectors.DIMENSION_PREFIX: frozenset({"id"}),
 }
+type BindingResources = typing.Mapping[str, typing.Mapping[str, pydantic.BaseModel]]
 
 
 class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
@@ -239,11 +239,20 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
                 value_type = item_type or arg_types.STRING
             yield leaf, value_type
 
-    def resolve(self, context: BindingArgumentResolver) -> object:
+    def resolve(
+        self,
+        current_profile_id: str,
+        feature_id: str | None = None,
+        grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
+        resources: BindingResources | None = None,
+    ) -> object:
         """Resolve this value recursively using invocation-specific context.
 
         Args:
-            context: Current profile, output feature, grain keys, and resource metadata.
+            current_profile_id: Profile containing the operator.
+            feature_id: The operator's sole output feature, when unambiguous.
+            grain_keys_by_profile: Profile grain keys available to selectors.
+            resources: Declared profile, feature, and dimension metadata.
 
         Returns:
             The resolved scalar or nested container, without mutating the argument.
@@ -252,42 +261,50 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
             ValueError: A selected grain, resource, resolution, or attribute is unavailable.
         """
         if isinstance(self.root, dict):
-            return {key: child.resolve(context) for key, child in self.children.items()}
+            return {
+                key: child.resolve(current_profile_id, feature_id, grain_keys_by_profile, resources)
+                for key, child in self.children.items()
+            }
         if isinstance(self.root, list):
-            return [child.resolve(context) for child in self.children.values()]
+            return [
+                child.resolve(current_profile_id, feature_id, grain_keys_by_profile, resources)
+                for child in self.children.values()
+            ]
         if self.prefix is None:
             return self.root
         if self.is_current_feature_reference and self.selector in {None, "id"}:
-            return context.feature_id if context.feature_id is not None else self.root
+            return feature_id if feature_id is not None else self.root
         if self.is_grain_reference:
-            profile_id = self.profile_id(context.current_profile_id)
+            profile_id = self.profile_id(current_profile_id)
             if (
-                context.grain_keys_by_profile is None
+                grain_keys_by_profile is None
                 or profile_id is None
-                or profile_id not in context.grain_keys_by_profile
+                or profile_id not in grain_keys_by_profile
             ):
                 raise ValueError(f"Cannot resolve grain keys for profile {profile_id}")
-            return list(context.grain_keys_by_profile[profile_id])
+            return list(grain_keys_by_profile[profile_id])
         if self.is_metadata_reference:
-            return self._resolve_metadata(context)
+            return self._resolve_metadata(current_profile_id, resources)
         return (
-            self.profile_id(context.current_profile_id)
+            self.profile_id(current_profile_id)
             if self.prefix == selectors.PROFILE_PREFIX
             else self.identifier
         )
 
-    def _resolve_metadata(self, context: BindingArgumentResolver) -> object:
+    def _resolve_metadata(
+        self, current_profile_id: str, resources: BindingResources | None
+    ) -> object:
         """Resolve a selected attribute on a declared resource or dimension resolution."""
         prefix = self.prefix
         attribute = self.selector
         resource_id = (
-            self.profile_id(context.current_profile_id)
+            self.profile_id(current_profile_id)
             if prefix == selectors.PROFILE_PREFIX
             else self.identifier
         )
         if prefix is None or resource_id is None or attribute is None:
             raise ValueError(f"Unsupported resource selector: {self.root}")
-        resource = context.resources.get(prefix, {}).get(resource_id)
+        resource = (resources or {}).get(prefix, {}).get(resource_id)
         if resource is None:
             raise ValueError(f"Cannot resolve resource metadata: {self.root}")
         if isinstance(resource, dimension.Dimension) and attribute.startswith("resolutions."):
@@ -303,26 +320,3 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         ):
             raise ValueError(f"Unsupported resource selector: {self.root}")
         return getattr(resource, attribute)
-
-
-@dataclasses.dataclass(frozen=True)
-class BindingArgumentResolver:
-    """Invocation context and compatibility adapter for resolving argument mappings.
-
-    Resolution behavior belongs to BindingArgument; this object only supplies
-    context shared by the arguments of an invocation.
-    """
-
-    current_profile_id: str
-    feature_id: str | None
-    grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None
-    resources: typing.Mapping[str, typing.Mapping[str, pydantic.BaseModel]] = dataclasses.field(
-        default_factory=dict
-    )
-
-    def resolve_arguments(self, arguments: typing.Mapping[str, object]) -> dict[str, object]:
-        """Resolve raw or modeled arguments with this invocation's context."""
-        return {
-            name: BindingArgument.model_validate(value).resolve(self)
-            for name, value in arguments.items()
-        }
