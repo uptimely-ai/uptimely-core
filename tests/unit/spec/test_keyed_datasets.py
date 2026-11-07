@@ -8,8 +8,7 @@ import pytest
 
 from uptimely import spec
 from uptimely.spec import python as python_spec
-from uptimely.spec import validation
-from uptimely.spec.json import codec
+from uptimely.spec import serialization, validation
 from uptimely.spec.python import conversion
 
 
@@ -32,7 +31,7 @@ def test_keyed_profiles_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     original = copy.deepcopy(document)
     model = spec.Spec.model_validate(document)
     validation.validate_spec(model)
-    payload = codec.to_document(model)
+    payload = serialization.to_document(model)
 
     assert document == original
     assert list(model.profiles) == ["first", "second"]
@@ -65,7 +64,9 @@ def test_feature_name_defaults_to_humanized_id() -> None:
     assert feature.id == "bearing_temperature"
     assert feature.name == "Bearing Temperature"
     assert (
-        codec.to_document(model)["profiles"]["telemetry"]["features"]["bearing_temperature"]["name"]
+        serialization.to_document(model)["profiles"]["telemetry"]["features"][
+            "bearing_temperature"
+        ]["name"]
         == "Bearing Temperature"
     )
 
@@ -84,7 +85,7 @@ def test_operator_id_is_inferred_from_assembly_key() -> None:
     )
     model = spec.Spec.model_validate(document)
 
-    payload = codec.to_document(model)
+    payload = serialization.to_document(model)
     operator = payload["profiles"]["telemetry"]["assembly"]["calculate"]
 
     assert "id" not in operator
