@@ -10,7 +10,7 @@ import pytest
 from support import examples as example_support
 
 from uptimely import spec
-from uptimely.spec import functions as function_kinds
+from uptimely.spec import function_kinds
 from uptimely.spec.validation import errors
 from uptimely.spec.validation import spec as spec_validation
 from uptimely.spec.validation.rules import bindings, functions
@@ -284,7 +284,6 @@ def test_function_rules_raise_independently(document: spec.Spec) -> None:
 
     function.returns = "dataframe"
     function.args.clear()
-    document = spec.Spec.model_validate(document.model_dump())
     assert functions.validate_return_kind(document) is None
     with pytest.raises(errors.SpecError) as error:
         functions.validate_dataframe_count(document)

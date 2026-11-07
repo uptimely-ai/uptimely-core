@@ -1,5 +1,5 @@
 import ast
-import dataclasses
+import copy
 import pathlib
 import subprocess
 import sys
@@ -10,7 +10,7 @@ from support import examples as example_support
 import uptimely
 from uptimely import entrypoint, spec
 from uptimely.compiler import compiler
-from uptimely.execution_plan import models as execution_plan_models
+from uptimely.plan import models as execution_plan_models
 from uptimely.spec import model, validation
 from uptimely.spec.json import codec
 from uptimely.spec.python import conversion, dimension, profile
@@ -31,9 +31,14 @@ def test_canonical_models_do_not_import_outer_layers() -> None:
             if isinstance(node, ast.ImportFrom):
                 assert node.level < 2, path
                 if node.module == "uptimely":
-                    assert {alias.name for alias in node.names} <= {"row_context"}
+                    assert not {alias.name for alias in node.names}
                 elif node.module == "uptimely.spec":
-                    allowed_imports = {"arg_types", "functions", "selectors"}
+                    allowed_imports = {
+                        "arg_types",
+                        "function_kinds",
+                        "row_context",
+                        "selectors",
+                    }
                     if path.name == "spec.py":
                         allowed_imports.add("merge")
                     assert {alias.name for alias in node.names} <= allowed_imports
@@ -106,6 +111,8 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
     "module",
     [
         "uptimely.spec.model.spec",
+        "uptimely.spec.function_kinds",
+        "uptimely.spec.functions",
         "uptimely.spec.validation",
         "uptimely.spec.validation.rules.operators.outputs",
         "uptimely.spec.validation.rules.operators.inputs",
@@ -176,10 +183,10 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
     second = compiler.Compiler().compile(reloaded)
     assert first.resources == second.resources
     assert {
-        item.id: dataclasses.replace(item, dependency_ids=sorted(item.dependency_ids))
+        item.id: copy.replace(item, dependency_ids=sorted(item.dependency_ids))
         for item in first.invocations
     } == {
-        item.id: dataclasses.replace(item, dependency_ids=sorted(item.dependency_ids))
+        item.id: copy.replace(item, dependency_ids=sorted(item.dependency_ids))
         for item in second.invocations
     }
     assert [set(stage) for stage in first.stages] == [set(stage) for stage in second.stages]

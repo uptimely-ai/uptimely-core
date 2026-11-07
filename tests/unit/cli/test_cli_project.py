@@ -13,7 +13,7 @@ from collections import abc
 import pytest
 from support import examples as example_support
 
-from uptimely import execution_plan as plan_module
+from uptimely import plan as plan_module
 from uptimely import project, spec
 from uptimely.cli import cli
 from uptimely.compiler import compiler as compiler_module

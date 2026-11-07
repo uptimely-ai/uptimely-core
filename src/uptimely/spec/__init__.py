@@ -2,7 +2,6 @@
 
 from .api import from_python, load_spec
 from .feature_graph import FeatureGraph, FeatureSubGraph
-from .json.codec import write_document
 from .model import (
     Argument,
     Binding,
@@ -17,6 +16,7 @@ from .model import (
     Resolution,
     Spec,
 )
+from .serialization import write_document
 
 __all__ = [
     "Argument",

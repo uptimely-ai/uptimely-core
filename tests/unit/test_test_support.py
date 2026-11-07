@@ -7,7 +7,8 @@ import pytest
 from support import examples as example_support
 from support import execution as execution_support
 
-from uptimely import compiler, execution_plan, project, spec
+from uptimely import compiler, project, spec
+from uptimely import plan as execution_plan
 
 
 def test_synthetic_bundle_factory_uses_independent_test_owned_directories(

@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from uptimely import execution_plan, spec
+from uptimely import plan as execution_plan
+from uptimely import spec
 
 from . import graph as invocation_graph
 

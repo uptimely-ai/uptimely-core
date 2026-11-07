@@ -7,10 +7,17 @@ import inspect
 import typing
 from collections import abc
 
-from uptimely import row_context as row_context_values
-from uptimely.spec import arg_types, functions, selectors
-from uptimely.spec import catalog as function_catalog
+from uptimely.spec import (
+    arg_types,
+    selectors,
+)
+from uptimely.spec import (
+    function_kinds as functions,
+)
 from uptimely.spec import model as spec_model
+from uptimely.spec import (
+    row_context as row_context_values,
+)
 
 from . import binding_conversion, ref
 from . import feature as feature_module
@@ -30,17 +37,28 @@ class Interface:
     outputs: list[feature_module.Feature] = dataclasses.field(default_factory=list)
 
     def __post_init__(self) -> None:
-        """Copy interface collections and reject repeated output feature IDs."""
+        """Copy and validate declarations at the authoring boundary."""
         if self.inputs is not None:
+            if not isinstance(self.inputs, abc.Sequence) or isinstance(self.inputs, (str, bytes)):
+                raise TypeError("Operator inputs must be a sequence of feature references")
             object.__setattr__(self, "inputs", list(self.inputs))
+        if not isinstance(self.outputs, abc.Sequence) or isinstance(self.outputs, (str, bytes)):
+            raise TypeError("Operator outputs must be a sequence of Features")
         object.__setattr__(self, "outputs", list(self.outputs))
-        if len(self.output_ids) != len(set(self.output_ids)):
-            raise ValueError("Operator output feature IDs must not repeat")
+        self._input_ids()
+        _ = self.output_ids
 
     @property
     def output_ids(self) -> list[str]:
         """Return the declared output feature IDs in order."""
-        return [output.id for output in self.outputs]
+        identifiers = []
+        for output in self.outputs:
+            if not isinstance(output, feature_module.Feature):
+                raise TypeError("Operator outputs must contain Features")
+            identifiers.append(self._validate_feature_id(output.id))
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("Operator output feature IDs must not repeat")
+        return identifiers
 
     def to_model(
         self, *, compute: spec_model.Binding, merge: spec_model.Binding | None = None
@@ -61,23 +79,52 @@ class Interface:
                 inferred.extend(merge.inferred_feature_inputs)
             inputs = [name for name in dict.fromkeys(inferred) if name not in outputs]
         else:
-            inputs = [self._feature_id(value) for value in self.inputs]
+            inputs = self._input_ids()
         return spec_model.Interface(
             inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
             outputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in self.output_ids],
         )
 
-    @staticmethod
-    def _feature_id(value: feature_module.Feature | ref.Reference | str) -> str:
-        """Return a feature identifier or reject a reference to another resource."""
+    def _input_ids(self) -> list[str]:
+        """Normalize explicit inputs and require unique feature identifiers."""
+        if self.inputs is None:
+            return []
+        identifiers = [self._feature_id(value) for value in self.inputs]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("Operator input feature IDs must not repeat")
+        return identifiers
+
+    @classmethod
+    def _feature_id(cls, value: feature_module.Feature | ref.Reference | str) -> str:
+        """Normalize and validate a feature identifier or reference."""
         if isinstance(value, feature_module.Feature):
-            return value.id
-        if isinstance(value, ref.Reference):
-            prefix, _, identifier = value.value.rpartition(".")
-            if prefix != selectors.FEATURE_PREFIX.removesuffix("."):
+            identifier = value.id
+        elif isinstance(value, ref.Reference):
+            prefix, separator, identifier = value.value.partition(".")
+            if prefix != selectors.FEATURE_PREFIX.removesuffix(".") or not separator:
                 raise ValueError(f"Operator input must reference a feature, got {value.value!r}")
-            return identifier
-        return value.removeprefix(selectors.FEATURE_PREFIX)
+        elif isinstance(value, str):
+            if value.startswith(selectors.FEATURE_PREFIX):
+                identifier = value.removeprefix(selectors.FEATURE_PREFIX)
+            elif value.startswith("$"):
+                raise ValueError(f"Operator input must reference a feature, got {value!r}")
+            else:
+                identifier = value
+        else:
+            raise TypeError("Operator inputs must be Feature objects, references, or strings")
+        return cls._validate_feature_id(identifier)
+
+    @staticmethod
+    def _validate_feature_id(identifier: str) -> str:
+        """Reject empty, nested, or current-feature selectors as feature IDs."""
+        if (
+            not isinstance(identifier, str)
+            or not identifier
+            or "." in identifier
+            or identifier == selectors.CURRENT_ID
+        ):
+            raise ValueError(f"Invalid operator feature ID: {identifier!r}")
+        return identifier
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -252,4 +299,4 @@ class Operator:
         for binding in bindings:
             template = binding.to_function_template()
             catalogs.append(spec_model.FunctionCatalog(root={template.id: template}))
-        return spec_model.FunctionCatalog(root=function_catalog.merge_function_catalogs(catalogs))
+        return spec_model.FunctionCatalog.merge(catalogs)

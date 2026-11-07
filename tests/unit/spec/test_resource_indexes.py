@@ -52,7 +52,7 @@ class _CountingDict(dict[str, typing.Any]):
         return super().values()
 
 
-def test_resource_indexes_traverse_each_collection_once() -> None:
+def test_cached_views_build_only_the_indexes_they_need() -> None:
     document = _sample_spec()
     counted = []
     document.profiles = _CountingDict(document.profiles)
@@ -67,31 +67,41 @@ def test_resource_indexes_traverse_each_collection_once() -> None:
     for collection in counted:
         collection.traversals = 0
 
-    for _ in range(3):
-        assert list(document.profiles) == ["first", "second"]
-        assert list(document.features) == ["key", "value", "another"]
-        assert list(document.operators_by_key) == [("first", "read"), ("second", "read")]
-        assert document.operator_profiles == {
-            ("first", "read"): document.profiles_by_key["first"],
-            ("second", "read"): document.profiles_by_key["second"],
-        }
-        assert list(document.arguments) == [
-            ("load", "path"),
-            ("other", "path"),
-            (model.merge.DEFAULT_FUNCTION.id, "target"),
-            (model.merge.DEFAULT_FUNCTION.id, "fragment"),
-            (model.merge.DEFAULT_FUNCTION.id, "target_keys"),
-        ]
-        assert document.grain_keys_by_profile == {"first": ["key"], "second": ["key"]}
-        assert len(document.operators) == 2
-        assert len(document.profile_items) == 2
-        assert document.operators_by_function["load"] == [("first", "read")]
-        assert document.feature_producers["value"] == [("first", "read")]
-        assert document.operators[0] is document.profiles["first"].assembly["read"]
-        assert document.operators is document.operators
-        assert document.features["value"] is document.profiles["first"].features["value"]
+    assert list(document.profiles_by_key) == ["first", "second"]
+    assert document.profiles_by_key is document.profiles_by_key
+    assert all(profile.features.traversals == 0 for profile in document.profiles.values())
+    assert all(profile.assembly.traversals == 0 for profile in document.profiles.values())
 
-    assert all(collection.traversals == 1 for collection in counted)
+    assert list(document.features) == ["key", "value", "another"]
+    assert document.features is document.features
+    assert all(profile.features.traversals == 1 for profile in document.profiles.values())
+    assert all(profile.assembly.traversals == 0 for profile in document.profiles.values())
+
+    assert list(document.operators_by_key) == [("first", "read"), ("second", "read")]
+    assert document.operators_by_key is document.operators_by_key
+    assert all(profile.assembly.traversals == 1 for profile in document.profiles.values())
+    assert document.operator_profiles == {
+        ("first", "read"): document.profiles_by_key["first"],
+        ("second", "read"): document.profiles_by_key["second"],
+    }
+    assert list(document.arguments) == [
+        ("load", "path"),
+        ("other", "path"),
+        (model.merge.DEFAULT_FUNCTION.id, "target"),
+        (model.merge.DEFAULT_FUNCTION.id, "fragment"),
+        (model.merge.DEFAULT_FUNCTION.id, "target_keys"),
+    ]
+    assert document.grain_keys_by_profile == {"first": ["key"], "second": ["key"]}
+    assert len(document.operators) == 2
+    assert len(document.profile_items) == 2
+    assert document.operators_by_function["load"] == [("first", "read")]
+    assert document.feature_producers["value"] == [("first", "read")]
+    assert document.operators[0] is document.profiles["first"].assembly["read"]
+    assert document.features["value"] is document.profiles["first"].features["value"]
+
+    assert document.profiles.traversals > 0
+    assert all(profile.features.traversals == 1 for profile in document.profiles.values())
+    assert all(profile.assembly.traversals == 1 for profile in document.profiles.values())
     assert document.arguments["load", "path"] is document.functions["load"].args["path"]
     assert "key" not in document.feature_owners
 

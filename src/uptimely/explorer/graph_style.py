@@ -2,7 +2,7 @@
 
 import dataclasses
 
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 
 
 @dataclasses.dataclass

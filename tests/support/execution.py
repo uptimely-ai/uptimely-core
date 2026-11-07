@@ -1,12 +1,13 @@
 """Construct test bundles and engines from hand-authored plans."""
 
-import dataclasses
+import copy
 import pathlib
 import typing
 
 from uptimely import engine as engine_module
-from uptimely import execution_plan, spec
+from uptimely import plan as execution_plan
 from uptimely import project as project_module
+from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import main_frame as main_frame_module
@@ -178,10 +179,10 @@ def bundle_for_plan(
     build_root.mkdir(parents=True)
     bundle_spec = spec_definition or spec_for_plan(execution_plan)
     if spec_definition is None:
-        execution_plan = dataclasses.replace(
+        execution_plan = copy.replace(
             execution_plan,
             invocations=[
-                dataclasses.replace(
+                copy.replace(
                     invocation,
                     id_columns=(
                         invocation.id_columns

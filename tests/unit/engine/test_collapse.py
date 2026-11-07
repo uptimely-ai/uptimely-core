@@ -1,4 +1,4 @@
-import dataclasses
+import copy
 import json
 import pathlib
 import types
@@ -8,12 +8,12 @@ import pytest
 from support import execution as execution_support
 
 from uptimely import compiler, engine, spec
-from uptimely import execution_plan as plan_module
+from uptimely import plan as plan_module
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import assembly, dimension, feature, profile, ref
 
@@ -361,7 +361,7 @@ def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> Non
     spec_definition = _spec()
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
     invocation = next(item for item in plan.invocations if item.function_kind == "collapse")
-    invocation = dataclasses.replace(invocation, input_features=["maximum"])
+    invocation = copy.replace(invocation, input_features=["maximum"])
     state = state_module.RuntimeState(
         main_frames={
             "summary": execution_support.main_frame(pl.DataFrame({"group": ["A"], "maximum": [4]})),
@@ -704,7 +704,7 @@ def test_fragment_dimension_policy_is_independent_of_expand_id(
     spec_definition = _broadcast_spec(read_group_limits, broadcast_group_limit, ["group"], False)
     plan = compiler.Compiler().compile(spec_definition)
     definitions = dict(functions.FUNCTION_KINDS)
-    definitions[functions.EXPAND] = dataclasses.replace(
+    definitions[functions.EXPAND] = copy.replace(
         definitions[functions.EXPAND], fragment_dimensions="target"
     )
     monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))

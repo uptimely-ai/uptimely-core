@@ -7,7 +7,8 @@ import logging
 import typing
 from collections import abc
 
-from uptimely import entrypoint, execution_plan, spec
+from uptimely import entrypoint, spec
+from uptimely import plan as execution_plan
 from uptimely.spec import validation as spec_validation
 from uptimely.spec.validation import errors
 
@@ -18,19 +19,47 @@ logger = logging.getLogger(__name__)
 
 
 class Compiler:
-    """Turn a Spec into a portable execution plan."""
+    """Turn Specs into portable execution plans without retaining build state."""
 
-    def __init__(self) -> None:
-        """Initialize a compiler with no active compilation."""
-        self._spec_definition: spec.Spec | None = None
-        self.features: abc.Collection[str] | None = None
+    def compile(
+        self,
+        spec_definition: spec.Spec,
+        features: abc.Collection[str] | None = None,
+    ) -> execution_plan.ExecutionPlan:
+        """Validate and compile a Spec using fresh state for this call.
 
-    @property
-    def spec_definition(self) -> spec.Spec:
-        """Return the specification supplied to the current compilation."""
-        if self._spec_definition is None:
-            raise RuntimeError("Call compile() before accessing compiler build properties")
-        return self._spec_definition
+        Args:
+            spec_definition: The Spec document to compile.
+            features: Optional collection of output feature identifiers.
+
+        Returns:
+            A portable execution plan for the selected invocation graph.
+
+        Raises:
+            ValueError: The Spec, feature selection, or implementation contract is invalid.
+        """
+        spec_validation.validate_spec(spec_definition)
+        logger.debug("\nCompiler validation:")
+        validation.validation_feature_selection(features)
+        return _Compilation(spec_definition, features).build_plan()
+
+
+class _Compilation:
+    """Own inputs and lazy build products for exactly one compilation."""
+
+    def __init__(
+        self,
+        spec_definition: spec.Spec,
+        features: abc.Collection[str] | None = None,
+    ) -> None:
+        """Store validated inputs for one build.
+
+        Args:
+            spec_definition: A semantically validated Spec document.
+            features: A validated optional output-feature collection.
+        """
+        self.spec_definition = spec_definition
+        self.features = features
 
     @functools.cached_property
     def graph(self) -> invocation_graph.InvocationGraph:
@@ -186,16 +215,8 @@ class Compiler:
             "entrypoint_packages": self.entrypoint_packages,
         }
 
-    def compile(
-        self,
-        spec_definition: spec.Spec,
-        features: abc.Collection[str] | None = None,
-    ) -> execution_plan.ExecutionPlan:
-        """Validate and compile a Spec, optionally selecting output features.
-
-        Args:
-            spec_definition: The Spec document to compile.
-            features: Optional collection of output feature identifiers.
+    def build_plan(self) -> execution_plan.ExecutionPlan:
+        """Build the plan after computing and checking its required resources.
 
         Returns:
             A portable execution plan for the selected invocation graph.
@@ -203,26 +224,6 @@ class Compiler:
         Raises:
             ValueError: The Spec, feature selection, or implementation contract is invalid.
         """
-        for name in (
-            "graph",
-            "execution_stages",
-            "invocations",
-            "entrypoints",
-            "packages",
-            "function_signatures",
-            "signatures",
-            "stages",
-            "signature_resources",
-            "entrypoint_packages",
-            "resources",
-        ):
-            self.__dict__.pop(name, None)
-        self._spec_definition = None
-        self.features = features
-        spec_validation.validate_spec(spec_definition)
-        logger.debug("\nCompiler validation:")
-        validation.validation_feature_selection(self.features)
-        self._spec_definition = spec_definition
         resources = self.resources
         logger.debug("  Execution plan:")
         logger.debug("    - checking emitted invocation IDs, dependencies, and stage ordering")

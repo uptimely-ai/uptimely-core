@@ -3,7 +3,7 @@
 import typing
 from collections import abc
 
-from uptimely import execution_plan
+from uptimely import plan as execution_plan
 from uptimely.spec import arg_types, selectors
 
 from . import state as state_module

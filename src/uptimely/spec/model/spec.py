@@ -2,14 +2,14 @@
 
 from __future__ import annotations
 
-import dataclasses
 import functools
 import logging
 import typing
 
 import pydantic
 
-from uptimely.spec import arg_types, functions, selectors
+from uptimely.spec import arg_types, selectors
+from uptimely.spec import function_kinds as functions
 
 from . import base, binding_argument, merge
 from . import dimension as dimension_module
@@ -23,38 +23,6 @@ type ProfileKey = str
 type OperatorKey = tuple[ProfileKey, str]
 type SpecPath = tuple[str | int, ...]
 type DatasetArgument = tuple[str, object, str | None]
-
-
-@dataclasses.dataclass
-class _ResourceIndex:
-    profile_items: list[tuple[ProfileKey, profile_module.Profile]] = dataclasses.field(
-        default_factory=list
-    )
-    operator_items: list[tuple[OperatorKey, profile_module.Operator]] = dataclasses.field(
-        default_factory=list
-    )
-    profiles: dict[str, profile_module.Profile] = dataclasses.field(default_factory=dict)
-    profiles_by_key: dict[ProfileKey, profile_module.Profile] = dataclasses.field(
-        default_factory=dict
-    )
-    profile_keys: dict[str, ProfileKey] = dataclasses.field(default_factory=dict)
-    features: dict[str, profile_module.Feature] = dataclasses.field(default_factory=dict)
-    operators: list[profile_module.Operator] = dataclasses.field(default_factory=list)
-    operators_by_key: dict[OperatorKey, profile_module.Operator] = dataclasses.field(
-        default_factory=dict
-    )
-    operator_profile_keys: dict[OperatorKey, ProfileKey] = dataclasses.field(default_factory=dict)
-    operator_profiles: dict[OperatorKey, profile_module.Profile] = dataclasses.field(
-        default_factory=dict
-    )
-    feature_owners: dict[str, list[ProfileKey]] = dataclasses.field(default_factory=dict)
-    operators_by_function: dict[str, list[OperatorKey]] = dataclasses.field(default_factory=dict)
-    feature_producers: dict[str, list[OperatorKey]] = dataclasses.field(default_factory=dict)
-    dimensions: dict[ProfileKey, frozenset[str]] = dataclasses.field(default_factory=dict)
-    grain_keys: dict[ProfileKey, list[str]] = dataclasses.field(default_factory=dict)
-    grain_key_types: dict[ProfileKey, dict[str, str]] = dataclasses.field(default_factory=dict)
-    operator_paths: dict[OperatorKey, SpecPath] = dataclasses.field(default_factory=dict)
-    declaration_paths: dict[OperatorKey, SpecPath] = dataclasses.field(default_factory=dict)
 
 
 class SpecSource(base.StrictModel):
@@ -83,106 +51,62 @@ class Spec(base.StrictModel):
         merge.bind_default_merges(self)
 
     @functools.cached_property
-    def _indexes(self) -> _ResourceIndex:
-        indexes = _ResourceIndex()
-        profile_items = list(self.profiles.items())
-        all_grain_keys: set[str] = set()
-        for profile_id, profile in profile_items:
-            dimension_ids: set[str] = set()
-            keys: list[str] = []
-            key_types: dict[str, str] = {}
-            for reference in profile.grain:
-                dimension_ids.add(reference.dimension)
-                dimension = self.dimensions.get(reference.dimension)
-                resolution = (
-                    dimension.resolutions.get(reference.resolution)
-                    if dimension is not None
-                    else None
-                )
-                if resolution is not None:
-                    keys.append(resolution.key)
-                    key_types[resolution.key] = resolution.type
-                    all_grain_keys.add(resolution.key)
-            indexes.dimensions[profile_id] = frozenset(dimension_ids)
-            indexes.grain_keys[profile_id] = keys
-            indexes.grain_key_types[profile_id] = key_types
-
-        for profile_id, profile in profile_items:
-            indexes.profile_items.append((profile_id, profile))
-            indexes.profiles[profile.id] = profile
-            indexes.profiles_by_key[profile_id] = profile
-            indexes.profile_keys[profile.id] = profile_id
-            for feature_id, feature in profile.features.items():
-                indexes.features[feature_id] = feature
-                if feature_id not in all_grain_keys:
-                    indexes.feature_owners.setdefault(feature_id, []).append(profile_id)
-            for operator_id, operator in profile.assembly.items():
-                key = (profile_id, operator_id)
-                indexes.operator_items.append((key, operator))
-                indexes.operators.append(operator)
-                indexes.operators_by_key[key] = operator
-                indexes.operator_profile_keys[key] = profile_id
-                indexes.operator_profiles[key] = profile
-                base = ("profiles", profile.id, "assembly")
-                indexes.operator_paths[key] = (*base, operator_id)
-                indexes.declaration_paths[key] = (*base, operator_id)
-                for operator_binding in operator.bindings.values():
-                    indexes.operators_by_function.setdefault(operator_binding.function, []).append(
-                        key
-                    )
-                for feature_id in operator.output_features:
-                    indexes.feature_producers.setdefault(feature_id, []).append(key)
-        return indexes
-
-    @property
     def profile_items(self) -> list[tuple[ProfileKey, profile_module.Profile]]:
         """Return profiles with their global IDs in declaration order."""
-        return self._indexes.profile_items
+        return list(self.profiles.items())
 
-    @property
+    @functools.cached_property
     def profiles_by_key(self) -> dict[ProfileKey, profile_module.Profile]:
         """Return profiles keyed by their globally unique IDs."""
-        return self._indexes.profiles_by_key
+        return dict(self.profile_items)
 
-    @property
+    @functools.cached_property
     def profile_keys(self) -> dict[str, ProfileKey]:
         """Return each global profile ID's index key."""
-        return self._indexes.profile_keys
+        return {profile.id: key for key, profile in self.profile_items}
 
-    @property
+    @functools.cached_property
     def profiles_by_id(self) -> dict[str, profile_module.Profile]:
         """Return original profile objects keyed by globally unique ID."""
-        return self._indexes.profiles
+        return {profile.id: profile for _, profile in self.profile_items}
 
-    @property
+    @functools.cached_property
     def features(self) -> dict[str, profile_module.Feature]:
         """Return original feature metadata keyed by ID, including dimensions."""
-        return self._indexes.features
+        return {
+            feature_id: feature
+            for _, profile in self.profile_items
+            for feature_id, feature in profile.features.items()
+        }
 
-    @property
+    @functools.cached_property
     def operators(self) -> list[profile_module.Operator]:
         """Return original Operator objects in declaration order, retaining aliases."""
-        return self._indexes.operators
+        return [operator for _, operator in self.operator_items]
 
-    @property
+    @functools.cached_property
     def operator_items(self) -> list[tuple[OperatorKey, profile_module.Operator]]:
         """Return operator occurrences with profile and dictionary keys."""
-        return self._indexes.operator_items
+        return [
+            ((profile_key, operator_id), operator)
+            for profile_key, profile in self.profile_items
+            for operator_id, operator in profile.assembly.items()
+        ]
 
-    @property
+    @functools.cached_property
     def operators_by_key(self) -> dict[OperatorKey, profile_module.Operator]:
         """Return original Operators keyed by their declaration locations."""
-        return self._indexes.operators_by_key
+        return dict(self.operator_items)
 
-    @property
+    @functools.cached_property
     def operator_profile_keys(self) -> dict[OperatorKey, ProfileKey]:
         """Return each operator's owning profile ID."""
-        return self._indexes.operator_profile_keys
+        return {key: key[0] for key, _ in self.operator_items}
 
-    @property
+    @functools.cached_property
     def operator_profiles(self) -> dict[OperatorKey, profile_module.Profile]:
         """Return each operator's owning profile."""
-        return self._indexes.operator_profiles
+        return {key: self.profiles_by_key[key[0]] for key, _ in self.operator_items}
 
     def _row_context_profile_key(self, key: OperatorKey) -> ProfileKey | None:
         """Resolve the profile whose observations an operator's context describes."""
@@ -253,35 +177,70 @@ class Spec(base.StrictModel):
         """Return distinct catalog entrypoint strings in declaration order."""
         return list(dict.fromkeys(function.entrypoint for function in self.functions.root.values()))
 
-    @property
+    @functools.cached_property
     def feature_owners(self) -> dict[str, list[ProfileKey]]:
         """Return all occurrence keys owning each non-dimension feature."""
-        return self._indexes.feature_owners
+        owners: dict[str, list[ProfileKey]] = {}
+        grain_keys = self.grain_key_ids
+        for profile_key, profile in self.profile_items:
+            for feature_id in profile.features:
+                if feature_id not in grain_keys:
+                    owners.setdefault(feature_id, []).append(profile_key)
+        return owners
 
-    @property
+    @functools.cached_property
     def operators_by_function(self) -> dict[str, list[OperatorKey]]:
         """Return operator occurrence keys grouped by function ID."""
-        return self._indexes.operators_by_function
+        grouped: dict[str, list[OperatorKey]] = {}
+        for key, operator in self.operator_items:
+            for operator_binding in operator.bindings.values():
+                grouped.setdefault(operator_binding.function, []).append(key)
+        return grouped
 
-    @property
+    @functools.cached_property
     def feature_producers(self) -> dict[str, list[OperatorKey]]:
         """Return all operator occurrence keys declaring each output feature."""
-        return self._indexes.feature_producers
+        producers: dict[str, list[OperatorKey]] = {}
+        for key, operator in self.operator_items:
+            for feature_id in operator.output_features:
+                producers.setdefault(feature_id, []).append(key)
+        return producers
 
-    @property
+    @functools.cached_property
     def dimensions_by_profile(self) -> dict[ProfileKey, frozenset[str]]:
         """Return each profile's dimension IDs."""
-        return self._indexes.dimensions
+        return {
+            profile_key: frozenset(reference.dimension for reference in profile.grain)
+            for profile_key, profile in self.profile_items
+        }
 
-    @property
+    @functools.cached_property
     def grain_keys_by_profile(self) -> dict[ProfileKey, list[str]]:
         """Return dataframe key column names in profile grain order."""
-        return self._indexes.grain_keys
+        return {
+            profile_key: [
+                dimension.resolutions[reference.resolution].key
+                for reference in profile.grain
+                if (dimension := self.dimensions.get(reference.dimension)) is not None
+                and reference.resolution in dimension.resolutions
+            ]
+            for profile_key, profile in self.profile_items
+        }
 
-    @property
+    @functools.cached_property
     def grain_key_types_by_profile(self) -> dict[ProfileKey, dict[str, str]]:
         """Return logical types for dataframe key columns in each profile."""
-        return self._indexes.grain_key_types
+        return {
+            profile_key: {
+                dimension.resolutions[reference.resolution].key: dimension.resolutions[
+                    reference.resolution
+                ].type
+                for reference in profile.grain
+                if (dimension := self.dimensions.get(reference.dimension)) is not None
+                and reference.resolution in dimension.resolutions
+            }
+            for profile_key, profile in self.profile_items
+        }
 
     @functools.cached_property
     def grain_key_ids(self) -> frozenset[str]:
@@ -290,15 +249,21 @@ class Spec(base.StrictModel):
             key_id for key_ids in self.grain_keys_by_profile.values() for key_id in key_ids
         )
 
-    @property
+    @functools.cached_property
     def operator_paths(self) -> dict[OperatorKey, SpecPath]:
         """Return model-ID paths used by operator contracts."""
-        return self._indexes.operator_paths
+        return {
+            key: ("profiles", self.profiles_by_key[key[0]].id, "assembly", key[1])
+            for key, _ in self.operator_items
+        }
 
-    @property
+    @functools.cached_property
     def declaration_paths(self) -> dict[OperatorKey, SpecPath]:
         """Return dictionary-key paths used by binding validation."""
-        return self._indexes.declaration_paths
+        return {
+            key: ("profiles", self.profiles_by_key[key[0]].id, "assembly", key[1])
+            for key, _ in self.operator_items
+        }
 
     @functools.cached_property
     def local_features(self) -> dict[ProfileKey, frozenset[str]]:

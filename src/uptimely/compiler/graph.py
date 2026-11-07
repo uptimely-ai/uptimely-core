@@ -7,9 +7,10 @@ import logging
 
 import graphable as graphable_
 
-from uptimely import row_context, spec
-from uptimely.spec import functions
+from uptimely import spec
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
+from uptimely.spec import row_context
 
 logger = logging.getLogger(__name__)
 

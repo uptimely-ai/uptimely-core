@@ -1,15 +1,17 @@
-import dataclasses
+import copy
 import json
 
 import graphable
 import pytest
 from graphable import views
 
-from uptimely import execution_plan, spec
+from uptimely import plan as execution_plan
+from uptimely import spec
 from uptimely.explorer import common
 from uptimely.explorer.sections import data_lineage, feature_lineage, invocation_lineage
 from uptimely.explorer.sections import plan as plan_render
-from uptimely.spec import functions, model
+from uptimely.spec import function_kinds as functions
+from uptimely.spec import model
 from uptimely.spec.feature_graph import feature_graph, models
 
 
@@ -50,7 +52,11 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
         argument_types=argument_types,
     )
     compiled = execution_plan.ExecutionPlan(
-        execution_plan.PLAN_VERSION, "polars", {}, [invocation], [["calculate"]]
+        plan_version=execution_plan.PLAN_VERSION,
+        required_backend="polars",
+        resources={},
+        invocations=[invocation],
+        stages=[["calculate"]],
     )
 
     step = plan_render._build_step(1, invocation, compiled, definition)
@@ -110,7 +116,11 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         dependency_ids=[read_id],
     )
     compiled = execution_plan.ExecutionPlan(
-        execution_plan.PLAN_VERSION, "polars", {}, [read, merge], [[read_id], [merge_id]]
+        plan_version=execution_plan.PLAN_VERSION,
+        required_backend="polars",
+        resources={},
+        invocations=[read, merge],
+        stages=[[read_id], [merge_id]],
     )
 
     nodes, links = invocation_lineage.invocation_lineage_payload(compiled, definition)
@@ -268,7 +278,13 @@ def test_feature_payload_preserves_graph_metadata_and_excludes_external_edges() 
 
 
 def test_main_columns_replace_outputs_in_order_without_materializing_escape() -> None:
-    empty_plan = execution_plan.ExecutionPlan(execution_plan.PLAN_VERSION, "polars", {}, [], [])
+    empty_plan = execution_plan.ExecutionPlan(
+        plan_version=execution_plan.PLAN_VERSION,
+        required_backend="polars",
+        resources={},
+        invocations=[],
+        stages=[],
+    )
     builder = data_lineage._DataLineageBuilder(spec.Spec(), empty_plan)
     invocation = execution_plan.Invocation(
         id="calculate",
@@ -285,15 +301,15 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
     ]
     assert builder._main_columns(invocation, [a, b]) == [a, b]
     assert builder._main_columns(invocation, [a, c]) == [
-        dataclasses.replace(b, role="Existing"),
+        copy.replace(b, role="Existing"),
         a,
         c,
     ]
-    escape = dataclasses.replace(invocation, function_kind="escape")
+    escape = copy.replace(invocation, function_kind="escape")
     assert builder._main_columns(escape, [b]) == [
-        dataclasses.replace(a, role="Input"),
-        dataclasses.replace(b, role="Existing"),
-        dataclasses.replace(c, role="Existing"),
+        copy.replace(a, role="Input"),
+        copy.replace(b, role="Existing"),
+        copy.replace(c, role="Existing"),
     ]
 
 
@@ -343,7 +359,11 @@ def test_kind_capabilities_preserve_presentation_contracts(
         output_features=["value"],
     )
     compiled = execution_plan.ExecutionPlan(
-        execution_plan.PLAN_VERSION, "polars", {}, [invocation], [["calculate"]]
+        plan_version=execution_plan.PLAN_VERSION,
+        required_backend="polars",
+        resources={},
+        invocations=[invocation],
+        stages=[["calculate"]],
     )
     card = plan_render._build_step(1, invocation, compiled, definition)
     nodes, _ = invocation_lineage.invocation_lineage_payload(compiled, definition)
@@ -392,10 +412,14 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
         output_features=["value"],
     )
     compiled = execution_plan.ExecutionPlan(
-        execution_plan.PLAN_VERSION, "polars", {}, [invocation], [["calculate"]]
+        plan_version=execution_plan.PLAN_VERSION,
+        required_backend="polars",
+        resources={},
+        invocations=[invocation],
+        stages=[["calculate"]],
     )
     catalog = dict(functions.FUNCTION_KINDS)
-    catalog["read"] = dataclasses.replace(
+    catalog["read"] = copy.replace(
         catalog["read"], is_effect=True, is_transformer=True, dimension_change="remove"
     )
     monkeypatch.setattr(functions, "FUNCTION_KINDS", catalog)

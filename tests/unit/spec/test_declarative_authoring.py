@@ -5,7 +5,7 @@ import typing
 
 import pytest
 
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec import python as authoring
 from uptimely.spec.python import conversion, dimension, ref, row_context

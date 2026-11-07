@@ -1,20 +1,21 @@
 """Invoke plan operations and publish their results to profile main frames."""
 
+import collections
 import functools
 import logging
 import typing
 
 from uptimely import entrypoint as entrypoint_module
-from uptimely import execution_plan
+from uptimely import plan as execution_plan
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import main_frame as main_frame_module
 from uptimely.engine.dataframe import validation as dataframe_validation
-from uptimely.spec import arg_types, functions
+from uptimely.spec import arg_types
+from uptimely.spec import function_kinds as functions
 
 from . import bindings as bindings_module
 from . import state as state_module
-from . import validation as validation_module
 
 logger = logging.getLogger(__name__)
 
@@ -50,7 +51,7 @@ class InvocationExecutor:
             self._invoke(invocation)
             return
         if self.validate:
-            validation_module.InvocationValidator(self.backend, self.state, invocation).validate()
+            self.check_input_requirements(invocation)
         if definition.returns == arg_types.DATAFRAME:
             if definition.produces_fragment:
                 self._execute_dataframe_operator(invocation)
@@ -60,6 +61,99 @@ class InvocationExecutor:
             if invocation.dataset_id not in self.state.main_frames:
                 raise KeyError(invocation.dataset_id)
             self._invoke(invocation)
+
+    def check_input_requirements(self, invocation: execution_plan.Invocation) -> None:
+        """Check input scope and feature availability before execution.
+
+        Raises:
+            ValueError: A source reference is invalid or required features are
+                unavailable or ambiguous.
+        """
+        logger.debug("  Requirements:")
+        definition = functions.FUNCTION_KINDS[invocation.function_kind]
+        if definition.dataframe_input_scope == "foreign":
+            argument_name = self._check_foreign_dataframe_argument(invocation)
+            source_id = self._check_foreign_source_reference(invocation, argument_name)
+            source = self._check_foreign_source_available(source_id)
+            self._check_foreign_input_features(invocation, source)
+        else:
+            self._check_input_features(invocation)
+
+    def _check_input_features(self, invocation: execution_plan.Invocation) -> None:
+        """Require each feature locally or in exactly one other profile."""
+        logger.debug("    - checking declared input features")
+        target = self.state.main_frames.get(invocation.dataset_id)
+        target_columns = (
+            set(self.backend.column_names(target.dataframe)) if target is not None else set()
+        )
+        required = set(invocation.input_features) - target_columns
+        if not required:
+            return
+        available = collections.Counter(
+            column
+            for dataset_id, frame in self.state.main_frames.items()
+            if dataset_id != invocation.dataset_id
+            for column in set(self.backend.column_names(frame.dataframe))
+        )
+        for feature in invocation.input_features:
+            if feature in required and available[feature] != 1:
+                raise ValueError(
+                    f"Operator {invocation.operator_id} input feature is unavailable or ambiguous: "
+                    f"{feature}"
+                )
+
+    @staticmethod
+    def _dataframe_arguments(invocation: execution_plan.Invocation) -> list[str]:
+        """Return names of declared dataframe arguments."""
+        return [
+            name
+            for name, argument_type in invocation.argument_types.items()
+            if argument_type == arg_types.DATAFRAME
+        ]
+
+    def _check_foreign_dataframe_argument(self, invocation: execution_plan.Invocation) -> str:
+        """Require and return the single dataframe argument for a foreign input."""
+        logger.debug("    - checking foreign dataframe argument")
+        arguments = self._dataframe_arguments(invocation)
+        if len(arguments) != 1:
+            raise ValueError(
+                f"Operator {invocation.operator_id} must declare exactly one foreign "
+                "dataframe argument"
+            )
+        return arguments[0]
+
+    def _check_foreign_source_reference(
+        self, invocation: execution_plan.Invocation, argument_name: str
+    ) -> str:
+        """Require a dataset reference distinct from the invocation's target."""
+        logger.debug("    - checking foreign source reference")
+        source_id = invocation.arguments.get(argument_name)
+        if not isinstance(source_id, str) or source_id == invocation.dataset_id:
+            raise ValueError(
+                f"Operator {invocation.operator_id} must reference a foreign source profile"
+            )
+        return source_id
+
+    def _check_foreign_source_available(self, source_id: str) -> main_frame_module.MainFrame:
+        """Require the referenced source profile to be available."""
+        logger.debug("    - checking foreign source availability")
+        source = self.state.main_frames.get(source_id)
+        if source is None:
+            raise ValueError(f"Profile dataframe is unavailable: {source_id}")
+        return source
+
+    def _check_foreign_input_features(
+        self, invocation: execution_plan.Invocation, source: main_frame_module.MainFrame
+    ) -> None:
+        """Require declared features in the validated foreign source."""
+        logger.debug("    - checking foreign input features")
+        columns = set(self.backend.column_names(source.dataframe))
+        for feature in invocation.input_features:
+            if feature not in columns:
+                raise ValueError(
+                    f"Operator {invocation.operator_id} input feature is unavailable in foreign "
+                    f"source profile: {feature}"
+                )
 
     def _execute_dataframe_operator(self, invocation: execution_plan.Invocation) -> None:
         """Produce and retain a fragment for its scheduled merge invocation."""

@@ -7,7 +7,10 @@ import enum
 import json
 import typing
 
-from uptimely import execution_plan, spec
+import pydantic
+
+from uptimely import plan as execution_plan
+from uptimely import spec
 from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
@@ -29,6 +32,8 @@ class ExplorerPresentationData(typing.TypedDict):
 
 def _json_value(value: object) -> object:
     """Convert section models into ordinary JSON-compatible values."""
+    if isinstance(value, pydantic.BaseModel):
+        return _json_value(value.model_dump())
     if dataclasses.is_dataclass(value) and not isinstance(value, type):
         return _json_value(dataclasses.asdict(value))
     if isinstance(value, enum.Enum):

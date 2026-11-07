@@ -4,7 +4,7 @@ import dataclasses
 import typing
 
 from uptimely.explorer import common, graph_style
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec.feature_graph import models
 
 if typing.TYPE_CHECKING:

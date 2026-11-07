@@ -15,7 +15,8 @@ import pydantic
 import pytest
 
 from uptimely import row_context as row_context_model
-from uptimely.spec import api, functions, model
+from uptimely.spec import api, model
+from uptimely.spec import function_kinds as functions
 from uptimely.spec.python import assembly
 from uptimely.spec.python import feature as python_feature
 from uptimely.spec.python import profile as python_profile

@@ -5,8 +5,8 @@ from __future__ import annotations
 import dataclasses
 from collections import abc
 
-from uptimely import execution_plan
-from uptimely.spec import functions
+from uptimely import plan as execution_plan
+from uptimely.spec import function_kinds as functions
 
 from . import backend as backend_module
 from . import validation as dataframe_validation

@@ -4,8 +4,8 @@ from __future__ import annotations
 
 import logging
 
-from uptimely import row_context as row_context_model
 from uptimely.spec import model as spec_model
+from uptimely.spec import row_context as row_context_model
 from uptimely.spec import selectors
 
 logger = logging.getLogger(__name__)

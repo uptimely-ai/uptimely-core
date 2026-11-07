@@ -2,7 +2,7 @@
 
 import dataclasses
 
-from uptimely import execution_plan
+from uptimely import plan as execution_plan
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import main_frame as main_frame_module
 

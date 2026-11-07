@@ -11,7 +11,8 @@ from support import examples as example_support
 
 from uptimely import compiler, project, spec
 from uptimely import entrypoint as shared_entrypoint
-from uptimely import execution_plan as plan
+from uptimely import plan as plan
+from uptimely.compiler import compiler as compiler_module
 from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec.python import ref
 
@@ -33,23 +34,23 @@ def test_compiler_entrypoints_deduplicate_locations_without_importing(
 
     monkeypatch.setattr(shared_entrypoint, "Entrypoint", parse)
     locations = ["missing_module:first", "missing_module:second", "missing_module:first"]
-    builder = compiler.Compiler()
-    builder.__dict__["invocations"] = [
+    compilation = compiler_module._Compilation(spec.Spec())
+    compilation.__dict__["invocations"] = [
         types.SimpleNamespace(entrypoint=location) for location in locations
     ]
-    parsed = builder.entrypoints
+    parsed = compilation.entrypoints
     assert list(parsed) == locations[:2]
     assert calls == locations[:2]
-    assert builder.entrypoints is parsed
+    assert compilation.entrypoints is parsed
     assert calls == locations[:2]
     assert caplog.messages == [
         "  Entrypoints:",
         "    - checking syntax for 2 unique entrypoints",
     ]
     caplog.clear()
-    empty_builder = compiler.Compiler()
-    empty_builder.__dict__["invocations"] = []
-    assert empty_builder.entrypoints == {}
+    empty_compilation = compiler_module._Compilation(spec.Spec())
+    empty_compilation.__dict__["invocations"] = []
+    assert empty_compilation.entrypoints == {}
     assert caplog.messages == [
         "  Entrypoints:",
         "    - checking syntax for 0 unique entrypoints",
@@ -164,8 +165,6 @@ def test_compiler_summarizes_invocation_checks_once(
     builder = compiler.Compiler()
 
     compiled = builder.compile(pump_bundle.spec_definition)
-    assert builder.invocations is compiled.invocations
-
     assert caplog.messages.count("\nCompiler validation:") == (1 if level == logging.DEBUG else 0)
     summaries = [message for message in caplog.messages if "  Invocation checks for " in message]
     assert summaries == (
@@ -201,7 +200,11 @@ def test_compiler_summarizes_invocation_checks_once(
         message for message in caplog.messages if "checking package ownership for " in message
     ]
     assert package_summaries == (
-        [f"    - checking package ownership for {len(builder.entrypoints)} unique entrypoints"]
+        [
+            "    - checking package ownership for "
+            f"{len({invocation.entrypoint for invocation in compiled.invocations})} "
+            "unique entrypoints"
+        ]
         if level == logging.DEBUG
         else []
     )
@@ -398,7 +401,7 @@ def test_compiler_checks_entrypoint_syntax_when_signature_validation_is_disabled
     ("entrypoint", "error"),
     [
         ("invalid-entrypoint", ValueError),
-        ("uptimely.execution_plan.models:not_a_function", AttributeError),
+        ("uptimely.plan.models:not_a_function", AttributeError),
     ],
 )
 def test_function_load_rejects_invalid_entrypoints(

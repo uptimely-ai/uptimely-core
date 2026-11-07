@@ -4,7 +4,7 @@ import typing
 import pydantic
 import pytest
 
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation.rules import bindings
 from uptimely.spec.validation.rules import functions as validation_functions
@@ -143,6 +143,7 @@ def test_builtin_structural_contract_matrix(
 
 def test_function_kind_ids_remain_the_serialized_values() -> None:
     for kind in functions.FUNCTION_KINDS:
+        dataframe_inputs = functions.FUNCTION_KINDS[kind].dataframe_inputs or 0
         model = spec_model.Spec.model_validate(
             {
                 "functions": {
@@ -150,6 +151,10 @@ def test_function_kind_ids_remain_the_serialized_values() -> None:
                         "kind": kind,
                         "returns": functions.FUNCTION_KINDS[kind].returns,
                         "entrypoint": f"example:{kind}",
+                        "args": {
+                            f"dataframe_{index}": {"type": "dataframe"}
+                            for index in range(dataframe_inputs)
+                        },
                     }
                 }
             }

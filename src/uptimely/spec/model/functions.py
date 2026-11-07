@@ -3,13 +3,17 @@
 from __future__ import annotations
 
 import functools
+import logging
 import typing
 
 import pydantic
 
-from uptimely.spec import arg_types, functions
+from uptimely.spec import arg_types
+from uptimely.spec import function_kinds as functions
 
 from . import base
+
+logger = logging.getLogger(__name__)
 
 
 class Argument(base.StrictModel):
@@ -35,6 +39,32 @@ class FunctionTemplate(base.StrictModel):
     args: dict[str, Argument] = pydantic.Field(default_factory=dict)
     description: str | None = None
 
+    def check_return_contract(self) -> None:
+        """Require the return kind defined by the function kind."""
+        logger.debug("    - checking function return contract: %s", self.id)
+        expected = functions.FUNCTION_KINDS[self.kind].returns
+        if self.returns != expected:
+            dataframe_inputs = sum(
+                arg_types.is_dataframe(argument.type) for argument in self.args.values()
+            )
+            raise ValueError(
+                f"Kind {self.kind} must declare returns={expected}."
+                + functions.kind_hint(self.returns, dataframe_inputs)
+            )
+
+    def check_dataframe_input_contract(self) -> None:
+        """Require the dataframe argument count defined by the function kind."""
+        logger.debug("    - checking function dataframe argument count: %s", self.id)
+        expected = functions.FUNCTION_KINDS[self.kind].dataframe_inputs
+        dataframe_inputs = sum(
+            arg_types.is_dataframe(argument.type) for argument in self.args.values()
+        )
+        if expected is not None and dataframe_inputs != expected:
+            raise ValueError(
+                f"Kind {self.kind} requires {expected} dataframe argument(s), "
+                f"got {dataframe_inputs}." + functions.kind_hint(self.returns, dataframe_inputs)
+            )
+
     @pydantic.model_validator(mode="after")
     def generate_name(self) -> typing.Self:
         """Generate a display name from the function ID when one is not supplied."""
@@ -58,6 +88,29 @@ class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
     """Function definitions keyed by their globally unique identifiers."""
 
     root: dict[str, FunctionTemplate] = pydantic.Field(default_factory=dict)
+
+    @classmethod
+    def merge(cls, catalogs: typing.Iterable[FunctionCatalog]) -> typing.Self:
+        """Create a catalog from compatible definitions without modifying inputs.
+
+        Args:
+            catalogs: Catalogs to consume once, in declaration order.
+
+        Returns:
+            A new catalog retaining the first definition for each identifier.
+
+        Raises:
+            ValueError: Catalogs contain conflicting definitions for an identifier.
+        """
+        definitions: dict[str, FunctionTemplate] = {}
+        for catalog in catalogs:
+            for function_id, function in catalog.root.items():
+                current = definitions.get(function_id)
+                if current is None:
+                    definitions[function_id] = function
+                elif current != function:
+                    raise ValueError(f"Conflicting function definition for '{function_id}'")
+        return cls(root=definitions)
 
     def by_kind(self, kind: functions.FunctionKindId) -> dict[str, FunctionTemplate]:
         """Return function definitions for one kind."""

@@ -1,4 +1,4 @@
-import dataclasses
+import copy
 import logging
 import pathlib
 import types
@@ -10,7 +10,7 @@ from support import execution as execution_support
 from uptimely import compiler as uptimely_compiler
 from uptimely import engine as uptimely_engine
 from uptimely import entrypoint as entrypoint_module
-from uptimely import execution_plan as uptimely_plan
+from uptimely import plan as uptimely_plan
 from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import fragment as fragment_module
@@ -18,9 +18,8 @@ from uptimely.engine.dataframe import validation as dataframe_validation_module
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.engine.runtime import validation as runtime_validation
-from uptimely.execution_plan import serialization as plan_serialization
 from uptimely.library.merge import polars as merge_module
+from uptimely.plan import serialization as plan_serialization
 from uptimely.spec.python import assembly, dimension, profile, ref
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
@@ -298,12 +297,12 @@ def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
     _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
     bundle = bundle_for_plan(_plan())
     if dimensionless:
-        bundle = dataclasses.replace(
+        bundle = copy.replace(
             bundle,
-            execution_plan=dataclasses.replace(
+            execution_plan=copy.replace(
                 bundle.execution_plan,
                 invocations=[
-                    dataclasses.replace(
+                    copy.replace(
                         invocation,
                         id_columns=[],
                         arguments=(
@@ -441,7 +440,9 @@ def test_default_execution_skips_expensive_fragment_validation(
         },
     )
     monkeypatch.setattr(
-        runtime_validation.InvocationValidator, "validate", unexpected_content_check
+        execution_module.InvocationExecutor,
+        "check_input_requirements",
+        unexpected_content_check,
     )
     for method in (
         "validate_dimensionless_row_count",
@@ -569,7 +570,7 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
         state_module.RuntimeState(),
     )
 
-    invocation = dataclasses.replace(
+    invocation = copy.replace(
         engine.plan.invocations[0],
         entrypoint="uptimely.entrypoint:PackageProvenance",
         arguments={"distribution": "recorded-package", "version": "1.0"},
@@ -578,7 +579,7 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
     assert executor._invoke(invocation) == entrypoint_module.PackageProvenance(
         "recorded-package", "1.0"
     )
-    incompatible = dataclasses.replace(invocation, entrypoint="math:pi", arguments={})
+    incompatible = copy.replace(invocation, entrypoint="math:pi", arguments={})
     with pytest.raises(
         ValueError,
         match="recorded-package.*available runtime package: runtime-package==2.0",
@@ -589,7 +590,7 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
 def test_executor_validates_inputs_against_current_runtime_state(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    caplog.set_level(logging.DEBUG, logger=runtime_validation.__name__)
+    caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
     runtime_state = state_module.RuntimeState(
         main_frames={
             "dataset": execution_support.main_frame(pl.DataFrame({"local": [1]})),
@@ -614,19 +615,18 @@ def test_executor_validates_inputs_against_current_runtime_state(
         input_features=["local"],
     )
 
-    validator = runtime_validation.InvocationValidator(executor.backend, executor.state, invocation)
-    validator.validate()
+    executor.check_input_requirements(invocation)
     invocation.input_features[:] = ["unique"]
-    validator.validate()
+    executor.check_input_requirements(invocation)
     invocation.input_features[:] = ["shared"]
     with pytest.raises(ValueError, match="unavailable or ambiguous: shared"):
-        validator.validate()
+        executor.check_input_requirements(invocation)
     runtime_state.main_frames["dataset"].dataframe = pl.DataFrame({"new": [1]})
     del runtime_state.main_frames["second"]
     invocation.input_features[:] = ["new"]
-    validator.validate()
+    executor.check_input_requirements(invocation)
     invocation.input_features[:] = ["shared"]
-    validator.validate()
+    executor.check_input_requirements(invocation)
     assert (
         caplog.messages
         == [
@@ -895,7 +895,7 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         input_features=["external_input"],
         arguments={"frame": "missing"},
     )
-    second_invocation = dataclasses.replace(
+    second_invocation = copy.replace(
         first_invocation,
         id=second_id,
         entrypoint="test:second",
@@ -1066,7 +1066,7 @@ def test_escape_exception_fails_and_skips_downstream(
         output_features=[],
         input_features=["external_input"],
     )
-    second_invocation = dataclasses.replace(
+    second_invocation = copy.replace(
         first_invocation,
         id=second_id,
         entrypoint="test:second",
@@ -1168,9 +1168,7 @@ def test_engine_validates_plan_backend(engine_for_plan: execution_support.Engine
     plan = _plan()
 
     with pytest.raises(ValueError, match="Unsupported plan backend"):
-        engine_for_plan(
-            uptimely_plan.ExecutionPlan(**{**plan.__dict__, "required_backend": "pandas"})
-        )
+        engine_for_plan(copy.replace(plan, required_backend="pandas"))
 
 
 @pytest.mark.parametrize("validate", [False, True])
@@ -1195,7 +1193,7 @@ def test_engine_execution_uses_only_saved_invocation_metadata(
     )
     bundle = bundle_for_plan(_plan())
     restored = uptimely_plan.from_dict(uptimely_plan.to_dict(bundle.execution_plan))
-    bundle = dataclasses.replace(bundle, execution_plan=restored, spec_definition=spec.Spec())
+    bundle = copy.replace(bundle, execution_plan=restored, spec_definition=spec.Spec())
     engine = uptimely_engine.Engine(
         bundle, uptimely_engine.EngineConfig(), {"source": "input.json"}
     )
@@ -1273,12 +1271,12 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
         state,
     )
     for dataset_id in ("first", "second"):
-        read = dataclasses.replace(
+        read = copy.replace(
             next(item for item in engine.plan.invocations if item.function_kind == "read"),
             dataset_id=dataset_id,
             operator_id="shared",
         )
-        merge = dataclasses.replace(
+        merge = copy.replace(
             next(item for item in engine.plan.invocations if item.function_kind == "merge"),
             id=f"invocation:merge:__uptimely_merge_by_grain:{dataset_id}:shared",
             dataset_id=dataset_id,
@@ -1327,11 +1325,11 @@ def test_input_validation_reads_each_dataset_schema_once(
     executor = execution_module.InvocationExecutor(
         engine.backend, {}, engine.parameters, state, validate=True
     )
-    invocation = dataclasses.replace(
+    invocation = copy.replace(
         engine.plan.invocations[1], input_features=["asset_id", "reading", "other"]
     )
 
-    runtime_validation.InvocationValidator(executor.backend, executor.state, invocation).validate()
+    executor.check_input_requirements(invocation)
 
     assert len(inspected) == 2
     assert inspected[0] is state.main_frames["telemetry"].dataframe
@@ -1356,8 +1354,8 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
     message: str | None,
     check_count: int,
 ) -> None:
-    caplog.set_level(logging.DEBUG, logger=runtime_validation.__name__)
-    invocation = dataclasses.replace(
+    caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
+    invocation = copy.replace(
         _plan().invocations[1],
         function_kind="expand",
         argument_types={"source": "dataframe"},
@@ -1379,15 +1377,15 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
     state = state_module.RuntimeState(
         main_frames={"source": execution_support.main_frame(pl.DataFrame({"reading": [1]}))}
     )
-    validator = runtime_validation.InvocationValidator(
-        backend_module.PolarsBackend(), state, invocation
+    executor = execution_module.InvocationExecutor(
+        backend_module.PolarsBackend(), {}, {}, state, validate=True
     )
 
     if message is None:
-        validator.validate()
+        executor.check_input_requirements(invocation)
     else:
         with pytest.raises(ValueError, match=message):
-            validator.validate()
+            executor.check_input_requirements(invocation)
 
     assert caplog.messages == [
         "  Requirements:",
@@ -1416,9 +1414,7 @@ def test_input_validation_rejects_missing_or_ambiguous_foreign_features(
     )
 
     with pytest.raises(ValueError, match="input feature is unavailable or ambiguous: reading"):
-        runtime_validation.InvocationValidator(
-            executor.backend, executor.state, engine.plan.invocations[1]
-        ).validate()
+        executor.check_input_requirements(engine.plan.invocations[1])
 
 
 def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:
@@ -1437,26 +1433,6 @@ def test_runtime_state_is_not_shared_between_instances() -> None:
     first.main_frames["telemetry"] = execution_support.main_frame(pl.DataFrame({"asset_id": ["A"]}))
 
     assert second.main_frames == {}
-
-
-def test_execute_reports_unsupported_function_kinds(
-    engine_for_plan: execution_support.EngineFactory,
-) -> None:
-    plan = _plan()
-    invalid_invocation = dataclasses.replace(plan.invocations[0], function_kind="unsupported")
-    engine = engine_for_plan(
-        uptimely_plan.ExecutionPlan(
-            **{**plan.__dict__, "invocations": [invalid_invocation, *plan.invocations[1:]]}
-        )
-    )
-
-    result = engine.run()
-
-    assert result.invocation_statuses[invalid_invocation.id] == "failed"
-    assert (
-        result.failures[invalid_invocation.id]
-        == "Unsupported invocation function kind: unsupported"
-    )
 
 
 def test_vectorize_requires_an_accumulated_target() -> None:

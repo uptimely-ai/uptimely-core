@@ -5,7 +5,7 @@ from __future__ import annotations
 import dataclasses
 import typing
 
-from uptimely import row_context
+from uptimely.spec import row_context
 
 from . import dimension as dimension_module
 from . import ref

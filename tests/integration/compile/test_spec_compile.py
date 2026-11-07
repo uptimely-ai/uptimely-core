@@ -7,9 +7,9 @@ import pytest
 from support import examples as example_support
 
 from uptimely import compiler, entrypoint, spec
-from uptimely import execution_plan as compiler_plan
+from uptimely import plan as compiler_plan
 from uptimely.compiler import validation
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"

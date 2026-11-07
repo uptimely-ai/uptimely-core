@@ -2,7 +2,7 @@
 
 import logging
 
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 
 logger = logging.getLogger(__name__)

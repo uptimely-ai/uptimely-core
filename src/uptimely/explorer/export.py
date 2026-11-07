@@ -4,8 +4,8 @@ import json
 import pathlib
 import zipfile
 
-from uptimely import project_paths
 from uptimely.explorer import presentation
+from uptimely.project import paths as project_paths
 from uptimely.run import store as run_store
 
 _BUILD_INSTRUCTION = "Run 'uptimely project build' to generate a valid Explorer snapshot."

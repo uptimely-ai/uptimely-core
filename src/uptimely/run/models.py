@@ -10,7 +10,7 @@ import pydantic
 
 from uptimely.engine import config
 from uptimely.engine.runtime import result
-from uptimely.execution_plan import serialization
+from uptimely.plan import serialization
 from uptimely.project.build import models as build_models
 
 LOG_FILE = "log.jsonl"

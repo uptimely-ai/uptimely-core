@@ -7,7 +7,7 @@ from support import examples as example_support
 
 from uptimely import project, spec
 from uptimely.cli import cli
-from uptimely.spec import functions
+from uptimely.spec import function_kinds as functions
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"

@@ -17,9 +17,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from starlette.background import BackgroundTask
 
-from uptimely import project_paths
 from uptimely.explorer import export as explorer_export
 from uptimely.explorer import presentation
+from uptimely.project import paths as project_paths
 from uptimely.run import store as run_store
 
 logger = logging.getLogger(__name__)

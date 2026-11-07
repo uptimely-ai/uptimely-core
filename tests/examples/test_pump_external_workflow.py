@@ -8,7 +8,7 @@ import pytest
 from examples.pump_analytics.functions import external_workflow
 from support import execution as execution_support
 
-from uptimely import execution_plan as plan_module
+from uptimely import plan as plan_module
 from uptimely import project
 
 

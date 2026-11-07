@@ -5,7 +5,7 @@ from __future__ import annotations
 import typing
 from collections import abc
 
-from uptimely.spec import functions as function_kinds
+from uptimely.spec import function_kinds
 
 __all__ = ["function"]
 
