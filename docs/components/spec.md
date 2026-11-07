@@ -642,7 +642,7 @@ Each direction is an object containing at most one measurement, or the string
 | --- | --- | --- |
 | `time` | Fixed duration, such as `"8h"`, or `"unbounded"`. | Datetime. |
 | `steps` | Nonnegative integer or `"unbounded"`. | Integer. |
-| `rows` | Nonnegative integer or `"unbounded"`. | None; uses dataset order. |
+| `rows` | Nonnegative integer or `"unbounded"`. | None; uses profile order. |
 
 Only fixed dimension-based windows and row counts are supported. Feature-valued
 axes and data-dependent window sizes are not supported.
@@ -659,11 +659,11 @@ current-row-only context. Two unbounded directions require the whole input and
 need no order; one unbounded direction still needs logical ordering.
 Functions handle grouping and sorting themselves.
 
-Nonzero directional requirements need dataset order. A time/step dimension must
+Nonzero directional requirements need profile order. A time/step dimension must
 belong to the input profile and have the matching type. When directional context
-requires ordering, that dimension must also occur in the dataset's order.
-For dimension-removing operations, validation uses the inferred source dataset
-rather than the target. Other operations use the target dataset.
+requires ordering, that dimension must also occur in the profile's order.
+For dimension-removing operations, validation uses the inferred source profile
+rather than the target. Other operations use the target profile.
 
 Fixed durations use these distinct lowercase suffixes:
 

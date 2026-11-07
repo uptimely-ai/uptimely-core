@@ -116,7 +116,7 @@ class ContextExtent(pydantic.BaseModel):
 
 
 class RowContext(pydantic.BaseModel):
-    """Required input observations, interpreted using the dataset's logical order.
+    """Required input observations, interpreted using the profile's logical order.
 
     Empty directions mean current-row-only input. An absent RowContext means
     unknown requirements, not zero context. Unbounded directions require all
@@ -149,7 +149,7 @@ class RowContext(pydantic.BaseModel):
         if measurements & {"time", "steps"} and self.dimension is None:
             raise ValueError("Time and steps context require a declared dimension")
         if "rows" in measurements and self.dimension is not None:
-            raise ValueError("Row-count context uses dataset order, not a dimension")
+            raise ValueError("Row-count context uses profile order, not a dimension")
         return self
 
     @pydantic.model_serializer

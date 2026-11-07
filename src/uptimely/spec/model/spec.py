@@ -70,13 +70,8 @@ class Spec(base.StrictModel):
 
     @functools.cached_property
     def profile_keys(self) -> dict[str, ProfileKey]:
-        """Return each global profile ID's index key."""
+        """Return each global profile ID's declaration key."""
         return {profile.id: key for key, profile in self.profile_items}
-
-    @functools.cached_property
-    def profiles_by_id(self) -> dict[str, profile_module.Profile]:
-        """Return original profile objects keyed by globally unique ID."""
-        return {profile.id: profile for _, profile in self.profile_items}
 
     @functools.cached_property
     def features(self) -> dict[str, profile_module.Feature]:

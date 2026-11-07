@@ -10,6 +10,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking (Python authoring):** Renamed `row_context.dataset()` to
+  `row_context.all_rows()` to describe its row-context behavior without implying
+  a spec-level Dataset.
 - **Breaking:** Renamed `RuntimeState.main_frames` and
   `ExecutionResult.main_frames` to `datasets`. Values remain final dataframes
   keyed by dataset ID.
