@@ -151,7 +151,7 @@ class Engine:
             statuses.setdefault(invocation.id, result_module.INVOCATION_STATUS_SKIPPED)
 
         return result_module.ExecutionResult(
-            main_frames={key: frame.dataframe for key, frame in state.main_frames.items()},
+            datasets={key: frame.dataframe for key, frame in state.datasets.items()},
             calculated_outputs=dict(state.calculated_outputs),
             invocation_statuses=statuses,
             durations=durations,

@@ -69,7 +69,7 @@ def test_root_authoring_api_compiles_and_executes(
     execution_plan = up.Compiler().compile(model, features=["doubled"])
     execution = engine_for_plan(execution_plan, spec_definition=model).run()
     assert not execution.failures
-    result = execution.main_frames["calculated_profile"].sort("id")
+    result = execution.datasets["calculated_profile"].sort("id")
     assert result["doubled"].to_list() == [20, 40]
 
 

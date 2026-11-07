@@ -94,7 +94,7 @@ def _saved_run(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> engin
     def execute(**kwargs: object) -> engine.ExecutionResult:
         logging.getLogger("uptimely.engine").warning("saved message")
         return engine.ExecutionResult(
-            main_frames={"sample": pl.DataFrame({"value": [1, 2, 3]})},
+            datasets={"sample": pl.DataFrame({"value": [1, 2, 3]})},
             calculated_outputs={},
             invocation_statuses={},
             durations={},

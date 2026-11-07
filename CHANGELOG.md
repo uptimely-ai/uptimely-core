@@ -10,6 +10,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking:** Renamed `RuntimeState.main_frames` and
+  `ExecutionResult.main_frames` to `datasets`. Values remain final dataframes
+  keyed by dataset ID.
 - **Breaking (Python imports):** Removed the `uptimely.execution_plan` and
   `uptimely.project_paths` forwarding modules. Import plan APIs from
   `uptimely.plan` and project paths from `uptimely.project.paths`.

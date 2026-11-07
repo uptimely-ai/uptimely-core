@@ -85,10 +85,10 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
     assert result.plan_version == 6
-    assert not hasattr(result, "datasets")
+    assert not hasattr(result, "main_frames")
     assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
-    assert set(result.main_frames) == {"telemetry"}
-    assert result.main_frames["telemetry"].select("doubled").to_series().to_list() == [
+    assert set(result.datasets) == {"telemetry"}
+    assert result.datasets["telemetry"].select("doubled").to_series().to_list() == [
         4,
         6,
     ]
@@ -263,12 +263,12 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             assert result.failures[merge_second_id] == "custom merge failed"
         else:
             assert "missing required columns: first" in result.failures[merge_second_id]
-        assert result.main_frames["telemetry"].to_dicts() == [{"id": "A", "first": 1}]
+        assert result.datasets["telemetry"].to_dicts() == [{"id": "A", "first": 1}]
     else:
         assert result.invocation_statuses[merge_second_id] == "succeeded"
         assert result.invocation_statuses[write_id] == "succeeded"
         assert result.failures == {}
-        assert result.main_frames["telemetry"].to_dicts() == [{"id": "A", "first": 1, "second": 2}]
+        assert result.datasets["telemetry"].to_dicts() == [{"id": "A", "first": 1, "second": 2}]
 
 
 @pytest.mark.parametrize("dimensionless", [False, True])
@@ -326,7 +326,7 @@ def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
 
     assert not result.failures
     assert set(result.invocation_statuses.values()) == {"succeeded"}
-    assert isinstance(result.main_frames["telemetry"], pl.LazyFrame)
+    assert isinstance(result.datasets["telemetry"], pl.LazyFrame)
     assert collected_heights == [1]
     assert result.preview_frames["telemetry"].height == 1
 
@@ -364,7 +364,7 @@ def test_validation_flag_checks_lazy_schema(
     result = engine.run(validate=True)
 
     assert message in next(iter(result.failures.values()))
-    assert not result.main_frames
+    assert not result.datasets
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -401,7 +401,7 @@ def test_validation_is_opt_in_for_eager_and_lazy_frames(
     unchecked = runtime.run()
     assert not unchecked.failures
     assert len(writes) == 1
-    frame = unchecked.main_frames["telemetry"]
+    frame = unchecked.datasets["telemetry"]
     if lazy:
         frame.collect()
 
@@ -486,10 +486,10 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
     calculate = next(item for item in engine.plan.invocations if item.function_kind == "vectorize")
 
     executor.execute(read)
-    assert state.main_frames == {}
+    assert state.datasets == {}
     assert set(state.staged_fragments) == {read.id}
     executor.execute(merge)
-    main = state.main_frames["telemetry"]
+    main = state.datasets["telemetry"]
     source = main.fragments[read.operator_id]
     assert main.id_columns == ("asset_id",)
     assert not hasattr(main, "dataset")
@@ -497,7 +497,7 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
 
     executor.execute(calculate)
 
-    assert state.main_frames["telemetry"] is main
+    assert state.datasets["telemetry"] is main
     assert main.dataframe["doubled"].to_list() == [4]
     assert "doubled" not in source.dataframe.columns
     assert "extra" in raw_source.columns
@@ -531,7 +531,7 @@ def test_saved_plan_executes_without_compiler(
     result = engine.run()
 
     assert result.failures == {}
-    assert result.main_frames["telemetry"]["doubled"].to_list() == [4, 6]
+    assert result.datasets["telemetry"]["doubled"].to_list() == [4, 6]
 
 
 def test_engine_reports_package_provenance_without_enforcing_versions(
@@ -579,7 +579,7 @@ def test_executor_validates_inputs_against_current_runtime_state(
 ) -> None:
     caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
     runtime_state = state_module.RuntimeState(
-        main_frames={
+        datasets={
             "dataset": execution_support.dataset(pl.DataFrame({"local": [1]})),
             "first": execution_support.dataset(pl.DataFrame({"shared": [1], "unique": [1]})),
             "second": execution_support.dataset(pl.DataFrame({"shared": [1]})),
@@ -608,8 +608,8 @@ def test_executor_validates_inputs_against_current_runtime_state(
     invocation.input_features[:] = ["shared"]
     with pytest.raises(ValueError, match="unavailable or ambiguous: shared"):
         executor.check_input_requirements(invocation)
-    runtime_state.main_frames["dataset"].dataframe = pl.DataFrame({"new": [1]})
-    del runtime_state.main_frames["second"]
+    runtime_state.datasets["dataset"].dataframe = pl.DataFrame({"new": [1]})
+    del runtime_state.datasets["second"]
     invocation.input_features[:] = ["new"]
     executor.check_input_requirements(invocation)
     invocation.input_features[:] = ["shared"]
@@ -668,10 +668,10 @@ def test_repeated_execution_does_not_leak_runtime_state(
     second_result = engine.run()
 
     assert first_result.failures == second_result.failures == {}
-    assert first_result.main_frames is not second_result.main_frames
+    assert first_result.datasets is not second_result.datasets
     assert first_result.calculated_outputs is not second_result.calculated_outputs
-    assert first_result.main_frames["telemetry"]["doubled"].to_list() == [2, 4]
-    assert second_result.main_frames["telemetry"]["doubled"].to_list() == [4, 6]
+    assert first_result.datasets["telemetry"]["doubled"].to_list() == [2, 4]
+    assert second_result.datasets["telemetry"]["doubled"].to_list() == [4, 6]
     first_output = first_result.calculated_outputs["telemetry", "doubled"]
     assert first_output["doubled"].to_list() == [2, 4]
 
@@ -755,7 +755,7 @@ def test_escape_ignores_any_return_without_materializing_features(
 
     assert result.invocation_statuses == {invocation_id: "succeeded"}
     assert result.failures == {}
-    assert result.main_frames == {}
+    assert result.datasets == {}
     assert result.calculated_outputs == {}
 
 
@@ -815,7 +815,7 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
     assert calls == ["first", "second"]
     assert result.invocation_statuses == {first_id: "succeeded", second_id: "succeeded"}
     assert result.failures == {}
-    assert result.main_frames == {}
+    assert result.datasets == {}
     assert result.calculated_outputs == {}
 
 
@@ -1033,8 +1033,8 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         "input feature is unavailable or ambiguous: external_result"
         in result.failures[vectorize_id]
     )
-    assert observed == [result.main_frames["telemetry"]]
-    assert "external_result" not in result.main_frames["telemetry"].columns
+    assert observed == [result.datasets["telemetry"]]
+    assert "external_result" not in result.datasets["telemetry"].columns
     assert result.calculated_outputs == {}
 
 
@@ -1146,7 +1146,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
 
     assert result.failures == {}
     assert result.invocation_statuses == {compiled.invocations[0].id: "succeeded"}
-    assert result.main_frames == {}
+    assert result.datasets == {}
     assert result.calculated_outputs == {}
     assert pl.read_csv(output_path).rows() == [("A", 2, 4), ("B", 3, 6)]
 
@@ -1188,7 +1188,7 @@ def test_engine_execution_uses_only_saved_invocation_metadata(
     result = engine.run(validate=validate)
 
     assert not result.failures
-    assert result.main_frames["telemetry"].to_dicts() == [
+    assert result.datasets["telemetry"].to_dicts() == [
         {"asset_id": "A", "reading": 2, "doubled": 4}
     ]
 
@@ -1236,7 +1236,7 @@ def test_engine_rejects_ambiguous_fragment_references() -> None:
     second = execution_support.dataset(None)
     first.fragments["shared"] = fragment_module.Fragment(pl.DataFrame({"asset_id": ["A"]}), ())
     second.fragments["shared"] = fragment_module.Fragment(pl.DataFrame({"asset_id": ["B"]}), ())
-    state = state_module.RuntimeState(main_frames={"first": first, "second": second})
+    state = state_module.RuntimeState(datasets={"first": first, "second": second})
 
     with pytest.raises(ValueError, match="Ambiguous fragment reference: shared"):
         state.resolve_dataset_or_fragment_dataframe("shared")
@@ -1283,8 +1283,8 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
         executor.execute(read)
         executor.execute(merge)
 
-    assert set(state.main_frames) == {"first", "second"}
-    assert all(set(main.fragments) == {"shared"} for main in state.main_frames.values())
+    assert set(state.datasets) == {"first", "second"}
+    assert all(set(main.fragments) == {"shared"} for main in state.datasets.values())
     with pytest.raises(ValueError, match="Ambiguous fragment reference: shared"):
         state.resolve_dataset_or_fragment_dataframe("shared")
 
@@ -1294,7 +1294,7 @@ def test_input_validation_reads_each_dataset_schema_once(
 ) -> None:
     engine = engine_for_plan(_plan())
     state = state_module.RuntimeState(
-        main_frames={
+        datasets={
             "telemetry": execution_support.dataset(pl.DataFrame({"asset_id": ["A"]})),
             "source": execution_support.dataset(
                 pl.DataFrame({"asset_id": ["A"], "reading": [1], "other": [2]})
@@ -1319,8 +1319,8 @@ def test_input_validation_reads_each_dataset_schema_once(
     executor.check_input_requirements(invocation)
 
     assert len(inspected) == 2
-    assert inspected[0] is state.main_frames["telemetry"].dataframe
-    assert inspected[1] is state.main_frames["source"].dataframe
+    assert inspected[0] is state.datasets["telemetry"].dataframe
+    assert inspected[1] is state.datasets["source"].dataframe
 
 
 @pytest.mark.parametrize(
@@ -1362,7 +1362,7 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
     elif invalid == "missing_feature":
         invocation.input_features[:] = ["missing"]
     state = state_module.RuntimeState(
-        main_frames={"source": execution_support.dataset(pl.DataFrame({"reading": [1]}))}
+        datasets={"source": execution_support.dataset(pl.DataFrame({"reading": [1]}))}
     )
     executor = execution_module.InvocationExecutor(
         backend_module.PolarsBackend(), {}, {}, state, validate=True
@@ -1391,7 +1391,7 @@ def test_input_validation_rejects_missing_or_ambiguous_foreign_features(
 ) -> None:
     engine = engine_for_plan(_plan())
     state = state_module.RuntimeState(
-        main_frames={
+        datasets={
             f"source_{index}": execution_support.dataset(pl.DataFrame({"reading": [index]}))
             for index in range(sources)
         }
@@ -1409,7 +1409,7 @@ def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:
     fragment = pl.DataFrame({"asset_id": ["fragment"]})
     main = execution_support.dataset(dataset)
     main.fragments["shared"] = fragment_module.Fragment(fragment, ())
-    state = state_module.RuntimeState(main_frames={"shared": main})
+    state = state_module.RuntimeState(datasets={"shared": main})
 
     assert state.resolve_dataset_or_fragment_dataframe("shared") is dataset
 
@@ -1417,9 +1417,9 @@ def test_runtime_state_prefers_dataset_to_fragment_lookup() -> None:
 def test_runtime_state_is_not_shared_between_instances() -> None:
     first = state_module.RuntimeState()
     second = state_module.RuntimeState()
-    first.main_frames["telemetry"] = execution_support.dataset(pl.DataFrame({"asset_id": ["A"]}))
+    first.datasets["telemetry"] = execution_support.dataset(pl.DataFrame({"asset_id": ["A"]}))
 
-    assert second.main_frames == {}
+    assert second.datasets == {}
 
 
 def test_vectorize_requires_an_accumulated_target() -> None:
@@ -1447,7 +1447,7 @@ def test_column_projection_failure_preserves_published_state(
 ) -> None:
     original = pl.DataFrame({"reading": [3]})
     dataset = execution_support.dataset(original)
-    state = state_module.RuntimeState(main_frames={"telemetry": dataset})
+    state = state_module.RuntimeState(datasets={"telemetry": dataset})
     adapter = backend_module.PolarsBackend()
     executor = execution_module.InvocationExecutor(adapter, {}, {}, state)
     invocation = uptimely_plan.Invocation(
@@ -1506,7 +1506,7 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
         )
     )
     dataset = execution_support.dataset(original)
-    state = state_module.RuntimeState(main_frames={"dataset": dataset})
+    state = state_module.RuntimeState(datasets={"dataset": dataset})
     executor = execution_module.InvocationExecutor(
         backend_module.PolarsBackend(), {}, {}, state, validate=validate
     )
@@ -1667,10 +1667,10 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
 
     assert result.failures == {}
     assert calls == 1
-    assert result.main_frames["telemetry"]["reading"].to_list() == [3]
-    assert result.main_frames["telemetry"].select(
-        "reading_plus_one", "reading_times_two"
-    ).rows() == [(4, 6)]
+    assert result.datasets["telemetry"]["reading"].to_list() == [3]
+    assert result.datasets["telemetry"].select("reading_plus_one", "reading_times_two").rows() == [
+        (4, 6)
+    ]
     assert staged_kinds == ["read"]
     assert merge_calls == 1
     assert set(result.calculated_outputs) == {

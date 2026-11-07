@@ -110,7 +110,7 @@ def _log_summary(
     logger.info(
         "\nEngine completed in %.3f s: %d profiles processed",
         duration,
-        len(result.main_frames),
+        len(result.datasets),
     )
     if logger.isEnabledFor(logging.DEBUG):
         scope = (
@@ -136,7 +136,7 @@ def _log_previews(result: engine_module.ExecutionResult, rows: int) -> None:
         result: Execution result containing the final profile frames.
         rows: Positive maximum number of rows to display per profile.
     """
-    for profile_id, frame in result.main_frames.items():
+    for profile_id, frame in result.datasets.items():
         if profile_id in result.preview_failures:
             raise RuntimeError(
                 f"Cannot preview Profile({profile_id}): {result.preview_failures[profile_id]}"

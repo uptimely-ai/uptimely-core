@@ -325,7 +325,7 @@ def test_runtime_bindings_unwrap_dataset_and_fragment() -> None:
     main = execution_support.dataset(None, ["id"])
     projected = main.merge(fragment_module.Fragment(data, ("id",)))
     main.fragments["source"] = projected
-    state = state_module.RuntimeState(main_frames={"dataset": main})
+    state = state_module.RuntimeState(datasets={"dataset": main})
     bindings = bindings_module.RuntimeBindings(state, {})
 
     assert bindings.resolve_value("dataset", "dataframe") is data
@@ -351,7 +351,7 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
     assert fragment.dataframe.collect().to_dicts() == [{"group": "A", "new": 1}]
 
 
-def test_failed_merge_preserves_retained_fragments_and_other_main_frames() -> None:
+def test_failed_merge_preserves_retained_fragments_and_other_datasets() -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     invocation = plan.invocations[0]
     main = execution_support.dataset(None, ["asset_id"])

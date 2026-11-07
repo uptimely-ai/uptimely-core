@@ -195,11 +195,11 @@ def test_vectorize_rejects_reordered_existing_rows(
     assert "must preserve existing column values and row order" in next(
         iter(execution.failures.values())
     )
-    assert execution.main_frames["observations"].select("id", "value").rows() == [
+    assert execution.datasets["observations"].select("id", "value").rows() == [
         (2, 20),
         (1, 10),
     ]
-    assert "result" not in execution.main_frames["observations"].columns
+    assert "result" not in execution.datasets["observations"].columns
 
 
 def test_vectorize_merge_field_is_rejected_by_json_and_python_authoring(
@@ -256,9 +256,7 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
 
 def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
     frame = read_values()
-    state = state_module.RuntimeState(
-        main_frames={"observations": execution_support.dataset(frame)}
-    )
+    state = state_module.RuntimeState(datasets={"observations": execution_support.dataset(frame)})
     bindings = bindings_module.RuntimeBindings(state, {})
     assert bindings.resolve_value([None, 1]) == [None, 1]
     resolved = bindings.resolve_value({"frames": ["observations"]}, "object{str: array[dataframe]}")
@@ -284,7 +282,7 @@ def test_implicit_dimensions_have_runtime_type_validation(
     assert "Output column id has type String; expected integer" in next(
         iter(execution.failures.values())
     )
-    assert not execution.main_frames
+    assert not execution.datasets
 
 
 @pytest.mark.parametrize("with_sink", [False, True])
@@ -320,7 +318,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     compiled = compiler.Compiler().compile(spec_definition, features=["result"])
     execution = engine_for_plan(compiled, spec_definition=spec_definition).run()
     assert not execution.failures
-    assert execution.main_frames["observations"].sort("id")["result"].to_list() == [11, 21]
+    assert execution.datasets["observations"].sort("id")["result"].to_list() == [11, 21]
 
 
 @pytest.mark.parametrize("dataframe", [False, True])
