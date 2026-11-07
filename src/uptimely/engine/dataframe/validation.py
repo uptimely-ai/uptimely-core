@@ -29,7 +29,7 @@ class _FrameValidator:
         """Return the current frame's column names."""
         return set(self.backend.column_names(self.frame))
 
-    def _validate_frame_type(self) -> None:
+    def validate_frame_type(self) -> None:
         """Require a dataframe before inspecting its schema."""
         logger.debug("    - checking dataframe type")
         if not self.backend.is_frame(self.frame):
@@ -38,7 +38,7 @@ class _FrameValidator:
                 or f"{self.description} must be a Polars DataFrame or LazyFrame"
             )
 
-    def _validate_dimension_columns(self) -> None:
+    def validate_dimension_columns(self) -> None:
         """Require all carried dimension columns."""
         logger.debug("    - checking required dimension columns")
         missing = sorted(set(self.dimensions) - self.columns)
@@ -47,7 +47,7 @@ class _FrameValidator:
                 f"{self.description} is missing dimension columns: " + ", ".join(missing)
             )
 
-    def _validate_dimensionless_row_count(self) -> None:
+    def validate_dimensionless_row_count(self) -> None:
         """Limit a dimensionless dataframe to at most one observation."""
         if self.dimensions:
             logger.debug("    - skipping dimensionless row count (data has dimensions)")
@@ -59,7 +59,7 @@ class _FrameValidator:
                 "(dimensionless profile frames allow at most one row)"
             )
 
-    def _validate_unique_dimension_keys(self) -> None:
+    def validate_unique_dimension_keys(self) -> None:
         """Reject duplicate observation keys."""
         if not self.dimensions:
             logger.debug("    - skipping dimension-key uniqueness (no dimensions)")
@@ -69,11 +69,20 @@ class _FrameValidator:
         if self.backend.is_duplicated(keys):
             raise ValueError(f"{self.description} contains duplicate dimension keys")
 
-    def _validate_column_types(self, columns: list[str]) -> None:
+    def validate_column_types(self, columns: list[str]) -> None:
         """Validate logical types declared for selected columns."""
         types = {name: self.column_types[name] for name in columns if name in self.column_types}
         logger.debug("      Declared types: %s", types)
         self.backend.validate_types(self.frame, types)
+
+    def validate(self) -> None:
+        """Check common dataframe requirements before specialized validation.
+
+        Raises:
+            ValueError: The frame is not a supported dataframe or lacks dimensions.
+        """
+        self.validate_frame_type()
+        self.validate_dimension_columns()
 
 
 @dataclasses.dataclass(frozen=True, kw_only=True)
@@ -104,11 +113,10 @@ class FragmentValidator(_FrameValidator):
             ValueError: The fragment violates its declared dataframe contract.
         """
         logger.debug("  Fragment:")
-        self._validate_frame_type()
-        self._validate_dimension_columns()
-        self._validate_dimensionless_row_count()
+        super().validate()
+        self.validate_dimensionless_row_count()
         self._validate_row_count()
-        self._validate_unique_dimension_keys()
+        self.validate_unique_dimension_keys()
         self._validate_output_columns()
         self._validate_declared_types()
         self._validate_key_coverage()
@@ -141,7 +149,7 @@ class FragmentValidator(_FrameValidator):
     def _validate_declared_types(self) -> None:
         """Check logical types of carried dimensions and declared outputs."""
         logger.debug("    - checking dimension and output types")
-        self._validate_column_types([*self.dimensions, *self.effective_output_features])
+        self.validate_column_types([*self.dimensions, *self.effective_output_features])
 
     def _validate_key_coverage(self) -> None:
         """Enforce the function kind's key-identity contract."""
@@ -194,8 +202,7 @@ class ColumnsValidator(_FrameValidator):
                 changes existing data when preservation checking is enabled.
         """
         logger.debug("  Enriched target frame:")
-        self._validate_frame_type()
-        self._validate_dimension_columns()
+        super().validate()
         self._validate_declared_outputs()
         self._validate_output_collisions()
         self._validate_existing_columns()
@@ -267,7 +274,7 @@ class ColumnsValidator(_FrameValidator):
 
     def _validate_declared_types(self) -> None:
         """Check logical types of target keys and newly produced feature columns."""
-        self._validate_column_types([*self.dimensions, *self.output_features])
+        self.validate_column_types([*self.dimensions, *self.output_features])
 
 
 @dataclasses.dataclass(frozen=True)
@@ -281,31 +288,30 @@ class MainFrameValidator(_FrameValidator):
             ValueError: The main frame violates its structural or type contract.
         """
         logger.debug("  Main frame:")
-        self._validate_frame_type()
-        self._validate_dimension_columns()
-        self._validate_dimensionless_row_count()
-        self._validate_unique_dimension_keys()
-        self._validate_declared_types()
+        super().validate()
+        self.validate_dimensionless_row_count()
+        self.validate_unique_dimension_keys()
+        self.validate_declared_types()
 
-    def _validate_declared_types(self) -> None:
+    def validate_declared_types(self) -> None:
         """Check only declared columns already present in the accumulated frame."""
         logger.debug("    - checking types of present columns")
         columns = self.columns
-        self._validate_column_types([name for name in self.column_types if name in columns])
+        types = {name: self.column_types[name] for name in self.column_types if name in columns}
+        logger.debug("      Declared types: %s", types)
+        self.backend.validate_types(self.frame, types)
 
-    def validate_merge(self, fragment: object) -> None:
-        """Check feature collisions before joining a prepared fragment.
+    def validate_merge(self, fragment: object, *, validate: bool = False) -> None:
+        """Check a merge input's collisions and optionally validate its target.
 
         Args:
             fragment: Prepared dataframe whose dimension columns may overlap.
+            validate: Whether to check the current frame's full runtime contract.
 
         Raises:
-            ValueError: A fragment feature already exists in the main frame.
+            ValueError: The fragment collides with existing features or the target
+                violates its runtime contract.
         """
-        self._validate_feature_collisions(fragment)
-
-    def _validate_feature_collisions(self, fragment: object) -> None:
-        """Reject output feature names already present in the accumulated profile frame."""
         logger.debug("    - checking fragment feature collisions")
         fragment_columns = set(self.backend.column_names(fragment))
         collisions = sorted((fragment_columns - set(self.dimensions)) & self.columns)
@@ -313,4 +319,52 @@ class MainFrameValidator(_FrameValidator):
             raise ValueError(
                 "Fragment feature columns overlap the accumulated profile frame: "
                 + ", ".join(collisions)
+            )
+        if validate:
+            self.validate()
+
+    def validate_merge_result(
+        self,
+        target: object | None,
+        fragment: object,
+        *,
+        validate: bool = False,
+    ) -> None:
+        """Validate a merge result against its complete target schema.
+
+        Args:
+            target: The previous target dataframe, or ``None`` for initialization.
+            fragment: The staged fragment being merged.
+            validate: Whether to check declared types and key uniqueness.
+
+        Raises:
+            ValueError: The result has an invalid dataframe contract.
+        """
+        super().validate()
+        expected_columns = list(
+            dict.fromkeys(
+                [
+                    *(self.backend.column_names(target) if target is not None else []),
+                    *self.backend.column_names(fragment),
+                ]
+            )
+        )
+        self._validate_merge_result_columns(expected_columns)
+        if validate:
+            self.validate_dimensionless_row_count()
+            self.validate_unique_dimension_keys()
+            self.validate_declared_types()
+
+    def _validate_merge_result_columns(self, expected_columns: list[str]) -> None:
+        """Require the result to contain exactly the expected target columns."""
+        actual_columns = self.columns
+        missing = sorted(set(expected_columns) - actual_columns)
+        if missing:
+            raise ValueError(
+                f"{self.description} is missing required columns: " + ", ".join(missing)
+            )
+        unexpected = sorted(actual_columns - set(expected_columns))
+        if unexpected:
+            raise ValueError(
+                f"{self.description} contains undeclared columns: " + ", ".join(unexpected)
             )

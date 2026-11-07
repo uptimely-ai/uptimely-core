@@ -52,6 +52,7 @@ class Pump(Profile):
         Operator(
             id="bearing_temperature_by_pump",
             interface=Interface(
+                inputs=[ref.feature("bearing_temperature")],
                 outputs=[features.bearing_temperature_max],
             ),
             compute=Binding(
@@ -68,6 +69,7 @@ class Pump(Profile):
         Operator(
             id="health_signal_normalized",
             interface=Interface(
+                inputs=[features.bearing_temperature_max],
                 outputs=[features.health_signal_normalized],
             ),
             compute=Binding(
@@ -90,6 +92,14 @@ class Pump(Profile):
             compute=Binding(
                 function=external_workflow.read_pump_external_inputs,
                 arguments={},
+            ),
+            merge=Binding(
+                function=external_workflow.merge_pump_inputs,
+                arguments={
+                    "target": ref.data(),
+                    "fragment": ref.fragment(),
+                    "target_keys": ref.profile().grain.ids,
+                },
             ),
         ),
         Operator(

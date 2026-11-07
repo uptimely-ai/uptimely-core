@@ -21,20 +21,43 @@ class RuntimeBindings:
         self.state = state
         self.parameters = parameters
 
-    def resolve_args(self, invocation: execution_plan.Invocation) -> dict[str, object]:
+    def resolve_args(
+        self,
+        invocation: execution_plan.Invocation,
+        *,
+        staged_fragment: object | None = None,
+    ) -> dict[str, object]:
         """Bind compiled argument values to runtime values using declared argument types."""
         return {
-            name: self.resolve_value(value, invocation.argument_types.get(name))
+            name: self.resolve_value(
+                value,
+                invocation.argument_types.get(name),
+                staged_fragment=staged_fragment,
+            )
             for name, value in invocation.arguments.items()
         }
 
-    def resolve_value(self, value: object, argument_type: str | None = None) -> object:
+    def resolve_value(
+        self,
+        value: object,
+        argument_type: str | None = None,
+        *,
+        staged_fragment: object | None = None,
+    ) -> object:
         """Recursively resolve one typed plan binding value."""
         if hasattr(value, "model_dump"):
             value = value.model_dump()
-        if argument_type == arg_types.DATAFRAME and isinstance(value, str):
+        if value == f"{selectors.OPERATOR_PREFIX}{selectors.CURRENT_ID}.fragment":
+            if argument_type != arg_types.DATAFRAME:
+                raise ValueError("Merge fragment argument must have dataframe type")
+            if staged_fragment is None:
+                raise ValueError("Staged fragment is unavailable")
+            return staged_fragment
+        if arg_types.is_dataframe(argument_type or "") and isinstance(value, str):
             frame = self.state.resolve_main_frame_or_fragment_dataframe(value)
             if frame is None:
+                if argument_type == arg_types.OPTIONAL_DATAFRAME:
+                    return None
                 raise ValueError(f"Profile dataframe is unavailable: {value}")
             return frame
         if isinstance(value, str) and value.startswith(selectors.PARAMS_PREFIX):
@@ -49,12 +72,18 @@ class RuntimeBindings:
             element_type = (
                 arg_types.array_item_type(argument_type) if argument_type is not None else None
             )
-            return [self.resolve_value(item, element_type) for item in value]
+            return [
+                self.resolve_value(item, element_type, staged_fragment=staged_fragment)
+                for item in value
+            ]
         if isinstance(value, dict):
             value_type = (
                 arg_types.object_value_type(argument_type) if argument_type is not None else None
             )
-            return {name: self.resolve_value(item, value_type) for name, item in value.items()}
+            return {
+                name: self.resolve_value(item, value_type, staged_fragment=staged_fragment)
+                for name, item in value.items()
+            }
         return value
 
     def resolve_parameter_reference(self, value: str) -> object:

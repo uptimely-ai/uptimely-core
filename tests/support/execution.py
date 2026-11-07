@@ -11,8 +11,6 @@ from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import main_frame as main_frame_module
 from uptimely.engine.dataframe import validation as dataframe_validation
-from uptimely.engine.runtime import execution as execution_module
-from uptimely.engine.runtime import state as state_module
 from uptimely.spec import model as spec_model
 
 
@@ -44,8 +42,6 @@ def merge_fragment(
         id_columns=list(main.id_columns),
         column_types=dict(dimension_types or {}),
     )
-    state = state_module.RuntimeState(main_frames={invocation.dataset_id: main})
-    executor = execution_module.InvocationExecutor(main.backend, {}, {}, state, validate=True)
     if fragment.invocation is not None:
         fragment = fragment_module.Fragment.stage(
             main.backend,
@@ -63,7 +59,23 @@ def merge_fragment(
             invocation=invocation,
             output_features=[],
         ).validate()
-    return executor._merge_fragment(invocation, fragment)
+    if main.dataframe is not None:
+        validator = dataframe_validation.MainFrameValidator(
+            main.backend,
+            main.dataframe,
+            invocation.id_columns,
+            "Accumulated profile",
+            column_types=invocation.column_types,
+        )
+        validator.validate()
+        validator.validate_merge(fragment.dataframe)
+    main.merge(
+        fragment,
+        fragment_id=fragment.invocation.operator_id if fragment.invocation is not None else None,
+        join_cardinality="1:1",
+        broadcast_cardinality="m:1",
+    )
+    return fragment
 
 
 class BundleFactory(typing.Protocol):

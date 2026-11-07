@@ -54,7 +54,7 @@ class Compiler:
         """Emit portable invocations after validating schedulability."""
         _ = self.execution_stages
         nodes = self.graph.invocations
-        logger.debug("  Invocation checks for %d operators:", len(nodes))
+        logger.debug("  Invocation checks for %d invocations:", len(nodes))
         logger.debug("    - checking functions declare entrypoints")
         logger.debug("    - checking structural argument references resolve")
         logger.debug("    - checking emitted invocation contracts")

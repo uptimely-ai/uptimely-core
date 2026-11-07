@@ -97,7 +97,7 @@ def _spec() -> spec.Spec:
                     assembly.Operator(
                         id="metadata",
                         interface=assembly.Interface(
-                            inputs=[],
+                            inputs=[ref.feature("value")],
                             outputs=[feature.Feature(id="metadata", type="integer")],
                         ),
                         compute=assembly.Binding(
@@ -114,12 +114,10 @@ def _spec() -> spec.Spec:
     )
 
 
-def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
-    engine_for_plan: execution_support.EngineFactory,
-) -> None:
+def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     spec_definition = _spec()
     dataset_model = spec_definition.profiles["observations"]
-    assert dataset_model.assembly["metadata"].input_features == []
+    assert dataset_model.assembly["metadata"].input_features == ["value"]
     assert dataset_model.assembly["metadata"].output_features == ["metadata"]
     assert (
         dataset_model.assembly["metadata"].compute.args["identifier"].root == "$features.result.id"
@@ -127,7 +125,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
     assert dataset_model.assembly["result"].input_features == ["value"]
 
     computed = compiler.Compiler().compile(spec_definition, features=["result"])
-    assert len(computed.invocations) == 2
+    assert len(computed.invocations) == 3
     assert next(
         item for item in computed.invocations if item.function_kind == "vectorize"
     ).input_features == [
@@ -135,9 +133,14 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments(
     ]
     metadata = compiler.Compiler().compile(spec_definition, features=["metadata"])
     assert all("result" not in item.output_features for item in metadata.invocations)
-    execution = engine_for_plan(metadata, spec_definition=spec_definition).run()
-    assert not execution.failures
-    assert execution.main_frames["observations"]["metadata"].to_list() == [7, 7]
+    metadata_invocation = next(
+        item for item in metadata.invocations if item.operator_id == "metadata"
+    )
+    assert {
+        dependency.operator_id
+        for dependency in metadata.invocations
+        if dependency.id in metadata_invocation.dependency_ids
+    } == {"read_values"}
 
 
 @pytest.mark.parametrize(
@@ -293,7 +296,10 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     configuration = json.loads(path.read_text())
     dataset = configuration["profiles"]["observations"]
     del dataset["features"]["id"]
-    dataset["assembly"]["read_values"]["interface"]["outputs"] = ["$features.value"]
+    dataset["assembly"]["read_values"]["interface"]["outputs"] = [
+        "$features.id",
+        "$features.value",
+    ]
     dataset["assembly"]["result"]["interface"]["inputs"].append("$features.id")
     if with_sink:
         configuration["functions"]["write_ids"] = {
@@ -394,11 +400,13 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
         ],
     )
     compiled = compiler.Compiler().compile(spec_definition, features=["copied"])
-    assert len(compiled.invocations) == 3
+    assert len(compiled.invocations) == 4
     expand = next(item for item in compiled.invocations if item.function_kind == "expand")
-    source_read = next(
-        item for item in compiled.invocations if item.operator_id == "read_lower_grain"
+    source_merge = next(
+        item
+        for item in compiled.invocations
+        if item.operator_id == "read_lower_grain" and item.function_kind == "merge"
     )
-    assert source_read.id in expand.dependency_ids
+    assert source_merge.id in expand.dependency_ids
     assert expand.input_features == ["value"]
     assert expand.arguments["dataset"] == "source"

@@ -58,9 +58,8 @@ It does not enable validation; use `--validate` to run the runtime checks.
 Debug headings use `Invocation: read_constants [read]`, with the function ID
 below when different. Subsections are `Requirements:`, `Fragment:`,
 `Main frame:`, and `Merge:`, shown only when reached.
-The merge section shows the target profile, join kind, keys,
-and cardinality; initial fragments are identified as initialization without a
-join. Internal invocation IDs remain unchanged.
+The merge section identifies the target profile and merge invocation.
+Internal invocation IDs remain unchanged.
 
 ## Latest-run artifacts
 
@@ -96,11 +95,12 @@ the generated run is a disposable diagnostic snapshot.
 
 ## Runtime validation and configuration
 
-Without `--validate`, the engine still binds arguments and assembles declared
-output fragments, but skips input-feature, schema/type, uniqueness, row-count,
-coverage, and feature-collision checks. Native dataframe and function errors
-can still fail execution. Skipped checks are not deferred to writes or final
-collection. This runs the plan's
+Without `--validate`, the engine still binds arguments, stages fragments, and
+calls their scheduled merge functions. It skips input-feature, declared type,
+key uniqueness, row-count, and coverage checks. Merge results must still be
+dataframes with the complete expected target schema, and overlapping feature
+columns are rejected. Native dataframe and function errors can also fail
+execution. Skipped checks are not deferred to writes or final collection. This runs the plan's
 configured functions, including write sinks, and may have external side
 effects. Missing or invalid builds report a recovery command.
 

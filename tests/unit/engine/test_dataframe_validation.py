@@ -271,6 +271,61 @@ def test_main_frame_merge_validation(lazy: bool, collision: bool) -> None:
         validator.validate_merge(contribution)
 
 
+@pytest.mark.parametrize(
+    ("result", "target", "fragment", "message"),
+    [
+        (
+            pl.DataFrame({"key": ["A"]}),
+            pl.DataFrame({"key": ["A"]}),
+            pl.DataFrame({"key": ["A"], "value": [1]}),
+            "missing required columns: value",
+        ),
+        (
+            pl.DataFrame({"key": ["A"], "value": [1], "extra": [2]}),
+            None,
+            pl.DataFrame({"key": ["A"], "value": [1]}),
+            "contains undeclared columns: extra",
+        ),
+    ],
+)
+def test_merge_result_validation_reports_schema_errors(
+    result: pl.DataFrame, target: pl.DataFrame | None, fragment: pl.DataFrame, message: str
+) -> None:
+    validator = dataframe_validation.MainFrameValidator(
+        backend.PolarsBackend(),
+        result,
+        ["key"],
+        "Merge result",
+    )
+    with pytest.raises(ValueError, match=message):
+        validator.validate_merge_result(target, fragment)
+
+
+def test_merge_result_validation_skips_optional_checks_when_disabled(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    adapter = backend.PolarsBackend()
+    frame = pl.DataFrame({"key": ["A", "A"], "value": ["wrong", "wrong"]})
+    validator = dataframe_validation.MainFrameValidator(
+        adapter,
+        frame,
+        ["key"],
+        "Merge result",
+        column_types={"key": "string", "value": "integer"},
+    )
+
+    def unexpected_check(*args: object, **kwargs: object) -> object:
+        pytest.fail("Optional merge-result checks must be skipped when validation is disabled")
+
+    monkeypatch.setattr(adapter, "row_count", unexpected_check)
+    monkeypatch.setattr(adapter, "is_duplicated", unexpected_check)
+    monkeypatch.setattr(adapter, "validate_types", unexpected_check)
+    validator.validate_merge_result(
+        None,
+        pl.DataFrame({"key": ["A"], "value": ["wrong"]}),
+    )
+
+
 @pytest.mark.parametrize("fragment", [False, True])
 def test_validation_debug_logs_identify_checks_and_inapplicable_contracts(
     caplog: pytest.LogCaptureFixture, fragment: bool

@@ -1,5 +1,5 @@
 {
-  "plan_version": 5,
+  "plan_version": 6,
   "required_backend": "polars",
   "resources": {
     "dimensions": {
@@ -55,6 +55,21 @@
           }
         },
         "returns": "none"
+      },
+      "__uptimely_merge_by_grain": {
+        "kind": "merge",
+        "args": {
+          "target": {
+            "type": "dataframe | null"
+          },
+          "fragment": {
+            "type": "dataframe"
+          },
+          "target_keys": {
+            "type": "array[string]"
+          }
+        },
+        "returns": "dataframe"
       }
     }
   },
@@ -98,6 +113,29 @@
         "dataset": "telemetry"
       },
       "dependency_ids": [
+        "invocation:merge:__uptimely_merge_by_grain:telemetry:reading"
+      ]
+    },
+    {
+      "id": "invocation:merge:__uptimely_merge_by_grain:telemetry:reading",
+      "function_kind": "merge",
+      "entrypoint": "uptimely.library.merge.polars:merge_by_grain",
+      "function_id": "__uptimely_merge_by_grain",
+      "operator_id": "reading",
+      "dataset_id": "telemetry",
+      "id_columns": ["asset_id"],
+      "column_types": {"asset_id": "string"},
+      "argument_types": {
+        "target": "dataframe | null",
+        "fragment": "dataframe",
+        "target_keys": "array[string]"
+      },
+      "arguments": {
+        "target": "telemetry",
+        "fragment": "$operators.@.fragment",
+        "target_keys": ["asset_id"]
+      },
+      "dependency_ids": [
         "invocation:read:load:telemetry:reading"
       ]
     },
@@ -125,6 +163,9 @@
   "stages": [
     [
       "invocation:read:load:telemetry:reading"
+    ],
+    [
+      "invocation:merge:__uptimely_merge_by_grain:telemetry:reading"
     ],
     [
       "invocation:vectorize:double:telemetry:doubled"
