@@ -78,6 +78,39 @@ def test_runtime_bindings_reject_unavailable_dataframe_reference() -> None:
         bindings.resolve_value("missing", "dataframe")
 
 
+def test_runtime_bindings_resolve_staged_fragment_argument() -> None:
+    staged = pl.DataFrame({"asset_id": ["A"], "reading": [2]})
+    invocation = dataclasses.replace(
+        PLAN.invocations[0],
+        arguments={"fragment": "$operators.@.fragment"},
+        argument_types={"fragment": "dataframe"},
+    )
+
+    assert _bindings().resolve_args(invocation, staged_fragment=staged) == {"fragment": staged}
+
+
+def test_runtime_bindings_reject_staged_fragment_without_merge_context() -> None:
+    invocation = dataclasses.replace(
+        PLAN.invocations[0],
+        arguments={"fragment": "$operators.@.fragment"},
+        argument_types={"fragment": "dataframe"},
+    )
+
+    with pytest.raises(ValueError, match="Staged fragment is unavailable"):
+        _bindings().resolve_args(invocation)
+
+
+def test_runtime_bindings_reject_staged_fragment_with_incompatible_type() -> None:
+    invocation = dataclasses.replace(
+        PLAN.invocations[0],
+        arguments={"fragment": "$operators.@.fragment"},
+        argument_types={"fragment": "string"},
+    )
+
+    with pytest.raises(ValueError, match="Merge fragment argument must have dataframe type"):
+        _bindings().resolve_args(invocation, staged_fragment=pl.DataFrame())
+
+
 def test_parameter_config_accepts_only_flat_scalar_values() -> None:
     config = config_module.ParameterConfig.model_validate(
         {"limit": 1.5, "enabled": True, "empty": None, "path": "data/input.json"}

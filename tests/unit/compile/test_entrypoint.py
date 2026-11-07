@@ -69,6 +69,69 @@ def test_compiler_rejects_string_feature_selection() -> None:
         compiler.Compiler().compile(spec.load_spec(SPEC_PATH), features="health_signal_normalized")
 
 
+def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
+    specification = spec.load_spec(SPEC_PATH)
+    compiled = compiler.Compiler().compile(specification)
+    compute_by_operator = {
+        (invocation.dataset_id, invocation.operator_id): invocation
+        for invocation in compiled.invocations
+        if invocation.function_kind != "merge"
+    }
+    merges_by_operator = {
+        (invocation.dataset_id, invocation.operator_id): invocation
+        for invocation in compiled.invocations
+        if invocation.function_kind == "merge"
+    }
+
+    assert merges_by_operator
+    assert set(merges_by_operator) == {
+        key for key, operator in specification.operator_items if operator.merge is not None
+    }
+    assert set(compute_by_operator) >= set(merges_by_operator)
+    for operator_key, merge in merges_by_operator.items():
+        compute = compute_by_operator[operator_key]
+        assert compute.id in merge.dependency_ids
+        assert merge.function_kind == "merge"
+        assert merge.output_features == []
+        assert compute.output_features
+    assert all(
+        len({producer.operator_id for producer in producers}) == len(producers)
+        for producers in compiled.features.values()
+    )
+
+    feature_producers = {
+        feature: invocation
+        for invocation in compiled.invocations
+        if invocation.function_kind != "merge"
+        for feature in invocation.output_features
+    }
+    for invocation in compiled.invocations:
+        if invocation.function_kind == "merge":
+            continue
+        for feature in invocation.input_features:
+            producer = feature_producers.get(feature)
+            if producer is None or producer.operator_id == invocation.operator_id:
+                continue
+            publication = merges_by_operator.get(
+                (producer.dataset_id, producer.operator_id), producer
+            )
+            assert publication.id in invocation.dependency_ids
+
+    selected_feature = next(
+        feature for feature in feature_producers if feature not in specification.grain_key_ids
+    )
+    selected = compiler.Compiler().compile(specification, features=[selected_feature])
+    selected_producer = feature_producers[selected_feature]
+    selected_merge = merges_by_operator.get(
+        (selected_producer.dataset_id, selected_producer.operator_id)
+    )
+    if selected_merge is not None:
+        assert selected_merge.id in {invocation.id for invocation in selected.invocations}
+    assert any(
+        selected_feature in invocation.output_features for invocation in selected.invocations
+    )
+
+
 @pytest.mark.parametrize(
     ("category", "function_id"),
     [("vectorize", "ratio"), ("collapse", "aggregate")],
@@ -78,6 +141,9 @@ def test_compiler_rejects_missing_function_entrypoints(
 ) -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions[function_id].entrypoint = ""
+    expected_invocations = sum(
+        1 + (operator.merge is not None) for operator in spec_definition.operators
+    )
     caplog.set_level(logging.DEBUG, logger="uptimely.compiler")
 
     with pytest.raises(
@@ -85,7 +151,7 @@ def test_compiler_rejects_missing_function_entrypoints(
     ):
         compiler.Compiler().compile(spec_definition)
 
-    assert "  Invocation checks for 18 operators:" in caplog.messages
+    assert f"  Invocation checks for {expected_invocations} invocations:" in caplog.messages
     assert caplog.messages.count("    - checking functions declare entrypoints") == 1
     assert not any(message.startswith("\nCompiler operator:") for message in caplog.messages)
 
@@ -103,7 +169,7 @@ def test_compiler_summarizes_invocation_checks_once(
     assert caplog.messages.count("\nCompiler validation:") == (1 if level == logging.DEBUG else 0)
     summaries = [message for message in caplog.messages if "  Invocation checks for " in message]
     assert summaries == (
-        [f"  Invocation checks for {len(compiled.invocations)} operators:"]
+        [f"  Invocation checks for {len(compiled.invocations)} invocations:"]
         if level == logging.DEBUG
         else []
     )
@@ -239,12 +305,10 @@ def test_compiler_instance_can_compile_independent_specs_and_selections() -> Non
     selected = compiler_instance.compile(spec_definition, features=["health_signal_normalized"])
 
     assert len(complete.invocations) > len(selected.invocations)
-    assert {
-        feature
+    assert any(
+        "health_signal_normalized" in invocation.output_features
         for invocation in selected.invocations
-        if invocation.function_kind == "vectorize"
-        for feature in invocation.output_features
-    } == {"health_signal_normalized"}
+    )
 
 
 def test_compiler_skips_disabled_return_annotation_validation(

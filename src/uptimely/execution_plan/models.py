@@ -10,7 +10,7 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely import row_context as uptimely_row_context
 from uptimely.spec import functions
 
-PLAN_VERSION = 5
+PLAN_VERSION = 6
 
 
 @dataclasses.dataclass(frozen=True)

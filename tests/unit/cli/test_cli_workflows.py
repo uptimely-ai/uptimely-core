@@ -75,7 +75,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     invoke(monkeypatch, "run", str(project_root), "--log-level", "debug")
     text = capsys.readouterr().out
     assert "Engine completed in " in text
-    assert "3 profiles processed" in text
+    assert "2 profiles processed" in text
     assert "Scope: selected features: health_signal_normalized" in text
     assert "- Profile: pump_profile - 6 features" in text
 
@@ -101,7 +101,7 @@ def test_engine_cli_forwards_validation_flag(
             invocation_statuses={},
             durations={},
             failures={},
-            plan_version=5,
+            plan_version=6,
         )
 
     monkeypatch.setattr(engine_module.Engine, "run", run)
@@ -139,7 +139,7 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
 
     result = capsys.readouterr()
     assert not result.err
-    dataset_count = 3
+    dataset_count = 2 if scoped else 3
     assert result.out.splitlines() == [
         "",
         f"Engine completed in 1.234 s: {dataset_count} profiles processed",
@@ -184,7 +184,7 @@ def test_run_log_level_filters_uptimely_only_and_restores_configuration(
             invocation_statuses={},
             durations={},
             failures={},
-            plan_version=5,
+            plan_version=6,
         )
 
     monkeypatch.setattr(engine_module.Engine, "run", run)
@@ -247,7 +247,7 @@ def test_engine_previews_final_profiles(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=5,
+        plan_version=6,
     )
     monkeypatch.setattr(
         engine_module.Engine, "run", lambda self, *, validate=False, preview_rows=5: result
@@ -332,7 +332,7 @@ def test_engine_preview_errors_are_reported(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=5,
+        plan_version=6,
     )
     monkeypatch.setattr(
         engine_module.Engine, "run", lambda self, *, validate=False, preview_rows=5: result
@@ -535,7 +535,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": 5,
+                "plan_version": 6,
                 "required_backend": "polars",
                 "resources": {},
                 "invocations": [],

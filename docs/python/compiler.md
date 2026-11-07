@@ -17,8 +17,20 @@ execution_plan.export_json(plan, "execution_plan.json")
 
 Compilation checks the Spec before creating the plan. Use
 `execution_plan.export_json` to save it and `execution_plan.from_json` to load
-it. Version 1 and 2 plans are not supported; rebuild the bundle from its source
-Spec.
+it. Plans from older versions are not supported; rebuild the bundle from its
+source Spec after upgrading Uptimely.
+
+An invocation represents one function call and retains the owning operator ID.
+Fragment-producing operators have separate compute and merge invocations,
+distinguished by their function kinds; consumers depend on publication after
+merge. Only the compute invocation owns the operator's logical output features.
+Invocation nodes carry their full output feature list, not a single feature ID.
+The compiler resolves `$features.@` from an unambiguous declared output when
+emitting binding arguments.
+Dependencies come from declared interface inputs and outputs, plus the edge
+from a fragment-producing compute invocation to its merge invocation.
+One shared feature index uses the function kind's `produces_features` contract
+and resolves each output to its merge invocation when present, otherwise compute.
 
 Each invocation carries the runtime contract needed without consulting the Spec:
 `id_columns` lists target keys, `column_types` maps typed target columns to logical
@@ -78,8 +90,7 @@ preserves ordering within each stage, avoiding nested loops in consumers.
 ## graph
 
 `uptimely.compiler.graph` defines invocation nodes and organizes their
-dependencies. A node's function kind comes from its function declaration in
-the Spec rather than being stored on the node.
+interface-derived dependencies.
 
 ::: uptimely.compiler.graph
     options:

@@ -18,12 +18,12 @@ type GraphNode = graphable_.graphable.Graphable
 
 @dataclasses.dataclass(frozen=True)
 class InvocationNode:
-    """One fragment, calculation, or sink function invocation."""
+    """One function invocation in the compilation graph."""
 
     function_id: str
     dataset_id: str
     operator_id: str
-    feature_id: str | None = None
+    function_kind: functions.FunctionKindId
     output_features: tuple[str, ...] = ()
     arguments: dict[str, spec_model.BindingArgument] = dataclasses.field(
         default_factory=dict, compare=False, hash=False
@@ -36,17 +36,20 @@ class InvocationNode:
     @property
     def node_id(self) -> str:
         """Stable graph identifier for this invocation."""
-        return f"invocation:{self.function_id}:{self.dataset_id}:{self.operator_id}"
+        return (
+            f"invocation:{self.function_kind}:{self.function_id}:"
+            f"{self.dataset_id}:{self.operator_id}"
+        )
 
     def __str__(self) -> str:
-        return f"{self.function_id}({self.dataset_id})"
+        return f"{self.function_kind}:{self.function_id}({self.dataset_id})"
 
     def __repr__(self) -> str:
-        return f"{self.function_id}({self.dataset_id})"
+        return f"{self.function_kind}:{self.function_id}({self.dataset_id})"
 
 
 class InvocationGraph:
-    """Dependency graph built from invocation nodes and their feature dependencies."""
+    """Dependency graph built from interface features and fragment merges."""
 
     def __init__(
         self, spec_definition: spec.Spec, *, graph: graphable_.graph.Graph | None = None
@@ -60,14 +63,18 @@ class InvocationGraph:
         self.spec = spec_definition
         self.graph = self._create_graph() if graph is None else graph
         self._nodes = {node.reference.node_id: node for node in self.graph}
+        self._feature_producers = self._index_feature_producers(self.invocations)
 
     def _create_graph(self) -> graphable_.graph.Graph:
-        """Build graph nodes and connect their operator, feature, and sink dependencies."""
+        """Build invocation dependencies from operator interfaces and fragment merges."""
+        nodes = self._create_nodes()
+        graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
+        self._add_edges(graph, nodes)
+        return graph
+
+    def _create_nodes(self) -> dict[str, GraphNode]:
+        """Create compute and optional merge nodes for each operator."""
         nodes: dict[str, GraphNode] = {}
-        feature_producers: dict[str, InvocationNode] = {}
-        dataset_sources: dict[str, list[InvocationNode]] = {}
-        dataset_sinks: dict[str, list[InvocationNode]] = {}
-        dataset_transformers: dict[str, list[InvocationNode]] = {}
 
         for key, operator in self.spec.operator_items:
             profile_id = key[0]
@@ -75,139 +82,87 @@ class InvocationGraph:
             function_kind = self.spec.functions[operator.compute.function].kind
             function_definition = functions.FUNCTION_KINDS[function_kind]
             outputs = operator.output_features
-            feature_id = (
-                next(
-                    (
-                        feature
-                        for feature in outputs
-                        if feature not in self.spec.grain_keys_by_profile[profile_id]
-                    ),
-                    None,
-                )
-                if function_definition.dimension_change == "remove"
-                else outputs[0]
-                if outputs
-                else None
-            )
             invocation = InvocationNode(
                 function_id=operator.compute.function,
                 dataset_id=profile.id,
                 operator_id=operator.id,
-                feature_id=feature_id,
+                function_kind=function_kind,
                 output_features=tuple(outputs),
                 arguments=operator.compute.args,
                 input_features=tuple(operator.input_features),
                 row_context=operator.row_context,
             )
             nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
-            if function_definition.is_sink:
-                dataset_sinks.setdefault(profile.id, []).append(invocation)
-            if function_definition.is_source:
-                dataset_sources.setdefault(profile.id, []).append(invocation)
-            if function_definition.is_transformer:
-                dataset_transformers.setdefault(profile.id, []).append(invocation)
-            for feature in outputs:
-                if feature not in self.spec.grain_key_ids:
-                    feature_producers[feature] = invocation
+            if function_definition.produces_fragment and operator.merge is not None:
+                merge_kind = self.spec.functions[operator.merge.function].kind
+                merge_invocation = InvocationNode(
+                    function_id=operator.merge.function,
+                    dataset_id=profile.id,
+                    operator_id=operator.id,
+                    function_kind=merge_kind,
+                    arguments=operator.merge.args,
+                )
+                nodes[merge_invocation.node_id] = graphable_.graphable.Graphable(merge_invocation)
+        return nodes
 
-        graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
-        self._add_reader_dependencies(graph, nodes, dataset_sources)
-        self._add_operator_dependencies(graph, nodes, feature_producers, dataset_sources)
-        self._add_transformer_dependencies(graph, nodes, dataset_sources, dataset_transformers)
-        self._add_sink_dependencies(
-            graph, nodes, dataset_sources, dataset_sinks, dataset_transformers
+    def _add_edges(
+        self,
+        graph: graphable_.graph.Graph,
+        nodes: dict[str, GraphNode],
+    ) -> None:
+        """Connect declared feature dependencies and compute-to-merge edges."""
+        feature_producers = self._index_feature_producers(
+            [node.reference for node in nodes.values()]
         )
-        return graph
-
-    def _add_reader_dependencies(
-        self,
-        graph: graphable_.graph.Graph,
-        nodes: dict[str, GraphNode],
-        dataset_sources: dict[str, list[InvocationNode]],
-    ) -> None:
-        """Make source operations depend on readers in their target dataset."""
-        for sources in dataset_sources.values():
-            reads = [
-                source
-                for source in sources
-                if self.spec.functions[source.function_id].kind == functions.READ
-            ]
-            source_operations = [
-                source
-                for source in sources
-                if self.spec.functions[source.function_id].kind != functions.READ
-            ]
-            for source in source_operations:
-                for read in reads:
-                    graph.add_edge(nodes[read.node_id], nodes[source.node_id])
-
-    def _add_operator_dependencies(
-        self,
-        graph: graphable_.graph.Graph,
-        nodes: dict[str, GraphNode],
-        feature_producers: dict[str, InvocationNode],
-        dataset_sources: dict[str, list[InvocationNode]],
-    ) -> None:
-        """Connect operator dataframe and feature references to their producers."""
-        for invocation in (node.reference for node in nodes.values()):
-            dataset_references = self.operator_for(invocation).compute.dataset_dependencies(
-                invocation.dataset_id
-            )
-            for referenced_id in dataset_references:
-                for source in dataset_sources.get(referenced_id, []):
-                    if source != invocation and (
-                        referenced_id != invocation.dataset_id
-                        or self.spec.functions[source.function_id].kind == functions.READ
-                    ):
-                        graph.add_edge(nodes[source.node_id], nodes[invocation.node_id])
-
+        by_binding = {
+            (node.dataset_id, node.operator_id, node.function_id): node
+            for node in (graph_node.reference for graph_node in nodes.values())
+        }
+        for graph_node in nodes.values():
+            invocation = graph_node.reference
+            merge = self._merge_for(invocation, by_binding)
+            if merge is not None:
+                graph.add_edge(
+                    graph_node,
+                    nodes[merge.node_id],
+                )
             for feature in invocation.input_features:
                 producer = feature_producers.get(feature)
                 if producer is not None and producer != invocation:
-                    graph.add_edge(nodes[producer.node_id], nodes[invocation.node_id])
+                    graph.add_edge(
+                        nodes[producer.node_id],
+                        graph_node,
+                    )
 
-    @staticmethod
-    def _add_transformer_dependencies(
-        graph: graphable_.graph.Graph,
-        nodes: dict[str, GraphNode],
-        dataset_sources: dict[str, list[InvocationNode]],
-        dataset_transformers: dict[str, list[InvocationNode]],
-    ) -> None:
-        """Make transformers consume their assembled dataset sources."""
-        for dataset_id, transformers in dataset_transformers.items():
-            for invocation in transformers:
-                consumer = nodes[invocation.node_id]
-                for source in dataset_sources.get(dataset_id, []):
-                    graph.add_edge(nodes[source.node_id], consumer)
-
-    def _add_sink_dependencies(
+    def _merge_for(
         self,
-        graph: graphable_.graph.Graph,
-        nodes: dict[str, GraphNode],
-        dataset_sources: dict[str, list[InvocationNode]],
-        dataset_sinks: dict[str, list[InvocationNode]],
-        dataset_transformers: dict[str, list[InvocationNode]],
-    ) -> None:
-        """Make sinks depend on their dataset sources and relevant transformers."""
-        for dataset_id, sinks in dataset_sinks.items():
-            sources = dataset_sources.get(dataset_id, [])
-            transformers = dataset_transformers.get(dataset_id, [])
-            for sink in sinks:
-                sink_node = nodes[sink.node_id]
-                for source in sources:
-                    graph.add_edge(nodes[source.node_id], sink_node)
-                referenced = set(sink.input_features)
-                dependencies = (
-                    [
-                        invocation
-                        for invocation in transformers
-                        if referenced.intersection(invocation.output_features)
-                    ]
-                    if referenced
-                    else transformers
-                )
-                for invocation in dependencies:
-                    graph.add_edge(nodes[invocation.node_id], sink_node)
+        node: InvocationNode,
+        by_binding: dict[tuple[str, str, str], InvocationNode],
+    ) -> InvocationNode | None:
+        """Return the configured merge node for a fragment-producing invocation."""
+        if not functions.FUNCTION_KINDS[node.function_kind].produces_fragment:
+            return None
+        merge = self.operator_for(node).merge
+        if merge is None:
+            return None
+        return by_binding.get((node.dataset_id, node.operator_id, merge.function))
+
+    def _index_feature_producers(
+        self, invocations: list[InvocationNode]
+    ) -> dict[str, InvocationNode]:
+        """Map declared logical outputs to their producing invocations."""
+        by_binding = {
+            (node.dataset_id, node.operator_id, node.function_id): node for node in invocations
+        }
+        producers: dict[str, InvocationNode] = {}
+        for compute in invocations:
+            definition = functions.FUNCTION_KINDS[compute.function_kind]
+            if not definition.produces_features:
+                continue
+            output = self._merge_for(compute, by_binding) or compute
+            for feature in compute.output_features:
+                producers[feature] = output
+        return producers
 
     def profile_for(self, node: InvocationNode) -> spec.Profile:
         """Return a node's profile by its globally unique ID."""
@@ -227,17 +182,12 @@ class InvocationGraph:
     def subset(self, features: list[str]) -> InvocationGraph:
         """Return the dependency closure needed to produce selected features."""
         logger.debug("    - checking selected output features have producers")
-        feature_producers = {
-            feature: invocation
-            for invocation in self.invocations
-            for feature in invocation.output_features
-            if feature not in self.spec.grain_key_ids
-        }
-        missing = sorted(set(features) - set(feature_producers))
+        selectable_features = self._feature_producers.keys() - self.spec.grain_key_ids
+        missing = sorted(set(features) - selectable_features)
         if missing:
             raise ValueError("Unknown output feature(s): " + ", ".join(missing))
 
-        requested_nodes = [feature_producers[feature] for feature in features]
+        requested_nodes = [self._feature_producers[feature] for feature in features]
 
         selected_nodes = {self._node_by_key(node.node_id) for node in requested_nodes}
         for node in list(selected_nodes):

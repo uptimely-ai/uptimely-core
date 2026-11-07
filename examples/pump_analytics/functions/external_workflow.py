@@ -26,6 +26,28 @@ def read_pump_external_inputs() -> pl.DataFrame:
     return pl.read_csv(SOURCE_PATH)
 
 
+@function(kind="merge")
+def merge_pump_inputs(
+    target: pl.DataFrame | pl.LazyFrame | None,
+    fragment: pl.DataFrame | pl.LazyFrame,
+    target_keys: list[str],
+) -> pl.DataFrame | pl.LazyFrame:
+    """Full-join external inputs into the pump profile's current target."""
+    if target is None:
+        return fragment
+    if isinstance(target, pl.DataFrame) and isinstance(fragment, pl.LazyFrame):
+        target = target.lazy()
+    elif isinstance(target, pl.LazyFrame) and isinstance(fragment, pl.DataFrame):
+        fragment = fragment.lazy()
+    return target.join(
+        fragment,
+        on=target_keys,
+        how="full",
+        coalesce=True,
+        nulls_equal=True,
+    )
+
+
 @function(kind="escape")
 def process_pump_external_workflow() -> None:
     """Read pump inputs, calculate ratios, and write results internally.

@@ -16,13 +16,22 @@ independently of the run's `validate` flag.
 ## Main frames and fragments
 
 Each profile has one `MainFrame`, which owns its accumulated physical
-`dataframe` and explicit `id_columns`. `Fragment.stage(...)` calls an invocation
-loader, checks the raw result with `FragmentValidator` when `validate=True`, derives its
-carried keys, and projects declared outputs. It returns a fragment ready to merge,
-without requiring an already-created result dataframe. Fragments describe source
-reads, foreign-profile contributions, and same-grain calculations, retaining
-their carried dimensions and producing invocation. Staging preserves lazy
-execution unless enabled validation needs to inspect values.
+`dataframe` and explicit `id_columns`. `Fragment.stage(...)` calls a compute
+invocation's loader, checks the raw result with `FragmentValidator` when
+`validate=True`, derives its carried keys, and projects declared outputs. The
+executor retains that fragment by compute invocation ID without changing the
+profile's accumulated dataframe.
+
+The separately scheduled merge invocation resolves its pending fragment and
+current target, then calls the merge function declared by the Spec. The default
+merge function uses `merge_by_grain`; a custom merge replaces it and is never
+silently retried with the default. A merge function returns the complete new
+target dataframe. The executor checks its structure and declared columns, then
+publishes it by assignment; it does not merge the returned frame a second time.
+The fragment is retained on the `MainFrame` by operator ID only after successful
+publication, reusing the staged object rather than copying the dataframe.
+Staging and merging preserve lazy execution unless enabled validation needs to
+inspect values.
 
 `MainFrame(backend, id_columns, dataframe=None)` needs neither a profile declaration nor
 a Spec. The invocation executor translates profile grain keys into physical ID
@@ -33,35 +42,37 @@ Argument binding uses `invocation.argument_types`; staging and validation use
 kind. The compiler resolves these values from declarations. Runtime execution
 does not receive profile objects or traverse the bundled Spec.
 
-`MainFrame.merge(fragment)` accepts a prepared fragment and selects assembly by
-its keys:
+`MainFrame.merge(fragment)` remains the direct physical assembly helper and
+selects assembly by its keys:
 
 - Equal dimension sets: full join, retaining partial or disjoint key coverage.
 - A strict subset of dimensions: left join over the existing profile frame.
 - An empty strict subset: cross join to broadcast a global value.
 
 The first full-grain fragment initializes the main dataframe. A lower-grain
-fragment requires an existing main dataframe. Successful merges update the
-accumulator and return the fragment unchanged.
+fragment requires an existing main dataframe. Successful calls update the accumulator and return the fragment unchanged.
 Validation failures leave the accumulated dataframe unchanged.
 
-`RuntimeState.main_frames` indexes accumulators by profile ID. Each main frame
-owns its `fragments` mapping. The executor passes the producing operator's mapping
-ID explicitly as `merge(..., fragment_id=...)`, retaining the prepared fragment
-only after a successful merge. Without an ID, a merge does not retain a reference. Fragment
-lookup searches these owners and rejects names ambiguous across profiles;
-profile IDs take precedence over fragment names.
+`RuntimeState.main_frames` indexes accumulators by profile ID. Each main frame owns its `fragments` mapping. Fragment lookup searches these
+owners and rejects names ambiguous across profiles; profile IDs take precedence
+over fragment names.
 `RuntimeState.resolve_main_frame_or_fragment_dataframe(identifier)` explicitly
-resolves either reference kind to its underlying dataframe.
+resolves either reference kind to its underlying dataframe. Pending fragments
+are keyed by compute invocation ID and become operator-name references only
+after their merge succeeds.
 
 A run passes its `validate` flag to the invocation executor and fragment staging.
-When enabled, the executor calls `InvocationValidator` before invoking functions,
-staging calls `FragmentValidator` before projection, and the executor calls
-`MainFrameValidator` before joining or state updates. When disabled, these
-validators are not constructed or called; there is no policy or no-op hook layer.
-Validated execution passes explicit join cardinalities to the physical merge. User functions
-and `ExecutionResult.main_frames` continue to receive
-ordinary Polars dataframes or lazy frames, not these internal runtime wrappers.
+When enabled, the executor calls `InvocationValidator` before invoking
+operators, staging calls `FragmentValidator` before projection, and merge
+checks declared types and key uniqueness before publishing. Regardless of the
+flag, merge output must be a dataframe with required dimensions and the
+complete expected target schema; overlapping feature columns are rejected.
+Publishing is transactional with respect to the executor's assignment: a failed
+merge leaves the previously published main frame unchanged. It cannot undo
+mutation performed by an arbitrary user function, so merge functions must not
+mutate their target input. User functions and `ExecutionResult.main_frames`
+continue to receive ordinary Polars dataframes or lazy frames, not these
+internal runtime wrappers.
 
 `MainFrame` and `Fragment` are available from `uptimely.engine`. They replace
 the internal `DataFrameExecution` assembly helper.

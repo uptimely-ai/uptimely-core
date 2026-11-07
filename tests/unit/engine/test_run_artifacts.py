@@ -32,7 +32,7 @@ def _result(frame: object | None = None) -> engine.ExecutionResult:
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=5,
+        plan_version=6,
     )
 
 
@@ -102,11 +102,21 @@ def test_latest_run_completely_replaces_previous_profiles(
 def test_invocation_failure_persists_partial_results(
     runtime: engine.Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    read_id, failed_id, skipped_id = [item.id for item in runtime.plan.invocations]
+    read_id = next(item.id for item in runtime.plan.invocations if item.function_kind == "read")
+    merge_id = next(item.id for item in runtime.plan.invocations if item.function_kind == "merge")
+    failed_id = next(
+        item.id for item in runtime.plan.invocations if item.function_kind == "vectorize"
+    )
+    skipped_id = next(item.id for item in runtime.plan.invocations if item.function_kind == "write")
     result = dataclasses.replace(
         _result(pl.DataFrame({"reading": [1]})),
-        invocation_statuses={read_id: "succeeded", failed_id: "failed", skipped_id: "skipped"},
-        durations={read_id: 0.1, failed_id: 0.2},
+        invocation_statuses={
+            read_id: "succeeded",
+            merge_id: "succeeded",
+            failed_id: "failed",
+            skipped_id: "skipped",
+        },
+        durations={read_id: 0.1, merge_id: 0.1, failed_id: 0.2},
         failures={failed_id: "calculation failed"},
     )
     monkeypatch.setattr(runtime, "_execute", lambda **kwargs: result)

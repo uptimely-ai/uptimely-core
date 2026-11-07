@@ -43,6 +43,9 @@ class InvocationExecutor:
         definition = functions.FUNCTION_KINDS.get(invocation.function_kind)
         if definition is None:
             raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
+        if invocation.function_kind == functions.MERGE:
+            self._execute_merge(invocation)
+            return
         if definition.is_effect:
             self._invoke(invocation)
             return
@@ -59,7 +62,7 @@ class InvocationExecutor:
             self._invoke(invocation)
 
     def _execute_dataframe_operator(self, invocation: execution_plan.Invocation) -> None:
-        """Produce a fragment and merge it into the target profile's main frame."""
+        """Produce and retain a fragment for its scheduled merge invocation."""
         dataset_id = self._profile_id(invocation)
         main_frame = self.state.main_frames.get(dataset_id)
         fragment = fragment_module.Fragment.stage(
@@ -69,7 +72,43 @@ class InvocationExecutor:
             validate=self.validate,
             comparison_frame=main_frame.dataframe if main_frame is not None else None,
         )
-        self._merge_fragment(invocation, fragment)
+        self.state.staged_fragments[invocation.id] = fragment
+
+    def _execute_merge(self, invocation: execution_plan.Invocation) -> None:
+        """Invoke a merge binding and publish its complete target frame on success."""
+        dataset_id = self._profile_id(invocation)
+        fragment_id, fragment = self.state.staged_fragment_for(invocation)
+        current = self.state.main_frames.get(dataset_id)
+        target = current.dataframe if current is not None else None
+        logger.debug("  Merge:\n    Target profile: %s", dataset_id)
+        arguments = self.bindings.resolve_args(invocation, staged_fragment=fragment.dataframe)
+        if target is not None:
+            dataframe_validation.MainFrameValidator(
+                self.backend,
+                target,
+                invocation.id_columns,
+                "Accumulated profile",
+                column_types=invocation.column_types,
+            ).validate_merge(fragment.dataframe, validate=self.validate)
+
+        result = self._invoke(invocation, arguments=arguments)
+        result_validator = dataframe_validation.MainFrameValidator(
+            self.backend,
+            result,
+            invocation.id_columns,
+            f"Merge result {invocation.function_id}",
+            column_types=invocation.column_types,
+        )
+        result_validator.validate_merge_result(target, fragment.dataframe, validate=self.validate)
+
+        main_frame = current or main_frame_module.MainFrame(
+            self.backend,
+            invocation.id_columns,
+        )
+        main_frame.dataframe = result
+        main_frame.fragments[fragment.invocation.operator_id] = fragment
+        self.state.main_frames[dataset_id] = main_frame
+        del self.state.staged_fragments[fragment_id]
 
     def _execute_column_operator(self, invocation: execution_plan.Invocation) -> None:
         """Publish vectorized columns on the target frame without fragment assembly."""
@@ -106,41 +145,6 @@ class InvocationExecutor:
         }
         main_frame.dataframe = frame
         self.state.calculated_outputs.update(calculated_outputs)
-
-    def _merge_fragment(
-        self, invocation: execution_plan.Invocation, fragment: fragment_module.Fragment
-    ) -> fragment_module.Fragment:
-        """Check assembly contracts and commit a staged fragment to physical data."""
-        dataset_id = self._profile_id(invocation)
-        main_frame = self.state.main_frames.get(dataset_id)
-        if main_frame is None:
-            main_frame = main_frame_module.MainFrame(
-                self.backend,
-                invocation.id_columns,
-            )
-        validator = None
-        if self.validate and main_frame.dataframe is not None:
-            validator = dataframe_validation.MainFrameValidator(
-                self.backend,
-                main_frame.dataframe,
-                invocation.id_columns,
-                "Accumulated profile",
-                column_types=invocation.column_types,
-            )
-            validator.validate()
-        logger.debug("  Merge:\n    Target profile: %s", dataset_id)
-        if validator is not None:
-            validator.validate_merge(fragment.dataframe)
-        main_frame.merge(
-            fragment,
-            fragment_id=(
-                fragment.invocation.operator_id if fragment.invocation is not None else None
-            ),
-            join_cardinality="1:1" if self.validate else "m:m",
-            broadcast_cardinality="m:1" if self.validate else "m:m",
-        )
-        self.state.main_frames[dataset_id] = main_frame
-        return fragment
 
     @staticmethod
     def _profile_id(invocation: execution_plan.Invocation) -> str:

@@ -109,4 +109,9 @@ def test_animation_stages_match_compiled_execution_order(pump_bundle) -> None:
         assert {step.invocation_id for step in animation_stage} == {
             invocation.id for invocation in plan_stage
         }
-    assert all(step.columns for stage in stages for step in stage)
+    for stage in stages:
+        for step in stage:
+            if step.kind.id == "merge":
+                assert all(column.role == "Dimension" for column in step.columns)
+            else:
+                assert step.columns

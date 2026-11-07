@@ -9,7 +9,7 @@ from uptimely import execution_plan as uptimely_plan
 
 def _sample_plan() -> uptimely_plan.ExecutionPlan:
     return uptimely_plan.ExecutionPlan(
-        plan_version=5,
+        plan_version=6,
         required_backend="polars",
         resources={
             "signatures": {
@@ -123,7 +123,9 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "invocations",
         "stages",
     }
-    assert payload["plan_version"] == 5
+    assert payload["plan_version"] == 6
+    assert "phase" not in payload["invocations"][0]
+    assert not hasattr(plan.invocations[0], "phase")
     assert {"function_id", "operator_id"} <= set(payload["invocations"][0])
     assert "function_kind" in payload["invocations"][0]
     assert "operation" not in payload["invocations"][0]
@@ -167,11 +169,11 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["plan_version"] = 1
     payload["callables"] = payload.pop("invocations")
 
-    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 5\."):
+    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 6\."):
         uptimely_plan.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, "5", "unsupported", None, True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, "6", "unsupported", None, True])
 def test_plan_rejects_unsupported_versions(version: object) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = version

@@ -184,8 +184,10 @@ def test_engine_cli_reports_scoped_saved_build(
 def test_engine_rejects_missing_parameter(
     pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
+    parameters = _engine_parameters()
+    parameters.pop("telemetry_source")
     engine = engine_for_plan(
-        pump_bundle.execution_plan, {}, spec_definition=pump_bundle.spec_definition
+        pump_bundle.execution_plan, parameters, spec_definition=pump_bundle.spec_definition
     )
 
     result = engine.run()
@@ -198,9 +200,12 @@ def test_engine_rejects_missing_parameter(
 def test_engine_rejects_unknown_parameter_name(
     pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
+    parameters = _engine_parameters()
+    parameters.pop("telemetry_source")
+    parameters["another_parameter"] = "value"
     engine = engine_for_plan(
         pump_bundle.execution_plan,
-        {"another_parameter": "value"},
+        parameters,
         spec_definition=pump_bundle.spec_definition,
     )
 
@@ -546,8 +551,8 @@ def test_engine_executes_requested_feature_and_its_dependencies(
         operation.function_kind for stage in engine.plan.execution_stages for operation in stage
     } == {
         "read",
+        "merge",
         "collapse",
-        "expand",
         "vectorize",
     }
 

@@ -12,6 +12,33 @@ from uptimely import execution_plan as plan_module
 from uptimely import project
 
 
+@pytest.mark.parametrize("target_lazy", [False, True])
+@pytest.mark.parametrize("fragment_lazy", [False, True])
+def test_custom_pump_merge_full_joins_on_target_keys(
+    target_lazy: bool, fragment_lazy: bool
+) -> None:
+    target: pl.DataFrame | pl.LazyFrame = pl.DataFrame(
+        {"pump_id": ["PUMP-101", "PUMP-201"], "bearing_temperature_max": [60.0, 70.0]}
+    )
+    fragment: pl.DataFrame | pl.LazyFrame = pl.DataFrame(
+        {"pump_id": ["PUMP-201", "PUMP-301"], "measurement": [8.0, 9.0]}
+    )
+    if target_lazy:
+        target = target.lazy()
+    if fragment_lazy:
+        fragment = fragment.lazy()
+
+    result = external_workflow.merge_pump_inputs(target, fragment, ["pump_id"])
+    if isinstance(result, pl.LazyFrame):
+        result = result.collect()
+
+    assert result.sort("pump_id").rows() == [
+        ("PUMP-101", 60.0, None),
+        ("PUMP-201", 70.0, 8.0),
+        ("PUMP-301", None, 9.0),
+    ]
+
+
 def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -50,6 +77,11 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     assert result.failures == {}
     assert len(result.main_frames) == 3
     dataset = result.main_frames["pump_profile"]
+    assert {
+        "bearing_temperature_max",
+        "measurement",
+        "reference_value",
+    } <= set(dataset.collect_schema().names())
     assert "ratio" in spec_definition.profiles["pump_profile"].features
     assert "ratio" not in dataset.collect_schema().names()
     assert ("pump_profile", "ratio") not in result.calculated_outputs

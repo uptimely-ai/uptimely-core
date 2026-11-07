@@ -328,30 +328,32 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     conform_invocation = next(
         item for item in portable.invocations if item.function_kind == "conform"
     )
-    source_read = next(item for item in portable.invocations if item.operator_id == "read_source")
-    target_read = next(item for item in portable.invocations if item.operator_id == "read_target")
+    source_merge = next(
+        item
+        for item in portable.invocations
+        if item.operator_id == "read_source" and item.function_kind == "merge"
+    )
+    assert all(item.operator_id != "read_target" for item in portable.invocations)
 
     assert conform_invocation.arguments == {
         "source": "foreign",
         "matching_keys": ["group"],
     }
-    assert {source_read.id, target_read.id} <= set(conform_invocation.dependency_ids)
+    assert conform_invocation.dependency_ids == [source_merge.id]
     stage_by_id = {
         invocation_id: stage_number
         for stage_number, stage in enumerate(portable.stages)
         for invocation_id in stage
     }
-    assert stage_by_id[source_read.id] < stage_by_id[conform_invocation.id]
-    assert stage_by_id[target_read.id] < stage_by_id[conform_invocation.id]
+    assert stage_by_id[source_merge.id] < stage_by_id[conform_invocation.id]
 
     result = engine_for_plan(portable, spec_definition=spec_definition).run()
 
     assert result.failures == {}
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.main_frames["target"].sort("group").to_dicts() == [
-        {"group": "A", "base_value": 10, "conformed_value": None},
-        {"group": "B", "base_value": 20, "conformed_value": 2},
-        {"group": "C", "base_value": None, "conformed_value": 3},
+        {"group": "B", "conformed_value": 2},
+        {"group": "C", "conformed_value": 3},
     ]
 
 

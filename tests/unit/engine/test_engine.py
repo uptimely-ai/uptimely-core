@@ -31,6 +31,14 @@ def _plan() -> uptimely_plan.ExecutionPlan:
 
 
 def _patch_callables(monkeypatch: pytest.MonkeyPatch, callables: dict[str, object]) -> None:
+    def merge_by_grain_entrypoint(*args: object, **kwargs: object) -> object:
+        return merge_module.merge_by_grain(*args, **kwargs)
+
+    callables = {
+        "uptimely.library.merge.polars:merge_by_grain": merge_by_grain_entrypoint,
+        **callables,
+    }
+
     class _TestEntrypoint:
         def __init__(
             self, location: str, package: entrypoint_module.PackageProvenance | None = None
@@ -77,7 +85,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == 5
+    assert result.plan_version == 6
     assert not hasattr(result, "datasets")
     assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
     assert set(result.main_frames) == {"telemetry"}
@@ -95,10 +103,173 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     assert caplog.messages.count("  Merge:\n    Target profile: telemetry") == 1
     assert [message for message in caplog.messages if message.startswith("  Function: ")] == [
         "  Function: load",
+        "  Function: __uptimely_merge_by_grain",
         "  Function: double",
         "  Function: save",
     ]
     assert ("  Fragment:" in caplog.messages) is validate
+
+
+@pytest.mark.parametrize("merge_failure", [None, "exception", "incomplete"])
+def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
+    monkeypatch: pytest.MonkeyPatch,
+    engine_for_plan: execution_support.EngineFactory,
+    merge_failure: str | None,
+) -> None:
+    merge_inputs: list[tuple[list[str] | None, list[str]]] = []
+
+    def read_first() -> pl.DataFrame:
+        return pl.DataFrame({"id": ["A"], "first": [1]})
+
+    def read_second() -> pl.DataFrame:
+        return pl.DataFrame({"id": ["A"], "second": [2]})
+
+    def custom_merge(
+        target: pl.DataFrame | None,
+        fragment: pl.DataFrame,
+        target_keys: list[str],
+    ) -> pl.DataFrame:
+        merge_inputs.append((target.columns if target is not None else None, fragment.columns))
+        if target is not None and merge_failure == "exception":
+            raise RuntimeError("custom merge failed")
+        if target is not None and merge_failure == "incomplete":
+            return fragment
+        return merge_module.merge_by_grain(target, fragment, target_keys)
+
+    def write(dataset: pl.DataFrame) -> None:
+        assert dataset.columns == ["id", "first", "second"]
+
+    read_first_id = "read-first"
+    merge_first_id = "merge-first"
+    read_second_id = "read-second"
+    merge_second_id = "merge-second"
+    write_id = "write"
+    reads = [
+        uptimely_plan.Invocation(
+            id=read_first_id,
+            function_kind="read",
+            entrypoint="test:read_first",
+            function_id="read_first",
+            operator_id="first",
+            dataset_id="telemetry",
+            output_features=["id", "first"],
+            id_columns=["id"],
+        ),
+        uptimely_plan.Invocation(
+            id=read_second_id,
+            function_kind="read",
+            entrypoint="test:read_second",
+            function_id="read_second",
+            operator_id="second",
+            dataset_id="telemetry",
+            output_features=["id", "second"],
+            id_columns=["id"],
+        ),
+    ]
+
+    def merge_invocation(
+        invocation_id: str, operator_id: str, compute_id: str, dependencies: list[str]
+    ) -> uptimely_plan.Invocation:
+        return uptimely_plan.Invocation(
+            id=invocation_id,
+            function_kind="merge",
+            entrypoint="test:custom_merge",
+            function_id="custom_merge",
+            operator_id=operator_id,
+            dataset_id="telemetry",
+            arguments={
+                "target": "telemetry",
+                "fragment": "$operators.@.fragment",
+                "target_keys": ["id"],
+            },
+            dependency_ids=[compute_id, *dependencies],
+            id_columns=["id"],
+            argument_types={
+                "target": "dataframe | null",
+                "fragment": "dataframe",
+                "target_keys": "array[string]",
+            },
+        )
+
+    first_merge = merge_invocation(merge_first_id, "first", read_first_id, [])
+    second_merge = merge_invocation(merge_second_id, "second", read_second_id, [merge_first_id])
+    writer = uptimely_plan.Invocation(
+        id=write_id,
+        function_kind="write",
+        entrypoint="test:write",
+        function_id="write",
+        operator_id="write",
+        dataset_id="telemetry",
+        arguments={"dataset": "telemetry"},
+        dependency_ids=[merge_second_id],
+        argument_types={"dataset": "dataframe"},
+    )
+    plan = uptimely_plan.ExecutionPlan(
+        plan_version=6,
+        required_backend="polars",
+        resources={
+            "dimensions": {"id": {"resolutions": {"id": {"key": "id", "type": "string"}}}},
+            "profiles": {"telemetry": {"grain": [{"dimension": "id", "resolution": "id"}]}},
+            "functions": {
+                "read_first": {"kind": "read", "returns": "dataframe", "args": {}},
+                "read_second": {"kind": "read", "returns": "dataframe", "args": {}},
+                "custom_merge": {
+                    "kind": "merge",
+                    "returns": "dataframe",
+                    "args": {
+                        "target": {"type": "dataframe | null"},
+                        "fragment": {"type": "dataframe"},
+                        "target_keys": {"type": "array[string]"},
+                    },
+                },
+                "write": {
+                    "kind": "write",
+                    "returns": "none",
+                    "args": {"dataset": {"type": "dataframe"}},
+                },
+            },
+        },
+        invocations=[*reads, first_merge, second_merge, writer],
+        stages=[
+            [read_first_id],
+            [merge_first_id],
+            [read_second_id],
+            [merge_second_id],
+            [write_id],
+        ],
+    )
+    _patch_callables(
+        monkeypatch,
+        {
+            "test:read_first": read_first,
+            "test:read_second": read_second,
+            "test:custom_merge": custom_merge,
+            "test:write": write,
+        },
+    )
+
+    result = engine_for_plan(plan).run()
+
+    assert merge_inputs == [
+        (None, ["id", "first"]),
+        (["id", "first"], ["id", "second"]),
+    ]
+    assert result.invocation_statuses[read_first_id] == "succeeded"
+    assert result.invocation_statuses[merge_first_id] == "succeeded"
+    assert result.invocation_statuses[read_second_id] == "succeeded"
+    if merge_failure is not None:
+        assert result.invocation_statuses[merge_second_id] == "failed"
+        assert result.invocation_statuses[write_id] == "skipped"
+        if merge_failure == "exception":
+            assert result.failures[merge_second_id] == "custom merge failed"
+        else:
+            assert "missing required columns: first" in result.failures[merge_second_id]
+        assert result.main_frames["telemetry"].to_dicts() == [{"id": "A", "first": 1}]
+    else:
+        assert result.invocation_statuses[merge_second_id] == "succeeded"
+        assert result.invocation_statuses[write_id] == "succeeded"
+        assert result.failures == {}
+        assert result.main_frames["telemetry"].to_dicts() == [{"id": "A", "first": 1, "second": 2}]
 
 
 @pytest.mark.parametrize("dimensionless", [False, True])
@@ -132,7 +303,15 @@ def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
             execution_plan=dataclasses.replace(
                 bundle.execution_plan,
                 invocations=[
-                    dataclasses.replace(invocation, id_columns=[])
+                    dataclasses.replace(
+                        invocation,
+                        id_columns=[],
+                        arguments=(
+                            invocation.arguments | {"target_keys": []}
+                            if invocation.function_kind == "merge"
+                            else invocation.arguments
+                        ),
+                    )
                     for invocation in bundle.execution_plan.invocations
                 ],
             ),
@@ -299,9 +478,14 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
         state,
         validate=validate,
     )
-    read, calculate = engine.plan.invocations[:2]
+    read = next(item for item in engine.plan.invocations if item.function_kind == "read")
+    merge = next(item for item in engine.plan.invocations if item.function_kind == "merge")
+    calculate = next(item for item in engine.plan.invocations if item.function_kind == "vectorize")
 
     executor.execute(read)
+    assert state.main_frames == {}
+    assert set(state.staged_fragments) == {read.id}
+    executor.execute(merge)
     main = state.main_frames["telemetry"]
     source = main.fragments[read.operator_id]
     assert main.id_columns == ("asset_id",)
@@ -547,7 +731,7 @@ def test_escape_ignores_any_return_without_materializing_features(
         input_features=["external_input"],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=5,
+        plan_version=6,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -610,7 +794,7 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=5,
+        plan_version=6,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -649,7 +833,7 @@ def test_escape_resolves_literal_and_runtime_arguments(
         arguments={"path": "$params.output", "mode": "replace"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=5,
+        plan_version=6,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -706,7 +890,7 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=5,
+        plan_version=6,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -734,6 +918,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     read_id = "invocation:read:load:asset:telemetry:load"
+    merge_id = "invocation:merge:combine:asset:telemetry:load"
     escape_id = "invocation:escape:external_operator:asset:telemetry:operator"
     vectorize_id = "invocation:vectorize:consume:asset:telemetry:consume"
     observed: list[pl.DataFrame] = []
@@ -757,6 +942,26 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         dataset_id="telemetry",
         output_features=["asset_id", "reading"],
     )
+    merge_invocation = uptimely_plan.Invocation(
+        id=merge_id,
+        function_kind="merge",
+        entrypoint="test:merge",
+        function_id="combine",
+        operator_id="load",
+        dataset_id="telemetry",
+        id_columns=["asset_id"],
+        arguments={
+            "target": "telemetry",
+            "fragment": "$operators.@.fragment",
+            "target_keys": ["asset_id"],
+        },
+        argument_types={
+            "target": "dataframe | null",
+            "fragment": "dataframe",
+            "target_keys": "array[string]",
+        },
+        dependency_ids=[read_id],
+    )
     escape_invocation = uptimely_plan.Invocation(
         id=escape_id,
         function_kind="escape",
@@ -767,7 +972,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         output_features=["external_result"],
         input_features=["reading"],
         arguments={"dataset": "telemetry"},
-        dependency_ids=[read_id],
+        dependency_ids=[merge_id],
     )
     vectorize_invocation = uptimely_plan.Invocation(
         id=vectorize_id,
@@ -781,7 +986,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         dependency_ids=[escape_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=5,
+        plan_version=6,
         required_backend="polars",
         resources={
             "dimensions": {
@@ -792,6 +997,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
             },
             "functions": {
                 "load": {"kind": "read", "returns": "dataframe", "args": {}},
+                "combine": {"kind": "merge", "returns": "dataframe", "args": {}},
                 "external_operator": {
                     "kind": "escape",
                     "returns": "any",
@@ -800,18 +1006,24 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
                 "consume": {"kind": "vectorize", "returns": "dataframe", "args": {}},
             },
         },
-        invocations=[read_invocation, escape_invocation, vectorize_invocation],
-        stages=[[read_id], [escape_id], [vectorize_id]],
+        invocations=[read_invocation, merge_invocation, escape_invocation, vectorize_invocation],
+        stages=[[read_id], [merge_id], [escape_id], [vectorize_id]],
     )
 
     _patch_callables(
         monkeypatch,
-        {"test:read": read, "test:escape": external_operator, "test:consume": consume},
+        {
+            "test:read": read,
+            "test:escape": external_operator,
+            "test:consume": consume,
+            "test:merge": merge_module.merge_by_grain,
+        },
     )
     result = engine_for_plan(plan).run(validate=True)
 
     assert result.invocation_statuses == {
         read_id: "succeeded",
+        merge_id: "succeeded",
         escape_id: "succeeded",
         vectorize_id: "failed",
     }
@@ -849,7 +1061,7 @@ def test_escape_exception_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=5,
+        plan_version=6,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -1046,13 +1258,30 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
         state,
     )
     for dataset_id in ("first", "second"):
-        executor.execute(
-            dataclasses.replace(
-                engine.plan.invocations[0],
-                dataset_id=dataset_id,
-                operator_id="shared",
-            )
+        read = dataclasses.replace(
+            next(item for item in engine.plan.invocations if item.function_kind == "read"),
+            dataset_id=dataset_id,
+            operator_id="shared",
         )
+        merge = dataclasses.replace(
+            next(item for item in engine.plan.invocations if item.function_kind == "merge"),
+            id=f"invocation:merge:__uptimely_merge_by_grain:{dataset_id}:shared",
+            dataset_id=dataset_id,
+            operator_id="shared",
+            arguments={
+                "target": dataset_id,
+                **{
+                    key: value
+                    for key, value in next(
+                        item for item in engine.plan.invocations if item.function_kind == "merge"
+                    ).arguments.items()
+                    if key != "target"
+                },
+            },
+            dependency_ids=[read.id],
+        )
+        executor.execute(read)
+        executor.execute(merge)
 
     assert set(state.main_frames) == {"first", "second"}
     assert all(set(main.fragments) == {"shared"} for main in state.main_frames.values())
@@ -1397,6 +1626,29 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         dataset_id="telemetry",
         output_features=["asset_id", "reading"],
     )
+    merge_invocation = uptimely_plan.Invocation(
+        id="invocation:merge:merge_by_grain:asset:telemetry:load",
+        function_kind="merge",
+        entrypoint="uptimely.library.merge.polars:merge_by_grain",
+        function_id="merge_by_grain",
+        operator_id="load",
+        dataset_id="telemetry",
+        output_features=[],
+        input_features=[],
+        arguments={
+            "target": "telemetry",
+            "fragment": "$operators.@.fragment",
+            "target_keys": ["asset_id"],
+        },
+        dependency_ids=[read_invocation.id],
+        id_columns=["asset_id"],
+        column_types={},
+        argument_types={
+            "target": "dataframe | null",
+            "fragment": "dataframe",
+            "target_keys": "array[string]",
+        },
+    )
     vectorize_invocation = uptimely_plan.Invocation(
         id="invocation:vectorize:calculate:asset:telemetry:reading_plus_one",
         function_kind="vectorize",
@@ -1407,10 +1659,10 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         output_features=["reading_plus_one", "reading_times_two"],
         arguments={"dataset": "telemetry"},
         argument_types={"dataset": "dataframe"},
-        dependency_ids=[read_invocation.id],
+        dependency_ids=[merge_invocation.id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=5,
+        plan_version=6,
         required_backend="polars",
         resources={
             "dimensions": {
@@ -1421,11 +1673,12 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
             },
             "functions": {
                 "load": {"kind": "read", "args": {}},
+                "merge_by_grain": {"kind": "merge", "args": {}},
                 "calculate": {"kind": "vectorize", "args": {}},
             },
         },
-        invocations=[read_invocation, vectorize_invocation],
-        stages=[[read_invocation.id], [vectorize_invocation.id]],
+        invocations=[read_invocation, merge_invocation, vectorize_invocation],
+        stages=[[read_invocation.id], [merge_invocation.id], [vectorize_invocation.id]],
     )
     _patch_callables(monkeypatch, {"test:read": read, "test:calculate": calculate})
     monkeypatch.setattr(fragment_module.Fragment, "stage", staticmethod(stage_spy))

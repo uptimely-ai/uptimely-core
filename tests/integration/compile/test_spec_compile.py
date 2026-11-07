@@ -144,7 +144,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     assert portable_invocation["arguments"]["source_keys"] == expected_source
 
 
-def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathlib.Path) -> None:
+def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     operator = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
     operator["compute"]["args"]["output"] = "$features.@.id"
@@ -154,15 +154,19 @@ def test_collapse_feature_placeholder_uses_invocation_feature_id(tmp_path: pathl
     definition = spec.load_spec(path)
     graph = compiler.InvocationGraph(definition)
     node = next(
-        item for item in graph.invocations if item.operator_id == "bearing_temperature_by_pump"
+        item
+        for item in graph.invocations
+        if item.operator_id == "bearing_temperature_by_pump" and item.function_kind == "collapse"
     )
     plan = compiler.Compiler().compile(definition)
     invocation = next(
-        item for item in plan.invocations if item.operator_id == "bearing_temperature_by_pump"
+        item
+        for item in plan.invocations
+        if item.operator_id == "bearing_temperature_by_pump" and item.function_kind == "collapse"
     )
 
-    assert node.feature_id == "bearing_temperature_max"
-    assert invocation.arguments["output"] == node.feature_id
+    assert "bearing_temperature_max" in node.output_features
+    assert invocation.arguments["output"] == "bearing_temperature_max"
 
 
 def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> None:
@@ -233,7 +237,9 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         invocation for invocation in plan.invocations if invocation.function_kind == "conform"
     )
     source = next(
-        invocation for invocation in plan.invocations if invocation.operator_id == "read_auxiliary"
+        invocation
+        for invocation in plan.invocations
+        if invocation.operator_id == "read_auxiliary" and invocation.function_kind == "merge"
     )
     stage_by_id = {
         invocation_id: index for index, stage in enumerate(plan.stages) for invocation_id in stage
@@ -261,8 +267,8 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
     ]
     assert {invocation.function_kind for invocation in plan.invocations} == {
         "read",
+        "merge",
         "collapse",
-        "expand",
         "vectorize",
     }
     assert {
@@ -374,6 +380,25 @@ def test_feature_subset_retains_sink_roles_independent_of_function_kind(
     assert "escape_unrelated" in {node.operator_id for node in subset.invocations}
 
 
+def test_feature_index_uses_function_kind_output_contract(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    path = tmp_path / "feature_contract_spec.json"
+    path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
+    document = spec.load_spec(path)
+    definitions = dict(functions.FUNCTION_KINDS)
+    definitions[functions.ESCAPE] = dataclasses.replace(
+        definitions[functions.ESCAPE], produces_features=False
+    )
+    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+
+    graph = compiler.InvocationGraph(document)
+    chain = next(node for node in graph.invocations if node.operator_id == "escape_chain")
+    assert graph.dependencies(chain) == []
+    with pytest.raises(ValueError, match=r"Unknown output feature\(s\): escape_start_output"):
+        graph.subset(["escape_start_output"])
+
+
 def test_escape_return_annotations_do_not_constrain_compilation(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -460,27 +485,35 @@ def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> No
 
     subset = graph.subset(["health_signal_normalized"])
     normalized = next(
-        node for node in subset.invocations if node.feature_id == "health_signal_normalized"
+        node for node in subset.invocations if "health_signal_normalized" in node.output_features
     )
 
     assert [
-        node.feature_id
+        feature
         for node in subset.get_invocation_order()
         if graph.spec.functions[node.function_id].kind == "vectorize"
+        for feature in node.output_features
     ] == [
         "health_signal_normalized",
     ]
     assert {
         (graph.spec.functions[node.function_id].kind, node.function_id)
         for node in subset.dependencies(normalized)
-    } == {
-        ("collapse", "aggregate"),
-        ("read", "read_pump_external_inputs"),
-    }
-    assert len(graph.invocations) == 18
+    } == {("merge", "__uptimely_merge_by_grain")}
+    assert {
+        node.operator_id for node in subset.invocations if node.function_kind == "collapse"
+    } == {"bearing_temperature_by_pump"}
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
         graph.subset(["missing"])
+    grain_key_output = next(
+        feature for feature in graph.spec.grain_key_ids if feature in graph.spec.feature_producers
+    )
+    with pytest.raises(
+        ValueError,
+        match=rf"Unknown output feature\(s\): {grain_key_output}",
+    ):
+        graph.subset([grain_key_output])
 
 
 def test_compiled_inputs_match_each_profile_mapping() -> None:
@@ -491,6 +524,10 @@ def test_compiled_inputs_match_each_profile_mapping() -> None:
     assert len(profiles) > 1
     for invocation in execution_plan.invocations:
         operator = profiles[invocation.dataset_id].assembly[invocation.operator_id]
+        if invocation.function_kind == "merge":
+            assert invocation.input_features == []
+            assert invocation.output_features == []
+            continue
         assert invocation.input_features == operator.input_features
         assert invocation.output_features == operator.output_features
 

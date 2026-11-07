@@ -118,7 +118,7 @@ def test_export_includes_validated_run_previews_and_all_log_pages(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=5,
+        plan_version=6,
     )
     monkeypatch.setattr(runtime, "_execute", lambda **kwargs: result)
     runtime.run(preview_rows=10)
