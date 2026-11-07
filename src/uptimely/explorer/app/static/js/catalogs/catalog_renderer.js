@@ -78,26 +78,14 @@ export function catalogContext(data, view) {
   const title = view[0].toUpperCase() + view.slice(1);
   return `<aside class="site-context" id="catalog-context" aria-label="${title} context" data-context-label="${view}">
     ${contextHeader(title, view, "catalog-context")}
-    <nav class="context-links" aria-label="${title} on this page">${contextLink("catalog-overview", "Stats", "stats")}
+    <nav class="context-links" aria-label="${title} on this page">${contextLink(
+      "catalog-overview", "Overview", "overview",
+    )}
       <hr class="context-separator">${links || `<p class="context-empty">No ${view}.</p>`}
     </nav></aside>`;
 }
 
 const overviewData = {
-  profiles(data) {
-    const { configuration: config, summary } = data.catalogs;
-    const categoryCounts = new Map();
-    Object.values(config.profiles).forEach(profile => {
-      const category = profile.category || "Uncategorized";
-      categoryCounts.set(category, (categoryCounts.get(category) || 0) + 1);
-    });
-    return {
-      stats: [["Profiles", summary.profile_count], ["Categories", categoryCounts.size],
-        ["Features", profiles(config).reduce((total, { profile }) => total + Object.keys(profile.features).length, 0)],
-        ["Operator", summary.operator_count]],
-      charts: [distribution("Profiles by category", [...categoryCounts])],
-    };
-  },
   features(data) {
     const config = data.catalogs.configuration;
     const produced = features(config);
@@ -141,20 +129,67 @@ const overviewData = {
 };
 
 function catalogOverview(data, view) {
+  if (view === "profiles") return profileOverview(data);
   if (view === "functions") return functionOverview(data);
   const { stats, charts } = overviewData[view](data);
   const title = view[0].toUpperCase() + view.slice(1);
-  return `<section id="catalog-overview" data-context-item aria-label="${title} stats" class="mb-12">
-    <h2 class="ui-section-title mb-6">${title} stats</h2>
+  return `<section id="catalog-overview" data-context-item aria-label="${title} overview" class="mb-12">
+    <h2 class="ui-section-title mb-6">${title} overview</h2>
     <div class="grid gap-3 sm:grid-cols-2${stats.length > 2 ? " lg:grid-cols-4" : ""}">${stats.map(args => statistic(...args)).join("")}</div>
     <div class="catalog-charts">${charts.join("")}</div>
   </section>`;
 }
 
+function profileOverview(data) {
+  const config = data.catalogs.configuration;
+  const profileItems = profiles(config);
+  const maximumOperators = Math.max(
+    0, ...profileItems.map(({ profile }) => Object.keys(profile.assembly).length),
+  );
+  const cards = profileItems.map(({ id, profile }) => {
+    const operatorCount = Object.keys(profile.assembly).length;
+    const grain = profile.grain.map(({ dimension, resolution }) => {
+      const dimensionDefinition = config.dimensions[dimension];
+      const resolutionDefinition = dimensionDefinition?.resolutions[resolution];
+      return {
+        dimension: dimensionDefinition?.name || dimension,
+        resolution: resolutionDefinition?.id ?? resolution,
+      };
+    });
+    const width = maximumOperators ? operatorCount / maximumOperators * 100 : 0;
+    return `<a class="profile-summary-card" href="#profile-${encodeURIComponent(id)}"
+      aria-label="${escape(`${label(id, profile)}: ${operatorCount} operator${operatorCount === 1 ? "" : "s"}`)}">
+      <header class="profile-summary-header">
+        <div class="profile-summary-identity">
+          <span class="profile-summary-category">${escape(profile.category || "Uncategorized")}</span>
+          <h3>${escape(label(id, profile))}</h3>
+        </div>
+      </header>
+      <div class="profile-summary-scale">
+        <div class="profile-summary-meter" role="img" aria-label="${escape(`${operatorCount} operator${operatorCount === 1 ? "" : "s"}; relative profile size`)}">
+          <span style="width:${width}%"></span>
+        </div>
+        <div class="profile-summary-size"><strong>${operatorCount}</strong><span>operator${operatorCount === 1 ? "" : "s"}</span></div>
+      </div>
+      <div class="profile-summary-grain" aria-label="Profile grain">
+        <span class="profile-summary-grain-label">Grain</span>
+        ${grain.length ? `<ul class="profile-summary-grain-list">${grain.map(({ dimension, resolution }) => `<li class="profile-summary-grain-path" aria-label="${escape(`${dimension} dimension at ${resolution} resolution`)}">
+          <span class="profile-summary-grain-badge profile-summary-grain-resolution">${icon("resolutions", "profile-summary-grain-icon")}<code>${escape(resolution)}</code></span>
+          <i class="profile-summary-grain-relation" data-lucide="at-sign" aria-hidden="true"></i>
+          <span class="profile-summary-grain-badge profile-summary-grain-dimension">${icon("dimensions", "profile-summary-grain-icon")}<strong>${escape(dimension)}</strong></span>
+        </li>`).join("")}</ul>` : '<span class="profile-summary-grain-empty">No grain defined</span>'}
+      </div>
+    </a>`;
+  });
+  return `<section id="catalog-overview" data-context-item aria-label="Profiles overview" class="mb-12">
+    <div class="profile-summary-grid">${cards.join("") || '<p class="text-sm text-slate-400">No profiles are defined.</p>'}</div>
+  </section>`;
+}
+
 function functionOverview(data) {
   const groups = Object.entries(data.catalogs.function_groups);
-  return `<section id="catalog-overview" data-context-item aria-label="Functions stats" class="mb-12">
-    <h2 class="ui-section-title mb-6">Functions stats</h2>
+  return `<section id="catalog-overview" data-context-item aria-label="Functions overview" class="mb-12">
+    <h2 class="ui-section-title mb-6">Functions overview</h2>
     <div class="grid gap-3 sm:grid-cols-2">${[
       ["Functions", data.catalogs.summary.function_count],
       ["Kinds in use", groups.filter(([, items]) => Object.keys(items).length).length],
@@ -429,7 +464,7 @@ export function renderCatalog(data, view) {
     functions: "Browse the function catalog, argument types, return signatures, and source entrypoints.",
     dimensions: "Inspect dimension resolutions, dataframe keys, and their parent relationships.",
     features: "",
-    profiles: "",
+    profiles: "A profile defines computational operators required to assemble a dataset at a specific grain.",
   };
   return {
     context: catalogContext(data, view),

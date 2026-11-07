@@ -35,8 +35,8 @@ The Explorer contains:
 | Section | What it shows |
 | --- | --- |
 | **Project home** | Project identity, counts, build scope, and the spec-to-execution journey. |
-| **Analytical model** | Profile/feature/dimension/function catalogs, feature counts by role in Features stats, dimension resolution hierarchies, and feature lineage. |
-| **Execution plan** | Stats, invocation topology, and execution stages with argument bindings. |
+| **Analytical model** | Profile/feature/dimension/function catalogs, profile cards sized by operator count, feature counts by role in the Features overview, dimension resolution hierarchies, and feature lineage. |
+| **Execution plan** | Overview, invocation topology, and execution stages with argument bindings. |
 | **Run results** | Profile-specific animation, latest-run information, run logs, and saved previews for each profile. |
 
 The main menu groups equally aligned links under non-clickable section labels,
@@ -50,15 +50,18 @@ the graph controls remain separate below it.
 Close the dialog with its **Close** button, the backdrop, or **Escape**.
 Graph view and zoom controls, and animation profile and playback controls,
 remain accessible in the bar without opening the dialog.
-Stats pages share count cards and distribution charts. Schema, argument bindings,
-and saved previews share table styling, with badges for roles and run status.
+Catalog overview pages summarize their content; Profiles uses one compact card
+per profile, with operator count indicating profile size and grain shown as
+dimension/resolution paths. Other overviews share count cards and
+distribution charts. Schema, argument bindings, and saved previews share table
+styling, with badges for roles and run status.
 Navigation and data-type icons identify content; section headings and count
 cards avoid repeating those icons.
 Navigation and content icons use neutral colors matching their labels. A single
 cyan accent marks selection and interactive emphasis. Status badges, data-role
 badges, graph legends, and log syntax retain semantic colors; labels and shapes
 also convey their meaning without relying on color alone.
-Catalogs start with Stats; select an item in the contextual
+Catalogs start with an Overview; select an item in the contextual
 sidebar to inspect its details. Item selections support browser back/forward
 navigation and direct links. Menu links switch views client-side without
 reloading the document or refetching the snapshot. Refresh the browser after

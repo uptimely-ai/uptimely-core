@@ -20,15 +20,14 @@ const {
 } = await import(shared);
 const { dashboard, lineage, planOverview } = await import(pages);
 
-test("Plan Stats uses the increasing bar chart icon in navigation and title", () => {
+test("Plan Overview uses the dashboard grid icon in navigation and title", () => {
   const markup = shell({ project: {}, scope: {} }, "plan", "", "");
-  assert.match(markup, /href="\?view=plan"[^>]*>[\s\S]*?data-lucide="chart-bar-increasing"[\s\S]*?Stats/);
+  assert.match(markup, /href="\?view=plan"[^>]*>[\s\S]*?data-lucide="layout-grid"[\s\S]*?Overview/);
   const content = planOverview({
     plan: { function_kind_counts: [], invocation_count: 0, stage_count: 0 },
     stages: [],
   });
-  assert.match(content, /<h1[^>]*>[\s\S]*?data-lucide="chart-bar-increasing"[\s\S]*?<span>Stats<\/span><\/h1>/);
-  assert.doesNotMatch(content, />Overview</);
+  assert.match(content, /<h1[^>]*>[\s\S]*?data-lucide="layout-grid"[\s\S]*?<span>Overview<\/span><\/h1>/);
 });
 
 test("Lineage uses the horizontal flow diagram icon", () => {
@@ -244,7 +243,7 @@ test("dimension details distinguish the dimension from its nested resolution lev
   assert.doesNotMatch(content, /Parent resolution:|Top-level resolution|dimension-resolution-level|dimension-resolution-fields/);
 });
 
-test("Features stats contains the former spec feature role summary", () => {
+test("Features overview contains the former spec feature role summary", () => {
   const data = {
     catalogs: {
       configuration: { profiles: {} },
@@ -263,7 +262,46 @@ test("Features stats contains the former spec feature role summary", () => {
   assert.match(content, /<div class="catalog-charts">/);
 });
 
-test("all catalog summaries use shared Stats panels with the chart icon in navigation", () => {
+test("catalog overview navigation uses the appropriate label and profile cards show profile size", () => {
+  const data = {
+    catalogs: {
+      configuration: { profiles: {
+        small: { name: "Small", category: "Realtime", grain: [{ dimension: "time", resolution: "day" }], features: { temperature: {} }, assembly: {
+          read: { compute: { function: "calculate" }, interface: { inputs: [], outputs: [] } },
+        } },
+        large: { name: "Large", category: "Batch", grain: [], features: {}, assembly: {
+          read: { compute: { function: "calculate" }, interface: { inputs: [], outputs: [] } },
+          transform: { compute: { function: "calculate" }, interface: { inputs: [], outputs: [] } },
+          write: { compute: { function: "calculate" }, interface: { inputs: [], outputs: [] } },
+        } },
+      }, dimensions: { time: { name: "Time", resolutions: { day: { id: "day" } } } }, functions: { calculate: { name: "Calculate", kind: "read" } } },
+      summary: { feature_buckets: {}, feature_count: 0 },
+      function_groups: {},
+    },
+    plan: { function_kind_counts: [] },
+    stages: [],
+  };
+  const { content, context } = renderCatalog(data, "profiles");
+  assert.match(context, /href="#catalog-overview"[\s\S]*?data-lucide="layout-grid"[\s\S]*?>Overview/);
+  assert.match(content, /aria-label="Profiles overview"/);
+  assert.match(content, /<h1[^]*?<span>Profiles<\/span><\/h1>[^]*?<p data-section-description[^>]*>A profile defines computational operators required to assemble a dataset at a specific grain\.<\/p>/);
+  assert.doesNotMatch(content, /profile-summary-note/);
+  assert.doesNotMatch(content, /<h2[^>]*>Profiles overview<\/h2>/);
+  assert.equal((content.match(/class="profile-summary-card"/g) || []).length, 2);
+  assert.match(content, /<div class="profile-summary-grain" aria-label="Profile grain">\s*<span class="profile-summary-grain-label">Grain<\/span>\s*<span class="profile-summary-grain-empty">No grain defined<\/span>/);
+  assert.doesNotMatch(content, /<h3>Large<\/h3>\s*<span class="profile-summary-grain-empty">No grain defined<\/span>/);
+  assert.match(content, /href="#profile-small"[\s\S]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>1<\/strong><span>operator<\/span>/);
+  assert.match(content, /href="#profile-large"[\s\S]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>3<\/strong><span>operators<\/span>/);
+  assert.match(content, /relative profile size/);
+  assert.match(content, /profile-summary-grain-path" aria-label="Time dimension at day resolution"[^]*?<span class="profile-summary-grain-badge profile-summary-grain-resolution">[^]*?icon--resolutions profile-summary-grain-icon" data-lucide="scan-square"[^]*?<code>day<\/code><\/span>\s*<i class="profile-summary-grain-relation" data-lucide="at-sign"[^]*><\/i>\s*<span class="profile-summary-grain-badge profile-summary-grain-dimension">[^]*?icon--dimensions profile-summary-grain-icon" data-lucide="axis-3d"[^]*?<strong>Time<\/strong><\/span>/);
+  assert.match(content, /profile-summary-grain-icon/);
+  assert.doesNotMatch(content, /<span>Dimension<\/span>|<span>Resolution<\/span>/);
+  const overview = content.slice(0, content.indexOf('<div class="space-y-8">'));
+  assert.doesNotMatch(overview, /<code>small<\/code>|<code>large<\/code>|\b1 features\b/);
+  assert.doesNotMatch(content, /Profiles stats|Profiles by category|data-stat=/);
+});
+
+test("catalog overviews use the shared dashboard icon and summary panels", () => {
   const data = {
     catalogs: {
       configuration: { profiles: {}, dimensions: {} },
@@ -273,15 +311,15 @@ test("all catalog summaries use shared Stats panels with the chart icon in navig
     plan: { function_kind_counts: [] },
     stages: [],
   };
-  for (const view of ["profiles", "features", "functions", "dimensions", "stages"]) {
+  for (const view of ["features", "functions", "dimensions", "stages"]) {
     const { content, context } = renderCatalog(data, view);
     const title = view[0].toUpperCase() + view.slice(1);
-    assert.match(context, /href="#catalog-overview"[\s\S]*?data-lucide="chart-bar-increasing"[\s\S]*?>Stats</);
-    assert.match(content, new RegExp(`aria-label="${title} stats"`));
-    assert.match(content, new RegExp(`<h2 class="ui-section-title mb-6">${title} stats</h2>`));
+    assert.match(context, /href="#catalog-overview"[\s\S]*?data-lucide="layout-grid"[\s\S]*?>Overview/);
+    assert.match(content, new RegExp(`aria-label="${title} overview"`));
+    assert.match(content, new RegExp(`<h2 class="ui-section-title mb-6">${title} overview</h2>`));
     assert.match(content, /class="ui-panel" data-stat=/);
     assert.match(content, /class="ui-panel ui-chart"/);
-    assert.doesNotMatch(content + context, />Overview<| overview</);
+    assert.doesNotMatch(content + context, />Stats| stats/);
   }
 });
 

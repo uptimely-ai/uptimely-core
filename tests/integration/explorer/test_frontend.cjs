@@ -32,7 +32,11 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
     assert.match(context, /id="catalog-context"/);
     assert.match(context, /href="#catalog-overview"/);
     assert.match(content, /id="catalog-overview" data-context-item/);
-    assert.match(content, /data-category=/);
+    if (view === "profiles") {
+      assert.match(content, /class="profile-summary-category"/);
+    } else {
+      assert.match(content, /data-category=/);
+    }
     assert.ok(!content.includes("<Calculate>"));
     assert.ok(!content.includes("<input>"));
   }
@@ -44,12 +48,31 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functions.context, /href="#function-calculate"/);
   const profileData = sampleData();
   profileData.catalogs.configuration.profiles.readings.description = "Pump readings per machine.";
-  const profiles = renderCatalog(profileData, "profiles").content;
+  const secondProfile = structuredClone(profileData.catalogs.configuration.profiles.readings);
+  secondProfile.name = "Daily readings";
+  secondProfile.category = "Batch";
+  secondProfile.assembly = Object.fromEntries(
+    ["load", "aggregate", "write"].map(id => [id, structuredClone(secondProfile.assembly.calculate)]),
+  );
+  profileData.catalogs.configuration.profiles.daily = secondProfile;
+  profileData.catalogs.summary.operator_count = 400;
+  const profileCatalog = renderCatalog(profileData, "profiles");
+  const profiles = profileCatalog.content;
+  assert.match(profileCatalog.context, /href="#catalog-overview"[^]*?>Overview/);
+  assert.equal((profiles.match(/class="profile-summary-card"/g) || []).length, 2);
+  assert.match(profiles, /href="#profile-readings"[^]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>1<\/strong><span>operator<\/span>/);
+  assert.match(profiles, /href="#profile-daily"[^]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>3<\/strong><span>operators<\/span>/);
+  const profileOverview = profiles.slice(0, profiles.indexOf('<div class="space-y-8">'));
+  assert.match(profileOverview, /profile-summary-grain-path" aria-label="Machine dimension at machine resolution"[^]*?<span class="profile-summary-grain-badge profile-summary-grain-resolution">[^]*?icon--resolutions profile-summary-grain-icon" data-lucide="scan-square"[^]*?<code>machine<\/code><\/span>\s*<i class="profile-summary-grain-relation" data-lucide="at-sign"[^]*><\/i>\s*<span class="profile-summary-grain-badge profile-summary-grain-dimension">[^]*?icon--dimensions profile-summary-grain-icon" data-lucide="axis-3d"[^]*?<strong>Machine<\/strong><\/span>/);
+  assert.match(profileOverview, /profile-summary-grain-icon/);
+  assert.doesNotMatch(profileOverview, /<span>Dimension<\/span>|<span>Resolution<\/span>/);
+  assert.doesNotMatch(profileOverview, /<code>readings<\/code>|<code>daily<\/code>|\b2 features\b/);
+  assert.doesNotMatch(profiles, /Profiles stats|Profiles by category/);
   assert.match(profiles, /data-dataset-schema="readings"/);
   assert.match(profiles, /one row per machine &lt;source&gt;/);
   assert.match(profiles, /<div hidden>\s*<h2>Readings<\/h2>\s*<p data-profile-description>Pump readings per machine\.<\/p>\s*<\/div>\s*<section aria-label="Profile details">/);
   assert.ok(!profiles.includes("2 columns"));
-  assert.equal((profiles.match(/Pump readings per machine\./g) || []).length, 1);
+  assert.equal((profiles.match(/Pump readings per machine\./g) || []).length, 2);
   assert.doesNotMatch(profiles, />Profile details</);
   assert.match(profiles, /class="ui-section-title">Grain<\/h3>/);
   assert.match(profiles, /class="ui-section-title">Scope<\/h3>/);
@@ -294,7 +317,7 @@ test("dimension catalog renders resolutions as a parent-linked hierarchy", async
   assert.match(html, /data-dimension-description[^>]*>No description provided\./);
 });
 
-test("dashboard, Features stats and plan show visual components and counts", async () => {
+test("dashboard, Features overview and plan show visual components and counts", async () => {
   const { dashboard, planOverview } = await moduleAt("rendering/page_renderer.js");
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const data = sampleData();

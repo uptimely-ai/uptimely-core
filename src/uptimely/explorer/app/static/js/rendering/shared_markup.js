@@ -13,7 +13,7 @@ const ICONS = {
   home: "house", menu: "menu", "collapse-navigation": "panel-left-close",
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
   execution: "play", info: "info", logs: "scroll-text", preview: "table-properties",
-  overview: "layout-dashboard", stats: "chart-bar-increasing", features: "sigma",
+  overview: "layout-grid", features: "sigma",
   profiles: "layers-2", datasets: "table-2",
   dimensions: "axis-3d", resolutions: "scan-square", functions: "square-function",
   invocations: "square-function", "feature-lineage": "diagram-flow-horizontal", "invocation-lineage": "layout-arrow-right",
@@ -168,7 +168,7 @@ export function shell(data, view, context, content) {
       ["lineage", "Lineage", "feature-lineage"],
     ]],
     ["plan", "Execution plan", [
-      ["plan", "Stats", "stats"], ["topology", "Topology", "invocation-lineage"],
+      ["plan", "Overview", "overview"], ["topology", "Topology", "invocation-lineage"],
       ["stages", "Stages", "stages"],
     ]],
     ["execution", "Run results", [
