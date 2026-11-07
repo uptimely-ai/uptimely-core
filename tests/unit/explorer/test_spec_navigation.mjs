@@ -319,25 +319,62 @@ test("dimension details distinguish the dimension from its nested resolution lev
         location: { name: "Location", resolutions: {
           country: { key: "country_id", type: "string" },
           city: { key: "city_id", type: "string", parent: "country" },
-          site: { key: "site_id", type: "integer", parent: "city" },
+          site_level: { key: "site_id", type: "integer", parent: "city" },
         } },
+      }, profiles: {
+        country_summary: { name: "Country summary", grain: [{ dimension: "location", resolution: "country" }] },
+        site_summary: { grain: [{ dimension: "location", resolution: "site_level" }] },
+        daily_summary: { grain: [{ dimension: "time", resolution: "day" }] },
       } },
     },
   }, "dimensions");
   assert.match(content, /data-dimension-label[^>]*hidden>Dimension<\/p>/);
   assert.doesNotMatch(content, /<p[^>]*>location<\/p>/);
   assert.match(content, /aria-label="Resolution levels"/);
+  assert.match(content, /<h3 class="ui-section-title profile-detail-subheading"><i class="site-icon icon--resolutions profile-detail-icon" data-lucide="scan-square" aria-hidden="true"><\/i><span>Resolution levels<\/span><\/h3>/);
   assert.match(content, /Resolution levels, from parent to child\./);
   for (const id of ["country", "city"]) {
     assert.match(content, new RegExp(`<h3 class="dimension-resolution-id"><span class="typed-name"[^>]*>[\\s\\S]*?data-lucide="case-sensitive"[^>]*><\\/i><span>${id}</span>`));
   }
-  assert.match(content, /<span class="typed-name" title="integer" aria-label="site \(integer\)"><i data-lucide="hash"[^>]*><\/i><span>site<\/span>/);
+  assert.match(content, /<span class="typed-name" title="integer" aria-label="site_level \(integer\)"><i data-lucide="hash"[^>]*><\/i><span>site_level<\/span>/);
   const hierarchy = content.match(/<ul aria-label="Resolution hierarchy"[\s\S]*?<\/section>/)[0];
   assert.doesNotMatch(hierarchy, /country_id|city_id|site_id|data-type-label-text|>string<|>integer</);
   assert.match(content, /data-resolution-id="city" data-parent-resolution="country"/);
-  assert.match(content, /data-resolution-id="site" data-parent-resolution="city"/);
+  assert.match(content, /data-resolution-id="site_level" data-parent-resolution="city"/);
   assert.equal((content.match(/class="dimension-resolution-children"/g) || []).length, 2);
+  assert.match(content, /aria-label="Profile usage"[\s\S]*?href="\?view=profiles#profile-country_summary">Country summary<\/a>[\s\S]*?<code>country<\/code>/);
+  assert.match(content, /href="\?view=profiles#profile-site_summary">site_summary<\/a>[\s\S]*?<code>site_level<\/code>/);
+  assert.doesNotMatch(content, /Resolution: <code>/);
+  assert.doesNotMatch(content, /daily_summary/);
   assert.doesNotMatch(content, /Parent resolution:|Top-level resolution|dimension-resolution-level|dimension-resolution-fields/);
+});
+
+test("Dimensions overview shows resolution charts without number cards or overview heading", () => {
+  const { content } = renderCatalog({
+    catalogs: {
+      summary: { dimension_count: 2 },
+      configuration: { dimensions: {
+        location: { name: "Location", resolutions: {
+          country: { type: "string" },
+          city: { type: "string", parent: "country" },
+        } },
+        time: { name: "Time", resolutions: {
+          day: { type: "date" },
+        } },
+      } },
+    },
+  }, "dimensions");
+  const overview = content.slice(0, content.indexOf('<div class="space-y-8">'));
+
+  assert.match(overview, /<h3>Resolutions by type<\/h3>/);
+  assert.match(overview, /<h3>Resolutions by dimension<\/h3>/);
+  assert.match(overview, /data-category="string" data-count="2"/);
+  assert.match(overview, /data-category="date" data-count="1"/);
+  assert.match(overview, /data-category="Location" data-count="2"/);
+  assert.match(overview, /data-category="Time" data-count="1"/);
+  assert.match(overview, /icon--dimensions h-4 w-4 shrink-0" data-lucide="axis-3d"/);
+  assert.match(overview, /class="catalog-charts lg:grid-cols-2"/);
+  assert.doesNotMatch(overview, /Dimensions overview|data-stat=/);
 });
 
 test("Features overview shows role and data type charts without summary cards", () => {
@@ -435,12 +472,16 @@ test("catalog overviews use the shared dashboard icon and summary panels", () =>
     const { content, context } = renderCatalog(data, view);
     const title = view[0].toUpperCase() + view.slice(1);
     assert.match(context, /href="#overview"[\s\S]*?data-lucide="layout-grid"[\s\S]*?>Overview/);
-    assert.match(content, new RegExp(`aria-label="${title} overview"`));
+    assert.match(content, new RegExp(view === "dimensions"
+      ? 'aria-label="Dimension resolution charts"'
+      : `aria-label="${title} overview"`));
     if (view === "features" || view === "functions") {
       assert.doesNotMatch(content, /<h2[^>]*>Features overview<\/h2>|data-stat=/);
       if (view === "functions") {
         assert.doesNotMatch(content, /<h2[^>]*>Functions overview<\/h2>/);
       }
+    } else if (view === "dimensions") {
+      assert.doesNotMatch(content, /<h2[^>]*>Dimensions overview<\/h2>|data-stat=/);
     } else {
       assert.match(content, new RegExp(`<h2 class="ui-section-title mb-6">${title} overview</h2>`));
       assert.match(content, /class="ui-panel" data-stat=/);

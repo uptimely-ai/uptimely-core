@@ -31,6 +31,7 @@
 .function-usage-item > ul { padding-top: 8px; border-top: 1px solid #1e293b; }
 .function-usage-item > ul li + li { margin-top: 6px; }
 .function-usage-feature { color: #94a3b8; font-size: 12px; }
+.dimension-usage .function-usage-feature { display: inline-flex; align-items: center; gap: 6px; }
 .function-usage-profile:hover, .function-usage-profile:focus-visible,
 .function-usage-feature:hover, .function-usage-feature:focus-visible { color: #67e8f9; }
 .function-usage-empty { margin-top: 12px; color: #64748b; font-size: 12px; }
