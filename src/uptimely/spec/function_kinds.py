@@ -12,7 +12,7 @@ __all__ = [
     "CONFORM",
     "COLLAPSE",
     "DataFrameInputScope",
-    "DatasetInputViolation",
+    "DataFrameInputViolation",
     "DimensionChange",
     "ESCAPE",
     "EXPAND",
@@ -46,7 +46,7 @@ RowCountRelation = typing.Literal["same", "unrestricted"]
 KeyRelation = typing.Literal["identical", "unrestricted"]
 RowOrderRelation = typing.Literal["preserve", "unrestricted"]
 ExistingDataRelation = typing.Literal["preserve", "unrestricted"]
-DatasetInputViolation = typing.Literal[
+DataFrameInputViolation = typing.Literal[
     "missing_target",
     "foreign_target_input",
     "target_as_foreign_input",
@@ -86,32 +86,32 @@ class FunctionKind:
     dataframe_input_scope: DataFrameInputScope = "unrestricted"
     feature_input_scope: FeatureInputScope = "unrestricted"
 
-    def dataset_input_violations(
+    def dataframe_input_violations(
         self,
-        target_dataset_id: str,
-        argument_dataset_ids: tuple[str | None, ...],
-        resolved_dataset_ids: frozenset[str],
-        inferred_source_id: str | None,
-    ) -> tuple[DatasetInputViolation, ...]:
-        """Return dataset-input contract violations for one operator."""
-        violations: list[DatasetInputViolation] = []
+        target_profile_id: str,
+        argument_profile_ids: tuple[str | None, ...],
+        resolved_profile_ids: frozenset[str],
+        inferred_profile_id: str | None,
+    ) -> tuple[DataFrameInputViolation, ...]:
+        """Return dataframe-input contract violations for one operator."""
+        violations: list[DataFrameInputViolation] = []
         if self.dataframe_input_scope == "target":
-            if target_dataset_id not in resolved_dataset_ids:
+            if target_profile_id not in resolved_profile_ids:
                 violations.append("missing_target")
-            if resolved_dataset_ids - {target_dataset_id}:
+            if resolved_profile_ids - {target_profile_id}:
                 violations.append("foreign_target_input")
         if (
             self.dataframe_input_scope == "foreign"
             and self.dataframe_inputs is not None
-            and len(argument_dataset_ids) == self.dataframe_inputs
-            and argument_dataset_ids
-            and argument_dataset_ids[0] == target_dataset_id
+            and len(argument_profile_ids) == self.dataframe_inputs
+            and argument_profile_ids
+            and argument_profile_ids[0] == target_profile_id
         ):
             violations.append("target_as_foreign_input")
         if (
             self.dimension_change == "remove"
-            and inferred_source_id is not None
-            and inferred_source_id not in resolved_dataset_ids
+            and inferred_profile_id is not None
+            and inferred_profile_id not in resolved_profile_ids
         ):
             violations.append("missing_source")
         return tuple(violations)

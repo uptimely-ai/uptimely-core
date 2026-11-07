@@ -348,7 +348,7 @@ def test_nested_selectors_resolve_without_changing_literal_values() -> None:
             None,
         ]
     }
-    assert binding.dataset_dependencies("telemetry") == ["telemetry"]
+    assert binding.profile_dependencies("telemetry") == ["telemetry"]
     assert model.Binding(function="read", args={"feature": "$features.@.id"}).resolve_args(
         "telemetry"
     ) == {"feature": "$features.@.id"}
@@ -389,10 +389,10 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
         "source_keys": ["pump"],
         "source": "source",
     }
-    assert binding.dataset_dependencies("telemetry") == ["source"]
-    assert binding.dataset_input_references == ("source",)
-    assert binding.dataset_input_references is binding.dataset_input_references
-    assert binding.dataset_dependencies("telemetry") == ["source"]
+    assert binding.profile_dependencies("telemetry") == ["source"]
+    assert binding.profile_dataframe_references == ("source",)
+    assert binding.profile_dataframe_references is binding.profile_dataframe_references
+    assert binding.profile_dependencies("telemetry") == ["source"]
 
 
 def test_system_and_subset_support_multiple_variables() -> None:

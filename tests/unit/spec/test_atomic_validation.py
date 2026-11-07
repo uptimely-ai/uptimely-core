@@ -296,8 +296,8 @@ def test_mapping_rules_use_shared_operation_dataframe_counts(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match=r"exactly 2 foreign profile\(s\)") as error:
-        operator_contracts.validate_dataset_argument_count(document)
-    assert error.value.code == "invalid_mapping_dataset_input"
+        operator_contracts.validate_dataframe_argument_count(document)
+    assert error.value.code == "invalid_mapping_dataframe_input"
     assert error.value.path[-2:] == ("compute", "args")
 
 
@@ -316,7 +316,7 @@ def test_local_and_foreign_input_validation_uses_kind_attributes(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="must reference a foreign source profile"):
-        operator_contracts.validate_foreign_dataset_argument(document)
+        operator_contracts.validate_foreign_profile_argument(document)
 
     assert document.functions[vectorize.compute.function].kind == "vectorize"
 
@@ -331,7 +331,7 @@ def test_target_dataset_validation_uses_kind_attribute(
     monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="must consume its target profile"):
-        operator_contracts.validate_target_dataset_input(document)
+        operator_contracts.validate_target_profile_input(document)
 
 
 def test_feature_input_validation_uses_kind_attribute(

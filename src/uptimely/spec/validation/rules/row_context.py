@@ -11,7 +11,7 @@ from uptimely.spec import selectors
 logger = logging.getLogger(__name__)
 
 
-def validate_dataset_order(spec: spec_model.Spec) -> None:
+def validate_row_context_profile_order(spec: spec_model.Spec) -> None:
     """Require profile order for directional row context."""
     logger.debug("    - checking directional row context has profile order")
     for key, operator in spec.operator_items:

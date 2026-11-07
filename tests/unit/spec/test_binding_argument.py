@@ -98,14 +98,14 @@ def test_inferred_dependencies_exclude_metadata_and_deduplicate_after_resolution
             "$features.@",
         ]
     )
-    assert argument.dataset_input_references == ("@", "telemetry", "source", "source")
-    assert argument.dataset_dependencies("telemetry") == ["telemetry", "source"]
+    assert argument.profile_dataframe_references == ("@", "telemetry", "source", "source")
+    assert argument.profile_dependencies("telemetry") == ["telemetry", "source"]
     assert argument.inferred_feature_inputs == ("pressure",)
     binding = model.Binding(
         function="calculate",
         args={"nested": argument, "again": "$profiles.source.dataframe"},
     )
-    assert binding.dataset_dependencies("telemetry") == ["telemetry", "source"]
+    assert binding.profile_dependencies("telemetry") == ["telemetry", "source"]
     assert binding.inferred_feature_inputs == ("pressure",)
 
 
@@ -212,7 +212,7 @@ def test_operator_resolves_compute_arguments_using_its_output_context() -> None:
 def test_cached_views_do_not_change_equality_copy_or_round_trip() -> None:
     argument = model.BindingArgument({"columns": ["$features.pressure", "$profiles.@.dataframe"]})
     expected = model.BindingArgument(argument.model_dump())
-    assert argument.dataset_dependencies("telemetry") == ["telemetry"]
+    assert argument.profile_dependencies("telemetry") == ["telemetry"]
     assert argument.inferred_feature_inputs == ("pressure",)
     assert _resolve(argument) == {"columns": ["pressure", "telemetry"]}
     assert argument == expected
@@ -280,7 +280,7 @@ def test_reference_predicates(
     value: pydantic.JsonValue, dataset: bool, fragment: bool, feature: bool, grain: bool
 ) -> None:
     argument = model.BindingArgument(value)
-    assert argument.is_current_dataset is dataset
+    assert argument.is_current_profile_dataframe is dataset
     assert argument.is_current_fragment is fragment
     assert argument.is_current_feature_reference is feature
     assert argument.is_grain_reference is grain

@@ -22,7 +22,7 @@ SPEC_VERSION = 6
 type ProfileKey = str
 type OperatorKey = tuple[ProfileKey, str]
 type SpecPath = tuple[str | int, ...]
-type DatasetArgument = tuple[str, object, str | None]
+type DataFrameArgument = tuple[str, object, str | None]
 
 
 class SpecSource(base.StrictModel):
@@ -302,12 +302,12 @@ class Spec(base.StrictModel):
         return result
 
     @functools.cached_property
-    def operator_arguments(self) -> dict[OperatorKey, tuple[DatasetArgument, ...]]:
-        """Return supplied dataset arguments and normalized dataset IDs per operator."""
-        result: dict[OperatorKey, tuple[DatasetArgument, ...]] = {}
+    def operator_dataframe_arguments(self) -> dict[OperatorKey, tuple[DataFrameArgument, ...]]:
+        """Return supplied dataframe arguments and their referenced profile IDs."""
+        result: dict[OperatorKey, tuple[DataFrameArgument, ...]] = {}
         for key, operator in self.operator_items:
             function = self.functions.root.get(operator.compute.function)
-            arguments: list[DatasetArgument] = []
+            arguments: list[DataFrameArgument] = []
             if function is not None:
                 for name in function.arguments_by_type.get(arg_types.DATAFRAME, {}):
                     argument = operator.arguments.get(name)
@@ -322,28 +322,30 @@ class Spec(base.StrictModel):
         return result
 
     @functools.cached_property
-    def dataset_argument_sources(self) -> dict[OperatorKey, tuple[ProfileKey, ...]]:
-        """Return resolved profile IDs for dataset arguments in argument order."""
+    def dataframe_argument_profiles(self) -> dict[OperatorKey, tuple[ProfileKey, ...]]:
+        """Return resolved profile keys for dataframe arguments in argument order."""
         return {
             key: tuple(
                 self.profile_keys[source_id]
                 for _, _, source_id in arguments
                 if source_id is not None and source_id in self.profile_keys
             )
-            for key, arguments in self.operator_arguments.items()
+            for key, arguments in self.operator_dataframe_arguments.items()
         }
 
     @functools.cached_property
-    def dataset_argument_ids(self) -> dict[OperatorKey, frozenset[str]]:
-        """Return distinct resolved dataset argument IDs per operator."""
-        return {key: frozenset(sources) for key, sources in self.dataset_argument_sources.items()}
+    def dataframe_argument_profile_ids(self) -> dict[OperatorKey, frozenset[str]]:
+        """Return distinct resolved profile IDs for each operator's dataframe arguments."""
+        return {
+            key: frozenset(sources) for key, sources in self.dataframe_argument_profiles.items()
+        }
 
     @functools.cached_property
-    def dataset_argument_grain_keys(self) -> dict[OperatorKey, frozenset[str]]:
-        """Return dataframe keys available across each operator's dataset arguments."""
+    def dataframe_argument_grain_keys(self) -> dict[OperatorKey, frozenset[str]]:
+        """Return dataframe keys available from each operator's referenced profiles."""
         return {
             key: frozenset().union(*(self.grain_keys_by_profile[source] for source in sources))
-            for key, sources in self.dataset_argument_sources.items()
+            for key, sources in self.dataframe_argument_profiles.items()
         }
 
     @functools.cached_property
@@ -450,7 +452,7 @@ class Spec(base.StrictModel):
     @classmethod
     def _log_structure_checks(cls, document: dict[str, typing.Any]) -> None:
         """Summarize structural checks once instead of logging each nested resource."""
-        dataset_count = 0
+        profile_count = 0
         operator_count = 0
         profiles = cls.get_profiles(document)
         for profile in profiles.values() if isinstance(profiles, dict) else ():
@@ -463,9 +465,9 @@ class Spec(base.StrictModel):
             )
             if not isinstance(assembly, dict):
                 continue
-            dataset_count += 1
+            profile_count += 1
             operator_count += len(assembly)
-        logger.debug("    - checking object keys as identifiers for %d profiles", dataset_count)
+        logger.debug("    - checking object keys as identifiers for %d profiles", profile_count)
         logger.debug("    - checking spec version is an integer")
         logger.debug("    - checking feature references for %d operators", operator_count)
 
