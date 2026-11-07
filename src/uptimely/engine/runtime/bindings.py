@@ -3,7 +3,7 @@
 import typing
 from collections import abc
 
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely.spec import arg_types, selectors
 
 from . import state as state_module
@@ -23,7 +23,7 @@ class RuntimeBindings:
 
     def resolve_args(
         self,
-        invocation: execution_plan.Invocation,
+        invocation: plan_module.Invocation,
         *,
         staged_fragment: object | None = None,
     ) -> dict[str, object]:

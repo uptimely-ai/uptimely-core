@@ -21,7 +21,7 @@ import polars as pl
 from uptimely import engine as uptimely_engine
 from uptimely import entrypoint, spec
 from uptimely.project import build as project_build
-from uptimely.project import paths as project_paths
+from uptimely.project import paths
 from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 
@@ -355,7 +355,7 @@ def _load_config(
 ) -> uptimely_engine.Config:
     """Load project runtime configuration from a JSON file."""
     if config_path is None:
-        config_path = project_root / project_paths.CONFIG_FILE
+        config_path = project_root / paths.CONFIG_FILE
         if not config_path.exists():
             return uptimely_engine.Config()
     return uptimely_engine.Config.model_validate_json(config_path.read_text(encoding="utf-8"))

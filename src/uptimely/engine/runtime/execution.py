@@ -6,12 +6,11 @@ import logging
 import typing
 
 from uptimely import entrypoint as entrypoint_module
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.spec import arg_types
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import arg_types, function_kinds
 
 from . import bindings as bindings_module
 from . import state as state_module
@@ -38,12 +37,12 @@ class InvocationExecutor:
         self.validate = validate
         self.bindings = bindings_module.RuntimeBindings(state, parameters)
 
-    def execute(self, invocation: execution_plan.Invocation) -> None:
+    def execute(self, invocation: plan_module.Invocation) -> None:
         """Execute one invocation, validating before side effects and state updates."""
-        definition = functions.FUNCTION_KINDS.get(invocation.function_kind)
+        definition = function_kinds.FUNCTION_KINDS.get(invocation.function_kind)
         if definition is None:
             raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
-        if invocation.function_kind == functions.MERGE:
+        if invocation.function_kind == function_kinds.MERGE:
             self._execute_merge(invocation)
             return
         if definition.is_effect:
@@ -61,7 +60,7 @@ class InvocationExecutor:
                 raise KeyError(invocation.dataset_id)
             self._invoke(invocation)
 
-    def check_input_requirements(self, invocation: execution_plan.Invocation) -> None:
+    def check_input_requirements(self, invocation: plan_module.Invocation) -> None:
         """Check input scope and feature availability before execution.
 
         Raises:
@@ -69,7 +68,7 @@ class InvocationExecutor:
                 unavailable or ambiguous.
         """
         logger.debug("  Requirements:")
-        definition = functions.FUNCTION_KINDS[invocation.function_kind]
+        definition = function_kinds.FUNCTION_KINDS[invocation.function_kind]
         if definition.dataframe_input_scope == "foreign":
             argument_name = self._check_foreign_dataframe_argument(invocation)
             source_id = self._check_foreign_source_reference(invocation, argument_name)
@@ -78,7 +77,7 @@ class InvocationExecutor:
         else:
             self._check_input_features(invocation)
 
-    def _check_input_features(self, invocation: execution_plan.Invocation) -> None:
+    def _check_input_features(self, invocation: plan_module.Invocation) -> None:
         """Require each feature locally or in exactly one other profile."""
         logger.debug("    - checking declared input features")
         target = self.state.main_frames.get(invocation.dataset_id)
@@ -102,7 +101,7 @@ class InvocationExecutor:
                 )
 
     @staticmethod
-    def _dataframe_arguments(invocation: execution_plan.Invocation) -> list[str]:
+    def _dataframe_arguments(invocation: plan_module.Invocation) -> list[str]:
         """Return names of declared dataframe arguments."""
         return [
             name
@@ -110,7 +109,7 @@ class InvocationExecutor:
             if argument_type == arg_types.DATAFRAME
         ]
 
-    def _check_foreign_dataframe_argument(self, invocation: execution_plan.Invocation) -> str:
+    def _check_foreign_dataframe_argument(self, invocation: plan_module.Invocation) -> str:
         """Require and return the single dataframe argument for a foreign input."""
         logger.debug("    - checking foreign dataframe argument")
         arguments = self._dataframe_arguments(invocation)
@@ -122,7 +121,7 @@ class InvocationExecutor:
         return arguments[0]
 
     def _check_foreign_source_reference(
-        self, invocation: execution_plan.Invocation, argument_name: str
+        self, invocation: plan_module.Invocation, argument_name: str
     ) -> str:
         """Require a dataset reference distinct from the invocation's target."""
         logger.debug("    - checking foreign source reference")
@@ -142,7 +141,7 @@ class InvocationExecutor:
         return source
 
     def _check_foreign_input_features(
-        self, invocation: execution_plan.Invocation, source: dataset_module.Dataset
+        self, invocation: plan_module.Invocation, source: dataset_module.Dataset
     ) -> None:
         """Require declared features in the validated foreign source."""
         logger.debug("    - checking foreign input features")
@@ -154,7 +153,7 @@ class InvocationExecutor:
                     f"source profile: {feature}"
                 )
 
-    def _execute_dataframe_operator(self, invocation: execution_plan.Invocation) -> None:
+    def _execute_dataframe_operator(self, invocation: plan_module.Invocation) -> None:
         """Produce and retain a fragment for its scheduled merge invocation."""
         dataset_id = self._profile_id(invocation)
         dataset = self.state.main_frames.get(dataset_id)
@@ -167,7 +166,7 @@ class InvocationExecutor:
         )
         self.state.staged_fragments[invocation.id] = fragment
 
-    def _execute_merge(self, invocation: execution_plan.Invocation) -> None:
+    def _execute_merge(self, invocation: plan_module.Invocation) -> None:
         """Invoke a merge binding and publish its complete target frame on success."""
         dataset_id = self._profile_id(invocation)
         fragment_id, fragment = self.state.staged_fragment_for(invocation)
@@ -206,7 +205,7 @@ class InvocationExecutor:
         self.state.main_frames[dataset_id] = dataset
         del self.state.staged_fragments[fragment_id]
 
-    def _execute_column_operator(self, invocation: execution_plan.Invocation) -> None:
+    def _execute_column_operator(self, invocation: plan_module.Invocation) -> None:
         """Publish vectorized columns on the target frame without fragment assembly."""
         dataset_id = self._profile_id(invocation)
         dataset = self.state.main_frames.get(dataset_id)
@@ -225,7 +224,7 @@ class InvocationExecutor:
             frame = self._invoke(invocation, arguments=arguments)
         else:
             frame = self._invoke(invocation)
-        output_features = dataset.validate_vectorized_result(
+        output_features = self._validate_vectorized_result(
             frame,
             invocation,
             comparison_frame,
@@ -238,8 +237,104 @@ class InvocationExecutor:
         dataset.dataframe = frame
         self.state.calculated_outputs.update(calculated_outputs)
 
+    def _validate_vectorized_result(
+        self,
+        frame: object,
+        invocation: plan_module.Invocation,
+        comparison_frame: object,
+        *,
+        preserve_data: bool,
+    ) -> list[str]:
+        """Validate an invocation's vectorized result against its target frame.
+
+        Args:
+            frame: Candidate dataframe returned by the invocation.
+            invocation: Invocation whose output and preservation contracts apply.
+            comparison_frame: Original target used for collision and preservation checks.
+            preserve_data: Whether to compare existing values, row order, and types.
+
+        Returns:
+            Declared output feature names, excluding identifier columns.
+
+        Raises:
+            ValueError: The result violates the vectorized dataframe contract.
+        """
+        description = f"Vectorize result {invocation.function_id}"
+        logger.debug("  Enriched target frame:")
+        logger.debug("    - checking dataframe type")
+        if not self.backend.is_frame(frame):
+            raise ValueError(f"{description} must be a Polars DataFrame or LazyFrame")
+        logger.debug("    - checking required dimension columns")
+        frame_columns = set(self.backend.column_names(frame))
+        missing_dimensions = sorted(set(invocation.id_columns) - frame_columns)
+        if missing_dimensions:
+            raise ValueError(
+                f"{description} is missing dimension columns: " + ", ".join(missing_dimensions)
+            )
+
+        output_features = [
+            output for output in invocation.output_features if output not in invocation.id_columns
+        ]
+        logger.debug("    - checking declared vectorize outputs")
+        missing_outputs = sorted(set(output_features) - frame_columns)
+        if missing_outputs:
+            raise ValueError(
+                f"Vectorize operator {invocation.operator_id} is missing output columns: "
+                + ", ".join(missing_outputs)
+            )
+
+        logger.debug("    - checking vectorize output collisions")
+        existing_columns = set(self.backend.column_names(comparison_frame))
+        existing_features = existing_columns - set(invocation.id_columns)
+        collisions = sorted(set(output_features) & existing_features)
+        if collisions:
+            raise ValueError(
+                f"Vectorize operator {invocation.operator_id} cannot replace existing "
+                "columns: " + ", ".join(collisions)
+            )
+
+        logger.debug("    - checking preservation of existing columns")
+        missing_existing = sorted(existing_columns - frame_columns)
+        if missing_existing:
+            raise ValueError(
+                f"Vectorize operator {invocation.operator_id} must preserve existing "
+                "columns: " + ", ".join(missing_existing)
+            )
+
+        logger.debug("    - checking undeclared added columns")
+        allowed_columns = existing_columns | set(output_features)
+        unexpected = sorted(frame_columns - allowed_columns)
+        if unexpected:
+            raise ValueError(
+                f"Vectorize operator {invocation.operator_id} returned undeclared columns: "
+                + ", ".join(unexpected)
+            )
+
+        if preserve_data:
+            definition = function_kinds.FUNCTION_KINDS[invocation.function_kind]
+            if (
+                definition.row_order_relation == "preserve"
+                or definition.existing_data_relation == "preserve"
+            ):
+                logger.debug("    - checking existing values and row order")
+                existing_names = self.backend.column_names(comparison_frame)
+                if not self.backend.same_data(comparison_frame, frame, existing_names):
+                    raise ValueError(
+                        f"Vectorize operator {invocation.operator_id} must preserve existing "
+                        "column values and row order"
+                    )
+            logger.debug("    - checking types of target keys and outputs")
+            column_types = {
+                name: invocation.column_types[name]
+                for name in [*invocation.id_columns, *output_features]
+                if name in invocation.column_types
+            }
+            logger.debug("      Declared types: %s", column_types)
+            self.backend.validate_types(frame, column_types)
+        return output_features
+
     @staticmethod
-    def _profile_id(invocation: execution_plan.Invocation) -> str:
+    def _profile_id(invocation: plan_module.Invocation) -> str:
         """Require a target profile ID for a dataframe invocation."""
         if invocation.dataset_id is None:
             raise ValueError(f"Dataframe invocation {invocation.id} must declare a profile ID")
@@ -247,7 +342,7 @@ class InvocationExecutor:
 
     def _invoke(
         self,
-        invocation: execution_plan.Invocation,
+        invocation: plan_module.Invocation,
         *,
         arguments: typing.Mapping[str, object] | None = None,
     ) -> object:

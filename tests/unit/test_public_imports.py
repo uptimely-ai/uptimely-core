@@ -1,7 +1,8 @@
+import importlib.util
+
 import uptimely
 import uptimely.compiler as compiler
 import uptimely.engine as engine
-import uptimely.execution_plan as legacy_execution_plan
 import uptimely.plan as execution_plan
 import uptimely.spec as spec
 from uptimely.compiler.compiler import Compiler as CompilerImplementation
@@ -39,6 +40,9 @@ from uptimely.spec.model import spec as document
 
 
 def test_canonical_package_exports_preserve_object_identity() -> None:
+    assert importlib.util.find_spec("uptimely.execution_plan") is None
+    assert importlib.util.find_spec("uptimely.project_paths") is None
+
     assert spec.Spec is SpecModel
     assert spec.Profile is ProfileModel
     assert spec.model.Profile is ProfileModel
@@ -65,8 +69,6 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert uptimely.Compiler is compiler.Compiler is CompilerImplementation
     assert uptimely.ExecutionPlan is execution_plan.ExecutionPlan is ExecutionPlan
     assert execution_plan.Invocation is Invocation
-    assert legacy_execution_plan.ExecutionPlan is execution_plan.ExecutionPlan
-    assert legacy_execution_plan.Invocation is execution_plan.Invocation
     assert uptimely.Engine is engine.Engine is EngineImplementation
     assert engine.Dataset.__module__ == "uptimely.engine.dataframe.dataset"
     assert not hasattr(engine, "MainFrame")

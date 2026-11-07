@@ -9,7 +9,7 @@ import typing
 
 import pydantic
 
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
@@ -63,7 +63,7 @@ def _graph_payload(value: object) -> dict[str, object]:
 
 def build_presentation_data(
     spec_definition: spec.Spec,
-    plan: execution_plan.ExecutionPlan,
+    plan: plan_module.ExecutionPlan,
     *,
     features: list[str] | None = None,
     validate_spec: bool = True,

@@ -2,12 +2,12 @@
 
 import logging
 
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 
 logger = logging.getLogger(__name__)
 
 
-def log_stages(plan: execution_plan.ExecutionPlan) -> None:
+def log_stages(plan: plan_module.ExecutionPlan) -> None:
     """Log execution stages and their function dependencies."""
     invocations_by_id = plan.invocations_by_id
     logger.info("\nExecution stages")

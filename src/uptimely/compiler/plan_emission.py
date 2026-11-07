@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely import spec
 
 from . import graph as invocation_graph
@@ -12,7 +12,7 @@ def emit_invocation(
     spec_definition: spec.Spec,
     graph: invocation_graph.InvocationGraph,
     node: invocation_graph.InvocationNode,
-) -> execution_plan.Invocation:
+) -> plan_module.Invocation:
     """Create one portable invocation, resolving its arguments and dependencies."""
     function = spec_definition.functions.get(node.function_id)
     if function is None or not function.entrypoint:
@@ -36,7 +36,7 @@ def emit_invocation(
         for feature_id, feature in profile.features.items()
         if feature.type is not None
     } | spec_definition.grain_key_types_by_profile[profile_key]
-    return execution_plan.Invocation(
+    return plan_module.Invocation(
         id=node.node_id,
         function_kind=function.kind,
         entrypoint=function.entrypoint,

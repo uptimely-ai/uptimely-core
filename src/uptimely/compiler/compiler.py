@@ -8,7 +8,7 @@ import typing
 from collections import abc
 
 from uptimely import entrypoint, spec
-from uptimely import plan as execution_plan
+from uptimely import plan as plan_module
 from uptimely.spec import validation as spec_validation
 from uptimely.spec.validation import errors
 
@@ -25,7 +25,7 @@ class Compiler:
         self,
         spec_definition: spec.Spec,
         features: abc.Collection[str] | None = None,
-    ) -> execution_plan.ExecutionPlan:
+    ) -> plan_module.ExecutionPlan:
         """Validate and compile a Spec using fresh state for this call.
 
         Args:
@@ -79,7 +79,7 @@ class _Compilation:
         return self.graph.topology()
 
     @functools.cached_property
-    def invocations(self) -> list[execution_plan.Invocation]:
+    def invocations(self) -> list[plan_module.Invocation]:
         """Emit portable invocations after validating schedulability."""
         _ = self.execution_stages
         nodes = self.graph.invocations
@@ -215,7 +215,7 @@ class _Compilation:
             "entrypoint_packages": self.entrypoint_packages,
         }
 
-    def build_plan(self) -> execution_plan.ExecutionPlan:
+    def build_plan(self) -> plan_module.ExecutionPlan:
         """Build the plan after computing and checking its required resources.
 
         Returns:
@@ -227,8 +227,8 @@ class _Compilation:
         resources = self.resources
         logger.debug("  Execution plan:")
         logger.debug("    - checking emitted invocation IDs, dependencies, and stage ordering")
-        return execution_plan.ExecutionPlan(
-            plan_version=execution_plan.PLAN_VERSION,
+        return plan_module.ExecutionPlan(
+            plan_version=plan_module.PLAN_VERSION,
             required_backend="polars",
             resources=resources,
             invocations=self.invocations,

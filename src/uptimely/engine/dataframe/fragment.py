@@ -6,8 +6,8 @@ import dataclasses
 import logging
 from collections import abc
 
-from uptimely import plan as execution_plan
-from uptimely.spec import function_kinds as functions
+from uptimely import plan as plan_module
+from uptimely.spec import function_kinds
 
 from . import backend as backend_module
 
@@ -24,13 +24,13 @@ class Fragment:
 
     dataframe: object
     dimensions: tuple[str, ...]
-    invocation: execution_plan.Invocation | None = None
+    invocation: plan_module.Invocation | None = None
 
     @classmethod
     def stage(
         cls,
         backend: backend_module.DataFrameBackend,
-        invocation: execution_plan.Invocation,
+        invocation: plan_module.Invocation,
         load: abc.Callable[[], object],
         *,
         validate: bool = False,
@@ -52,7 +52,7 @@ class Fragment:
             ValueError: The function kind cannot produce a dataframe fragment or
                 validation rejects the invocation result.
         """
-        definition = functions.FUNCTION_KINDS.get(invocation.function_kind)
+        definition = function_kinds.FUNCTION_KINDS.get(invocation.function_kind)
         if definition is None:
             raise ValueError(f"Unknown function kind: {invocation.function_kind}")
         if not definition.produces_fragment:
@@ -78,7 +78,7 @@ class Fragment:
     def validate_invocation_result(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: execution_plan.Invocation,
+        invocation: plan_module.Invocation,
         *,
         output_features: abc.Sequence[str] | None = None,
         comparison_frame: object | None = None,
@@ -119,7 +119,7 @@ class Fragment:
             return
 
         self._validate_dimensionless_row_count(backend, invocation)
-        definition = functions.FUNCTION_KINDS.get(invocation.function_kind)
+        definition = function_kinds.FUNCTION_KINDS.get(invocation.function_kind)
         if definition is None:
             raise ValueError(f"Unknown function kind: {invocation.function_kind}")
         if definition.row_count_relation == "same":
@@ -159,7 +159,7 @@ class Fragment:
     def _validate_dimension_columns(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: execution_plan.Invocation,
+        invocation: plan_module.Invocation,
     ) -> None:
         logger.debug("    - checking required dimension columns")
         missing = sorted(set(self.dimensions) - set(backend.column_names(self.dataframe)))
@@ -170,7 +170,7 @@ class Fragment:
             )
 
     def _validate_dimensionless_row_count(
-        self, backend: backend_module.DataFrameBackend, invocation: execution_plan.Invocation
+        self, backend: backend_module.DataFrameBackend, invocation: plan_module.Invocation
     ) -> None:
         if self.dimensions:
             logger.debug("    - skipping dimensionless row count (data has dimensions)")
@@ -185,7 +185,7 @@ class Fragment:
     def _validate_unique_dimension_keys(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: execution_plan.Invocation,
+        invocation: plan_module.Invocation,
     ) -> None:
         if not self.dimensions:
             logger.debug("    - skipping dimension-key uniqueness (no dimensions)")
@@ -198,7 +198,7 @@ class Fragment:
     def _validate_output_columns(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: execution_plan.Invocation,
+        invocation: plan_module.Invocation,
         output_features: abc.Sequence[str],
     ) -> None:
         logger.debug("    - checking declared output columns")
@@ -212,7 +212,7 @@ class Fragment:
     def _validate_column_types(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: execution_plan.Invocation,
+        invocation: plan_module.Invocation,
         columns: abc.Sequence[str],
     ) -> None:
         types = {
