@@ -92,17 +92,17 @@ test("produced schema is a table listing declared columns vertically with their 
       } },
     },
   }, "profiles");
-  assert.match(content, />Produced schema<\/h3>/);
+  assert.match(content, /profile-detail-subheading[^>]*>[\s\S]*?<span>Produced schema<\/span><\/h3>/);
   assert.doesNotMatch(content, /Produced dataset/);
   const table = content.match(/<table data-dataset-schema="readings"[\s\S]*?<\/table>/)[0];
   assert.equal((table.match(/scope="col"/g) || []).length, 4);
   assert.match(table, />Producing operator<\/th>/);
   assert.match(table, /None declared/);
   assert.equal((table.match(/scope="row"/g) || []).length, 2);
-  assert.match(table, /data-schema-column="temperature"[\s\S]*?data-lucide="hash"[\s\S]*?<span>Temperature<\/span>[\s\S]*?Feature[\s\S]*?>C<\/td>/);
-  assert.doesNotMatch(table, />Data type<|>float<|>string<|data-type-label-text/);
+  assert.match(table, /data-schema-column="temperature"[\s\S]*?data-lucide="hash"[\s\S]*?<span>temperature<\/span>[\s\S]*?Feature[\s\S]*?>C<\/td>/);
+  assert.doesNotMatch(table, />Data type<|>float<|>string<|data-type-label-text|Temperature/);
   assert.match(table, /<colgroup>/);
-  assert.match(table, /data-schema-column="label"[\s\S]*?string[\s\S]*?—<\/td>/);
+  assert.match(table, /data-schema-column="label"[\s\S]*?data-lucide="case-sensitive"[\s\S]*?<span>label<\/span>[\s\S]*?—<\/td>/);
 });
 
 test("schema columns include every producing operator including grain and vectorized features", () => {
@@ -137,25 +137,30 @@ test("profile details show every declared operator in order including vectorized
     functions: Object.fromEntries(kinds.map(kind => [kind, { name: `${kind} function`, kind }])),
     profiles: { telemetry: { grain: [], features: {}, assembly } },
   };
-  const render = () => renderCatalog({ catalogs: { summary: {}, configuration } }, "profiles").content;
+  const stages = [{ steps: Object.keys(assembly).map((operator_id, index) => ({
+    profile: "telemetry", operator_id, phase: "compute",
+    args: { output: { type: { function: "string" }, value: `resolved_${index}` } },
+  })) }];
+  const render = () => renderCatalog({ catalogs: { summary: {}, configuration }, stages }, "profiles").content;
   const content = render();
   assert.deepEqual([...content.matchAll(/data-profile-operator="([^"]+)"/g)].map(match => match[1]),
     Object.keys(assembly));
   assert.equal((content.match(/data-operator-kind="vectorize"/g) || []).length, 2);
-  assert.match(content, /Argument bindings for operator_1/);
+  assert.match(content, /<summary>Resolved arguments<\/summary>/);
+  assert.match(content, /class="language-json">&quot;resolved_1&quot;<\/code>/);
   assert.match(content, /href="\?view=functions#function-vectorize">vectorize function/);
-  assert.match(content, /\$outputs.value_1/);
+  assert.doesNotMatch(content, /\$outputs\.value_1/);
 
   configuration.profiles.telemetry.assembly = { calculate: assembly.operator_1 };
   const vectorizedOnly = render();
-  assert.match(vectorizedOnly, />Assembly<\/h3>/);
-  assert.match(vectorizedOnly, /profile-operator-label">OPERATOR<\/span>/);
+  assert.match(vectorizedOnly, /profile-detail-subheading[^>]*>[\s\S]*?<span>Assembly<\/span><\/h3>/);
+  assert.match(vectorizedOnly, /profile-operator-kicker">OPERATION<\/span>/);
   assert.match(vectorizedOnly, /profile-operator-list/);
   assert.doesNotMatch(vectorizedOnly, /<div class="profile-operator">/);
   assert.match(vectorizedOnly, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
 });
 
-test("profile grain uses flat cards with dimension and resolution metadata", () => {
+test("profile grain uses compact dimension and resolution badges", () => {
   const { content } = renderCatalog({ catalogs: { summary: {}, configuration: {
     functions: {}, dimensions: { machine: { name: "Machine", resolutions: {
       unit: { key: "machine_id", type: "string" },
@@ -163,13 +168,12 @@ test("profile grain uses flat cards with dimension and resolution metadata", () 
     profiles: { sample: { grain: [{ dimension: "machine", resolution: "unit" }],
       features: { machine_id: {} }, assembly: {} } },
   } } }, "profiles");
-  const card = content.match(/<li class="profile-grain-card"[\s\S]*?<\/li>/)[0];
-  assert.match(card, /<h4>Machine<\/h4>/);
-  assert.match(card, /<dt>Resolution<\/dt><dd><code>unit<\/code>/);
-  assert.match(card, /<dt>Data key<\/dt><dd><code>machine_id<\/code>/);
-  assert.match(card, /<dt>Data type<\/dt><dd><span class="data-type-label"[\s\S]*data-lucide="case-sensitive"/);
-  assert.match(card, /data-type-label-text">string<\/span>/);
-  assert.doesNotMatch(card, /profile-grain-branch|<section/);
+  assert.match(content, /A profile is identified by its grain\./);
+  const grain = content.match(/<div class="profile-detail-grain">[\s\S]*?<\/ul>/)[0];
+  assert.match(grain, /profile-summary-grain-badge profile-summary-grain-resolution[\s\S]*?<code>unit<\/code>/);
+  assert.match(grain, /profile-summary-grain-relation" data-lucide="at-sign"/);
+  assert.match(grain, /profile-summary-grain-badge profile-summary-grain-dimension[\s\S]*?<strong>Machine<\/strong>/);
+  assert.doesNotMatch(grain, /Data key|Data type|machine_id/);
 });
 
 test("feature and function type displays use matching data type icons", () => {
