@@ -126,7 +126,7 @@ export function distribution(title, counts, {
       const tag = target ? "a" : "div";
       return `<${tag}${target ? ` href="${escape(target)}"` : ""} class="ui-chart-row" data-category="${escape(label)}" data-count="${escape(value)}">
         <span class="${iconLabels ? "inline-flex items-center gap-2 break-words text-slate-400" : "break-words text-slate-400"}">${iconLabels ? icon(label, "h-4 w-4 shrink-0") : ""}${typeLabels ? dataTypeLabel(label) : escape(label)}</span>
-        <div class="h-2 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "merge" ? "bg-amber-400" : label === "escape" ? "bg-violet-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
+        <div class="h-3 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "merge" ? "bg-amber-400" : label === "escape" ? "bg-violet-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
         <span class="text-right font-mono text-xs text-white">${escape(value)}</span>
       </${tag}>`;
     }).join("") || '<p class="text-sm text-slate-400">No categories to display.</p>'}</div>

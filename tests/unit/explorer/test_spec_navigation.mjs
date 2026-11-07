@@ -365,8 +365,17 @@ test("shared components escape content, omit decorative metric icons, and handle
   assert.match(chart, /&lt;Title&gt;/);
   assert.match(chart, /href="#target"/);
   assert.match(chart, /width:0%/);
+  assert.match(chart, /class="h-3 overflow-hidden rounded-full bg-slate-800"/);
+  assert.match(chart, /class="break-words text-slate-400"/);
   assert.doesNotMatch(chart, /NaN|Infinity|<name>/);
   assert.match(distribution("Empty", []), /No categories to display/);
+});
+
+test("chart category labels are explicitly left aligned in the shared chart styles", async () => {
+  const styles = await readFile(new URL("../css/base.css", root), "utf8");
+  assert.match(styles, /\.ui-chart-row\s*>\s*:first-child\s*\{\s*text-align:\s*left;/);
+  assert.match(styles, /\.ui-chart-row\s*\{[^}]*padding:\s*6px/);
+  assert.doesNotMatch(styles, /a\.ui-chart-row\s*\{[^}]*padding:/);
 });
 
 test("home journey matches menu sections and distinguishes saved results from animation", () => {

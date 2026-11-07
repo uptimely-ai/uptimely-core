@@ -62,8 +62,8 @@ body { margin: 0; background: var(--color-background); color: var(--color-text);
 .ui-panel-meta { color: #94a3b8; font: 11px/1.5 var(--font-mono); }
 .ui-panel-description { margin: -8px 0 20px; color: #94a3b8; font-size: 13px; line-height: 1.7; }
 .ui-chart-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 2fr) 3rem;
-  align-items: center; gap: 12px; text-decoration: none; }
-a.ui-chart-row { padding: 6px; border-radius: 6px; }
+  align-items: center; gap: 12px; padding: 6px; border-radius: 6px; text-decoration: none; }
+.ui-chart-row > :first-child { text-align: left; }
 a.ui-chart-row:hover, a.ui-chart-row:focus-visible { background: #1e293b; }
 .ui-badge { display: inline-flex; align-items: center; flex-shrink: 0; padding: 3px 8px;
   border: 1px solid #47556980; border-radius: 6px; background: #1e293b80;
