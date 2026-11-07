@@ -106,14 +106,25 @@ class FragmentValidator(_FrameValidator):
             else self.invocation.output_features
         )
 
-    def validate(self) -> None:
+    def validate(self, *, validate_content: bool = True) -> None:
         """Check structure, outputs, types, and function-kind preservation rules.
+
+        Structural dataframe, dimension, and output checks always run. The
+        optional content checks may collect lazy frames and are enabled by default
+        for direct validation callers.
+
+        Args:
+            validate_content: Whether to check row/key preservation, uniqueness,
+                and declared column types.
 
         Raises:
             ValueError: The fragment violates its declared dataframe contract.
         """
         logger.debug("  Fragment:")
         super().validate()
+        if not validate_content:
+            self._validate_output_columns()
+            return
         self.validate_dimensionless_row_count()
         self._validate_row_count()
         self.validate_unique_dimension_keys()

@@ -144,16 +144,20 @@ def test_fragment_stage_loads_once_and_returns_merge_ready_data(
         events.append("load")
         return raw
 
-    def check_raw(fragment_validator: dataframe_validation.FragmentValidator) -> None:
+    def check_raw(
+        fragment_validator: dataframe_validation.FragmentValidator,
+        *,
+        validate_content: bool = True,
+    ) -> None:
         events.append("validate")
         assert fragment_validator.frame is raw
         assert "extra" in fragment_validator.columns
-        validate_fragment(fragment_validator)
+        validate_fragment(fragment_validator, validate_content=validate_content)
 
     monkeypatch.setattr(dataframe_validation.FragmentValidator, "validate", check_raw)
     staged = fragment_module.Fragment.stage(backend, invocation, load, validate=validate)
 
-    assert events == (["load", "validate"] if validate else ["load"])
+    assert events == ["load", "validate"]
     assert staged.dimensions == ("asset_id",)
     assert staged.invocation is invocation
     assert backend.column_names(staged.dataframe) == ["asset_id", "reading"]
@@ -175,6 +179,27 @@ def test_fragment_stage_propagates_loader_failure() -> None:
             backend_module.PolarsBackend(),
             plan.invocations[0],
             load,
+        )
+
+
+@pytest.mark.parametrize(
+    ("dataframe", "message"),
+    [
+        (object(), "must return a Polars DataFrame or LazyFrame"),
+        (pl.DataFrame({"reading": [2]}), "missing dimension columns: asset_id"),
+        (pl.DataFrame({"asset_id": ["A"]}), "missing output columns: reading"),
+    ],
+)
+def test_fragment_stage_checks_structure_when_validation_is_disabled(
+    dataframe: object, message: str
+) -> None:
+    plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
+
+    with pytest.raises(ValueError, match=message):
+        fragment_module.Fragment.stage(
+            backend_module.PolarsBackend(),
+            plan.invocations[0],
+            lambda: dataframe,
         )
 
 

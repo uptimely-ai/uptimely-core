@@ -107,7 +107,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
         "  Function: double",
         "  Function: save",
     ]
-    assert ("  Fragment:" in caplog.messages) is validate
+    assert "  Fragment:" in caplog.messages
 
 
 @pytest.mark.parametrize("merge_failure", [None, "exception", "incomplete"])
@@ -423,11 +423,13 @@ def test_removed_lazy_validation_config_is_rejected() -> None:
         uptimely_engine.EngineBackendConfig.model_validate({"validate_lazy_frames": False})
 
 
-def test_default_execution_does_not_call_step_validators(
+def test_default_execution_skips_expensive_fragment_validation(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
-    def unexpected_validation(*args: object, **kwargs: object) -> None:
-        pytest.fail("Default execution called a step validator")
+    def unexpected_content_check(*_args: object, **_kwargs: object) -> None:
+        pytest.fail(
+            f"Default execution called an optional fragment content check: {_args!r}, {_kwargs!r}"
+        )
 
     frame = pl.DataFrame({"asset_id": ["A"], "reading": [2], "doubled": [4]})
     _patch_callables(
@@ -438,15 +440,28 @@ def test_default_execution_does_not_call_step_validators(
             "test:write": lambda **_: None,
         },
     )
-    monkeypatch.setattr(runtime_validation.InvocationValidator, "validate", unexpected_validation)
     monkeypatch.setattr(
-        dataframe_validation_module.FragmentValidator, "validate", unexpected_validation
+        runtime_validation.InvocationValidator, "validate", unexpected_content_check
+    )
+    for method in (
+        "validate_dimensionless_row_count",
+        "validate_unique_dimension_keys",
+        "_validate_row_count",
+        "_validate_declared_types",
+        "_validate_key_coverage",
+    ):
+        monkeypatch.setattr(
+            dataframe_validation_module.FragmentValidator,
+            method,
+            unexpected_content_check,
+        )
+    monkeypatch.setattr(
+        dataframe_validation_module.MainFrameValidator, "validate", unexpected_content_check
     )
     monkeypatch.setattr(
-        dataframe_validation_module.MainFrameValidator, "validate", unexpected_validation
-    )
-    monkeypatch.setattr(
-        dataframe_validation_module.MainFrameValidator, "validate_merge", unexpected_validation
+        dataframe_validation_module.MainFrameValidator,
+        "validate_merge",
+        unexpected_content_check,
     )
 
     result = engine_for_plan(_plan(), {"source": "/tmp/input"}).run()
