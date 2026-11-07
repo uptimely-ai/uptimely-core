@@ -239,8 +239,9 @@ test("feature and function type displays use matching data type icons", () => {
   const featureLink = featureContext.match(/<a href="#feature-telemetry-temperature">[\s\S]*?<\/a>/)[0];
   assert.doesNotMatch(featureLink, /data-lucide="sigma"/);
   const functionContent = renderCatalog(data, "functions").content;
-  assert.match(functionContent, /data-lucide="table-2"[^>]*data-type="dataframe"/);
-  assert.match(functionContent, /data-lucide="table-2"[^>]*data-type="pandas\.DataFrame"/);
+  const returnMetadata = functionContent.match(/<section class="function-metadata-entry" aria-label="Returns">[\s\S]*?<\/section>/)[0];
+  assert.match(returnMetadata, /<span class="ui-badge[^>]*>pandas\.DataFrame<\/span>/);
+  assert.doesNotMatch(returnMetadata, /data-type-label-icon|data-lucide="table-2"/);
   const argumentTable = functionContent.match(/<table class="ui-table function-arguments-table">[\s\S]*?<\/table>/)[0];
   assert.match(argumentTable, /<th scope="col">Argument<\/th><th scope="col">Description<\/th>/);
   assert.match(argumentTable, /data-lucide="table-2"[^>]*><\/i><span>source<\/span>[\s\S]*<td>Input table<\/td>/);

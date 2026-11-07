@@ -428,23 +428,82 @@ function profileCards(config, invocations) {
   }).join("");
 }
 
+function functionMetadata(fn) {
+  const returns = fn.return_type || fn.doc?.returns;
+  const errors = fn.doc?.raises || [];
+  if (!returns && !errors.length && !fn.entrypoint && !fn.signature_validation_disabled) return "";
+
+  return `<div class="function-metadata-grid">
+    ${returns ? `<section class="function-metadata-entry" aria-label="Returns">
+      <h4 class="function-metadata-title">${icon("return-arrow")}<span>Returns</span></h4>
+      <div class="function-metadata-card function-detail-box">
+        ${fn.return_type ? `<p>${badge(fn.return_type)}</p>` : ""}
+        ${fn.doc?.returns ? `<p class="function-metadata-description">${escape(fn.doc.returns)}</p>` : ""}
+      </div>
+    </section>` : ""}
+    ${errors.length ? `<section class="function-metadata-entry" aria-label="Errors">
+      <h4 class="function-metadata-title">${icon("info")}<span>Errors</span></h4>
+      <div class="function-metadata-card function-detail-box">
+        <ul>${errors.map(error => `<li><span class="font-mono text-amber-300">${escape(error.type || "Error")}</span>${error.description ? ` — ${escape(error.description)}` : ""}</li>`).join("")}</ul>
+      </div>
+    </section>` : ""}
+    ${fn.entrypoint || fn.signature_validation_disabled ? `<section class="function-metadata-entry" aria-label="Source">
+      <h4 class="function-metadata-title">${icon("book-open")}<span>Source</span></h4>
+      <div class="function-metadata-card function-detail-box">
+        ${fn.entrypoint ? `<p class="function-metadata-source">${escape(fn.entrypoint)}</p>` : ""}
+        ${fn.signature_validation_disabled ? `<div class="mt-2">${badge("Python signature validation disabled", "amber")}</div>` : ""}
+      </div>
+    </section>` : ""}
+  </div>`;
+}
+
+function functionUsage(functionId, config) {
+  const usages = profiles(config).flatMap(({ id, profile }) => {
+    const grainKeys = new Set(profileGrainKeys(config, profile));
+    const outputs = new Set();
+    for (const operator of Object.values(profile.assembly)) {
+      if (operator.compute.function !== functionId) continue;
+      for (const reference of operator.interface.outputs || []) {
+        const featureId = featureReferenceId(reference);
+        if (featureId && !grainKeys.has(featureId)) outputs.add(featureId);
+      }
+    }
+    return outputs.size ? [{ id, profile, outputs: [...outputs] }] : [];
+  });
+
+  return `<section class="function-usage" aria-label="Function usage">
+    ${subheading("Used by", "profiles")}
+    ${usages.length ? `<ul class="function-usage-list">${usages.map(({ id, profile, outputs }) =>
+      `<li class="function-usage-item function-detail-box">
+        <a class="function-usage-profile" href="${href("profiles", `profile-${id}`)}">${escape(label(id, profile))}</a>
+        <ul>${outputs.map(featureId =>
+          `<li><a class="function-usage-feature" href="${href("features", `feature-${id}-${featureId}`)}">${escape(label(featureId, profile.features[featureId] || {}))}</a></li>`).join("")}</ul>
+      </li>`).join("")}</ul>` : '<p class="function-usage-empty">Not used by any profile.</p>'}
+  </section>`;
+}
+
 function functionCards(data) {
   return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length).map(([kind, items]) =>
     `<div id="functions-${escape(kind)}" data-function-group="${escape(kind)}" class="mb-20 scroll-mt-24"><div class="space-y-10">
       ${Object.entries(items).map(([id, fn]) => `<article id="function-${escape(id)}" data-context-item>
-        ${itemTitle(id, fn, "h3")}
+        <h3 class="function-detail-title">${kindIcon(kind, "function-detail-icon")}<span>${escape(label(id, fn))}</span></h3>
         <p data-function-description class="mt-4 max-w-3xl text-base leading-7 text-slate-300">${escape(fn.description || "No description provided.")}</p>
         ${fn.doc?.body ? `<p class="mt-3 max-w-3xl whitespace-pre-line text-sm leading-7 text-slate-400">${escape(fn.doc.body)}</p>` : ""}
         <div class="mt-10 grid gap-6 ${fn.doc?.examples?.length ? "lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]" : "max-w-xl"}">
           ${fn.doc?.examples?.length ? `<section class="min-w-0">${subheading("Example")}
-            <pre class="mt-3 min-h-40 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(fn.doc.examples[0])}</code></pre></section>` : ""}
-          <section class="min-w-0">${subheading("Operation diagram")}<div class="mt-3 flex min-h-40 items-center justify-center overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 p-5">${miniGraphic(kind)}</div></section></div>
-        ${(fn.doc?.examples || []).slice(1).map((example, index) => `<section class="mt-6">${subheading(`Example ${index + 2}`)}<pre class="mt-3 overflow-x-auto rounded-xl border border-slate-800 bg-slate-950/60 p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(example)}</code></pre></section>`).join("")}
-        ${fn.kind === "escape" ? `<p class="mt-10 text-sm leading-6 text-violet-200/90">Uncontrolled external operation: declared feature inputs and outputs express logical dependencies only. Dataframes are passed only through explicitly bound arguments, and the return value is ignored.</p>
-          ${fn.escape_operators?.length ? `<div class="mt-10">${subheading("Used by operators")}${fn.escape_operators.map(operator => `<div class="py-4">
-            <p class="font-mono text-xs text-slate-200">${escape(operator.profile)} · ${escape(operator.operator)}</p>
-            <p class="mt-2 font-mono text-xs text-slate-400">Declared inputs: ${escape(operator.inputs.join(", ") || "none")}</p>
-            <p class="mt-1 font-mono text-xs text-slate-400">Declared outputs: ${escape(operator.outputs.join(", ") || "none")}</p></div>`).join("")}</div>` : ""}` : ""}
+            <div class="mt-3">${badge("Python")}</div>
+            <pre class="function-detail-box mt-3 min-h-40 overflow-x-auto p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(fn.doc.examples[0])}</code></pre></section>` : ""}
+          <section class="function-kind-graphic min-w-0" aria-label="${escape(kind[0].toUpperCase() + kind.slice(1))} function kind diagram">
+            ${subheading("Function kind")}
+            <p class="function-kind-value">${kindIcon(kind, "function-kind-value-icon")}<span>${escape(kind[0].toUpperCase() + kind.slice(1))}</span></p>
+            <div class="function-detail-box mt-3 flex min-h-40 flex-col items-center justify-center gap-3 overflow-x-auto p-5">
+              ${miniGraphic(kind)}
+            </div>
+          </section></div>
+        ${(fn.doc?.examples || []).slice(1).map((example, index) => `<section class="mt-6">${subheading(`Example ${index + 2}`)}
+          <div class="mt-3">${badge("Python")}</div>
+          <pre class="function-detail-box mt-3 overflow-x-auto p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(example)}</code></pre></section>`).join("")}
+        ${functionUsage(id, data.catalogs.configuration)}
         ${Object.keys(fn.args || {}).length ? `<div class="mt-10">${subheading("Arguments")}
           <div class="ui-table-scroll mt-3" tabindex="0" role="region" aria-label="Arguments for ${escape(fn.name || id)}">
             <table class="ui-table function-arguments-table">
@@ -456,10 +515,7 @@ function functionCards(data) {
               </tr>`).join("")}</tbody>
             </table>
           </div></div>` : ""}
-        ${fn.doc?.returns || fn.return_type ? `<div class="mt-10">${subheading("Returns")}${fn.return_type ? `<p class="mt-3 flex flex-wrap items-center gap-2 text-lime-300"><span aria-hidden="true">-&gt;</span>${dataTypeLabel(fn.return_type)}</p>` : ""}${fn.doc?.returns ? description(fn.doc.returns) : ""}</div>` : ""}
-        ${fn.doc?.raises?.length ? `<div class="mt-10">${subheading("Raises")}<ul class="mt-3 space-y-2">${fn.doc.raises.map(error => `<li class="text-sm leading-6 text-slate-400"><span class="font-mono text-amber-300">${escape(error.type)}</span> — ${escape(error.description)}</li>`).join("")}</ul></div>` : ""}
-        ${fn.entrypoint || fn.signature_validation_disabled ? `<div class="mt-10 flex flex-wrap items-center justify-between gap-x-6 gap-y-3 border-t border-slate-800/60 pt-5">
-          <span class="break-all font-mono text-xs text-slate-400">${escape(fn.entrypoint)}</span>${fn.signature_validation_disabled ? badge("Python signature validation disabled", "amber") : ""}</div>` : ""}
+        ${functionMetadata(fn)}
       </article>`).join("")}</div></div>`).join("");
 }
 
