@@ -62,6 +62,7 @@ def test_original_ui_components_are_packaged_with_the_static_frontend() -> None:
         "theme/tailwind_theme",
         "lineage/feature_lineage",
         "lineage/invocation_lineage",
+        "lineage/invocation_layout",
         "lineage/lineage_components",
         "lineage/lineage_config",
         "lineage/lineage_layout",

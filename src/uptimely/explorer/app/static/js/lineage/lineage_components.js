@@ -77,9 +77,6 @@ function prepareDatasetColors(data, container, style = {}) {
 		label: datasets.get(dataset), color: colors.get(dataset),
 	})));
 	const mergeColor = style.function_colors?.merge || style.function_color;
-	if (data.nodes.some(node => node.phase === 'merge')) {
-		appendLegend(container, [{ label: 'Merge invocation', color: mergeColor }]);
-	}
 	for (const node of data.nodes) {
 		node.dataset_id = node.dataset_id || LineageConfig.UNASSIGNED_DATASET;
 		node.datasetColor = colors.get(node.dataset_id);
@@ -100,28 +97,33 @@ function datasetNodeObject(node, text, style) {
 		node.data_type || node.type || 'unknown');
 }
 
-const typeIconPaths = new Map();
+const iconPaths = new Map();
 
 function drawDataTypeIcon(ctx, type, x, y, size, color) {
-	const name = dataTypeIconName(type) || 'braces';
-	if (!typeIconPaths.has(name)) {
+	drawIcon(ctx, dataTypeIconName(type) || 'braces', x, y, size, color);
+}
+
+function drawIcon(ctx, name, x, y, size, color) {
+	if (!iconPaths.has(name)) {
 		const key = name.replace(/(^|-)(\w)/g, (_match, _separator, letter) => letter.toUpperCase());
 		const paths = lucide.icons[key].map(([tag, attributes]) => {
 			const path = new Path2D(tag === 'path' ? attributes.d : undefined);
 			const number = key => Number(attributes[key] || 0);
 			if (tag === 'circle') {
 				path.arc(number('cx'), number('cy'), number('r'), 0, Math.PI * 2);
+			} else if (tag === 'ellipse') {
+				path.ellipse(number('cx'), number('cy'), number('rx'), number('ry'), 0, 0, Math.PI * 2);
 			} else if (tag === 'rect') {
 				path.roundRect(number('x'), number('y'), number('width'), number('height'), number('rx'));
 			} else if (tag === 'line') {
 				path.moveTo(number('x1'), number('y1'));
 				path.lineTo(number('x2'), number('y2'));
 			} else if (tag !== 'path') {
-				throw new Error(`Unsupported data-type icon shape: ${tag}`);
+				throw new Error(`Unsupported lineage icon shape: ${tag}`);
 			}
 			return path;
 		});
-		typeIconPaths.set(name, paths);
+		iconPaths.set(name, paths);
 	}
 	ctx.save();
 	ctx.translate(x, y);
@@ -130,11 +132,13 @@ function drawDataTypeIcon(ctx, type, x, y, size, color) {
 	ctx.lineWidth = 2;
 	ctx.lineCap = 'round';
 	ctx.lineJoin = 'round';
-	for (const path of typeIconPaths.get(name)) ctx.stroke(path);
+	for (const path of iconPaths.get(name)) ctx.stroke(path);
 	ctx.restore();
 }
 
-function drawCard(node, ctx, label, color, highlight, isFeature = false) {
+function drawCard(node, ctx, label, color, highlight, isFeature = false, {
+	subtitle = '', iconName = null, badgeIconName = null,
+} = {}) {
 	const { CARD_STYLE, DIMMED_COLOR } = LineageConfig;
 	const dimmed = highlight.hasSelection() && !highlight.isNodeHighlighted(node);
 	const left = node.x - node.cardWidth / 2;
@@ -157,6 +161,10 @@ function drawCard(node, ctx, label, color, highlight, isFeature = false) {
 		drawDataTypeIcon(ctx, node.data_type || node.type,
 			left + CARD_STYLE.iconLeft, node.y - CARD_STYLE.featureIconSize / 2,
 			CARD_STYLE.featureIconSize, dimmed ? CARD_STYLE.dimmedTextColor : CARD_STYLE.textColor);
+	} else if (iconName) {
+		drawIcon(ctx, iconName, left + CARD_STYLE.iconLeft,
+			node.y - CARD_STYLE.featureIconSize / 2, CARD_STYLE.featureIconSize,
+			dimmed ? CARD_STYLE.dimmedTextColor : CARD_STYLE.textColor);
 	} else {
 		ctx.beginPath();
 		ctx.roundRect(left + CARD_STYLE.iconLeft, node.y - CARD_STYLE.iconSize / 2,
@@ -168,8 +176,22 @@ function drawCard(node, ctx, label, color, highlight, isFeature = false) {
 	ctx.font = CARD_STYLE.font;
 	ctx.textAlign = 'left';
 	ctx.textBaseline = 'middle';
-	ctx.fillText(label, left + CARD_STYLE.labelLeft, node.y,
-		node.cardWidth - CARD_STYLE.labelHorizontalPadding);
+	const textWidth = node.cardWidth - CARD_STYLE.labelHorizontalPadding
+		- (badgeIconName ? CARD_STYLE.featureIconSize + CARD_STYLE.iconLeft : 0);
+	ctx.fillText(label, left + CARD_STYLE.labelLeft, node.y - (subtitle ? CARD_STYLE.titleOffset : 0),
+		textWidth);
+	if (subtitle) {
+		ctx.font = CARD_STYLE.subtitleFont;
+		ctx.fillStyle = dimmed ? CARD_STYLE.dimmedTextColor : LineageConfig.DATASET_LAYOUT.labelColor;
+		ctx.fillText(subtitle, left + CARD_STYLE.labelLeft, node.y + CARD_STYLE.subtitleOffset,
+			textWidth);
+	}
+	if (badgeIconName) {
+		drawIcon(ctx, badgeIconName,
+			left + node.cardWidth - CARD_STYLE.iconLeft - CARD_STYLE.featureIconSize,
+			node.y - CARD_STYLE.featureIconSize / 2, CARD_STYLE.featureIconSize,
+			dimmed ? CARD_STYLE.dimmedTextColor : LineageConfig.DATASET_LAYOUT.labelColor);
+	}
 	ctx.restore();
 }
 
@@ -189,18 +211,18 @@ function selectCard(forceGraph, container, nodes, event, onSelect) {
 	if (node) onSelect(node);
 }
 
-function createLineageHighlight(data) {
+function createLineageHighlight(data, fullLineage = true) {
+	const endpointId = endpoint => typeof endpoint === 'object' ? endpoint.id : endpoint;
 	const incoming = new Map(data.nodes.map(node => [node.id, []]));
 	const outgoing = new Map(data.nodes.map(node => [node.id, []]));
 	for (const link of data.links) {
-		incoming.get(link.target)?.push(link);
-		outgoing.get(link.source)?.push(link);
+		incoming.get(endpointId(link.target))?.push(link);
+		outgoing.get(endpointId(link.source))?.push(link);
 	}
 	let selectedId = null;
 	let highlightedNodes = new Set();
 	let highlightedLinks = new Set();
-	const endpointId = endpoint => typeof endpoint === 'object' ? endpoint.id : endpoint;
-	return {
+	const highlight = {
 		select(node) {
 			selectedId = node?.id ?? null;
 			highlightedNodes = new Set();
@@ -218,7 +240,7 @@ function createLineageHighlight(data) {
 							? endpointId(link.source)
 							: endpointId(link.target);
 						highlightedNodes.add(next);
-						if (!visited.has(next)) {
+						if (fullLineage && !visited.has(next)) {
 							visited.add(next);
 							pending.push(next);
 						}
@@ -230,7 +252,14 @@ function createLineageHighlight(data) {
 		isSelected: node => node.id === selectedId,
 		isNodeHighlighted: node => highlightedNodes.has(node.id),
 		isLinkHighlighted: link => highlightedLinks.has(link),
+		isLinkDirect: link => selectedId !== null
+			&& (endpointId(link.source) === selectedId || endpointId(link.target) === selectedId),
+		setFullLineage(value) {
+			fullLineage = value;
+			highlight.select(data.nodes.find(node => node.id === selectedId) || null);
+		},
 	};
+	return highlight;
 }
 
 function createLineageView(forceGraph, container, padding, dimension, bounds = null) {
@@ -283,6 +312,8 @@ function createLineage2D(container, graphData, style, layout, highlight, {
 	renderOverlay,
 }) {
 	let forceGraph;
+	if (graphData.links.some(link => !link.routePoints)) LineageLayout.prepareLineageRoutes(graphData);
+	const renderLink = LineageLayout.createLineageLinkRenderer(graphData, style, highlight);
 	const selectAtPointer = event => selectCard(
 		forceGraph, container, graphData.nodes, event, onSelect);
 	forceGraph = ForceGraph()(container)
@@ -292,6 +323,18 @@ function createLineage2D(container, graphData, style, layout, highlight, {
 		.onRenderFramePre((ctx, scale) => {
 			LineageLayout.drawLineageLanes(layout, ctx, scale);
 			renderOverlay?.(ctx, scale);
+		})
+		.onRenderFramePost((ctx, scale) => {
+			if (!style.quiet_links) return;
+			for (const direct of [false, true]) {
+				for (const link of graphData.links) {
+					if (highlight.isLinkHighlighted(link) && highlight.isLinkDirect(link) === direct) {
+						renderLink(link, ctx, scale);
+					}
+				}
+			}
+			// Keep cards and their labels above the emphasized dependency paths.
+			for (const node of graphData.nodes) drawNode(node, ctx);
 		})
 		.nodeLabel(node => tooltip(label(node)))
 		.nodeCanvasObjectMode(() => 'replace')
@@ -306,7 +349,9 @@ function createLineage2D(container, graphData, style, layout, highlight, {
 		.linkWidth(link => highlight.isLinkHighlighted(link)
 			? LineageConfig.LINK_STYLE.highlightWidth : style.link_width)
 		.linkCanvasObjectMode(() => 'replace')
-		.linkCanvasObject(LineageLayout.createLineageLinkRenderer(graphData, style, highlight))
+		.linkCanvasObject((link, ctx, scale) => {
+			if (!style.quiet_links || !highlight.isLinkHighlighted(link)) renderLink(link, ctx, scale);
+		})
 		.linkDirectionalParticles(LineageConfig.LINK_ROUTE.particleCount)
 		.linkDirectionalParticleWidth(LineageConfig.LINK_ROUTE.particleWidth)
 		.linkDirectionalParticleColor(() => LineageConfig.LINK_ROUTE.invisibleParticleColor)
@@ -320,6 +365,7 @@ function createLineage2D(container, graphData, style, layout, highlight, {
 	if (nodeRelativeSize) forceGraph.nodeRelSize(nodeRelativeSize);
 	const view = createLineageView(forceGraph, container, LineageConfig.DATASET_LAYOUT.fitPadding, '2d', layout.bounds);
 	view.selectNode = id => highlight.select(graphData.nodes.find(node => node.id === id) || null);
+	view.setFullLineage = value => highlight.setFullLineage(value);
 	forceGraph.graphData(graphData);
 	return view;
 }
@@ -357,16 +403,20 @@ function createLineage3D(container, graphData, style, {
 		.nodeRelSize(style.node_rel_size)
 		.nodeResolution(style.node_resolution)
 		.linkWidth(link => highlight?.isLinkHighlighted(link)
-			? style.link_width * LineageConfig.LINK_STYLE.highlightWidthMultiplier3D
-			: style.link_width)
+			? style.link_width * (style.quiet_links && !highlight.isLinkDirect(link)
+				? LineageConfig.LINK_STYLE.transitiveWidthMultiplier3D
+				: LineageConfig.LINK_STYLE.highlightWidthMultiplier3D)
+			: style.link_width * (style.quiet_links ? LineageConfig.LINK_STYLE.overviewArrowScale : 1))
 		.linkColor(link => highlight?.isLinkHighlighted(link)
-			? LineageConfig.LINK_STYLE.highlightColor
+			? style.quiet_links && !highlight.isLinkDirect(link)
+				? LineageConfig.LINK_STYLE.transitiveColor : LineageConfig.LINK_STYLE.highlightColor
 			: highlight?.hasSelection() ? LineageConfig.DIMMED_COLOR
 				: link.dependency_type === 'fragment'
 					? style.function_colors?.merge || style.link_color
 					: style.link_color)
 		.linkOpacity(style.link_opacity)
-		.linkDirectionalParticles(LineageConfig.LINK_STYLE.particleCount)
+		.linkDirectionalParticles(link => !style.quiet_links || highlight?.isLinkHighlighted(link)
+			? LineageConfig.LINK_STYLE.particleCount : 0)
 		.linkDirectionalParticleWidth(LineageConfig.LINK_STYLE.particleWidth)
 		.linkDirectionalParticleSpeed(LineageConfig.LINK_STYLE.particleSpeed)
 		.linkDirectionalParticleColor(link => highlight?.isLinkHighlighted(link)
@@ -379,6 +429,10 @@ function createLineage3D(container, graphData, style, {
 	forceGraph.d3Force('link').distance(style.link_distance);
 	const view = createLineageView(forceGraph, container, LineageConfig.NODE_STYLE_3D.fitPadding, '3d');
 	if (highlight) {
+		view.setFullLineage = value => {
+			highlight.setFullLineage(value);
+			forceGraph.refresh();
+		};
 		view.selectNode = id => {
 			highlight.select(graphData.nodes.find(node => node.id === id) || null);
 			forceGraph.refresh();
@@ -388,7 +442,7 @@ function createLineage3D(container, graphData, style, {
 	return view;
 }
 
-function labeledMesh(mesh, text, style, offset, dataType = null) {
+function labeledMesh(mesh, text, style, offset, dataType = null, iconName = null, badgeIconName = null) {
 	const group = new THREE.Group();
 	group.add(mesh);
 	const label = new SpriteText(text || '', LineageConfig.NODE_STYLE_3D.labelHeight, style.label_color);
@@ -397,16 +451,18 @@ function labeledMesh(mesh, text, style, offset, dataType = null) {
 	label.borderRadius = LineageConfig.NODE_STYLE_3D.labelBorderRadius;
 	label.position.set(0, offset, 0);
 	group.add(label);
-	if (dataType !== null) {
+	const leadingIcon = iconName || (dataType !== null ? dataTypeIconName(dataType) || 'braces' : null);
+	for (const [name, direction] of [[leadingIcon, -1], [badgeIconName, 1]]) {
+		if (!name) continue;
 		const canvas = document.createElement('canvas');
 		canvas.width = canvas.height = 64;
-		drawDataTypeIcon(canvas.getContext('2d'), dataType, 0, 0, canvas.width, style.label_color);
+		drawIcon(canvas.getContext('2d'), name, 0, 0, canvas.width, style.label_color);
 		const texture = new THREE.CanvasTexture(canvas);
 		texture.colorSpace = THREE.SRGBColorSpace;
 		const icon = new THREE.Sprite(new THREE.SpriteMaterial({ map: texture, depthWrite: false }));
 		const size = LineageConfig.NODE_STYLE_3D.labelHeight;
 		icon.scale.set(size, size, 1);
-		icon.position.set(-label.scale.x / 2 - size * 0.75, offset, 0);
+		icon.position.set(direction * (label.scale.x / 2 + size * 0.75), offset, 0);
 		group.add(icon);
 	}
 	return group;
@@ -422,6 +478,7 @@ const ExplorerLineage = {
 	prepareDatasetColors,
 	datasetNodeObject,
 	drawDataTypeIcon,
+	drawIcon,
 	drawCard,
 	paintPointerArea,
 	selectCard,

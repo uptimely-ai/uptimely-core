@@ -85,6 +85,67 @@ profile legends, and selectable node details. Every graph-control button has
 a tooltip identifying its action. The reset icon sits alongside zoom in and
 zoom out in the viewport button group. It clears selection
 and fits the current graph.
+Invocation topology in 2D uses one swimlane per profile, with stages progressing
+left to right. A thick, muted **Dataset** spine shows the dataset accumulation
+surface: compute branches sit above it, merges publish fragments onto it, vectorize
+enriches it directly, and effects sit below it. Cards show a single function
+label; owning operator identifiers remain available in tooltips and selected-node
+details so compute and merge calls can be associated while separately selectable.
+Profile names appear outside the stage grid on the left, aligned with their
+Dataset spine, with the text to the left of the outlined table icon. The icon
+and tapered connector mark where the accumulation journey begins, not an already
+initialized dataframe. A filled badge containing the table icon and label
+outside the grid on the right marks **Dataset ready**; scoped builds show
+**Selected outputs ready**. Effect-only lanes show **No dataset produced**.
+These markers describe the compiled plan, not runtime completion, and are not
+invocations or dependency arrows. Writes remain separate consumers of the Dataset.
+Dependent invocations progress left to right through stages. Independent
+same-stage publishers form compact vertical groups in softly filled,
+profile-colored rounded boxes; groups containing vectorize invocations have no
+border and match the spine's color and opacity. The spine enters and exits each box at its edges,
+rather than crossing behind its publishers, without implying an
+execution order or adding dependency arrows. Groups have no text labels.
+Cards use the same function-kind icons as the catalogs
+instead of kind prefixes or publication descriptions.
+Merge and vectorize borders use their profile's mainframe color; off-spine
+computes and effects use neutral gray. The same role-based colors apply in 3D.
+Icons and text stay neutral, and selection and dependency highlights retain
+their accents.
+The default merge is labeled **Merge by grain**, with a sparkle badge identifying
+the automatically supplied binding. Its tooltip and details explain the badge;
+custom merges use their operation names (humanizing underscore-separated names)
+and have no automatic badge.
+Both feature-lineage and Topology arrows share obstacle-aware routing and
+bounded arrowhead sizing. They use short orthogonal paths with rounded corners and attach to
+the appropriate card edge. Unobstructed neighbors connect directly; longer
+dependencies route around intervening cards rather than detouring solely because
+a stage is wide.
+Topology selection highlights all upstream and downstream dependencies by default.
+The route-icon highlight-scope button switches between **Full lineage** and
+**Direct connections** (immediate inputs and consumers only). It is disabled
+until an invocation is selected; its descriptive tooltip and details state the
+current scope.
+The toggle preserves the selection and applies to both 2D and 3D views. Direct
+dependencies use stronger strokes and color than transitive lineage, which stays
+visible all the way to upstream sources and downstream consumers.
+Overview arrows are quiet, with prominent direction markers and animated particles
+reserved for highlighted relationships. Unrelated arrows dim further on selection.
+Highlighted paths are drawn above dimmed arrows so overlapping dependencies
+cannot hide the selected lineage.
+Feature lineage retains its existing full-lineage highlighting.
+Hovering an invocation shows its declared contribution: **Adds** for vectorize,
+**Publishes** for merge, and **Declared outputs** for other kinds. These labels
+do not claim to describe the complete intermediate Dataset.
+The guide is schematic, not an
+additional dependency or a claim about publication order; only arrows represent
+compiled dependencies. Node details show declared outputs and merge keys, not
+inferred dataset sizes or schemas. The context legend lists only profiles;
+selecting an invocation reveals compact notes on its Dataset role, plan markers,
+grouping, and direct versus full-lineage highlighting. The owning-operator link
+shows its humanized name and opens the operator declaration.
+In 3D, labels also include function-kind icons;
+merges use diamonds and vectorize uses cubes. That view remains a dependency
+graph rather than an accumulation layout.
 Feature lineage also offers
 the function-icon **Show operators** toggle, enabled and highlighted by default.
 Turn it off to connect input and output
