@@ -228,8 +228,9 @@ Spec and function entrypoints come from the plan.
 
 Validation is controlled by `Engine.run(validate=True)`, not backend
 configuration. The former `validate_lazy_frames` option has been removed.
-Direct backend value queries execute lazy frames when needed; normal engine
-execution does not call these checks unless validation is enabled.
+Direct backend value queries execute lazy frames when needed. Expensive content
+checks run only when validation is enabled; basic fragment and vectorize
+structure checks still run during normal execution.
 See [runtime validation](../components/engine.md#runtime-validation) for details.
 
 ::: uptimely.engine.dataframe.backend

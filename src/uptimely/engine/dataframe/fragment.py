@@ -63,19 +63,18 @@ class Fragment:
             columns = set(backend.column_names(dataframe))
             dimensions = tuple(key for key in dimensions if key in columns)
         outputs = [key for key in invocation.output_features if key not in invocation.id_columns]
-        if validate:
-            dataframe_validation.FragmentValidator(
-                backend,
-                dataframe,
-                list(dimensions),
-                f"Fragment {invocation.function_id}",
-                invalid_frame_message=(
-                    f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
-                ),
-                column_types=invocation.column_types,
-                invocation=invocation,
-                output_features=outputs,
-                comparison_frame=comparison_frame,
-            ).validate()
+        dataframe_validation.FragmentValidator(
+            backend,
+            dataframe,
+            list(dimensions),
+            f"Fragment {invocation.function_id}",
+            invalid_frame_message=(
+                f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
+            ),
+            column_types=invocation.column_types,
+            invocation=invocation,
+            output_features=outputs,
+            comparison_frame=comparison_frame,
+        ).validate(validate_content=validate)
         columns = list(dict.fromkeys([*dimensions, *outputs]))
         return cls(backend.select(dataframe, columns), dimensions, invocation)
