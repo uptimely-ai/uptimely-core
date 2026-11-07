@@ -42,7 +42,7 @@ project/
 | `functions/` | Reusable source, calculation, and write functions. |
 | `spec/` | The project specification: either Python declarations or a JSON document. |
 | `_generated/` | Disposable generated artifacts. The active build is stored in `_generated/build/`, the current Explorer data snapshot in `_generated/explorer.json`, and the latest run's metadata, logs, and profile previews under `_generated/run/`. Each run replaces that entire directory; no history is retained. |
-| `config/config.json` | Engine backend settings under `engine` and required global scalar values under `params`, referenced by `$params.<name>`. |
+| `config/config.json` | Runtime engine settings under `engine` and scalar values under `params`, referenced by `$params.<name>`. Kept outside `spec/`. |
 
 This separation keeps the project easy to reason about: specification declarations
 live in `spec/`, runtime logic lives in functions, curated data stays under
@@ -56,6 +56,25 @@ Profile grain references infer the dimensions and resolutions used by the spec.
 Each operator points directly to an implementation in `functions/`, binds its
 arguments, and defines its output features. See
 [Python authoring](../python/python.md) for the declaration syntax.
+
+## Build-time workflow and runtime configuration
+
+Keep workflow declarations in `spec/` and runtime configuration in
+`config/config.json`. Operators, bindings, and profile grain are build-time
+settings; changing them requires rebuilding. Runtime parameters, source/sink
+locations, and validation controls are supplied at runtime and normally do not
+change the graph. Runtime parameters can change results without changing that
+graph.
+
+| Setting | Ownership | Rebuild required? |
+| --- | --- | --- |
+| Operators, bindings, and profile grain | Build-time workflow definition in `spec/` | Yes |
+| Runtime parameters, source/sink locations, and validation controls | Project/runtime configuration or run options | Normally no |
+
+The saved plan records its required backend. Runtime configuration cannot
+reinterpret it for an incompatible backend; execution fails explicitly. Merge
+bindings are build-time declarations: an omitted binding resolves to the
+builtin default, and an explicit binding overrides it.
 
 ## Building the project
 

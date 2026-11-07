@@ -72,6 +72,15 @@ See the [row context contract](spec.md#row-context).
 
 ## Configuration and runtime parameters
 
+The saved plan contains the workflow definition; runtime configuration supplies
+values and controls for executing it. Changing a runtime value can change results
+without changing the invocation graph.
+
+| Setting | Ownership | Rebuild required? |
+| --- | --- | --- |
+| Operators, bindings, and profile grain | Build-time workflow definition in the Spec | Yes |
+| Runtime parameters, source/sink locations, and validation controls | Project/runtime configuration and run options | Normally no |
+
 Keep framework configuration separate from profile data and analytical
 inputs. Use it for values that adapt how a workflow runs in this framework, so
 the same build can run in different environments without changing its
@@ -116,6 +125,13 @@ they do not make a missing `$params` reference optional.
 runtime control parameter map under `params`. Programmatic users can construct
 `Config(engine=EngineConfig(...), params=Params(...))` or pass the flat map as
 `parameters` to `Engine`.
+
+The compiled plan records its required backend. Runtime configuration cannot
+reinterpret a plan for another backend: an incompatible backend setting fails
+explicitly. Changing an operator binding, including a merge binding, or profile
+grain changes the build-time workflow and requires rebuilding the project.
+Fragment-producing operators without a custom merge binding use the builtin
+merge-by-grain binding; an explicit binding overrides it.
 
 ## Fragments
 
@@ -177,7 +193,9 @@ that behavior and are not retried with the default. The executor does not merge
 the returned dataframe a second time. After successful publication, it retains
 the staged fragment on the `MainFrame` under the operator ID without copying
 the dataframe. Merge functions must not mutate their target input because
-arbitrary function-side mutations cannot be rolled back.
+arbitrary function-side mutations cannot be rolled back. The same limitation
+applies to any user function that mutates input state: assigning a result only
+after checks succeed cannot undo mutations performed before that assignment.
 
 The default `merge_by_grain` function combines full-grain fragments by the
 profile's complete grain keys, never by row position. It uses a full join,

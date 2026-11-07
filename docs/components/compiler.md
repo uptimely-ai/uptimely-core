@@ -17,7 +17,7 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `5`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `6`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `resources` | object | Compiler-generated metadata not represented by the Spec, including inspected function return annotations and entrypoint package provenance. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
@@ -25,7 +25,7 @@ A plan is one JSON object. Its root fields are:
 
 All root fields are required. Unknown fields and unsupported versions are
 rejected. Earlier plan versions are not converted. Rebuild generated bundles
-from their source Specs to create version 4 plans.
+from their source Specs to create version 6 plans.
 
 ## Resources
 
@@ -51,7 +51,7 @@ spelling.
 | Field | JSON type | Meaning |
 | --- | --- | --- |
 | `id` | string | Unique identifier for this invocation. |
-| `function_kind` | string | Function category: `read`, `conform`, `expand`, `collapse`, `vectorize`, `write`, or `escape`. |
+| `function_kind` | string | Function category: `read`, `conform`, `expand`, `collapse`, `vectorize`, `merge`, `write`, or `escape`. |
 | `entrypoint` | string | Implementation location for the function. |
 | `function_id` | string | Function declaration used by the invocation. |
 | `operator_id` | string | Operator declaration used by the invocation. |
@@ -134,8 +134,8 @@ Use `uptimely.execution_plan` to read and write plans, and use
 `ExecutionPlan.invocations` to access the planned steps. Do not rely on the
 format of their IDs.
 
-Version 1 and 2 plans and bundles are not supported. Rebuild from the source
-Spec with `uptimely build PROJECT_ROOT`.
+Plans earlier than version 6, including version 5 plans, are not supported.
+Rebuild from the source Spec with `uptimely build PROJECT_ROOT`.
 Plans lacking invocation runtime metadata (`id_columns`, `column_types`, and
 `argument_types`) must likewise be rebuilt.
 
