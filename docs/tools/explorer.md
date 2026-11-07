@@ -45,8 +45,8 @@ stable width and collapses to an icon rail; the contextual sidebar collapses
 independently. On narrow screens, the hamburger button opens project navigation.
 A persistent bar below the header provides access to the page's context menu;
 tap it to open a centered dialog with item navigation, legends, and details.
-On graph pages, **Legend & details** opens the legend and selected-node information;
-the graph controls remain separate below it.
+On graph pages, the chevron button beside the graph controls opens the legend
+and selected-node information.
 Close the dialog with its **Close** button, the backdrop, or **Escape**.
 Graph view and zoom controls, and animation profile and playback controls,
 remain accessible in the bar without opening the dialog.
