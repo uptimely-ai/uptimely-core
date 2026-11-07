@@ -96,7 +96,7 @@ def test_engine_cli_forwards_validation_flag(
     def run(self: engine_module.Engine, *, validate: bool = False) -> engine_module.ExecutionResult:
         received.append(validate)
         return engine_module.ExecutionResult(
-            main_frames={},
+            datasets={},
             calculated_outputs={},
             invocation_statuses={},
             durations={},
@@ -179,7 +179,7 @@ def test_run_log_level_filters_uptimely_only_and_restores_configuration(
         if failed:
             raise RuntimeError("execution failed")
         return engine_module.ExecutionResult(
-            main_frames={},
+            datasets={},
             calculated_outputs={},
             invocation_statuses={},
             durations={},
@@ -242,7 +242,7 @@ def test_engine_previews_final_profiles(
     ).with_columns(pl.lit(index).alias(f"c{index}") for index in range(10))
     output_frame = frame.lazy() if lazy else frame
     result = engine_module.ExecutionResult(
-        main_frames={"first": output_frame, "second": output_frame},
+        datasets={"first": output_frame, "second": output_frame},
         calculated_outputs={},
         invocation_statuses={},
         durations={},
@@ -327,7 +327,7 @@ def test_engine_preview_errors_are_reported(
     config = tmp_path / "config.json"
     config.write_text("{}", encoding="utf-8")
     result = engine_module.ExecutionResult(
-        main_frames={"values": frame},
+        datasets={"values": frame},
         calculated_outputs={},
         invocation_statuses={},
         durations={},

@@ -56,7 +56,7 @@ class InvocationExecutor:
             else:
                 self._execute_column_operator(invocation)
         else:
-            if invocation.dataset_id not in self.state.main_frames:
+            if invocation.dataset_id not in self.state.datasets:
                 raise KeyError(invocation.dataset_id)
             self._invoke(invocation)
 
@@ -80,7 +80,7 @@ class InvocationExecutor:
     def _check_input_features(self, invocation: plan_module.Invocation) -> None:
         """Require each feature locally or in exactly one other profile."""
         logger.debug("    - checking declared input features")
-        target = self.state.main_frames.get(invocation.dataset_id)
+        target = self.state.datasets.get(invocation.dataset_id)
         target_columns = (
             set(self.backend.column_names(target.dataframe)) if target is not None else set()
         )
@@ -89,7 +89,7 @@ class InvocationExecutor:
             return
         available = collections.Counter(
             column
-            for dataset_id, frame in self.state.main_frames.items()
+            for dataset_id, frame in self.state.datasets.items()
             if dataset_id != invocation.dataset_id
             for column in set(self.backend.column_names(frame.dataframe))
         )
@@ -135,7 +135,7 @@ class InvocationExecutor:
     def _check_foreign_source_available(self, source_id: str) -> dataset_module.Dataset:
         """Require the referenced source profile to be available."""
         logger.debug("    - checking foreign source availability")
-        source = self.state.main_frames.get(source_id)
+        source = self.state.datasets.get(source_id)
         if source is None:
             raise ValueError(f"Profile dataframe is unavailable: {source_id}")
         return source
@@ -156,7 +156,7 @@ class InvocationExecutor:
     def _execute_dataframe_operator(self, invocation: plan_module.Invocation) -> None:
         """Produce and retain a fragment for its scheduled merge invocation."""
         dataset_id = self._profile_id(invocation)
-        dataset = self.state.main_frames.get(dataset_id)
+        dataset = self.state.datasets.get(dataset_id)
         fragment = fragment_module.Fragment.stage(
             self.backend,
             invocation,
@@ -170,7 +170,7 @@ class InvocationExecutor:
         """Invoke a merge binding and publish its complete target frame on success."""
         dataset_id = self._profile_id(invocation)
         fragment_id, fragment = self.state.staged_fragment_for(invocation)
-        current = self.state.main_frames.get(dataset_id)
+        current = self.state.datasets.get(dataset_id)
         target = current.dataframe if current is not None else None
         logger.debug("  Merge:\n    Target profile: %s", dataset_id)
         arguments = self.bindings.resolve_args(invocation, staged_fragment=fragment.dataframe)
@@ -202,13 +202,13 @@ class InvocationExecutor:
             current.dataframe = result
             dataset = current
         dataset.fragments[fragment.invocation.operator_id] = fragment
-        self.state.main_frames[dataset_id] = dataset
+        self.state.datasets[dataset_id] = dataset
         del self.state.staged_fragments[fragment_id]
 
     def _execute_column_operator(self, invocation: plan_module.Invocation) -> None:
         """Publish vectorized columns on the target frame without fragment assembly."""
         dataset_id = self._profile_id(invocation)
-        dataset = self.state.main_frames.get(dataset_id)
+        dataset = self.state.datasets.get(dataset_id)
         if dataset is None or dataset.dataframe is None:
             raise ValueError(f"Profile dataframe is unavailable: {dataset_id}")
         comparison_frame = dataset.dataframe

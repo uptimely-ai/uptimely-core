@@ -140,7 +140,7 @@ class RunRecorder:
         profiles: dict[str, models.ProfileSummary] = {}
         if self.result is None:
             return profiles
-        for profile_id, frame in self.result.main_frames.items():
+        for profile_id, frame in self.result.datasets.items():
             try:
                 sample, collected = preview.collect_preview(profile_id, frame, self._preview_rows)
                 self._preview_frames[profile_id] = collected

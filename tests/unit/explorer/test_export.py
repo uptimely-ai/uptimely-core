@@ -113,7 +113,7 @@ def test_export_includes_validated_run_previews_and_all_log_pages(
     runtime = engine.Engine(bundle, engine.EngineConfig())
     frame = pl.DataFrame({"value": range(20)})
     result = engine.ExecutionResult(
-        main_frames={"telemetry": frame},
+        datasets={"telemetry": frame},
         calculated_outputs={},
         invocation_statuses={},
         durations={},

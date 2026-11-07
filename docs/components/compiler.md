@@ -139,7 +139,7 @@ Rebuild from the source Spec with `uptimely build PROJECT_ROOT`.
 Plans lacking invocation runtime metadata (`id_columns`, `column_types`, and
 `argument_types`) must likewise be rebuilt.
 
-The engine returns results: `result.main_frames` contains final profile frames,
+The engine returns results: `result.datasets` contains final profile frames,
 `result.calculated_outputs` contains calculated features, and
 `result.invocation_statuses` reports whether each planned step succeeded,
 failed, or was skipped. `result.durations` and `result.failures` give more run

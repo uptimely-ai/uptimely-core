@@ -29,7 +29,7 @@ def runtime(bundle_for_plan: execution_support.BundleFactory) -> engine.Engine:
 
 def _result(frame: object | None = None) -> engine.ExecutionResult:
     return engine.ExecutionResult(
-        main_frames={} if frame is None else {"telemetry": frame},
+        datasets={} if frame is None else {"telemetry": frame},
         calculated_outputs={},
         invocation_statuses={},
         durations={},
@@ -72,7 +72,7 @@ def test_run_persists_bounded_schema_and_reuses_preview(
     assert isinstance(collected_frame, pl.DataFrame)
     assert collected_frame.equals(frame.head(2))
     assert collected == ([min(row_count, 2)] if lazy else [])
-    assert result.main_frames["telemetry"] is output
+    assert result.datasets["telemetry"] is output
     assert "secret" not in manifest.model_dump_json()
     assert "format_version" not in manifest.model_dump()
     assert "run_version" not in manifest.model_dump()
@@ -301,7 +301,7 @@ def test_preview_paths_and_symlinks_cannot_escape_snapshot(
     runtime: engine.Engine, monkeypatch: pytest.MonkeyPatch, tmp_path: pathlib.Path
 ) -> None:
     unsafe_id = "../outside"
-    result = copy.replace(_result(), main_frames={unsafe_id: pl.DataFrame({"x": [1]})})
+    result = copy.replace(_result(), datasets={unsafe_id: pl.DataFrame({"x": [1]})})
     monkeypatch.setattr(runtime, "_execute", lambda **kwargs: result)
     runtime.run()
     saved = store.RunStore(runtime.bundle.project_root)

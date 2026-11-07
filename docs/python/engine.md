@@ -57,7 +57,7 @@ lower-grain fragment requires an existing Dataset. Successful calls update the
 accumulator and return the fragment unchanged.
 Validation failures leave the accumulated dataframe unchanged.
 
-`RuntimeState.main_frames` maps profile IDs to materialized Datasets. Each
+`RuntimeState.datasets` maps profile IDs to materialized Datasets. Each
 Dataset owns its `fragments` mapping. Fragment lookup searches these datasets and
 rejects names ambiguous across profiles; profile IDs take precedence
 over fragment names.
@@ -75,7 +75,7 @@ expected target schema; overlapping feature columns are rejected.
 Publishing is transactional with respect to the executor's assignment: a failed
 merge leaves the previously published Dataset unchanged. It cannot undo
 mutation performed by an arbitrary user function, so merge functions must not
-mutate their target input. User functions and `ExecutionResult.main_frames`
+mutate their target input. User functions and `ExecutionResult.datasets`
 continue to receive ordinary Polars dataframes or lazy frames, not these
 internal runtime wrappers.
 
@@ -108,8 +108,8 @@ the internal `DataFrameExecution` assembly helper.
 
 `uptimely.engine.runtime.result` describes execution outputs.
 
-`ExecutionResult.main_frames` maps each project-wide unique profile ID to its final
-dataframe, for example `result.main_frames["telemetry"]`.
+`ExecutionResult.datasets` maps each project-wide unique profile ID to its final
+dataframe, for example `result.datasets["telemetry"]`.
 `ExecutionResult.calculated_outputs` maps `(profile_id, feature_id)` pairs to
 dimension-keyed output dataframes, for example
 `result.calculated_outputs["telemetry", "doubled"]`. Profile metadata is available

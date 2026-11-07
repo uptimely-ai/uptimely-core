@@ -289,7 +289,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             outputs_by_dataset.setdefault(dataset_id, []).append(feature_id)
         datasets: list[dict[str, typing.Any]] = []
         for dataset_id, features in sorted(outputs_by_dataset.items()):
-            frame = _collect_frame(result.main_frames.get(dataset_id))
+            frame = _collect_frame(result.datasets.get(dataset_id))
             if frame is None or not hasattr(frame, "to_dicts"):
                 raise TypeError(
                     f"Execution produced calculated outputs for profile {dataset_id} "

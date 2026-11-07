@@ -28,7 +28,7 @@ def test_runtime_bindings_resolve_nested_runtime_values_and_dataframe_ids() -> N
     fragment = pl.DataFrame({"reading": [2]})
     main = execution_support.dataset(dataset)
     main.fragments["reading"] = fragment_module.Fragment(fragment, ())
-    state = state_module.RuntimeState(main_frames={"telemetry": main})
+    state = state_module.RuntimeState(datasets={"telemetry": main})
     bindings = _bindings(
         state=state,
         parameters={"telemetry_source": "/data/telemetry.parquet", "null_value": None},

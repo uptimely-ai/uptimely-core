@@ -57,7 +57,7 @@ The log level applies to Uptimely loggers, not third-party dependency loggers.
 It does not enable validation; use `--validate` to run the runtime checks.
 Debug headings use `Invocation: read_constants [read]`, with the function ID
 below when different. Subsections are `Requirements:`, `Fragment:`,
-`Main frame:`, and `Merge:`, shown only when reached.
+`Dataset:`, and `Merge:`, shown only when reached.
 The merge section identifies the target profile and merge invocation.
 Internal invocation IDs remain unchanged.
 

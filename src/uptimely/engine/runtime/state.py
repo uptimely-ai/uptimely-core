@@ -11,7 +11,7 @@ from uptimely.engine.dataframe import fragment as fragment_module
 class RuntimeState:
     """Materialized profile datasets, retained fragments, and outputs for one run."""
 
-    main_frames: dict[str, dataset_module.Dataset] = dataclasses.field(default_factory=dict)
+    datasets: dict[str, dataset_module.Dataset] = dataclasses.field(default_factory=dict)
     staged_fragments: dict[str, fragment_module.Fragment] = dataclasses.field(default_factory=dict)
     calculated_outputs: dict[tuple[str, str], object] = dataclasses.field(default_factory=dict)
 
@@ -49,12 +49,12 @@ class RuntimeState:
         Raises:
             ValueError: A fragment name matches multiple datasets.
         """
-        dataset = self.main_frames.get(identifier)
+        dataset = self.datasets.get(identifier)
         if dataset is not None:
             return dataset.dataframe
         matches = [
             dataset.fragments[identifier].dataframe
-            for dataset in self.main_frames.values()
+            for dataset in self.datasets.values()
             if identifier in dataset.fragments
         ]
         if len(matches) > 1:
