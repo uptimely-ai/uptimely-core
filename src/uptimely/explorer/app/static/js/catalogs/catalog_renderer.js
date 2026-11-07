@@ -142,13 +142,10 @@ const overviewData = {
   },
   stages(data) {
     return {
-      stats: [["Stages", data.plan.stage_count], ["Invocations", data.plan.invocation_count],
-        ["Max parallel invocations", data.plan.max_parallel_invocations],
-        ["Dependencies", data.plan.dependency_count]],
+      stats: [],
       charts: [
         distribution("Invocations by stage",
           data.stages.map(stage => [`Stage ${stage.stage}`, stage.steps.length])),
-        distribution("Invocations by function kind", data.plan.function_kind_counts, { kindLabels: true }),
       ],
     };
   },
@@ -161,7 +158,7 @@ function catalogOverview(data, view) {
   const title = view[0].toUpperCase() + view.slice(1);
   const ariaLabel = view === "dimensions" ? "Dimension resolution charts" : `${title} overview`;
   return `<section id="overview" data-context-item aria-label="${ariaLabel}" class="mb-12">
-    ${["features", "dimensions"].includes(view) ? "" : `<h2 class="ui-section-title mb-6">${title} overview</h2>`}
+    ${["features", "dimensions", "stages"].includes(view) ? "" : `<h2 class="ui-section-title mb-6">${title} overview</h2>`}
     ${stats.length ? `<div class="grid gap-3 sm:grid-cols-2${stats.length > 2 ? " lg:grid-cols-4" : ""}">${stats.map(args => statistic(...args)).join("")}</div>` : ""}
     <div class="catalog-charts${["features", "dimensions"].includes(view) ? " lg:grid-cols-2" : ""}">${charts.join("")}</div>
   </section>`;

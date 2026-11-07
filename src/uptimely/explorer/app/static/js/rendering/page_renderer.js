@@ -1,4 +1,4 @@
-import { contextHeader, distribution, escape, heading, href, icon, page, statistic } from "./shared_markup.js";
+import { contextHeader, distribution, escape, heading, href, icon, page } from "./shared_markup.js";
 
 export function dashboard(data) {
   const summary = data.catalogs.summary;
@@ -55,11 +55,6 @@ export function planOverview(data) {
   return page(`<p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Execution plan</p>
     ${heading("Overview", "Plan compiled from the spec, ordered by dependency resolution.", "overview")}
     <section id="plan-overview" class="mb-16">
-      <div class="mt-8 grid gap-3 sm:grid-cols-2 lg:grid-cols-4">${[
-        ["Invocations", plan.invocation_count], ["Functions", plan.function_count],
-        ["Profiles", plan.profile_count], ["Features", plan.feature_count], ["Stages", plan.stage_count],
-        ["Dependencies", plan.dependency_count], ["Max parallel invocations", plan.max_parallel_invocations],
-      ].map(args => statistic(...args)).join("")}</div>
       <div class="catalog-charts lg:grid-cols-2">${distribution("Invocations by function kind", plan.function_kind_counts, {
         total: plan.invocation_count, kindLabels: true,
       })}
