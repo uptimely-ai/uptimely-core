@@ -2,7 +2,7 @@
 
 from .base import StrictModel
 from .binding import Binding
-from .binding_argument import BindingArgument, BindingArgumentResolver
+from .binding_argument import BindingArgument
 from .dimension import Dimension, Resolution
 from .functions import Argument, FunctionCatalog, FunctionTemplate
 from .profile import (
@@ -27,7 +27,6 @@ __all__ = [
     "SpecSource",
     "Argument",
     "Binding",
-    "BindingArgumentResolver",
     "BindingArgument",
     "Profile",
     "Dimension",

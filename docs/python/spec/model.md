@@ -77,10 +77,10 @@ feature references; joins use dimension keys instead.
 `operator.dimension_reference_paths` additionally retains each reference's relative
 binding argument path for diagnostics. Both reuse the same cached binding traversal.
 Each `BindingArgument` owns its nested traversal, parsed selectors, inferred data
-dependencies, argument-type propagation, and value resolution. `Binding` only
-stores `function` and `args` and aggregates argument views. `BindingArgumentResolver`
-supplies shared invocation context; its `resolve_arguments` method remains available
-as an adapter for raw or modeled argument mappings.
+dependencies, argument-type propagation, and value resolution from explicit
+invocation context. `Binding` stores `function` and `args`, aggregates argument
+views, and resolves its argument mapping. `Operator.resolve_args` selects the
+compute or merge binding and supplies its output-feature context.
 
 `operator.bindings` contains compute and any merge binding in that order.
 Traverse `document.operators` for operator objects, or `document.operator_items`
@@ -194,7 +194,7 @@ selector resolution.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [BindingArgument, BindingArgumentResolver]
+      members: [BindingArgument]
 
 ## binding
 

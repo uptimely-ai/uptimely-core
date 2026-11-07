@@ -143,13 +143,10 @@ class Binding(base.StrictModel):
         profile_id: str,
         feature_id: str | None = None,
         grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
-        resources: typing.Mapping[str, typing.Mapping[str, pydantic.BaseModel]] | None = None,
+        resources: binding_argument.BindingResources | None = None,
     ) -> dict[str, object]:
         """Resolve all arguments with a shared invocation context."""
-        context = binding_argument.BindingArgumentResolver(
-            current_profile_id=profile_id,
-            feature_id=feature_id,
-            grain_keys_by_profile=grain_keys_by_profile,
-            resources=resources if resources is not None else {},
-        )
-        return {name: argument.resolve(context) for name, argument in self.args.items()}
+        return {
+            name: argument.resolve(profile_id, feature_id, grain_keys_by_profile, resources)
+            for name, argument in self.args.items()
+        }

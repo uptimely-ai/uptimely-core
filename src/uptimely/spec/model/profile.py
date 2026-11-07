@@ -8,7 +8,7 @@ import typing
 import pydantic
 
 from uptimely import row_context as uptimely_row_context
-from uptimely.spec import selectors
+from uptimely.spec import functions, selectors
 
 from . import base, binding, binding_argument, merge
 
@@ -96,6 +96,37 @@ class Operator(base.StrictModel):
     def arguments(self) -> dict[str, binding_argument.BindingArgument]:
         """Return this operator's bound argument objects."""
         return self.compute.args
+
+    def resolve_args(
+        self,
+        function_id: str,
+        function_kind: functions.FunctionKindId,
+        profile_id: str,
+        grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]],
+        resources: binding_argument.BindingResources,
+        id_columns: typing.Sequence[str],
+    ) -> dict[str, object]:
+        """Resolve the matching binding's arguments in this operator's context."""
+        if function_id == self.compute.function:
+            selected_binding = self.compute
+            kind = functions.FUNCTION_KINDS[function_kind]
+            output_features = [
+                feature
+                for feature in self.output_features
+                if kind.dimension_change != "remove" or feature not in id_columns
+            ]
+            feature_id = output_features[0] if len(output_features) == 1 else None
+        elif self.merge is not None and function_id == self.merge.function:
+            selected_binding = self.merge
+            feature_id = None
+        else:
+            raise ValueError(f"Function {function_id} is not bound by operator {self.id}")
+        return selected_binding.resolve_args(
+            profile_id,
+            feature_id,
+            grain_keys_by_profile,
+            resources,
+        )
 
     @functools.cached_property
     def dataset_references(self) -> tuple[str, ...]:
