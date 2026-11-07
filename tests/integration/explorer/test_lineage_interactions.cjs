@@ -246,7 +246,7 @@ function loadLineageScript(context, filename) {
 	let source = fs.readFileSync(path.join(scriptDirectory, filename), 'utf8');
 	if (filename === 'rendering/shared_markup.js') {
 		source = source.replace(/^export /gm, '');
-		source += '\nglobalThis.dataTypeIconName = dataTypeIconName;';
+		source += '\nglobalThis.dataTypeIconName = dataTypeIconName;\nglobalThis.KINDS = KINDS;';
 	} else if (filename === 'lineage/lineage_config.js') {
 		const exports = [...source.matchAll(/^export const (\w+)/gm)]
 			.map(([, name]) => name);
@@ -254,13 +254,24 @@ function loadLineageScript(context, filename) {
 		source += `\nglobalThis.LineageConfig = { ${exports.join(', ')} };`;
 	} else if (filename === 'lineage/lineage_layout.js') {
 		source = source.replace(
-			/^import \{([\s\S]*?)\} from '\.\/lineage_config\.js';/m,
+			/^import \{([^}]*?)\} from '\.\/lineage_config\.js';/m,
 			'const {$1} = globalThis.LineageConfig;',
 		);
 		source = source.replace(
 			/export \{([\s\S]*?)\};\s*$/,
 			'globalThis.LineageLayout = {$1};',
 		);
+	} else if (filename === 'lineage/invocation_layout.js') {
+		source = source.replace(
+			/^import \{([^}]*?)\} from '\.\/lineage_config\.js';/m,
+			'const {$1} = globalThis.LineageConfig;',
+		).replace(
+			/^import \{([^}]*?)\} from '\.\/lineage_layout\.js';/m,
+			'const {$1} = globalThis.LineageLayout;',
+		);
+		const exports = [...source.matchAll(/^export function (\w+)/gm)].map(([, name]) => name);
+		source = source.replace(/^export /gm, '');
+		source += `\nglobalThis.InvocationLayout = { ${exports.join(', ')} };`;
 	} else if (filename === 'lineage/lineage_components.js') {
 		source = source.replace(
 			/^import \{ dataTypeIconName \} from '\.\.\/rendering\/shared_markup\.js';/m,
@@ -289,6 +300,13 @@ function loadLineageScript(context, filename) {
 		source += '\nglobalThis.initializeLineage = initializeLineage;';
 	} else {
 		source = source.replace(
+			/^import \{ KINDS \} from '\.\.\/rendering\/shared_markup\.js';\n/m,
+			'const { KINDS } = globalThis;\n',
+		).replace(
+			/^import \{([^}]*?)\} from '\.\/invocation_layout\.js';/m,
+			'const {$1} = globalThis.InvocationLayout;',
+		);
+		source = source.replace(
 			/^import \{ (?:ExplorerLineage|initializeLineage|mountLineageViews|projectFeatureLineage) \} from '\.\/[^']+';\n/gm,
 			'',
 		);
@@ -306,6 +324,7 @@ function loadLineageDependencies(context) {
 	for (const script of [
 		'rendering/shared_markup.js',
 		'lineage/lineage_config.js', 'lineage/lineage_layout.js',
+		'lineage/invocation_layout.js',
 		'lineage/lineage_components.js', 'lineage/lineage_initializer.js',
 		'lineage/feature_projection.js',
 	]) {
@@ -445,7 +464,11 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			ResizeObserver: class { observe() {} disconnect() { disconnected = true; } },
 			console,
 			Path2D: class { constructor(path) { this.path = path; } },
-			lucide: { icons: { Braces: [['path', { d: 'M1 2' }]] } },
+			lucide: { icons: {
+				Braces: [['path', { d: 'M1 2' }]],
+				Database: [['path', { d: 'M1 2' }]],
+				ArrowUpRight: [['path', { d: 'M1 2' }]],
+			} },
 			SpriteText: class {
 				constructor(text) {
 					this.text = text;
@@ -520,7 +543,9 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		assert.equal(graph.forces.get('charge').distanceMaxValue, 110);
 		assert.equal(graph.properties.get('nodeRelSize'), 5);
 		assert.equal(graph.properties.get('nodeResolution'), 12);
-		assert.equal(graph.properties.get('linkDirectionalArrowLength'), 4);
+		const arrowLength = graph.properties.get('linkDirectionalArrowLength');
+		assert.equal(typeof arrowLength === 'function' ? arrowLength({ source: 'before', target: 'selected' }) : arrowLength,
+			filename === 'lineage/invocation_lineage.js' ? 3.4 : 4);
 		assert.equal(graph.properties.get('linkDirectionalArrowRelPos'), 1);
 		for (const [id, object] of graph.objects) {
 			assert.deepEqual(object.geometry.parameters, {
@@ -528,7 +553,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			});
 			assert.equal(object.children[1].text, id);
 			assert.equal(object.children[1].position.y, 14);
-			assert.equal(object.material.color.value, {
+			assert.equal(object.material.color.value, filename === 'lineage/invocation_lineage.js' ? '#9fb3c3' : {
 				before: '#2dd4bf', selected: '#fb7185', after: '#ff9f43', unrelated: '#a78bfa',
 			}[id]);
 		}
@@ -541,17 +566,20 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		graph.properties.get('onNodeClick')(node);
 		if (filename === 'lineage/invocation_lineage.js') {
 			assert.deepEqual(
-				Array.from(element('invocation-node-details').rows.slice(0, 2), row => Array.from(row)),
+				Array.from(element('invocation-node-details').rows.slice(1, 3), row => Array.from(row)),
 				[['Profile', 'Selected Profile'], ['Profile ID', 'selected']],
 			);
 		}
+		const highlightedColors = filename === 'lineage/invocation_lineage.js'
+			? ['#9fb3c3', '#9fb3c3', '#9fb3c3', '#46545f']
+			: ['#2dd4bf', '#fb7185', '#ff9f43', '#46545f'];
 		assert.deepEqual(
 			[...graph.properties.get('graphData').nodes].map(graph.properties.get('nodeColor')),
-			['#2dd4bf', '#fb7185', '#ff9f43', '#46545f'],
+			highlightedColors,
 		);
 		assert.deepEqual(
 			[...graph.objects.values()].map(object => object.material.color.value),
-			['#2dd4bf', '#fb7185', '#ff9f43', '#46545f'],
+			highlightedColors,
 		);
 		for (const link of graph.properties.get('graphData').links) {
 			assert.equal(graph.properties.get('linkColor')(link), '#67e8f9');
@@ -564,7 +592,8 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		assert.ok(nodes2D[0].x < nodes2D[1].x && nodes2D[1].x < nodes2D[2].x);
 		assert.equal(new Set(nodes2D.map(node => node.y)).size, 4);
 		assert.deepEqual(graph2D.properties.get('centerAtArguments'),
-			[0, filename === 'lineage/invocation_lineage.js' ? -24 : 0, 600]);
+			[filename === 'lineage/invocation_lineage.js' ? 18 : 0,
+				filename === 'lineage/invocation_lineage.js' ? -24 : 0, 600]);
 		assert.ok(graph2D.properties.get('zoom') > 0);
 		const rectangles = [];
 		const labels = [];
@@ -591,25 +620,18 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			selected2D.cardHeight,
 			12,
 		]);
-		if (filename === 'lineage/invocation_lineage.js') {
-			assert.deepEqual(rectangles[1], [left + 12, selected2D.y - 6, 12, 12, 3]);
-			assert.equal(iconStrokes.length, 0);
-		} else {
-			assert.equal(rectangles.length, 1);
-			assert.deepEqual(iconStrokes, [['#e8edf2', 2]]);
-		}
-		const selectedColor = '#fb7185';
+		assert.equal(rectangles.length, 1);
+		assert.deepEqual(iconStrokes, [['#e8edf2', 2]]);
 		assert.deepEqual(strokes, [['#f8d66d', 3]]);
 		assert.deepEqual(fills, filename === 'lineage/invocation_lineage.js'
-			? ['#1a2732', selectedColor] : ['#172a35']);
+			? ['#1a2732'] : ['#172a35']);
 		assert.deepEqual(labels, [[
 			'selected', left + 34, selected2D.y, 70, '#e8edf2', '600 12px "DM Sans", sans-serif',
 		]]);
 		rectangles.length = labels.length = fills.length = strokes.length = 0;
 		graph2D.properties.get('nodeCanvasObject')(nodes2D[3], canvas);
 		assert.deepEqual(strokes, [['#46545f', 1.5]]);
-		assert.deepEqual(fills, filename === 'lineage/invocation_lineage.js'
-			? ['#121c24', '#46545f'] : ['#121c24']);
+		assert.deepEqual(fills, ['#121c24']);
 		if (filename === 'lineage/feature_lineage.js') {
 			assert.deepEqual(iconStrokes.at(-1), ['rgba(232, 237, 242, .3)', 2]);
 		}
@@ -621,15 +643,17 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		buttons[0].listeners.click();
 		assert.equal(buttons[0].attributes['aria-pressed'], 'true');
 		buttons[1].listeners.click();
-		assert.equal(graph.objects.get('selected').material.color.value, '#fb7185');
+		assert.equal(graph.objects.get('selected').material.color.value, highlightedColors[1]);
 		graph.properties.get('onNodeClick')(graph.properties.get('graphData').nodes[3]);
 		assert.deepEqual(
 			[...graph.objects.values()].map(object => object.material.color.value),
-			['#46545f', '#46545f', '#46545f', '#a78bfa'],
+			['#46545f', '#46545f', '#46545f',
+				filename === 'lineage/invocation_lineage.js' ? '#9fb3c3' : '#a78bfa'],
 		);
 		for (const link of graph.properties.get('graphData').links) {
 			assert.equal(graph.properties.get('linkColor')(link), '#46545f');
-			assert.equal(graph.properties.get('linkWidth')(link), 0.5);
+			assert.equal(graph.properties.get('linkWidth')(link),
+				filename === 'lineage/invocation_lineage.js' ? 0.425 : 0.5);
 		}
 		for (const [index, dimension] of ['2d', '3d'].entries()) {
 			graph.properties.get('onNodeClick')(node);
@@ -639,7 +663,8 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			element('reset-lineage').listeners.click();
 			if (dimension === '2d') {
 				assert.deepEqual(activeGraph.properties.get('centerAtArguments'),
-					[0, filename === 'lineage/invocation_lineage.js' ? -24 : 0, 600]);
+					[filename === 'lineage/invocation_lineage.js' ? 18 : 0,
+						filename === 'lineage/invocation_lineage.js' ? -24 : 0, 600]);
 			} else {
 				assert.equal(activeGraph.fitCalls.length, fitCount + 1);
 				assert.equal(activeGraph.fitCalls.at(-1)[0], 600);
@@ -648,19 +673,23 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			for (const viewGraph of graphs.values()) {
 				for (const link of viewGraph.properties.get('graphData').links) {
 					assert.equal(viewGraph.properties.get('linkColor')(link), '#8fa3b5');
-					assert.equal(viewGraph.properties.get('linkWidth')(link), 0.5);
+					assert.equal(viewGraph.properties.get('linkWidth')(link),
+						filename === 'lineage/invocation_lineage.js' && viewGraph === graph ? 0.425 : 0.5);
 				}
 			}
 			assert.ok([...graph.objects.values()].every(object => object.scale.value === undefined));
 			assert.deepEqual([...graph.objects.values()].map(object => object.material.color.value),
-				['#2dd4bf', '#fb7185', '#ff9f43', '#a78bfa']);
+				filename === 'lineage/invocation_lineage.js'
+					? ['#9fb3c3', '#9fb3c3', '#9fb3c3', '#9fb3c3']
+					: ['#2dd4bf', '#fb7185', '#ff9f43', '#a78bfa']);
 			const details = element(filename === 'lineage/feature_lineage.js'
 				? 'node-details' : 'invocation-node-details');
 			assert.equal(details.rows.length, 0);
 			for (const node2D of nodes2D) {
 				strokes.length = 0;
 				graph2D.properties.get('nodeCanvasObject')(node2D, canvas);
-				assert.equal(strokes[0][0], node2D.datasetColor);
+				assert.equal(strokes[0][0], filename === 'lineage/invocation_lineage.js'
+					? '#9fb3c3' : node2D.datasetColor);
 				assert.equal(strokes[0][0], graph.objects.get(node2D.id).material.color.value);
 			}
 			buttons[1 - index].listeners.click();
@@ -727,6 +756,8 @@ function lineageLayout(filename, nodes, links) {
 	});
 	const context = vm.createContext({
 		document: { getElementById: element, createElement },
+		Path2D: class {},
+		lucide: { icons: { Table2: [['path', { d: 'M1 2' }]] } },
 		ForceGraph: () => () => graph,
 		performance: { now: () => 1100 },
 		mountLineageViews(data, create2D) { view = create2D(container, data, () => {}); },
@@ -739,6 +770,8 @@ function lineageLayout(filename, nodes, links) {
 	const strokes = [];
 	const canvas = {
 		save() {}, restore() {}, fill() {}, stroke() { strokes.push(this.strokeStyle); }, closePath() {},
+		roundRect() {},
+		translate() {}, scale() {},
 		beginPath() { paths.push([]); },
 		moveTo(x, y) { paths.at(-1).push([x, y]); },
 		lineTo(x, y) { paths.at(-1).push([x, y]); },
@@ -749,7 +782,10 @@ function lineageLayout(filename, nodes, links) {
 	graph.properties.get('onRenderFramePre')(canvas, 1);
 	return {
 		graph, view, container, nodes: graph.properties.get('graphData').nodes,
-		rectangles, labels: labels.filter(label => !/^Stage \d+$/.test(label[0])),
+		rectangles, labels: labels.filter(label => !/^Stage \d+$/.test(label[0])
+			&& !['Dataset', 'Dataset ready', 'Selected outputs ready', 'No dataset produced'].includes(label[0])),
+		markerLabels: labels.filter(label =>
+			['Dataset', 'Dataset ready', 'Selected outputs ready', 'No dataset produced'].includes(label[0])),
 		stageLabels: labels.filter(label => /^Stage \d+$/.test(label[0])), paths, strokes, canvas,
 	};
 }
@@ -776,9 +812,14 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		assert.deepEqual(layout.labels.map(label => label[0]), datasetOrder);
 		layout.labels.forEach((label, index) => {
 			const [left, top, width] = layout.rectangles[index];
-			assert.equal(label[1], left + 32);
-			assert.equal(label[2], top + 18);
-			assert.equal(label[3], width - 64);
+			if (filename === 'lineage/invocation_lineage.js') {
+				assert.ok(label[1] < left, 'Profile names sit outside the stage grid');
+				assert.ok(label[2] > top && label[2] < top + layout.rectangles[index][3]);
+			} else {
+				assert.equal(label[1], left + 32);
+				assert.equal(label[2], top + 18);
+				assert.equal(label[3], width - 64);
+			}
 		});
 		const byId = new Map(layout.nodes.map(node => [node.id, node]));
 		assert.equal(byId.get('a').rank, 0);
@@ -854,6 +895,9 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			id: 'one', label: 'One', function_id: 'One', stage: 1,
 		}], []);
 		assert.deepEqual(layout.labels.map(label => label[0]), ['Unassigned']);
+		if (filename === 'lineage/invocation_lineage.js') {
+			assert.deepEqual(layout.markerLabels.map(label => label[0]), ['Dataset', 'No dataset produced']);
+		}
 		assert.equal(layout.nodes[0].dataset_id, 'Unassigned');
 		const [left, top, width, height] = layout.rectangles[0];
 		const assertFits = () => {

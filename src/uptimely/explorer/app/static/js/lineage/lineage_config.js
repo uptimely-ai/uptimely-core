@@ -11,6 +11,7 @@ export const CARD_STYLE = Object.freeze({
 	background: '#1a2732', featureBackground: '#172a35', dimmedBackground: '#121c24',
 	textColor: '#e8edf2', dimmedTextColor: 'rgba(232, 237, 242, .3)',
 	font: '600 12px "DM Sans", sans-serif',
+	subtitleFont: '11px "DM Sans", sans-serif', titleOffset: 9, subtitleOffset: 12,
 	borderWidth: 1.5, selectedBorderWidth: 3, selectedBorderColor: '#f8d66d',
 	iconLeft: 12, iconSize: 12, iconRadius: 3,
 	featureIconSize: 16,
@@ -21,6 +22,9 @@ export const LINK_STYLE = Object.freeze({
 	highlightWidth: 3, highlightWidthMultiplier3D: 3, width2D: 1.5,
 	particleCount: 2, particleWidth: 2, particleSpeed: 0.003,
 	highlightParticleColor: '#f8d66d',
+	transitiveColor: '#3994a3', transitiveWidth: 1.5, transitiveOpacity: 0.65,
+	transitiveWidthMultiplier3D: 1.5,
+	overviewWidth: 0.75, overviewOpacity: 0.5, unrelatedOpacity: 0.2, overviewArrowScale: 0.85,
 });
 export const DIMMED_COLOR = '#46545f';
 export const MIN_RENDER_SCALE = 0.01;

@@ -120,6 +120,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
 
     assert merge_node["phase"] == card["phase"] == "merge"
     assert merge_node["operator_id"] == card["operator_id"] == "source"
+    assert merge_node["operator_name"] == "Source"
     assert merge_node["merge_target"] == card["merge_target"] == "data"
     assert merge_node["fragment_source"] == card["fragment_source"] == "$operators.source.fragment"
     assert merge_node["merge_keys"] == card["merge_keys"] == ["id"]

@@ -5,6 +5,7 @@ import typing
 from uptimely import execution_plan, spec
 from uptimely.explorer import common
 from uptimely.spec import functions
+from uptimely.spec.model import base
 
 
 def invocation_lineage_payload(
@@ -59,6 +60,7 @@ def invocation_lineage_payload(
                 "fragment_source": invocation.arguments.get("fragment") if is_merge else None,
                 "merge_keys": invocation.arguments.get("target_keys") if is_merge else None,
                 "operator_id": invocation.operator_id,
+                "operator_name": base.humanize_identifier(invocation.operator_id),
                 "profile": invocation.dataset_id,
                 "dataset_id": invocation.dataset_id,
                 "dataset_name": dataset_name,

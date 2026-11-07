@@ -1,5 +1,10 @@
 import { ExplorerLineage } from './lineage_components.js';
 import { initializeLineage } from './lineage_initializer.js';
+import { KINDS } from '../rendering/shared_markup.js';
+import {
+	drawDatasetMarkers, drawMainframeSpines, invocationColor, invocationContribution, invocationFlowDetails, invocationLabel, invocationRole, isDefaultMerge,
+	prepareInvocationLayout,
+} from './invocation_layout.js';
 
 export function initializeInvocationLineage(signal) {
 	const STAGE_COLUMNS = Object.freeze({
@@ -7,6 +12,8 @@ export function initializeInvocationLineage(signal) {
 	});
 	const { DATASET_LAYOUT } = ExplorerLineage;
 	const invocationNodeDetails = document.getElementById('invocation-node-details');
+	let scoped = false;
+	const automaticDescription = node => isDefaultMerge(node) ? '\nAutomatically supplied default merge' : '';
 
 	function formatList(values) {
 		return Array.isArray(values) && values.length ? values.join(', ') : 'none';
@@ -27,55 +34,59 @@ export function initializeInvocationLineage(signal) {
 		const link = document.createElement('a');
 		const target = `operator-${node.dataset_id}-${node.operator_id}`;
 		link.href = `?view=profiles#${encodeURIComponent(target)}`;
-		link.textContent = node.operator_id;
+		link.textContent = node.operator_name || node.operator_id.replace(/[_-]/g, ' ')
+			.replace(/\b\w/g, letter => letter.toUpperCase());
 		row.append(label, link);
 		invocationNodeDetails.append(row);
 	}
 
-	function updateInvocationDetails(node) {
+	function updateInvocationDetails(node, fullLineage = true) {
 		if (!node) {
 			ExplorerLineage.showDetails(invocationNodeDetails, 'invocation details', [],
 				'Select an invocation to inspect its function kind, arguments, profile, declared features, and invocation dependencies.');
 			return;
 		}
 		const rows = [
+			['Highlight', fullLineage ? 'All upstream sources and downstream consumers'
+				: 'Immediate inputs and consumers only'],
 			['Profile', node.dataset_name || node.dataset_id],
 			['Profile ID', node.dataset_id],
-			['Phase', node.phase || 'compute'],
+			['Phase', invocationRole(node) === 'merge' ? 'merge' : 'compute'],
 			['Stage', node.stage],
 			['Function kind', node.function_kind || 'n/a'],
-			['Function', node.function_name || node.function_id || 'n/a'],
+			['Function', invocationLabel(node)],
 			['Function ID', node.function_id || 'n/a'],
 			['Arguments', formatArguments(node.arguments)],
 			['Profile', node.profile || 'n/a'],
 			[node.is_effect ? 'Declared feature outputs' : 'Produces',
 				node.feature || (node.is_effect ? 'None' : 'n/a')],
 		];
-		if (node.phase === 'merge') {
+		if (invocationRole(node) === 'merge') {
 			rows.push(
-				['Merge target', node.merge_target],
-				['Fragment source', node.fragment_source],
-				['Merge keys', formatList(node.merge_keys)],
+				['Merge target', node.merge_target ?? node.arguments?.target],
+				['Fragment source', node.fragment_source ?? node.arguments?.fragment],
+				['Merge keys', formatList(node.merge_keys ?? node.arguments?.target_keys)],
 			);
+			if (isDefaultMerge(node)) rows.push(['Binding', 'Automatically supplied default merge']);
 		}
 		if (node.is_effect && node.input_features?.length) {
 			rows.push(['Declared inputs', formatList(node.input_features)]);
 		}
 		rows.push(['invocation dependencies', formatList(node.dependency_ids)]);
 		ExplorerLineage.showDetails(invocationNodeDetails, 'invocation details', rows,
-			node.phase === 'merge'
-				? 'This merge invocation publishes the operator fragment into its target. Its status and dependencies are independent from the compute invocation.'
+			`${invocationFlowDetails(node, scoped)} ${invocationRole(node) === 'merge'
+				? 'Publishes the operator fragment; compute and merge are separate invocations.'
 				: node.is_effect
 				? 'Declared feature inputs and outputs define logical dependencies only. Dataframes are passed only through explicitly bound arguments; escape return values are ignored.'
-				: '');
+				: ''}`.trim());
 		appendOperatorLink(node);
 	}
 
 	function drawStageColumns(layout, ctx, scale) {
 		const top = -layout.height / 2 - STAGE_COLUMNS.headerHeight;
 		const bottom = layout.height / 2;
-		const left = -layout.bounds.width / 2;
-		const right = layout.bounds.width / 2;
+		const left = -layout.gridBounds.width / 2;
+		const right = layout.gridBounds.width / 2;
 		ctx.save();
 		ctx.font = DATASET_LAYOUT.labelFont;
 		ctx.textAlign = 'center';
@@ -106,33 +117,60 @@ export function initializeInvocationLineage(signal) {
 	}
 
 	function createLineage3D(lineageContainer, graphData, updateSelection, style, highlight) {
-		return ExplorerLineage.createLineage3D(lineageContainer, graphData, style, {
-			label: node => `${node.phase === 'merge' ? 'Merge · ' : ''}${node.function_name || node.function_id}\n${node.is_effect ? 'declared outputs' : 'produces'}: ${node.feature || 'none'}`,
-			color: node => node.phase === 'merge' ? node.mergeColor : node.datasetColor,
+		scoped = graphData.is_scoped === true;
+		return ExplorerLineage.createLineage3D(lineageContainer, graphData, { ...style, quiet_links: true }, {
+			label: node => `${invocationLabel(node)}${automaticDescription(node)}\noperator: ${node.operator_id}\n${invocationContribution(node)}`,
+			color: invocationColor,
 			onSelect: updateSelection,
 			highlight,
-			configure: forceGraph => forceGraph.linkDirectionalArrowLength(style.arrow_length)
+			configure: forceGraph => forceGraph.linkDirectionalArrowLength(link =>
+				highlight.isLinkDirect(link) ? style.arrow_length
+					: style.arrow_length * ExplorerLineage.LINK_STYLE.overviewArrowScale)
 				.linkDirectionalArrowRelPos(style.arrow_rel_pos),
-			object: node => ExplorerLineage.datasetNodeObject(node, node.function_name || node.function_id, style),
+			object: node => {
+				const role = invocationRole(node);
+				const geometry = role === 'merge'
+					? new THREE.OctahedronGeometry(style.feature_node_size, 0)
+					: role === 'enrich'
+						? new THREE.BoxGeometry(style.feature_node_size, style.feature_node_size, style.feature_node_size)
+						: new THREE.SphereGeometry(style.feature_node_size,
+							ExplorerLineage.NODE_STYLE_3D.sphereWidthSegments,
+							ExplorerLineage.NODE_STYLE_3D.sphereHeightSegments);
+				const mesh = new THREE.Mesh(geometry, new THREE.MeshLambertMaterial({
+					color: invocationColor(node),
+				}));
+				return ExplorerLineage.labeledMesh(mesh, invocationLabel(node), style,
+					ExplorerLineage.NODE_STYLE_3D.labelOffset, null,
+					KINDS[node.function_kind]?.icon || 'square-function',
+					isDefaultMerge(node) ? 'sparkles' : null);
+			},
 		});
 	}
 
 	function createLineage2D(lineageContainer, graphData, updateSelection, style, highlight) {
-		const layout = ExplorerLineage.prepareLineageLayout(
-			graphData, node => node.stage - 1,
-			node => `${node.phase === 'merge' ? 'Merge · ' : ''}${node.function_name || node.function_id}`);
+		scoped = graphData.is_scoped === true;
+		const layout = prepareInvocationLayout(graphData);
 		if (layout.columns.length) {
 			layout.bounds.y -= STAGE_COLUMNS.headerHeight / 2;
 			layout.bounds.height += STAGE_COLUMNS.headerHeight;
 		}
-		return ExplorerLineage.createLineage2D(lineageContainer, graphData, style, layout, highlight, {
-			label: node => `${node.phase === 'merge' ? 'Merge · ' : ''}${node.label}\nprofile: ${node.dataset_name || node.dataset_id}\nstage: ${node.stage}`,
+		return ExplorerLineage.createLineage2D(lineageContainer, graphData,
+			{ ...style, quiet_links: true }, layout, highlight, {
+			label: node => `${invocationLabel(node)}${automaticDescription(node)}\noperator: ${node.operator_id}\nprofile: ${node.dataset_name || node.dataset_id}\nstage: ${node.stage}\n${invocationContribution(node)}`,
 			drawNode: (node, ctx) =>
 				ExplorerLineage.drawCard(
-					node, ctx, `${node.phase === 'merge' ? 'Merge · ' : ''}${node.function_name || node.function_id}`,
-					node.phase === 'merge' ? node.mergeColor : node.datasetColor, highlight),
+					node, ctx, invocationLabel(node),
+					invocationColor(node), highlight, false,
+					{
+						iconName: KINDS[node.function_kind]?.icon || 'square-function',
+						badgeIconName: isDefaultMerge(node) ? 'sparkles' : null,
+					}),
 			onSelect: updateSelection,
-			renderOverlay: (ctx, scale) => drawStageColumns(layout, ctx, scale),
+			renderOverlay: (ctx, scale) => {
+				drawStageColumns(layout, ctx, scale);
+				drawMainframeSpines(layout, ctx, scale);
+				drawDatasetMarkers(layout, ctx, scale, ExplorerLineage.drawIcon);
+			},
 		});
 	}
 

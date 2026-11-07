@@ -25,6 +25,50 @@ const lineageComponents = `data:text/javascript;base64,${Buffer.from(
     .replace("../rendering/shared_markup.js", shared),
 ).toString("base64")}`;
 const { ExplorerLineage } = await import(lineageComponents);
+const { prepareLineageLayout, prepareLineageRoutes, lineageLinkRoute } = await import(lineageLayout);
+
+test("feature routes stay straight despite unequal column widths and skipped empty ranks", () => {
+  const nodes = [
+    { id: "source", x: 0, y: 0, cardWidth: 112, cardHeight: 38, rankRight: 140 },
+    { id: "target", x: 500, y: 0, cardWidth: 112, cardHeight: 38, rankLeft: 360 },
+    { id: "wide", x: 250, y: 100, cardWidth: 280, cardHeight: 38 },
+  ];
+  const data = { nodes, links: [{ source: "source", target: "target" }] };
+  prepareLineageRoutes(data);
+  assert.deepEqual(lineageLinkRoute(data.links[0]), [[56, 0], [444, 0]]);
+  nodes[2].y = 0;
+  prepareLineageRoutes(data);
+  const points = lineageLinkRoute(data.links[0]);
+  assert.ok(points.length > 2);
+  assert.ok(points.flat().every(Number.isFinite));
+  assert.ok(points.some(([, y]) => Math.abs(y) >= 19));
+});
+
+test("feature routes avoid cards with operators shown or hidden and mutable endpoints", () => {
+  for (const operators of [true, false]) {
+    const data = projectFeatureLineage(graphData(), operators);
+    const ranks = new Map(data.nodes.map((node, index) => [node.id, index]));
+    prepareLineageLayout(data, node => ranks.get(node.id), node => node.id);
+    const dependencies = structuredClone(data.links);
+    prepareLineageRoutes(data);
+    assert.deepEqual(data.links.map(({ routePoints, ...link }) => link), dependencies);
+    const nodes = new Map(data.nodes.map(node => [node.id, node]));
+    for (const link of data.links) {
+      link.source = nodes.get(link.source);
+      link.target = nodes.get(link.target);
+    }
+    prepareLineageRoutes(data);
+    for (const link of data.links) {
+      for (const [x, y] of lineageLinkRoute(link)) {
+        assert.ok(Number.isFinite(x) && Number.isFinite(y));
+        for (const node of data.nodes) {
+          assert.ok(x <= node.x - node.cardWidth / 2 || x >= node.x + node.cardWidth / 2
+            || y <= node.y - node.cardHeight / 2 || y >= node.y + node.cardHeight / 2);
+        }
+      }
+    }
+  }
+});
 
 function graphData() {
   return {
@@ -134,6 +178,20 @@ test("selected feature details render and initialize a data type icon", () => {
   }
 });
 
+test("profile legend does not assign merges a separate color", t => {
+  const originalDocument = globalThis.document;
+  t.after(() => { globalThis.document = originalDocument; });
+  globalThis.document = {
+    createElement: () => ({ style: { setProperty() {} } }),
+  };
+  const entries = [];
+  const data = { nodes: [{ id: "join", function_kind: "merge", dataset_id: "pump" }] };
+  ExplorerLineage.prepareDatasetColors(data, { append: item => entries.push(item) },
+    { function_color: "#b9c9d8" });
+  assert.deepEqual(entries.map(item => item.textContent), ["pump"]);
+  assert.equal(data.nodes[0].mergeColor, "#b9c9d8");
+});
+
 class Element extends EventTarget {
   constructor() {
     super();
@@ -145,7 +203,57 @@ class Element extends EventTarget {
   append(child) { this.children.push(child); child.parent = this; }
   remove() { this.parent.children = this.parent.children.filter(child => child !== this); }
   setAttribute(name, value) { this.attributes[name] = value; }
+  querySelector() { return this.children.find(child => child.tagName === "span") || null; }
 }
+
+test("invocation cards draw function-kind icons and only the operator subtitle", t => {
+  const originals = new Map(["Path2D", "lucide"].map(name => [name, globalThis[name]]));
+  t.after(() => {
+    for (const [name, value] of originals) {
+      if (value === undefined) delete globalThis[name];
+      else globalThis[name] = value;
+    }
+  });
+  globalThis.Path2D = class {
+    constructor(d) { this.d = d; }
+    ellipse(...args) { this.d = args; }
+  };
+  globalThis.lucide = { icons: {
+    GitMerge: [["path", { d: "merge-path" }]],
+    Database: [["ellipse", { cx: "12", cy: "5", rx: "9", ry: "3" }]],
+    TableProperties: [["path", { d: "vectorize-path" }]],
+    Sparkles: [["path", { d: "automatic-path" }]],
+  } };
+  const labels = [];
+  const shapes = [];
+  const icons = [];
+  const ctx = {
+    save() {}, restore() {}, beginPath() {}, fill() {},
+    translate() {}, scale() {},
+    stroke(path) { if (path) icons.push(path.d); },
+    roundRect(...args) { shapes.push(["rect", ...args]); },
+    arc(...args) { shapes.push(["circle", ...args]); },
+    moveTo(...args) { shapes.push(["move", ...args]); },
+    lineTo(...args) { shapes.push(["line", ...args]); },
+    closePath() { shapes.push(["close"]); },
+    fillText(...args) { labels.push(args); },
+  };
+  const highlight = { hasSelection: () => false, isSelected: () => false };
+  const node = { x: 0, y: 0, cardWidth: 240, cardHeight: 62 };
+  ExplorerLineage.drawCard(node, ctx, "Join inputs", "#abc", highlight, false,
+    { subtitle: "read", iconName: "git-merge", badgeIconName: "sparkles" });
+  assert.equal(labels[0][0], "Join inputs");
+  assert.equal(labels[1][0], "read");
+  assert.ok(labels[0][2] < node.y && labels[1][2] > node.y);
+  shapes.length = 0;
+  ExplorerLineage.drawCard(node, ctx, "Read inputs", "#abc", highlight, false, { iconName: "database" });
+  assert.equal(shapes.length, 1);
+  shapes.length = 0;
+  ExplorerLineage.drawCard(node, ctx, "Score", "#abc", highlight, false, { iconName: "table-properties" });
+  assert.equal(shapes.length, 1);
+  assert.deepEqual(icons, ["merge-path", "automatic-path",
+    [12, 5, 9, 3, 0, 0, Math.PI * 2], "vectorize-path"]);
+});
 
 test("feature cards and 3D labels draw type icons without adding visible type text", t => {
   const originals = new Map(["Path2D", "lucide", "document", "THREE", "SpriteText"]
@@ -223,10 +331,12 @@ test("feature cards and 3D labels draw type icons without adding visible type te
 });
 
 function harness(t, { url = "https://example.test/docs/explorer/?view=lineage", fail = () => false,
+  fullLineageToggle = false,
   projection = projectFeatureLineage } = {}) {
   const names = ["lineage", "lineage-2d", "lineage-3d", "lineage-error", "show-operators",
     "operator-legend", "reset-lineage"];
   const elements = new Map(names.map(name => [name, new Element()]));
+  if (fullLineageToggle) elements.set("show-full-lineage", new Element());
   elements.get("lineage-3d").hidden = true;
   const buttons = ["2d", "3d"].map(dimension => {
     const button = new Element();
@@ -273,6 +383,7 @@ function harness(t, { url = "https://example.test/docs/explorer/?view=lineage", 
       pauses: 0, resumes: 0, destroyed: 0, fits: 0, zooms: [],
       resize(fit) { this.resizes.push(fit); },
       selectNode(id) { this.selected = id; },
+      setFullLineage(value) { this.fullLineage = value; },
       fit() { this.fits++; },
       zoom(factor) { this.zooms.push(factor); },
     };
@@ -309,6 +420,111 @@ function harness(t, { url = "https://example.test/docs/explorer/?view=lineage", 
     },
   };
 }
+
+test("direct-neighbor highlighting excludes transitive paths and handles mutable endpoints", () => {
+  const data = {
+    nodes: ["a", "b", "c", "d", "write", "unrelated"].map(id => ({ id })),
+    links: [
+      { source: "a", target: "b" }, { source: "b", target: "c" },
+      { source: "c", target: "d" }, { source: "d", target: "write" },
+      { source: "b", target: "write" }, { source: "unrelated", target: "write" },
+    ],
+  };
+  const highlight = ExplorerLineage.createLineageHighlight(data, false);
+  const selected = data.nodes.find(node => node.id === "c");
+  highlight.select(selected);
+  assert.deepEqual(data.nodes.filter(highlight.isNodeHighlighted).map(n => n.id), ["b", "c", "d"]);
+  assert.equal(data.links.filter(highlight.isLinkHighlighted).length, 2);
+  assert.deepEqual(data.links.filter(highlight.isLinkDirect), data.links.slice(1, 3));
+  for (const link of data.links) {
+    link.source = data.nodes.find(node => node.id === link.source);
+    link.target = data.nodes.find(node => node.id === link.target);
+  }
+  highlight.setFullLineage(true);
+  assert.deepEqual(data.nodes.filter(highlight.isNodeHighlighted).map(n => n.id), ["a", "b", "c", "d", "write"]);
+  assert.equal(highlight.isSelected(selected), true);
+  assert.equal(highlight.isLinkDirect(data.links[0]), false);
+  assert.equal(highlight.isLinkDirect(data.links[1]), true);
+  highlight.setFullLineage(false);
+  assert.equal(data.links.filter(highlight.isLinkHighlighted).length, 2);
+  highlight.select(null);
+  assert.equal(highlight.hasSelection(), false);
+  assert.equal(data.links.some(highlight.isLinkDirect), false);
+  const full = ExplorerLineage.createLineageHighlight(data);
+  full.select(selected);
+  assert.equal(full.isNodeHighlighted(data.nodes[0]), true);
+});
+
+test("quiet topology draws highlighted links after dimmed links and keeps cards on top", t => {
+  const original = globalThis.ForceGraph;
+  t.after(() => {
+    if (original === undefined) delete globalThis.ForceGraph;
+    else globalThis.ForceGraph = original;
+  });
+  const callbacks = {};
+  const graph = new Proxy({}, {
+    get: (_target, name) => (...args) => { callbacks[name] = args[0]; return graph; },
+  });
+  globalThis.ForceGraph = () => () => graph;
+  const data = {
+    nodes: ["source", "selected", "other", "ancestor"].map((id, index) => ({
+      id, x: index * 200, y: 0, cardWidth: 100, cardHeight: 38,
+    })),
+    links: [
+      { source: "source", target: "selected", routePoints: [[50, 0], [150, 0]] },
+      { source: "source", target: "other", routePoints: [[50, 0], [350, 0]] },
+      { source: "ancestor", target: "source", routePoints: [[550, 0], [50, 0]] },
+    ],
+  };
+  const highlight = ExplorerLineage.createLineageHighlight(data);
+  highlight.select(data.nodes[1]);
+  const order = [];
+  ExplorerLineage.createLineage2D({ clientWidth: 800, clientHeight: 600 }, data,
+    { quiet_links: true, link_color: "#aaa" }, { bounds: {} }, highlight,
+    { label: n => n.id, drawNode: n => order.push(n.id), onSelect() {} });
+  const ctx = {
+    save() {}, restore() {}, beginPath() {}, moveTo() {}, lineTo() {}, closePath() {},
+    fill() {}, arc() {}, stroke() { order.push(this.strokeStyle); },
+  };
+  callbacks.linkCanvasObject(data.links[0], ctx, 1);
+  assert.deepEqual(order, []);
+  callbacks.linkCanvasObject(data.links[1], ctx, 1);
+  callbacks.onRenderFramePost(ctx, 1);
+  assert.deepEqual(order, [ExplorerLineage.LINK_STYLE.dimmedColor,
+    ExplorerLineage.LINK_STYLE.transitiveColor,
+    ExplorerLineage.LINK_STYLE.highlightColor, "source", "selected", "other", "ancestor"]);
+});
+
+test("full lineage toggle updates cached and new dimensions without losing selection", t => {
+  const app = harness(t, { fullLineageToggle: true, projection: null });
+  const toggle = app.elements.get("show-full-lineage");
+  const twoD = app.views[0];
+  assert.equal(toggle.disabled, true);
+  toggle.dispatchEvent(new Event("click"));
+  assert.equal(twoD.fullLineage, true);
+  twoD.select(twoD.data.nodes.find(n => n.id === "c"));
+  assert.equal(toggle.disabled, false);
+  assert.match(toggle.attributes.title, /Click for direct connections/);
+  assert.equal(twoD.fullLineage, true);
+  toggle.dispatchEvent(new Event("click"));
+  assert.equal(twoD.fullLineage, false);
+  assert.equal(toggle.attributes["aria-pressed"], "false");
+  assert.match(toggle.attributes.title, /Click for full lineage/);
+  app.buttons[1].dispatchEvent(new Event("click"));
+  const threeD = app.views[1];
+  assert.equal(threeD.fullLineage, false);
+  assert.equal(threeD.selected, "c");
+  toggle.dispatchEvent(new Event("click"));
+  assert.equal(threeD.fullLineage, true);
+  assert.equal(twoD.fullLineage, true);
+  app.buttons[0].dispatchEvent(new Event("click"));
+  assert.equal(app.views.length, 2);
+  assert.equal(twoD.selected, "c");
+  app.elements.get("reset-lineage").dispatchEvent(new Event("click"));
+  assert.equal(twoD.selected, null);
+  assert.equal(toggle.disabled, true);
+  assert.equal(toggle.attributes["aria-pressed"], "true");
+});
 
 test("both dimensions switch detail with isolated data, feature selection and cached viewports", t => {
   const app = harness(t);

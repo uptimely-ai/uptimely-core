@@ -151,28 +151,95 @@ function drawLineageLanes(layout, ctx, globalScale) {
 		ctx.fillStyle = DATASET_LAYOUT.labelColor;
 		ctx.textAlign = 'left';
 		ctx.textBaseline = 'middle';
-		ctx.fillText(lane.id, left + DATASET_LAYOUT.lanePadding,
-			top + DATASET_LAYOUT.laneHeaderHeight / 2,
-			width - 2 * DATASET_LAYOUT.lanePadding);
+		if (!layout.hideLaneLabels) {
+			ctx.fillText(lane.name || lane.id, left + DATASET_LAYOUT.lanePadding,
+				top + DATASET_LAYOUT.laneHeaderHeight / 2,
+				width - 2 * DATASET_LAYOUT.lanePadding);
+		}
 	});
 	ctx.restore();
 }
 
 function lineageLinkRoute(link) {
-	const source = link.source;
-	const target = link.target;
-	const direction = target.x >= source.x ? 1 : -1;
-	const start = [source.x + direction * source.cardWidth / 2, source.y];
-	const end = [target.x - direction * target.cardWidth / 2, target.y];
-	const skipsRanks = target.rankRight > source.rankRight
-		&& target.rankLeft - source.rankRight > DATASET_LAYOUT.rankGap;
-	if (!skipsRanks && Math.abs(start[1] - end[1]) < LINK_ROUTE.straightTolerance) return [start, end];
-	// Use column gaps and a lane gutter so long edges do not run through cards.
-	const exitX = source.rankRight + DATASET_LAYOUT.rankGap / 2;
-	const entryX = target.rankLeft - DATASET_LAYOUT.rankGap / 2;
-	const corners = skipsRanks
-		? [[exitX, start[1]], [exitX, source.routeY], [entryX, source.routeY], [entryX, end[1]]]
-		: [[exitX, start[1]], [exitX, end[1]]];
+	return roundedRoute(link.routePoints);
+}
+
+function prepareLineageRoutes(data) {
+	const endpointId = endpoint => typeof endpoint === 'object' ? endpoint.id : endpoint;
+	const nodesById = new Map(data.nodes.map(node => [node.id, node]));
+	for (const link of data.links) {
+		link.routePoints = routeBetweenCards(
+			nodesById.get(endpointId(link.source)), nodesById.get(endpointId(link.target)), data.nodes);
+	}
+}
+
+function routeBetweenCards(source, target, nodes) {
+	const margin = LINK_ROUTE.cornerRadius;
+	const ports = node => [
+		[[node.x + node.cardWidth / 2, node.y], [node.x + node.cardWidth / 2 + margin, node.y]],
+		[[node.x - node.cardWidth / 2, node.y], [node.x - node.cardWidth / 2 - margin, node.y]],
+		[[node.x, node.y + node.cardHeight / 2], [node.x, node.y + node.cardHeight / 2 + margin]],
+		[[node.x, node.y - node.cardHeight / 2], [node.x, node.y - node.cardHeight / 2 - margin]],
+	];
+	const clear = route => route.slice(1).every((end, index) => {
+		const start = route[index];
+		return nodes.every(node => {
+			const padding = node === source || node === target ? 0 : margin / 2;
+			const left = node.x - node.cardWidth / 2 - padding;
+			const right = node.x + node.cardWidth / 2 + padding;
+			const top = node.y - node.cardHeight / 2 - padding;
+			const bottom = node.y + node.cardHeight / 2 + padding;
+			return start[0] === end[0]
+				? start[0] <= left || start[0] >= right
+					|| Math.max(start[1], end[1]) <= top || Math.min(start[1], end[1]) >= bottom
+				: start[1] <= top || start[1] >= bottom
+					|| Math.max(start[0], end[0]) <= left || Math.min(start[0], end[0]) >= right;
+		});
+	});
+	const ys = [...new Set(nodes.flatMap(node => [
+		node.y - node.cardHeight / 2 - margin, node.y + node.cardHeight / 2 + margin, node.routeY,
+	]).filter(Number.isFinite))];
+	const xs = [...new Set(nodes.flatMap(node => [
+		node.x - node.cardWidth / 2 - margin, node.x + node.cardWidth / 2 + margin,
+	]))];
+	let best = null;
+	let bestLength = Infinity;
+	const consider = route => {
+		const length = route.slice(1).reduce((sum, end, index) =>
+			sum + Math.abs(end[0] - route[index][0]) + Math.abs(end[1] - route[index][1]), 0);
+		if (length >= bestLength || !clear(route)) return;
+		best = route;
+		bestLength = length;
+	};
+	for (const [start, exit] of ports(source)) {
+		for (const [end, entry] of ports(target)) {
+			consider([start, exit, [entry[0], exit[1]], entry, end]);
+			consider([start, exit, [exit[0], entry[1]], entry, end]);
+			for (const x of [(exit[0] + entry[0]) / 2, ...xs]) {
+				consider([start, exit, [x, exit[1]], [x, entry[1]], entry, end]);
+			}
+			for (const y of [(exit[1] + entry[1]) / 2, ...ys]) {
+				consider([start, exit, [exit[0], y], [entry[0], y], entry, end]);
+			}
+		}
+	}
+	if (!best) throw new Error(`Unable to route lineage dependency ${source.id} -> ${target.id}`);
+	return best;
+}
+
+function roundedRoute(route) {
+	const vertices = [];
+	for (const point of route) {
+		const previous = vertices.at(-1);
+		if (previous && point[0] === previous[0] && point[1] === previous[1]) continue;
+		const before = vertices.at(-2);
+		if (before && ((before[0] === previous[0] && previous[0] === point[0])
+			|| (before[1] === previous[1] && previous[1] === point[1]))) vertices.pop();
+		vertices.push(point);
+	}
+	const start = vertices[0];
+	const end = vertices.at(-1);
+	const corners = vertices.slice(1, -1);
 	const points = [start];
 	let current = start;
 	for (let index = 0; index < corners.length; index++) {
@@ -214,14 +281,22 @@ function createLineageLinkRenderer(data, style, highlight) {
 		const points = lineageLinkRoute(link);
 		const scale = Math.max(globalScale, MIN_RENDER_SCALE);
 		const isHighlighted = highlight.isLinkHighlighted(link);
+		const isTransitive = style.quiet_links && isHighlighted && highlight.isLinkDirect
+			&& !highlight.isLinkDirect(link);
 		const hasSelection = highlight.hasSelection();
 		const linkColor = link.dependency_type === 'fragment'
 			? style.function_colors?.merge || style.link_color : style.link_color;
 		ctx.save();
+		if (style.quiet_links && !isHighlighted) {
+			ctx.globalAlpha = hasSelection ? LINK_STYLE.unrelatedOpacity : LINK_STYLE.overviewOpacity;
+		} else if (isTransitive) {
+			ctx.globalAlpha = LINK_STYLE.transitiveOpacity;
+		}
 		ctx.strokeStyle = isHighlighted
-			? LINK_STYLE.highlightColor
+			? isTransitive ? LINK_STYLE.transitiveColor : LINK_STYLE.highlightColor
 			: hasSelection ? LINK_STYLE.dimmedColor : linkColor;
-		ctx.lineWidth = (isHighlighted ? LINK_STYLE.highlightWidth : LINK_STYLE.width2D) / scale;
+		ctx.lineWidth = (isHighlighted ? isTransitive ? LINK_STYLE.transitiveWidth : LINK_STYLE.highlightWidth
+			: style.quiet_links ? LINK_STYLE.overviewWidth : LINK_STYLE.width2D) / scale;
 		ctx.lineCap = 'round';
 		ctx.lineJoin = 'round';
 		ctx.beginPath();
@@ -232,7 +307,9 @@ function createLineageLinkRenderer(data, style, highlight) {
 		const end = points[points.length - 1];
 		const previous = points[points.length - 2];
 		const angle = Math.atan2(end[1] - previous[1], end[0] - previous[0]);
-		const arrowLength = LINK_ROUTE.arrowLength / scale;
+		const screenArrowLength = LINK_ROUTE.arrowLength
+			* (style.quiet_links && !isHighlighted ? LINK_STYLE.overviewArrowScale : 1) / scale;
+		const arrowLength = Math.min(screenArrowLength, CARD_STYLE.height / 3);
 		ctx.fillStyle = ctx.strokeStyle;
 		ctx.beginPath();
 		ctx.moveTo(end[0], end[1]);
@@ -247,6 +324,10 @@ function createLineageLinkRenderer(data, style, highlight) {
 		ctx.closePath();
 		ctx.fill();
 
+		if (style.quiet_links && !isHighlighted) {
+			ctx.restore();
+			return;
+		}
 		const segmentLengths = points.slice(1).map((point, index) =>
 			Math.hypot(point[0] - points[index][0], point[1] - points[index][1])
 		);
@@ -278,4 +359,6 @@ export {
 	createLineageLinkRenderer,
 	drawLineageLanes,
 	prepareLineageLayout,
+	prepareLineageRoutes,
+	lineageLinkRoute,
 };

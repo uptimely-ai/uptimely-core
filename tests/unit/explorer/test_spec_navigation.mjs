@@ -320,6 +320,24 @@ test("topology controls use topology labels while retaining graph hooks", () => 
   assert.match(context, /id="invocation-node-details"/);
   assert.doesNotMatch(context, /Lineage context|Reset lineage/);
   assert.doesNotMatch(context, /show-operators/);
+  assert.doesNotMatch(context, /Invocation flow|legend-dependency|legend-mainframe|lineage-guide-note/);
+  assert.match(context, /id="dataset-legend"/);
+  assert.doesNotMatch(context, /Parallel \/ unordered/);
+  assert.match(context, /id="show-full-lineage"[^>]*aria-label="Select an invocation to change highlight scope"[^>]*aria-pressed="true"[^>]*disabled/);
+  assert.match(context, /id="show-full-lineage"[^>]*><i data-lucide="route" aria-hidden="true"><\/i><\/button>/);
+});
+
+test("Dataset endpoint wording and graph payload honor scoped builds", () => {
+  for (const scoped of [false, true]) {
+    const data = { scope: { is_scoped: scoped }, graphs: {
+      invocation_lineage: { nodes: [], links: [] }, invocation_style: {},
+    } };
+    const { context, content } = lineage(data, true);
+    assert.doesNotMatch(context, /Invocation flow/);
+    const payload = JSON.parse(content.match(/id="graph-data"[^>]*>(.*?)<\/script>/)[1]);
+    assert.equal(payload.is_scoped, scoped);
+    assert.deepEqual(data.graphs.invocation_lineage, { nodes: [], links: [] });
+  }
 });
 
 test("lineage and topology reset controls use accessible icon-only buttons", () => {
@@ -373,7 +391,7 @@ test("every lineage and topology graph control has a tooltip matching its access
     const controls = context.slice(context.indexOf('<div class="lineage-control-groups">'),
       context.indexOf('<details class="panel"'));
     const buttons = [...controls.matchAll(/<button\b[^>]*>/g)].map(match => match[0]);
-    assert.equal(buttons.length, topology ? 5 : 6);
+    assert.equal(buttons.length, 6);
     for (const button of buttons) {
       const title = button.match(/\btitle="([^"]+)"/)?.[1];
       const label = button.match(/\baria-label="([^"]+)"/)?.[1];

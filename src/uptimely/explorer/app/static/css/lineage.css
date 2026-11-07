@@ -15,6 +15,8 @@ html:has(.lineage-page), .lineage-page { height: 100%; overflow: hidden; }
 	height: 40px; min-width: 40px; padding: 8px; line-height: 1; }
 .lineage-buttons { display: flex; gap: 4px; }
 .lineage-operator-toggle[aria-pressed="true"] { color: var(--color-accent); }
+.lineage-full-toggle[aria-pressed="true"] { color: var(--color-accent); }
+.lineage-full-toggle:disabled { opacity: .45; cursor: default; }
 #operator-legend[hidden] { display: none; }
 #lineage { position: absolute; inset: 0; }
 .lineage-view { position: absolute; inset: 0; }

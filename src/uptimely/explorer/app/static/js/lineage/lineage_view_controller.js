@@ -8,11 +8,22 @@ export function mountLineageViews(
 	const projections = new Map();
 	const operatorToggle = projectData ? document.getElementById('show-operators') : null;
 	const operatorLegend = projectData ? document.getElementById('operator-legend') : null;
+	const fullLineageToggle = document.getElementById('show-full-lineage');
+	let fullLineage = true;
 	let activeDimension = null;
 	let activeKey = null;
 	let activeGraph = graphData;
 	let showOperators = true;
 	let selectedId = null;
+	const updateHighlightControl = () => {
+		if (!fullLineageToggle) return;
+		fullLineageToggle.disabled = selectedId === null;
+		const label = selectedId === null ? 'Select an invocation to change highlight scope'
+			: `Highlight scope: ${fullLineage ? 'full lineage. Click for direct connections' : 'direct connections. Click for full lineage'}`;
+		fullLineageToggle.setAttribute('aria-label', label);
+		fullLineageToggle.setAttribute('title', label);
+		fullLineageToggle.setAttribute('aria-pressed', String(fullLineage));
+	};
 	const readOperators = () => {
 		if (!projectData) return true;
 		const value = new URL(window.location.href).searchParams.get('operators');
@@ -23,7 +34,8 @@ export function mountLineageViews(
 	};
 	const selectNode = node => {
 		selectedId = node?.id ?? null;
-		showDetails(node);
+		updateHighlightControl();
+		showDetails(node, fullLineage);
 		for (const view of views.values()) view.selectNode?.(selectedId);
 	};
 	const showView = (dimension, operators = showOperators) => {
@@ -61,6 +73,7 @@ export function mountLineageViews(
 			return false;
 		}
 		const view = views.get(key);
+		if (fullLineageToggle) view.setFullLineage?.(fullLineage);
 		if (activeDimension) {
 			views.get(activeKey).forceGraph.pauseAnimation();
 			containers.get(activeKey).hidden = true;
@@ -93,6 +106,12 @@ export function mountLineageViews(
 		const url = new URL(window.location.href);
 		url.searchParams.set('operators', operators ? 'show' : 'hide');
 		window.history.pushState(null, '', url);
+	}, { signal });
+	fullLineageToggle?.addEventListener('click', () => {
+		if (selectedId === null) return;
+		fullLineage = !fullLineage;
+		for (const view of views.values()) view.setFullLineage?.(fullLineage);
+		selectNode(activeGraph.nodes.find(node => node.id === selectedId) || null);
 	}, { signal });
 	document.getElementById('reset-lineage').addEventListener('click', () => {
 		selectNode(null);
