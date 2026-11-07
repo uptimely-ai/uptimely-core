@@ -251,15 +251,15 @@ The invocation executor checks input requirements only when validation is
 enabled, in fail-fast order: foreign dataframe argument, source reference,
 source availability, then source features; other invocation kinds check local
 or unambiguous cross-profile features.
-`FragmentValidator` always checks raw dataframe type, required dimensions, and
-declared output columns before projection; validation additionally checks
-optional type, uniqueness, and preservation contracts.
-`ColumnsValidator` always checks the vectorize result type and complete
-schema, and checks existing values and row order when validation is enabled.
-`DatasetValidator` checks the accumulated dataframe's structure and declared
-types of columns already present. Merge-result structural checks and feature
-collision checks are mandatory even when runtime validation is disabled;
-declared type and key uniqueness checks are enabled by `--validate`.
+`Fragment.stage()` delegates raw-result checks to
+`Fragment.validate_invocation_result()`. That method always checks dataframe type,
+required dimensions, and declared
+outputs before projection; validation additionally checks optional type,
+uniqueness, and preservation contracts.
+`Dataset` owns checks for the accumulated dataframe, merge collisions and
+candidate results, and vectorized results. Structural and schema checks are
+mandatory even when runtime validation is disabled; declared type, key
+uniqueness, and data-preservation checks are enabled by `--validate`.
 `Dataset.merge()` independently guards direct physical assembly calls.
 
 Validation functions emit debug messages when checking a contract or skipping

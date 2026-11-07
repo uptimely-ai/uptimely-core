@@ -10,7 +10,6 @@ from uptimely import plan as execution_plan
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.spec import arg_types
 from uptimely.spec import function_kinds as functions
 
@@ -176,30 +175,33 @@ class InvocationExecutor:
         target = current.dataframe if current is not None else None
         logger.debug("  Merge:\n    Target profile: %s", dataset_id)
         arguments = self.bindings.resolve_args(invocation, staged_fragment=fragment.dataframe)
-        if target is not None:
-            dataframe_validation.DatasetValidator(
-                self.backend,
-                target,
-                invocation.id_columns,
-                "Accumulated profile",
+        if current is not None:
+            current.validate_fragment_merge(
+                fragment,
+                description="Accumulated profile",
                 column_types=invocation.column_types,
-            ).validate_merge(fragment.dataframe, validate=self.validate)
+                validate=self.validate,
+            )
 
         result = self._invoke(invocation, arguments=arguments)
-        result_validator = dataframe_validation.DatasetValidator(
+        candidate = dataset_module.Dataset(
             self.backend,
+            invocation.id_columns,
             result,
-            invocation.id_columns,
-            f"Merge result {invocation.function_id}",
+        )
+        candidate.validate_merge_candidate(
+            target,
+            fragment,
+            description=f"Merge result {invocation.function_id}",
             column_types=invocation.column_types,
+            validate=self.validate,
         )
-        result_validator.validate_merge_result(target, fragment.dataframe, validate=self.validate)
 
-        dataset = current or dataset_module.Dataset(
-            self.backend,
-            invocation.id_columns,
-        )
-        dataset.dataframe = result
+        if current is None:
+            dataset = candidate
+        else:
+            current.dataframe = result
+            dataset = current
         dataset.fragments[fragment.invocation.operator_id] = fragment
         self.state.main_frames[dataset_id] = dataset
         del self.state.staged_fragments[fragment_id]
@@ -223,19 +225,15 @@ class InvocationExecutor:
             frame = self._invoke(invocation, arguments=arguments)
         else:
             frame = self._invoke(invocation)
-        validator = dataframe_validation.ColumnsValidator(
-            self.backend,
+        output_features = dataset.validate_vectorized_result(
             frame,
-            invocation.id_columns,
-            f"Vectorize result {invocation.function_id}",
-            column_types=invocation.column_types,
-            invocation=invocation,
-            comparison_frame=comparison_frame,
+            invocation,
+            comparison_frame,
+            preserve_data=self.validate,
         )
-        validator.validate(preserve_data=self.validate)
         calculated_outputs = {
             (dataset_id, output): self.backend.select(frame, [*invocation.id_columns, output])
-            for output in validator.output_features
+            for output in output_features
         }
         dataset.dataframe = frame
         self.state.calculated_outputs.update(calculated_outputs)

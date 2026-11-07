@@ -18,10 +18,11 @@ independently of the run's `validate` flag.
 The spec's `Profile` describes the analytical model. The engine's `Dataset` is
 only the accumulated physical dataframe materialized for that profile; it is not
 a spec declaration. Each runtime Dataset owns its `dataframe` and explicit `id_columns`.
-`Fragment.stage(...)` calls a compute invocation's loader, checks the raw result with `FragmentValidator` when
-`validate=True`, derives its carried keys, and projects declared outputs. The
-executor retains that fragment by compute invocation ID without changing the
-profile's accumulated dataframe.
+`Fragment.stage(...)` calls a compute invocation's loader, asks the Fragment to
+check the raw result, derives its carried keys, and projects declared outputs.
+Required structure and declared-output checks always run; content, uniqueness,
+and type checks run when `validate=True`. The executor retains that fragment by
+compute invocation ID without changing the profile's accumulated dataframe.
 
 The separately scheduled merge invocation resolves its pending fragment and
 current target, then calls the merge function declared by the Spec. The default
@@ -34,14 +35,14 @@ publication, reusing the staged object rather than copying the dataframe.
 Staging and merging preserve lazy execution unless enabled validation needs to
 inspect values.
 
-`Dataset(backend, id_columns, dataframe=None)` needs neither a profile declaration nor
-a Spec. The invocation executor translates profile grain keys into physical ID
-column names. Invocation-based result validation and output projection happen during
-fragment staging, before assembly; `Dataset` does not interpret invocation metadata.
-Argument binding uses `invocation.argument_types`; staging and validation use
-`invocation.id_columns`, `invocation.column_types`, and the invocation's function
-kind. The compiler resolves these values from declarations. Runtime execution
-does not receive profile objects or traverse the bundled Spec.
+`Dataset(backend, id_columns, dataframe=None)` needs neither a profile declaration
+nor a Spec. The invocation executor translates profile grain keys into physical ID
+column names. `Fragment` validates and projects staged results; `Dataset` validates
+its accumulated frame, merge candidates, and vectorized results before publication.
+These operations use `invocation.id_columns`, `invocation.column_types`, and the
+invocation's function kind where needed. The compiler resolves these values from
+declarations. Runtime execution does not receive profile objects or traverse the
+bundled Spec.
 
 `Dataset.merge(fragment)` remains the direct physical assembly helper and
 selects assembly by its keys:
@@ -66,8 +67,8 @@ after their merge succeeds.
 
 A run passes its `validate` flag to the invocation executor and fragment staging.
 When enabled, the invocation executor checks input requirements before invoking
-operators, staging calls `FragmentValidator` before projection, and merge
-checks declared types and key uniqueness before publishing. Regardless of the
+operators, `Fragment` checks optional content contracts before projection, and
+`Dataset` checks declared types and key uniqueness before publishing. Regardless of the
 flag, merge output must be a dataframe with required dimensions and the complete
 expected target schema; overlapping feature columns are rejected.
 Publishing is transactional with respect to the executor's assignment: a failed

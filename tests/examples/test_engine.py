@@ -143,7 +143,7 @@ def test_engine_cli_reports_processed_profiles(
     assert "  Function: read_constants\n" not in output
     assert "\n  Fragment:\n    - checking dataframe type\n" in output
     assert "Fragment read_constants:" not in output
-    assert "\n  Main frame:\n    - checking dataframe type\n" in output
+    assert "\n  Dataset:\n    - checking dataframe type\n" in output
     assert "Enriched target frame:" in output
     assert "    - checking existing values and row order" in output
     assert "\n  Completed in " not in output

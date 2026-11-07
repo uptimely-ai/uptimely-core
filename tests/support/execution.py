@@ -11,7 +11,6 @@ from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import validation as dataframe_validation
 from uptimely.spec import model as spec_model
 
 
@@ -52,24 +51,17 @@ def merge_fragment(
             comparison_frame=main.dataframe,
         )
     else:
-        dataframe_validation.FragmentValidator(
+        fragment.validate_invocation_result(
             main.backend,
-            fragment.dataframe,
-            list(fragment.dimensions),
-            "Fragment",
-            invocation=invocation,
+            invocation,
             output_features=[],
-        ).validate()
+        )
     if main.dataframe is not None:
-        validator = dataframe_validation.DatasetValidator(
-            main.backend,
-            main.dataframe,
-            invocation.id_columns,
-            "Accumulated profile",
+        main.validate_accumulated_frame(
+            description="Accumulated profile",
             column_types=invocation.column_types,
         )
-        validator.validate()
-        validator.validate_merge(fragment.dataframe)
+        main.validate_fragment_merge(fragment)
     main.merge(
         fragment,
         fragment_id=fragment.invocation.operator_id if fragment.invocation is not None else None,
