@@ -8,7 +8,7 @@ same definitions.
 
 ## Function kinds
 
-`uptimely.spec.functions` defines immutable function-kind contracts and their
+`uptimely.spec.function_kinds` defines immutable function-kind contracts and their
 string identifiers. `FUNCTION_KINDS` is a read-only mapping from each supported
 identifier to its contract. `produces_fragment` distinguishes assembled
 contributions from `vectorize`, which returns a complete enriched target frame.
@@ -47,7 +47,7 @@ assume their foreign source has the target's rows. Feature dependencies and
 explicit dataframe arguments remain distinct: a logical output does not
 materialize an ignored return value.
 
-::: uptimely.spec.functions
+::: uptimely.spec.function_kinds
     options:
       heading_level: 3
       show_root_heading: false

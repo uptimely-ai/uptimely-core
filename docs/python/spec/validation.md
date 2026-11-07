@@ -2,8 +2,10 @@
 
 `uptimely.spec.validation` provides semantic validation and the structured
 `SpecError` exception. Pydantic checks document shape and field types; semantic
-validators check relationships between declarations. Neither imports executable
-function implementations or constructs compiler invocations.
+validators check relationships between declarations. Function return kinds and
+dataframe argument counts are checked by methods on their owning
+`FunctionTemplate`. Neither imports executable function implementations or
+constructs compiler invocations.
 
 The public [load_spec and from_python](api.md) helpers still validate
 automatically by default. Pass `validate=False` to defer semantic validation
@@ -92,7 +94,7 @@ Pydantic reports document-shape errors separately.
 | `rules.profiles` | Profile dimension membership |
 | `rules.dimensions` | Parent references and ancestry cycles |
 | `rules.features` | Feature ownership discovery and uniqueness |
-| `rules.functions` | Function return and dataframe argument contracts |
+| `rules.functions` | Recheck function return and dataframe argument contracts |
 | `rules.bindings` | Supplied argument names and structural selector types |
 | `rules.operators` | Operator declarations and iteration |
 | `rules.operators.inputs` | Input feature scope, structural references, and source discovery |

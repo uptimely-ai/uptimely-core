@@ -10,7 +10,7 @@ Use `engine.run(validate=True)` to validate input features, schema/types,
 dimension-key uniqueness, row-count and key preservation, and output collisions
 at every step for eager and lazy frames. Lazy value checks may repeatedly execute
 upstream queries. Configuration and saved-build checks are always enabled.
-`EngineValidator` checks plan/backend compatibility during engine construction,
+The engine checks plan/backend compatibility during construction,
 independently of the run's `validate` flag.
 
 ## Main frames and fragments
@@ -62,11 +62,11 @@ are keyed by compute invocation ID and become operator-name references only
 after their merge succeeds.
 
 A run passes its `validate` flag to the invocation executor and fragment staging.
-When enabled, the executor calls `InvocationValidator` before invoking
+When enabled, the invocation executor checks input requirements before invoking
 operators, staging calls `FragmentValidator` before projection, and merge
 checks declared types and key uniqueness before publishing. Regardless of the
-flag, merge output must be a dataframe with required dimensions and the
-complete expected target schema; overlapping feature columns are rejected.
+flag, merge output must be a dataframe with required dimensions and the complete
+expected target schema; overlapping feature columns are rejected.
 Publishing is transactional with respect to the executor's assignment: a failed
 merge leaves the previously published main frame unchanged. It cannot undo
 mutation performed by an arbitrary user function, so merge functions must not

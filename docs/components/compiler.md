@@ -112,25 +112,25 @@ stages preserve that order.
 
 ## API migration and rebuilding plans
 
-Load the Spec, compile it, and save the plan with `uptimely.execution_plan`:
+Load the Spec, compile it, and save the plan with `uptimely.plan`:
 
 ```python
-from uptimely import compiler, execution_plan, spec
+from uptimely import compiler, plan as plan_io, spec
 
 specification = spec.load_spec("spec.json")
-plan = compiler.Compiler().compile(
+compiled_plan = compiler.Compiler().compile(
     specification,
     features=["health_signal_normalized"],
 )
-execution_plan.export_json(plan, "execution_plan.json")
-restored = execution_plan.from_json("execution_plan.json")
+plan_io.export_json(compiled_plan, "execution_plan.json")
+restored = plan_io.from_json("execution_plan.json")
 assert [invocation.id for invocation in restored.invocations] == [
-    invocation.id for invocation in plan.invocations
+    invocation.id for invocation in compiled_plan.invocations
 ]
 ```
 
 Load a Spec with `uptimely.spec.load_spec` before passing it to `Compiler`.
-Use `uptimely.execution_plan` to read and write plans, and use
+Use `uptimely.plan` to read and write plans, and use
 `ExecutionPlan.invocations` to access the planned steps. Do not rely on the
 format of their IDs.
 

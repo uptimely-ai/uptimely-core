@@ -119,7 +119,9 @@ Interface inputs are optional: if omitted, feature references in compute
 and optional merge arguments are inferred as dependencies, excluding declared
 outputs and retaining first-occurrence order. If supplied, they define the
 dependencies instead; an empty input list disables inference. `Interface`
-rejects duplicate output IDs when constructed.
+validates feature references and rejects repeated input or output IDs when
+constructed. It checks them again during conversion, so later mutations of its
+collections cannot bypass those checks.
 
 `Binding` owns function metadata (`kind` and `reference`), callable argument
 validation (`bound_arguments()`), and conversion (`to_model()` and

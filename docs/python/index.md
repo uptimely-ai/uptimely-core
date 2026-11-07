@@ -18,10 +18,10 @@ and return values generated from the Python source.
 | `uptimely.compiler` | <span id="compilation"></span><span id="portable-plans"></span>[Compiler and plans](compiler.md) | Compile spec and read or write portable plans. |
 | `uptimely.engine` | <span id="execution"></span>[Execution engine](engine.md) | Execute plans with configurable runtime adapters. |
 | `uptimely.explorer` | <span id="analytics-explorer"></span>[Analytics Explorer](explorer.md) | Prepare data for the static Explorer frontend. |
-| `uptimely.row_context` | [Row context](row-context.md) | Describe row windows passed to analytical functions. |
+| `uptimely.spec.row_context` | [Row context](row-context.md) | Describe row windows passed to analytical functions. |
 | `uptimely.entrypoint` | [Python entrypoints](entrypoint.md) | Load Python callables and inspect their signatures. |
 | `uptimely.storage` | [Storage](storage.md) | Read local files and S3 objects through a shared interface. |
-| `uptimely.spec.functions` | [Spec vocabulary](spec-vocabulary.md) | Inspect function kinds, return kinds, and kind rules. |
+| `uptimely.spec.function_kinds` | [Spec vocabulary](spec-vocabulary.md) | Inspect function kinds, return kinds, and kind rules. |
 | `uptimely.spec.arg_types` | [Spec vocabulary](spec-vocabulary.md) | Inspect atomic and recursive argument types. |
 | `uptimely.spec.selectors` | [Spec vocabulary](spec-vocabulary.md) | Inspect structural reference prefixes and selectors. |
 
