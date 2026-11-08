@@ -196,11 +196,11 @@ def test_cli_errors_use_stderr_terminal_colors(
     message = output.getvalue()
     assert ("\033[31m" in message) is (terminal and not no_color)
     if terminal and not no_color:
-        assert "\033[31muptimely: error: " in message
+        assert "\033[31mERROR    | " in message
         assert message.count("\033[") == 2
         assert message.endswith("\n\033[0m")
     else:
-        assert "uptimely: error:" in message
+        assert "ERROR    |" in message
         assert "\033[" not in message
         assert message.endswith("\n")
 
@@ -482,6 +482,7 @@ def test_run_log_level_filters_uptimely_only_and_restores_configuration(
             getattr(logging, message_level.upper()) >= getattr(logging, level.upper())
         )
     assert ("execution failed" in output.err) is failed
+    assert ("Traceback (most recent call last):" in output.err) is (failed and level == "debug")
     assert ("View results in Explorer:" in output.out) is (
         not failed and level in ("debug", "info")
     )
@@ -624,7 +625,7 @@ def test_engine_preview_errors_are_reported(
         )
     assert error.value.code == 1
     output = capsys.readouterr()
-    assert "uptimely: error:" in output.err
+    assert "ERROR    |" in output.err
     assert "Engine processed" in output.out
     assert "Profile:" not in output.out
 
@@ -736,7 +737,7 @@ def test_workflow_missing_inputs_are_reported(
         invoke(monkeypatch, *command, "--project-root", str(tmp_path))
     assert error.value.code == 1
     result = capsys.readouterr()
-    assert "uptimely: error:" in result.err
+    assert "ERROR    |" in result.err
     assert "uptimely project build --project-root" in result.err
     if command == ["engine", "run"]:
         assert result.out == ("INFO     | Start Uptimely engine run\n")
@@ -784,7 +785,7 @@ def test_engine_invalid_config_is_reported(
         )
     assert error.value.code == 1
     result = capsys.readouterr()
-    assert "uptimely: error:" in result.err
+    assert "ERROR    |" in result.err
     assert "Engine processed" not in result.out
 
 
@@ -879,7 +880,7 @@ def test_engine_invalid_build_fails_before_execution(
         )
     assert error.value.code == 1
     result = capsys.readouterr()
-    assert "uptimely: error:" in result.err
+    assert "ERROR    |" in result.err
     assert "uptimely project build --project-root" in result.err
     expected = "INFO     | Start Uptimely engine run\n"
     if content is not None:
@@ -900,5 +901,5 @@ def test_invalid_spec_is_reported(
         invoke(monkeypatch, *command, "--spec", str(spec_definition))
     assert error.value.code == 1
     result = capsys.readouterr()
-    assert "uptimely: error:" in result.err
+    assert "ERROR    |" in result.err
     assert not result.out

@@ -37,6 +37,10 @@ existing, or allowed columns relevant to each check.
 Tables, feature trees, and dataframe previews retain their structured layouts.
 Semantic spec validation logs `Start spec validation` at info level before
 checking the spec and `Spec validated` only after successful validation.
+Command failures use `ERROR    | MESSAGE` on stderr with exit code 1.
+Argument-parser errors use the same error prefix. Commands supporting
+`--log-level debug` also show the full chained exception traceback, including
+source filenames and line numbers; other log levels retain concise errors.
 
 <div class="api-reference" markdown="1">
 

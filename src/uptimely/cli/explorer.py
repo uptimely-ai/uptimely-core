@@ -95,7 +95,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             output = explorer_export.export_static(project_root, args.output)
             logger.info("Explorer export created at %s", output)
         except (OSError, ValueError, RuntimeError) as error:
-            parser.exit(1, f"uptimely: error: {error}\n")
+            common.exit_with_error(parser, error)
         return
 
     try:
@@ -110,4 +110,4 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         )
         serve_explorer(project_root, args.host, args.port, scope)
     except (OSError, ValueError, RuntimeError) as error:
-        parser.exit(1, f"uptimely: error: {error}\n")
+        common.exit_with_error(parser, error)

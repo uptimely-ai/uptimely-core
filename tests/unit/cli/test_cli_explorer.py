@@ -82,7 +82,7 @@ def test_explorer_reports_invalid_build(
 
     assert error.value.code == 1
     message = capsys.readouterr().err
-    assert "uptimely: error:" in message
+    assert "ERROR    |" in message
     assert "uptimely project build --project-root" in message
     assert (
         "No active build found" in message

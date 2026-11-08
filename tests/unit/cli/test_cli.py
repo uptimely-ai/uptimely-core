@@ -116,7 +116,7 @@ def test_missing_version_is_reported(
     with pytest.raises(SystemExit) as result:
         cli.main()
     assert result.value.code == 1
-    assert "uptimely: error:" in capsys.readouterr().err
+    assert "ERROR    |" in capsys.readouterr().err
     assert github == []
     assert list(tmp_path.iterdir()) == []
 
@@ -270,7 +270,7 @@ def test_invalid_archives_are_reported(
     with pytest.raises(SystemExit) as error:
         cli.main()
     assert error.value.code == 1
-    assert "uptimely: error:" in capsys.readouterr().err
+    assert "ERROR    |" in capsys.readouterr().err
     assert list(tmp_path.iterdir()) == []
 
 
@@ -298,7 +298,7 @@ def test_network_errors_are_reported(
     with pytest.raises(SystemExit) as result:
         cli.main()
     assert result.value.code == 1
-    assert "uptimely: error:" in capsys.readouterr().err
+    assert "ERROR    |" in capsys.readouterr().err
     assert list(tmp_path.iterdir()) == []
 
 

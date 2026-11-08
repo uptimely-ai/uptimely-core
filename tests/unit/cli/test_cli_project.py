@@ -359,6 +359,8 @@ def test_failed_build_prints_trace_without_summary_and_preserves_logging(
     assert result.out == (f"{'DEBUG':8} | attempting build\n{'WARNING':8} | build warning\n")
     assert "\nBuild summary" not in result.out
     assert "injected failure" in result.err
+    assert "Traceback (most recent call last):" in result.err
+    assert "fail_build" in result.err
     assert target.handlers == handlers
     assert target.propagate == propagate
 
