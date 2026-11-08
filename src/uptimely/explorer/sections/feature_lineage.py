@@ -47,8 +47,8 @@ def _node_data(
             operator_id=reference.operator_id,
             features=list(reference.features),
             profile=reference.profile_id,
-            dataset_id=reference.dataset_id,
-            dataset_name=reference.dataset_name,
+            profile_id=reference.profile_id,
+            profile_name=reference.profile_name,
             function_id=reference.function.id,
             function_name=reference.function.name,
             function_kind=reference.function.kind,
@@ -64,8 +64,8 @@ def _node_data(
         label=reference.display_name or reference.name,
         feature_id=reference.name,
         profile=reference.profile_id,
-        dataset_id=reference.dataset_id,
-        dataset_name=reference.dataset_name,
+        profile_id=reference.profile_id,
+        profile_name=reference.profile_name,
         data_type=reference.data_type,
     )
 

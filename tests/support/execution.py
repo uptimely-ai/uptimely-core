@@ -38,7 +38,7 @@ def merge_fragment(
         entrypoint="test:read",
         function_id="read",
         operator_id="read",
-        dataset_id="dataset",
+        profile_id="dataset",
         id_columns=list(main.id_columns),
         column_types=dict(dimension_types or {}),
     )
@@ -104,9 +104,9 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
     functions = dict(resources.get("functions", {}))
 
     for invocation in execution_plan.invocations:
-        if invocation.dataset_id is None:
+        if invocation.profile_id is None:
             continue
-        profile = profiles.setdefault(invocation.dataset_id, {"grain": []})
+        profile = profiles.setdefault(invocation.profile_id, {"grain": []})
         if not profile.get("grain") and invocation.id_columns:
             profile["grain"] = []
             for key in invocation.id_columns:
@@ -132,7 +132,7 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
         )
         function.setdefault("entrypoint", invocation.entrypoint)
         function.setdefault("args", {})
-        profile.setdefault("name", invocation.dataset_id)
+        profile.setdefault("name", invocation.profile_id)
         features = profile.setdefault("features", {})
         for feature in invocation.output_features:
             features.setdefault(
@@ -178,17 +178,17 @@ def bundle_for_plan(
                     invocation,
                     id_columns=(
                         invocation.id_columns
-                        or bundle_spec.grain_keys_by_profile[invocation.dataset_id]
+                        or bundle_spec.grain_keys_by_profile[invocation.profile_id]
                     ),
                     column_types={
                         **{
                             key: feature.type
                             for key, feature in bundle_spec.profiles[
-                                invocation.dataset_id
+                                invocation.profile_id
                             ].features.items()
                             if feature.type is not None
                         },
-                        **bundle_spec.grain_key_types_by_profile[invocation.dataset_id],
+                        **bundle_spec.grain_key_types_by_profile[invocation.profile_id],
                         **invocation.column_types,
                     },
                     argument_types={

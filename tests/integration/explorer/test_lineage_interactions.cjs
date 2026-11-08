@@ -473,8 +473,8 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		element('graph-data').textContent = JSON.stringify({
 			nodes: ['before', 'selected', 'after', 'unrelated'].map((id, index) => ({
 				id, label: id, label_lines: [id], stage: index + 1,
-				function_id: id, function_kind: 'read', entity: 'test', dataset_id: id,
-				dataset_name: ({ before: 'Before', selected: 'Selected Profile', after: 'After', unrelated: 'Unrelated' })[id],
+				function_id: id, function_kind: 'read', entity: 'test', profile_id: id,
+				profile_name: ({ before: 'Before', selected: 'Selected Profile', after: 'After', unrelated: 'Unrelated' })[id],
 			})),
 			links: [
 				{ source: 'before', target: 'selected' },
@@ -786,7 +786,7 @@ test('shared card sizing preserves width bounds', () => {
 	loadLineageDependencies(context);
 	const dimensions = vm.runInContext(`
 		const nodes = ['a', 'selected', 'x'.repeat(100)]
-			.map((label, index) => ({ id: String(index), label, dataset_id: 'test' }));
+			.map((label, index) => ({ id: String(index), label, profile_id: 'test' }));
 		ExplorerLineage.prepareLineageLayout({ nodes, links: [] }, () => 0, node => node.label);
 		nodes.map(node => [node.cardWidth, node.cardHeight]);
 	`, context);
@@ -848,12 +848,12 @@ function lineageLayout(filename, nodes, links) {
 for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineage.js']) {
 	test(`${filename}: dataset lanes preserve global ranks and deterministic connectivity ordering`, () => {
 		const nodes = [
-			{ id: 'a', dataset_id: 'a_source', stage: 1 },
-			{ id: 'z', dataset_id: 'a_source', stage: 1 },
-			{ id: 'a_operator', dataset_id: 'z_output', stage: 2 },
-			{ id: 'z_operator', dataset_id: 'z_output', stage: 2 },
-			{ id: 'result', dataset_id: 'a_source', stage: 3 },
-			{ id: 'other', dataset_id: 'b_isolated', stage: 1 },
+			{ id: 'a', profile_id: 'a_source', stage: 1 },
+			{ id: 'z', profile_id: 'a_source', stage: 1 },
+			{ id: 'a_operator', profile_id: 'z_output', stage: 2 },
+			{ id: 'z_operator', profile_id: 'z_output', stage: 2 },
+			{ id: 'result', profile_id: 'a_source', stage: 3 },
+			{ id: 'other', profile_id: 'b_isolated', stage: 1 },
 			{ id: 'missing', stage: 1 },
 		].map(node => ({ ...node, label: node.id, function_id: node.id, function_kind: 'read' }));
 		const links = [
@@ -889,7 +889,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			assert.ok(layout.paths[0].flat().every(Number.isFinite));
 		}
 		for (const node of layout.nodes) {
-			const laneIndex = datasetOrder.indexOf(node.dataset_id);
+			const laneIndex = datasetOrder.indexOf(node.profile_id);
 			const [left, top, width, height] = layout.rectangles[laneIndex];
 			assert.ok(node.x - node.cardWidth / 2 >= left);
 			assert.ok(node.x + node.cardWidth / 2 <= left + width);
@@ -907,7 +907,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 
 	test(`${filename}: long-edge routes avoid intervening cards`, () => {
 		const nodes = ['start', 'middle', 'end'].map((id, index) => ({
-			id, label: id, function_id: id, stage: index + 1, dataset_id: 'shared',
+			id, label: id, function_id: id, stage: index + 1, profile_id: 'shared',
 		}));
 		const layout = lineageLayout(filename, nodes, [
 			{ source: 'start', target: 'middle' },
@@ -953,7 +953,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		if (filename === 'lineage/invocation_lineage.js') {
 			assert.deepEqual(layout.markerLabels.map(label => label[0]), ['Dataset', 'No dataset produced']);
 		}
-		assert.equal(layout.nodes[0].dataset_id, 'Unassigned');
+		assert.equal(layout.nodes[0].profile_id, 'Unassigned');
 		const [left, top, width, height] = layout.rectangles[0];
 		const assertFits = () => {
 			const zoom = layout.graph.properties.get('zoom');
@@ -979,9 +979,9 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 
 test('invocation lanes use execution stages, not inferred dependency depths', () => {
 	const layout = lineageLayout('lineage/invocation_lineage.js', [
-		{ id: 'first', function_id: 'same_function', dataset_id: 'a', stage: 1 },
-		{ id: 'later', function_id: 'same_function', dataset_id: 'b', stage: 4 },
-		{ id: 'last', function_id: 'last', dataset_id: 'a', stage: 7 },
+		{ id: 'first', function_id: 'same_function', profile_id: 'a', stage: 1 },
+		{ id: 'later', function_id: 'same_function', profile_id: 'b', stage: 4 },
+		{ id: 'last', function_id: 'last', profile_id: 'a', stage: 7 },
 	], [
 		{ source: 'first', target: 'later' },
 		{ source: 'later', target: 'last' },
@@ -1001,8 +1001,8 @@ test('invocation lanes use execution stages, not inferred dependency depths', ()
 
 test('fragment assembly edges use merge function-kind styling', () => {
 	const layout = lineageLayout('lineage/invocation_lineage.js', [
-		{ id: 'compute', label: 'Read values', function_id: 'read', function_kind: 'read', dataset_id: 'data', stage: 1 },
-		{ id: 'merge', label: 'Join values', function_id: 'join', function_kind: 'merge', dataset_id: 'data', stage: 2, phase: 'merge' },
+		{ id: 'compute', label: 'Read values', function_id: 'read', function_kind: 'read', profile_id: 'data', stage: 1 },
+		{ id: 'merge', label: 'Join values', function_id: 'join', function_kind: 'merge', profile_id: 'data', stage: 2, phase: 'merge' },
 	], [{ source: 'compute', target: 'merge', dependency_type: 'fragment' }]);
 	const link = layout.graph.properties.get('graphData').links[0];
 
@@ -1013,9 +1013,9 @@ test('fragment assembly edges use merge function-kind styling', () => {
 
 test('invocation stage columns span dataset rows and contain their cards', () => {
 	const layout = lineageLayout('lineage/invocation_lineage.js', [
-		{ id: 'a', function_id: 'a', dataset_id: 'first', stage: 1 },
-		{ id: 'b', function_id: 'long_function_name', dataset_id: 'second', stage: 1 },
-		{ id: 'c', function_id: 'c', dataset_id: 'second', stage: 2 },
+		{ id: 'a', function_id: 'a', profile_id: 'first', stage: 1 },
+		{ id: 'b', function_id: 'long_function_name', profile_id: 'second', stage: 1 },
+		{ id: 'c', function_id: 'c', profile_id: 'second', stage: 2 },
 	], [{ source: 'a', target: 'c' }, { source: 'b', target: 'c' }]);
 	assert.deepEqual(layout.stageLabels.map(label => label[0]), ['Stage 1', 'Stage 2']);
 	assert.equal(layout.nodes[0].x, layout.nodes[1].x);

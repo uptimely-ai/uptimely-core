@@ -10,14 +10,13 @@ class OperatorNode:
     operator_id: str
     features: tuple[str, ...]
     profile_id: str
-    dataset_id: str
     function: model.FunctionTemplate = dataclasses.field(compare=False, hash=False)
-    dataset_name: str | None = None
+    profile_name: str | None = None
     operator: model.Operator | None = dataclasses.field(default=None, compare=False, hash=False)
 
     @property
     def node_id(self) -> str:
-        """Stable graph identifier for this operator in its dataset."""
+        """Stable graph identifier for this operator in its profile."""
         return f"operator:{self.profile_id}:{self.operator_id}"
 
     def __str__(self) -> str:
@@ -34,9 +33,8 @@ class FeatureNode:
     name: str
     data_type: str | None = None
     profile_id: str | None = None
-    dataset_id: str | None = None
     display_name: str | None = None
-    dataset_name: str | None = None
+    profile_name: str | None = None
     is_input: bool = False
     is_output: bool = False
     is_source_input: bool = False

@@ -179,7 +179,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
       function_kind: "merge",
       function_name: merge.function_label,
       operator_id: merge.operator_id,
-      dataset_id: "readings",
+      profile_id: "readings",
       merge_target: merge.merge_target,
       fragment_source: merge.fragment_source,
       merge_keys: merge.merge_keys,
@@ -421,8 +421,8 @@ test("lineage views expose original canvases, controls and script-safe graph dat
   assert.match(lineage(sampleData(), true).context, /id="invocation-node-details"/);
   const topologyData = sampleData();
   topologyData.graphs.invocation_lineage.nodes = [
-    { id: "first", dataset_id: "readings", function_kind: "merge" },
-    { id: "second", dataset_id: "readings", function_kind: "merge" },
+    { id: "first", profile_id: "readings", function_kind: "merge" },
+    { id: "second", profile_id: "readings", function_kind: "merge" },
     { id: "third", function_kind: "<custom>" },
   ];
   const topology = lineage(topologyData, true).context;

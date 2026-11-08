@@ -84,7 +84,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == 6
+    assert result.plan_version == 7
     assert not hasattr(result, "main_frames")
     assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
     assert set(result.datasets) == {"telemetry"}
@@ -150,7 +150,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             entrypoint="test:read_first",
             function_id="read_first",
             operator_id="first",
-            dataset_id="telemetry",
+            profile_id="telemetry",
             output_features=["id", "first"],
             id_columns=["id"],
         ),
@@ -160,7 +160,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             entrypoint="test:read_second",
             function_id="read_second",
             operator_id="second",
-            dataset_id="telemetry",
+            profile_id="telemetry",
             output_features=["id", "second"],
             id_columns=["id"],
         ),
@@ -175,7 +175,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             entrypoint="test:custom_merge",
             function_id="custom_merge",
             operator_id=operator_id,
-            dataset_id="telemetry",
+            profile_id="telemetry",
             arguments={
                 "target": "telemetry",
                 "fragment": "$operators.@.fragment",
@@ -198,13 +198,13 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
         entrypoint="test:write",
         function_id="write",
         operator_id="write",
-        dataset_id="telemetry",
+        profile_id="telemetry",
         arguments={"dataset": "telemetry"},
         dependency_ids=[merge_second_id],
         argument_types={"dataset": "dataframe"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=6,
+        plan_version=7,
         required_backend="polars",
         resources={
             "dimensions": {"id": {"resolutions": {"id": {"key": "id", "type": "string"}}}},
@@ -598,7 +598,7 @@ def test_executor_validates_inputs_against_current_runtime_state(
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
-        dataset_id="dataset",
+        profile_id="dataset",
         input_features=["local"],
     )
 
@@ -728,12 +728,12 @@ def test_escape_ignores_any_return_without_materializing_features(
         entrypoint="test:escape",
         function_id="external_operator",
         operator_id="operator",
-        dataset_id="external",
+        profile_id="external",
         output_features=[],
         input_features=["external_input"],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=6,
+        plan_version=7,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -780,7 +780,7 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         entrypoint="test:first",
         function_id="first",
         operator_id="first",
-        dataset_id="external",
+        profile_id="external",
         output_features=["first_output"],
         input_features=["external_input"],
     )
@@ -790,13 +790,13 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         entrypoint="test:second",
         function_id="second",
         operator_id="second",
-        dataset_id="external",
+        profile_id="external",
         output_features=[],
         input_features=["first_output"],
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=6,
+        plan_version=7,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -829,13 +829,13 @@ def test_escape_resolves_literal_and_runtime_arguments(
         entrypoint="test:escape",
         function_id="external_operator",
         operator_id="operator",
-        dataset_id="external",
+        profile_id="external",
         output_features=[],
         input_features=["external_input"],
         arguments={"path": "$params.output", "mode": "replace"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=6,
+        plan_version=7,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -877,7 +877,7 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         entrypoint="test:first",
         function_id="first",
         operator_id="first",
-        dataset_id="external",
+        profile_id="external",
         output_features=[],
         input_features=["external_input"],
         arguments={"frame": "missing"},
@@ -892,7 +892,7 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=6,
+        plan_version=7,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -941,7 +941,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         entrypoint="test:read",
         function_id="load",
         operator_id="load",
-        dataset_id="telemetry",
+        profile_id="telemetry",
         output_features=["asset_id", "reading"],
     )
     merge_invocation = uptimely_plan.Invocation(
@@ -950,7 +950,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         entrypoint="test:merge",
         function_id="combine",
         operator_id="load",
-        dataset_id="telemetry",
+        profile_id="telemetry",
         id_columns=["asset_id"],
         arguments={
             "target": "telemetry",
@@ -970,7 +970,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         entrypoint="test:escape",
         function_id="external_operator",
         operator_id="external_result",
-        dataset_id="telemetry",
+        profile_id="telemetry",
         output_features=["external_result"],
         input_features=["reading"],
         arguments={"dataset": "telemetry"},
@@ -982,13 +982,13 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         entrypoint="test:consume",
         function_id="consume",
         operator_id="consume",
-        dataset_id="telemetry",
+        profile_id="telemetry",
         output_features=["processed"],
         input_features=["external_result"],
         dependency_ids=[escape_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=6,
+        plan_version=7,
         required_backend="polars",
         resources={
             "dimensions": {
@@ -1049,7 +1049,7 @@ def test_escape_exception_fails_and_skips_downstream(
         entrypoint="test:first",
         function_id="first",
         operator_id="first",
-        dataset_id="external",
+        profile_id="external",
         output_features=[],
         input_features=["external_input"],
     )
@@ -1063,7 +1063,7 @@ def test_escape_exception_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=6,
+        plan_version=7,
         required_backend="polars",
         resources={
             "profiles": {"external": {"grain": []}},
@@ -1257,19 +1257,19 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
         engine.parameters,
         state,
     )
-    for dataset_id in ("first", "second"):
+    for profile_id in ("first", "second"):
         read = copy.replace(
             next(item for item in engine.plan.invocations if item.function_kind == "read"),
-            dataset_id=dataset_id,
+            profile_id=profile_id,
             operator_id="shared",
         )
         merge = copy.replace(
             next(item for item in engine.plan.invocations if item.function_kind == "merge"),
-            id=f"invocation:merge:__uptimely_merge_by_grain:{dataset_id}:shared",
-            dataset_id=dataset_id,
+            id=f"invocation:merge:__uptimely_merge_by_grain:{profile_id}:shared",
+            profile_id=profile_id,
             operator_id="shared",
             arguments={
-                "target": dataset_id,
+                "target": profile_id,
                 **{
                     key: value
                     for key, value in next(
@@ -1356,7 +1356,7 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
     elif invalid == "non_reference":
         invocation.arguments["source"] = 1
     elif invalid == "target_reference":
-        invocation.arguments["source"] = invocation.dataset_id
+        invocation.arguments["source"] = invocation.profile_id
     elif invalid == "missing_source":
         invocation.arguments["source"] = "missing"
     elif invalid == "missing_feature":
@@ -1435,7 +1435,7 @@ def test_vectorize_requires_an_accumulated_target() -> None:
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
-        dataset_id="telemetry",
+        profile_id="telemetry",
     )
 
     with pytest.raises(ValueError, match="Profile dataframe is unavailable: telemetry"):
@@ -1456,7 +1456,7 @@ def test_column_projection_failure_preserves_published_state(
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
-        dataset_id="telemetry",
+        profile_id="telemetry",
         output_features=["first", "second"],
     )
     result = original.with_columns(pl.lit(4).alias("first"), pl.lit(6).alias("second"))
@@ -1525,7 +1525,7 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
-        dataset_id="dataset",
+        profile_id="dataset",
         id_columns=["key"],
         output_features=["doubled"],
         arguments={"dataset": "dataset"},
@@ -1601,7 +1601,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         entrypoint="test:read",
         function_id="load",
         operator_id="load",
-        dataset_id="telemetry",
+        profile_id="telemetry",
         output_features=["asset_id", "reading"],
     )
     merge_invocation = uptimely_plan.Invocation(
@@ -1610,7 +1610,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         entrypoint="uptimely.library.merge.polars:merge_by_grain",
         function_id="merge_by_grain",
         operator_id="load",
-        dataset_id="telemetry",
+        profile_id="telemetry",
         output_features=[],
         input_features=[],
         arguments={
@@ -1633,14 +1633,14 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="reading_plus_one",
-        dataset_id="telemetry",
+        profile_id="telemetry",
         output_features=["reading_plus_one", "reading_times_two"],
         arguments={"dataset": "telemetry"},
         argument_types={"dataset": "dataframe"},
         dependency_ids=[merge_invocation.id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=6,
+        plan_version=7,
         required_backend="polars",
         resources={
             "dimensions": {

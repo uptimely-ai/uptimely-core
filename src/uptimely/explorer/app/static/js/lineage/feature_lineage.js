@@ -19,8 +19,8 @@ export function initializeFeatureLineage(signal) {
 		const label = node.label || node.id || 'Unknown';
 		const profileSection = {
 			title: 'Profile', icon: 'layers-2', rows: [
-				['Name', node.dataset_name || node.dataset_id || node.profile],
-				['Profile ID', node.dataset_id || node.profile],
+				['Name', node.profile_name || node.profile_id || node.profile],
+				['Profile ID', node.profile_id || node.profile],
 			],
 		};
 		if (node.is_operator === true) {

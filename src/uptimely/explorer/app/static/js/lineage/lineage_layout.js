@@ -24,12 +24,12 @@ function prepareLineageLayout(graphData, rankForNode, labelForNode) {
 		sizeCard(node, labelForNode(node));
 		if (!rankGroups.has(node.rank)) rankGroups.set(node.rank, []);
 		rankGroups.get(node.rank).push(node);
-		if (!lanes.has(node.dataset_id)) {
-			lanes.set(node.dataset_id, {
-				id: node.dataset_id, ranks: new Map(), connections: new Map(),
+		if (!lanes.has(node.profile_id)) {
+			lanes.set(node.profile_id, {
+				id: node.profile_id, ranks: new Map(), connections: new Map(),
 			});
 		}
-		const lane = lanes.get(node.dataset_id);
+		const lane = lanes.get(node.profile_id);
 		if (!lane.ranks.has(node.rank)) lane.ranks.set(node.rank, []);
 		lane.ranks.get(node.rank).push(node);
 	}
@@ -38,10 +38,10 @@ function prepareLineageLayout(graphData, rankForNode, labelForNode) {
 		const target = nodesById.get(link.target);
 		neighbors.get(source.id).push(target);
 		neighbors.get(target.id).push(source);
-		if (source.dataset_id === target.dataset_id) continue;
+		if (source.profile_id === target.profile_id) continue;
 		for (const [from, to] of [[source, target], [target, source]]) {
-			const connections = lanes.get(from.dataset_id).connections;
-			connections.set(to.dataset_id, (connections.get(to.dataset_id) || 0) + 1);
+			const connections = lanes.get(from.profile_id).connections;
+			connections.set(to.profile_id, (connections.get(to.profile_id) || 0) + 1);
 		}
 	}
 	// Keep strongly connected datasets adjacent, without assuming a dataset DAG.
@@ -113,7 +113,7 @@ function prepareLineageLayout(graphData, rankForNode, labelForNode) {
 			node.x = node.fx;
 			node.rankLeft = node.x - rankWidths.get(rank) / 2;
 			node.rankRight = node.x + rankWidths.get(rank) / 2;
-			const lane = lanes.get(node.dataset_id);
+			const lane = lanes.get(node.profile_id);
 			node.routeY = lane.top + lane.height - DATASET_LAYOUT.lanePadding / 2 - layoutHeight / 2;
 		}
 	}

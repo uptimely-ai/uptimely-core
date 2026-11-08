@@ -26,7 +26,7 @@ def _invocation(
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
-        dataset_id="dataset",
+        profile_id="dataset",
         id_columns=["key"],
         output_features=output_features or [],
         column_types=column_types or {},

@@ -247,9 +247,9 @@ def test_engine_merges_fragments_by_profile_grain_keys(
     )
 
     operation = next(
-        operation for operation in engine.plan.invocations if operation.dataset_id == "pump_profile"
+        operation for operation in engine.plan.invocations if operation.profile_id == "pump_profile"
     )
-    grain_keys = engine.spec_definition.grain_keys_by_profile[operation.dataset_id]
+    grain_keys = engine.spec_definition.grain_keys_by_profile[operation.profile_id]
     main = execution_support.dataset(
         existing,
         grain_keys,
@@ -382,9 +382,9 @@ def test_engine_validates_required_fragment_columns_and_types(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.dataset_id == "pump_profile" and item.function_kind == "collapse"
+        if item.profile_id == "pump_profile" and item.function_kind == "collapse"
     )
-    grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.dataset_id]
+    grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.profile_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
     columns: dict[str, list[object]] = {name: [f"{name}-1"] for name in grain_keys}
     columns[output] = ["wrong type" if invalid_column == "output" else 1.5]
@@ -423,9 +423,9 @@ def test_engine_assembly_rejects_feature_collisions(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.dataset_id == "pump_profile" and item.function_kind == "collapse"
+        if item.profile_id == "pump_profile" and item.function_kind == "collapse"
     )
-    grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.dataset_id]
+    grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.profile_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
     keys = {name: [f"{name}-1"] for name in grain_keys}
     result = pl.DataFrame({**keys, output: [1.5]})
@@ -466,12 +466,12 @@ def test_engine_rejects_invalid_fragments(
         pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
     )
     operation = next(
-        operation for operation in engine.plan.invocations if operation.dataset_id == "pump_profile"
+        operation for operation in engine.plan.invocations if operation.profile_id == "pump_profile"
     )
 
     main = execution_support.dataset(
         None,
-        engine.spec_definition.grain_keys_by_profile[operation.dataset_id],
+        engine.spec_definition.grain_keys_by_profile[operation.profile_id],
         backend=engine.backend,
     )
     with pytest.raises(ValueError, match=message):

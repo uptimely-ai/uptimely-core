@@ -95,8 +95,8 @@ function prepareDatasetColors(data, container, style = {}) {
 	const datasets = new Map(data.nodes
 		.filter(node => !node.is_operator)
 		.map(node => [
-			node.dataset_id || LineageConfig.UNASSIGNED_DATASET,
-			node.dataset_name || node.dataset_id || LineageConfig.UNASSIGNED_DATASET,
+			node.profile_id || LineageConfig.UNASSIGNED_DATASET,
+			node.profile_name || node.profile_id || LineageConfig.UNASSIGNED_DATASET,
 		]));
 	const datasetIds = [...datasets.keys()].sort((a, b) =>
 		datasets.get(a).localeCompare(datasets.get(b)));
@@ -108,8 +108,8 @@ function prepareDatasetColors(data, container, style = {}) {
 	})));
 	const mergeColor = style.function_colors?.merge || style.function_color;
 	for (const node of data.nodes) {
-		node.dataset_id = node.dataset_id || LineageConfig.UNASSIGNED_DATASET;
-		node.datasetColor = colors.get(node.dataset_id);
+		node.profile_id = node.profile_id || LineageConfig.UNASSIGNED_DATASET;
+		node.datasetColor = colors.get(node.profile_id);
 		node.mergeColor = mergeColor;
 	}
 }

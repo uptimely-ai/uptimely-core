@@ -278,24 +278,24 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         result = engine.run()
 
         expected_outputs = {
-            (invocation.dataset_id, feature)
+            (invocation.profile_id, feature)
             for invocation in plan.invocations
             if invocation.function_kind == functions.VECTORIZE
             for feature in invocation.output_features
         }
         actual_outputs = set(result.calculated_outputs)
         outputs_by_dataset: dict[str, list[str]] = {}
-        for dataset_id, feature_id in sorted(actual_outputs):
-            outputs_by_dataset.setdefault(dataset_id, []).append(feature_id)
+        for profile_id, feature_id in sorted(actual_outputs):
+            outputs_by_dataset.setdefault(profile_id, []).append(feature_id)
         datasets: list[dict[str, typing.Any]] = []
-        for dataset_id, features in sorted(outputs_by_dataset.items()):
-            frame = _collect_frame(result.datasets.get(dataset_id))
+        for profile_id, features in sorted(outputs_by_dataset.items()):
+            frame = _collect_frame(result.datasets.get(profile_id))
             if frame is None or not hasattr(frame, "to_dicts"):
                 raise TypeError(
-                    f"Execution produced calculated outputs for profile {dataset_id} "
+                    f"Execution produced calculated outputs for profile {profile_id} "
                     "without a serializable dataset"
                 )
-            profile_key = snapshot.spec.profile_keys.get(dataset_id)
+            profile_key = snapshot.spec.profile_keys.get(profile_id)
             grain_keys = (
                 snapshot.spec.grain_keys_by_profile[profile_key] if profile_key is not None else []
             )
@@ -304,7 +304,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             rows = view.head(max_rows).to_dicts()
             datasets.append(
                 {
-                    "profile": dataset_id,
+                    "profile": profile_id,
                     "features": features,
                     "columns": view.columns,
                     "row_count": len(rows),

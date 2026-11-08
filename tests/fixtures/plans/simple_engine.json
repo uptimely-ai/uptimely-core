@@ -1,5 +1,5 @@
 {
-  "plan_version": 6,
+  "plan_version": 7,
   "required_backend": "polars",
   "resources": {
     "dimensions": {
@@ -80,7 +80,7 @@
       "entrypoint": "test:read",
       "function_id": "load",
       "operator_id": "reading",
-      "dataset_id": "telemetry",
+      "profile_id": "telemetry",
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},
       "argument_types": {"source": "string"},
@@ -98,7 +98,7 @@
       "entrypoint": "test:double",
       "function_id": "double",
       "operator_id": "doubled",
-      "dataset_id": "telemetry",
+      "profile_id": "telemetry",
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},
       "argument_types": {"column": "string", "dataset": "dataframe"},
@@ -122,7 +122,7 @@
       "entrypoint": "uptimely.library.merge.polars:merge_by_grain",
       "function_id": "__uptimely_merge_by_grain",
       "operator_id": "reading",
-      "dataset_id": "telemetry",
+      "profile_id": "telemetry",
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},
       "argument_types": {
@@ -145,7 +145,7 @@
       "entrypoint": "test:write",
       "function_id": "save",
       "operator_id": "save_doubled",
-      "dataset_id": "telemetry",
+      "profile_id": "telemetry",
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},
       "argument_types": {"dataset": "dataframe", "features": "array[string]"},

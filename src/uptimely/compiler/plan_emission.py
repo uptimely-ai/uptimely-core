@@ -20,17 +20,17 @@ def emit_invocation(
             f"Missing entrypoint for function {node.function_id} "
             f"used by operator {node.operator_id}"
         )
-    profile_key = spec_definition.profile_keys[node.dataset_id]
+    profile_key = spec_definition.profile_keys[node.profile_id]
     id_columns = spec_definition.grain_keys_by_profile[profile_key]
     arguments = graph.operator_for(node).resolve_args(
         function_id=node.function_id,
         function_kind=function.kind,
-        profile_id=node.dataset_id,
+        profile_id=node.profile_id,
         grain_keys_by_profile=spec_definition.grain_keys_by_profile,
         resources=spec_definition.binding_resources,
         id_columns=id_columns,
     )
-    profile = spec_definition.profiles[node.dataset_id]
+    profile = spec_definition.profiles[node.profile_id]
     column_types = {
         feature_id: feature.type
         for feature_id, feature in profile.features.items()
@@ -42,7 +42,7 @@ def emit_invocation(
         entrypoint=function.entrypoint,
         function_id=node.function_id,
         operator_id=node.operator_id,
-        dataset_id=node.dataset_id,
+        profile_id=node.profile_id,
         output_features=list(node.output_features),
         input_features=list(node.input_features),
         arguments=arguments,

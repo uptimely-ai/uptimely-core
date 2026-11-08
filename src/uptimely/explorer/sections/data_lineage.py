@@ -127,7 +127,7 @@ class _DataLineageBuilder:
                 feature=feature,
             )
         self.compact_datasets = {
-            invocation.dataset_id
+            invocation.profile_id
             for invocation in invocations
             if functions.FUNCTION_KINDS[invocation.function_kind].dimension_change == "remove"
         }
@@ -196,7 +196,7 @@ class _DataLineageBuilder:
             if (
                 column.role == "Input"
                 and source is not None
-                and source.dataset.id != invocation.dataset_id
+                and source.dataset.id != invocation.profile_id
             ):
                 source_columns.setdefault(source.dataset.id, []).append(column)
 
@@ -227,7 +227,7 @@ class _DataLineageBuilder:
         self, invocation: plan_module.Invocation, columns: list[DataLineageColumn]
     ) -> list[DataLineageColumn]:
         """Keep materialized columns, moving replaced outputs to the end."""
-        previous = self.accumulated.setdefault(invocation.dataset_id, {})
+        previous = self.accumulated.setdefault(invocation.profile_id, {})
         inputs = set(invocation.input_features)
         current = {
             name: dataclasses.replace(column, role="Input" if name in inputs else "Existing")
@@ -243,10 +243,10 @@ class _DataLineageBuilder:
 
     def _step(self, invocation: plan_module.Invocation) -> DataLineageStep:
         """Assemble one invocation's schema, input tables, and dependencies."""
-        profile = self.definition.profiles[invocation.dataset_id]
+        profile = self.definition.profiles[invocation.profile_id]
         kind = functions.FUNCTION_KINDS[invocation.function_kind]
         dataset = (
-            self.definition.profiles.get(invocation.dataset_id) if invocation.dataset_id else None
+            self.definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
         )
         grain_keys = set(
             self.definition.grain_keys_by_profile[self.definition.profile_keys[profile.id]]
@@ -264,9 +264,9 @@ class _DataLineageBuilder:
         )
         function = self.definition.functions.get(invocation.function_id)
         dataset_label = UNASSIGNED_DATASET_LABEL
-        if invocation.dataset_id:
+        if invocation.profile_id:
             dataset_label = (
-                dataset.name if dataset is not None and dataset.name else invocation.dataset_id
+                dataset.name if dataset is not None and dataset.name else invocation.profile_id
             )
         return DataLineageStep(
             number=self.numbers[invocation.id],
@@ -278,7 +278,7 @@ class _DataLineageBuilder:
             operator=model_base.humanize_identifier(invocation.operator_id),
             kind=kind,
             profile=profile.id,
-            dataset=invocation.dataset_id,
+            dataset=invocation.profile_id,
             dataset_label=dataset_label,
             grain=", ".join(
                 self.definition.grain_keys_by_profile[self.definition.profile_keys[profile.id]]
@@ -290,7 +290,7 @@ class _DataLineageBuilder:
             ),
             input_tables=self._input_tables(invocation, profile, columns),
             main_columns=self._main_columns(invocation, columns),
-            row_count=1 if invocation.dataset_id in self.compact_datasets else 3,
+            row_count=1 if invocation.profile_id in self.compact_datasets else 3,
         )
 
 

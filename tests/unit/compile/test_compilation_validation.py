@@ -218,7 +218,7 @@ def test_signatures_reuse_function_contracts_only_within_one_compilation(
     nodes = [
         invocation_graph.InvocationNode(
             function_id=function_id,
-            dataset_id="entity",
+            profile_id="entity",
             operator_id=operator,
             function_kind=specification.functions[function_id].kind,
         )

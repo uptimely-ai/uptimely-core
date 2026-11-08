@@ -17,7 +17,7 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `6`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `7`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `resources` | object | Compiler-generated metadata not represented by the Spec, including inspected function return annotations and entrypoint package provenance. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
@@ -25,7 +25,7 @@ A plan is one JSON object. Its root fields are:
 
 All root fields are required. Unknown fields and unsupported versions are
 rejected. Earlier plan versions are not converted. Rebuild generated bundles
-from their source Specs to create version 6 plans.
+from their source Specs to create version 7 plans.
 
 ## Resources
 
@@ -48,6 +48,10 @@ invocations that must finish first. Invocation IDs are opaque references.
 Consumers must not infer operation or identity metadata by parsing their
 spelling.
 
+Version 7 replaces invocation `dataset_id` with `profile_id`, without a
+legacy alias. Datasets are engine-owned runtime accumulators, not invocation
+declaration metadata. Rebuild existing bundles from their source Specs.
+
 | Field | JSON type | Meaning |
 | --- | --- | --- |
 | `id` | string | Unique identifier for this invocation. |
@@ -55,7 +59,7 @@ spelling.
 | `entrypoint` | string | Implementation location for the function. |
 | `function_id` | string | Function declaration used by the invocation. |
 | `operator_id` | string | Operator declaration used by the invocation. |
-| `dataset_id` | string or null | Profile identifier receiving or supplying dataframe state. |
+| `profile_id` | string or null | Declared profile receiving or supplying dataframe state. |
 | `arguments` | object | Resolved arguments passed to the function. Runtime storage placeholders remain unresolved. |
 | `input_features` | array of strings | Features declared as inputs to the operation. |
 | `output_features` | array of strings | Features produced by the operation. |
@@ -134,7 +138,7 @@ Use `uptimely.plan` to read and write plans, and use
 `ExecutionPlan.invocations` to access the planned steps. Do not rely on the
 format of their IDs.
 
-Plans earlier than version 6, including version 5 plans, are not supported.
+Plans earlier than version 7, including version 6 plans with `dataset_id`, are not supported.
 Rebuild from the source Spec with `uptimely build PROJECT_ROOT`.
 Plans lacking invocation runtime metadata (`id_columns`, `column_types`, and
 `argument_types`) must likewise be rebuilt.

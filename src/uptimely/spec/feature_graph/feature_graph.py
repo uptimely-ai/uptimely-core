@@ -143,7 +143,7 @@ class FeatureGraph(FeatureGraphBase):
         self.graph = self._create_graph()
 
     def _declared_features(self) -> dict[str, models.FeatureNode]:
-        """Resolve output metadata directly from operators and dataset declarations."""
+        """Resolve output metadata directly from operators and profile declarations."""
         feature_metadata: dict[str, models.FeatureNode] = {}
         for key, operator in self.spec.operator_items:
             profile = self.spec.operator_profiles[key]
@@ -165,9 +165,8 @@ class FeatureGraph(FeatureGraphBase):
                     name=name,
                     data_type=data_type,
                     profile_id=profile_id,
-                    dataset_id=profile.id,
                     display_name=feature.name,
-                    dataset_name=profile.name,
+                    profile_name=profile.name,
                     is_source_input=is_source_input,
                 )
                 existing = feature_metadata.get(name)
@@ -239,8 +238,7 @@ class FeatureGraph(FeatureGraphBase):
                 operator_id=operator.id,
                 features=tuple(sorted(outputs)),
                 profile_id=profile_id,
-                dataset_id=profile.id,
-                dataset_name=profile.name,
+                profile_name=profile.name,
                 operator=operator,
                 function=self.spec.functions[operator.compute.function],
             )

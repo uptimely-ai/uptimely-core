@@ -32,11 +32,11 @@ export function initializeInvocationLineage(signal) {
 			['Function kind', KINDS[node.function_kind]?.label || node.function_kind || 'n/a'],
 			['Function ID', node.function_id || 'n/a'],
 		];
-		if (node.operator_id && node.dataset_id) {
+		if (node.operator_id && node.profile_id) {
 			const operatorName = node.operator_name || node.operator_id.replace(/[_-]/g, ' ')
 				.replace(/\b\w/g, letter => letter.toUpperCase());
 			definitionRows.push(['Owning operator', operatorName, null,
-				`?view=profiles#${encodeURIComponent(`operator-${node.dataset_id}-${node.operator_id}`)}`]);
+				`?view=profiles#${encodeURIComponent(`operator-${node.profile_id}-${node.operator_id}`)}`]);
 		}
 		const outputRows = [
 			[node.is_effect ? 'Declared feature outputs' : 'Produces',
@@ -59,8 +59,8 @@ export function initializeInvocationLineage(signal) {
 				? Object.entries(node.arguments).map(([name, value]) => [name, JSON.stringify(value)])
 				: [['Bindings', 'None']] },
 			{ title: 'Profile', icon: 'layers-2', rows: [
-				['Name', node.dataset_name || node.dataset_id || node.profile],
-				['Profile ID', node.dataset_id || node.profile],
+				['Name', node.profile_name || node.profile_id || node.profile],
+				['Profile ID', node.profile_id || node.profile],
 			] },
 			{ title: 'Data flow', icon: 'arrow-right-from-line', rows: outputRows },
 			{ title: 'Connections', icon: 'git-branch', rows: [
@@ -149,7 +149,7 @@ export function initializeInvocationLineage(signal) {
 		}
 		return ExplorerLineage.createLineage2D(lineageContainer, graphData,
 			{ ...style, quiet_links: true }, layout, highlight, {
-			label: node => `${invocationLabel(node)}${automaticDescription(node)}\noperator: ${node.operator_id}\nprofile: ${node.dataset_name || node.dataset_id}\nstage: ${node.stage}\n${invocationContribution(node)}`,
+			label: node => `${invocationLabel(node)}${automaticDescription(node)}\noperator: ${node.operator_id}\nprofile: ${node.profile_name || node.profile_id}\nstage: ${node.stage}\n${invocationContribution(node)}`,
 			drawNode: (node, ctx) =>
 				ExplorerLineage.drawCard(
 					node, ctx, invocationLabel(node),
