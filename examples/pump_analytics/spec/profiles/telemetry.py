@@ -14,7 +14,7 @@ from uptimely import (
     Profile,
     ref,
 )
-from uptimely.spec.python import row_context
+from uptimely.spec.row_context import RowContext
 
 HYDRAULIC_POWER_SCALE = 1.0 / 36.0
 """Converts bar * m3/h into kW for the hydraulic-power numerator."""
@@ -261,6 +261,7 @@ class Telemetry(Profile):
                 interface=Interface(
                     outputs=[features.bearing_temperature_delta],
                 ),
+                row_context=RowContext(before=1),
                 compute=Binding(
                     function=analytics.delta,
                     arguments=dict(
@@ -268,16 +269,17 @@ class Telemetry(Profile):
                         feature=features.bearing_temperature,
                         partition_by=[ref.feature("pump_id").id],
                         order_by=ref.feature("timestamp").id,
+                        num_rows=ref.row_context("before"),
                         output=features.bearing_temperature_delta,
                     ),
                 ),
-                row_context=row_context.rows(1, before=1),
             ),
             Operator(
                 id="vibration_delta",
                 interface=Interface(
                     outputs=[features.vibration_delta],
                 ),
+                row_context=RowContext(before=1),
                 compute=Binding(
                     function=analytics.delta,
                     arguments=dict(
@@ -285,10 +287,10 @@ class Telemetry(Profile):
                         feature=features.vibration_rms,
                         partition_by=[ref.feature("pump_id").id],
                         order_by=ref.feature("timestamp").id,
+                        num_rows=ref.row_context("before"),
                         output=features.vibration_delta,
                     ),
                 ),
-                row_context=row_context.rows(1, before=1),
             ),
             Operator(
                 id="pump_health_score",

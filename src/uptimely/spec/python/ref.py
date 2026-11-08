@@ -1,5 +1,7 @@
 """Import-independent resource lookups for Python declarations."""
 
+import typing
+
 from uptimely.spec import arg_types, selectors
 
 from . import references
@@ -16,6 +18,7 @@ __all__ = [
     "data",
     "fragment",
     "params",
+    "row_context",
     "function",
 ]
 
@@ -50,6 +53,16 @@ def fragment() -> references.Reference:
     return references.Reference(
         kind=arg_types.DATAFRAME,
         value=f"{selectors.OPERATOR_PREFIX}{selectors.CURRENT_ID}.fragment",
+    )
+
+
+def row_context(attribute: typing.Literal["before", "after", "dimension"]) -> references.Reference:
+    """Select a scalar attribute of the current operator's row context."""
+    if attribute not in selectors.ROW_CONTEXT_ATTRIBUTES:
+        raise ValueError(f"Unsupported row-context attribute: {attribute!r}")
+    return references.Reference(
+        kind=arg_types.OBJECT,
+        value=f"{selectors.ROW_CONTEXT_PREFIX}{attribute}",
     )
 
 

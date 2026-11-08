@@ -503,6 +503,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
         "bearing_temperature",
         ["pump"],
         "timestamp",
+        1,
         "temperature_delta",
     )
     result = (
@@ -511,6 +512,7 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
             "vibration_rms",
             ["pump"],
             "timestamp",
+            1,
             "vibration_delta",
         )
         .collect()

@@ -175,9 +175,10 @@ def delta(
     feature: str,
     partition_by: list[str],
     order_by: str,
+    num_rows: int,
     output: str,
 ) -> pl.LazyFrame:
-    """Return the ordered difference from the previous row within each partition.
+    """Return the ordered difference from a preceding row within each partition.
 
     Parameters
     ----------
@@ -189,6 +190,8 @@ def delta(
         Columns identifying each partition.
     order_by
         Column defining the ordering within each partition.
+    num_rows
+        Number of rows to look back for the difference.
     output
         Name of the resulting difference column.
 
@@ -199,11 +202,11 @@ def delta(
     Examples:
     --------
     >>> frame = pl.LazyFrame({"pump_id": ["p1", "p1"], "ts": [1, 2], "temp": [60.0, 61.5]})
-    >>> delta(frame, "temp", ["pump_id"], "ts", "temp_delta").collect()["temp_delta"].to_list()
+    >>> delta(frame, "temp", ["pump_id"], "ts", 1, "temp_delta").collect()["temp_delta"].to_list()
     [None, 1.5]
     """
     data_vectorized = dataset.with_columns(
-        pl.col(feature).diff().over(partition_by, order_by=order_by).alias(output)
+        pl.col(feature).diff(n=num_rows).over(partition_by, order_by=order_by).alias(output)
     )
     return data_vectorized
 

@@ -3,6 +3,7 @@ import datetime
 import json
 import pathlib
 import types
+import typing
 
 import polars as pl
 import pydantic
@@ -12,6 +13,7 @@ from support import execution as execution_support
 from uptimely import compiler, row_context, spec
 from uptimely import plan as uptimely_plan
 from uptimely.explorer import presentation
+from uptimely.spec import arg_types
 from uptimely.spec import function_kinds as functions
 from uptimely.spec.python import (
     assembly,
@@ -97,6 +99,78 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
             )
         ]
     )
+
+
+@pytest.mark.parametrize(
+    ("attribute", "context", "expected_value", "expected_type"),
+    [
+        ("before", row_context.RowContext(before=1), 1, arg_types.INTEGER),
+        (
+            "before",
+            row_context.RowContext(dimension="$dimensions.timestamp", before={"time": "8h"}),
+            "8h",
+            arg_types.STRING,
+        ),
+        (
+            "before",
+            row_context.RowContext(before=row_context.UNBOUNDED),
+            row_context.UNBOUNDED,
+            arg_types.STRING,
+        ),
+        ("before", row_context.RowContext(), 0, arg_types.INTEGER),
+        (
+            "dimension",
+            row_context.RowContext(dimension="$dimensions.timestamp"),
+            "timestamp",
+            arg_types.STRING,
+        ),
+    ],
+)
+def test_row_context_references_resolve_scalar_extents(
+    attribute: typing.Literal["before", "dimension"],
+    context: row_context.RowContext,
+    expected_value: int | str,
+    expected_type: str,
+) -> None:
+    declaration = assembly.Operator(
+        id="result",
+        interface=assembly.Interface(),
+        row_context=context,
+        compute=assembly.Binding(
+            function=ref.function("external:calculate", kind="vectorize"),
+            arguments={attribute: ref.row_context(attribute)},
+        ),
+    )
+    model = declaration.to_model()
+
+    assert declaration.function_catalog()["calculate"].args[attribute].type == expected_type
+    assert model.resolve_args(
+        function_id=model.compute.function,
+        function_kind="vectorize",
+        profile_id="observations",
+        grain_keys_by_profile={},
+        resources={},
+        id_columns=[],
+    ) == {attribute: expected_value}
+    assert list(model.model_dump()) == ["interface", "row_context", "compute", "merge"]
+
+
+@pytest.mark.parametrize("extent", [-1, True, 1.5])
+def test_row_context_integer_shorthand_remains_strict(extent: object) -> None:
+    with pytest.raises(pydantic.ValidationError):
+        row_context.RowContext(before=extent)
+
+
+def test_row_context_reference_is_validated_and_resolved_during_compilation() -> None:
+    configuration = _spec(row_context.RowContext(before=2)).model_dump()
+    arguments = configuration["profiles"]["observations"]["assembly"]["result"]["compute"]["args"]
+    arguments["configuration"]["windows"] = [ref.row_context("before").to_model()]
+
+    declaration = spec.Spec.model_validate(configuration)
+    plan = compiler.Compiler().compile(declaration)
+    invocation = next(item for item in plan.invocations if item.function_kind == "vectorize")
+
+    assert invocation.arguments["configuration"] == {"windows": [2]}
 
 
 @pytest.mark.parametrize(

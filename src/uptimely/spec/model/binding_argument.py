@@ -8,6 +8,7 @@ import typing
 import pydantic
 
 from uptimely.spec import arg_types, selectors
+from uptimely.spec import row_context as row_context_values
 
 from . import dimension
 
@@ -99,11 +100,19 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
     @property
     def is_metadata_reference(self) -> bool:
         """Whether this argument selects resource metadata beyond an execution value."""
-        return (
+        return self.row_context_attribute is not None or (
             self.prefix is not None
             and self.selector is not None
             and self.selector not in VALUE_SELECTORS[self.prefix]
         )
+
+    @functools.cached_property
+    def row_context_attribute(self) -> str | None:
+        """Return the selected current-operator row-context attribute, if any."""
+        value = self.root
+        if not isinstance(value, str) or not value.startswith(selectors.ROW_CONTEXT_PREFIX):
+            return None
+        return value.removeprefix(selectors.ROW_CONTEXT_PREFIX)
 
     @property
     def is_profile_dataframe_reference(self) -> bool:
@@ -141,6 +150,8 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         if not isinstance(value, str) or not value.startswith(selectors.REFERENCE_PREFIX):
             return None
         if value.startswith(selectors.OPERATOR_PREFIX):
+            if self.row_context_attribute is not None:
+                return None
             return arg_types.DATAFRAME
         if self.prefix == selectors.PROFILE_PREFIX:
             if value.endswith(selectors.DATAFRAME_SELECTOR):
@@ -173,7 +184,9 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
     def references_with_paths(self) -> tuple[tuple[BindingArgument, ArgumentPath], ...]:
         """Return nested structural reference arguments and their relative paths."""
         return tuple(
-            (leaf, path) for leaf, path in self.leaves_with_paths if leaf.prefix is not None
+            (leaf, path)
+            for leaf, path in self.leaves_with_paths
+            if leaf.prefix is not None or leaf.row_context_attribute is not None
         )
 
     @functools.cached_property
@@ -245,6 +258,8 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         feature_id: str | None = None,
         grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
         resources: BindingResources | None = None,
+        *,
+        row_context: row_context_values.RowContext | None = None,
     ) -> object:
         """Resolve this value recursively using invocation-specific context.
 
@@ -253,6 +268,7 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
             feature_id: The operator's sole output feature, when unambiguous.
             grain_keys_by_profile: Profile grain keys available to selectors.
             resources: Declared profile, feature, and dimension metadata.
+            row_context: Observation requirements declared by the current operator.
 
         Returns:
             The resolved scalar or nested container, without mutating the argument.
@@ -262,14 +278,28 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         """
         if isinstance(self.root, dict):
             return {
-                key: child.resolve(current_profile_id, feature_id, grain_keys_by_profile, resources)
+                key: child.resolve(
+                    current_profile_id,
+                    feature_id,
+                    grain_keys_by_profile,
+                    resources,
+                    row_context=row_context,
+                )
                 for key, child in self.children.items()
             }
         if isinstance(self.root, list):
             return [
-                child.resolve(current_profile_id, feature_id, grain_keys_by_profile, resources)
+                child.resolve(
+                    current_profile_id,
+                    feature_id,
+                    grain_keys_by_profile,
+                    resources,
+                    row_context=row_context,
+                )
                 for child in self.children.values()
             ]
+        if self.row_context_attribute is not None:
+            return self._resolve_row_context(row_context)
         if self.prefix is None:
             return self.root
         if self.is_current_feature_reference and self.selector in {None, "id"}:
@@ -290,6 +320,23 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
             if self.prefix == selectors.PROFILE_PREFIX
             else self.identifier
         )
+
+    def _resolve_row_context(self, row_context: row_context_values.RowContext | None) -> object:
+        """Resolve a row-context selector to its scalar extent."""
+        attribute = self.row_context_attribute
+        if attribute not in selectors.ROW_CONTEXT_ATTRIBUTES:
+            raise ValueError(f"Unsupported row-context selector: {self.root}")
+        if row_context is None:
+            raise ValueError("Cannot resolve row-context selector without operator row context")
+        if attribute == "dimension":
+            if row_context.dimension is None:
+                raise ValueError(f"Row-context dimension is unavailable: {self.root}")
+            return row_context.dimension.removeprefix(selectors.DIMENSION_PREFIX)
+        extent = getattr(row_context, attribute)
+        if extent == row_context_values.UNBOUNDED:
+            return extent
+        measurements = extent.model_dump(exclude_none=True)
+        return next(iter(measurements.values()), 0)
 
     def _resolve_metadata(
         self, current_profile_id: str, resources: BindingResources | None
