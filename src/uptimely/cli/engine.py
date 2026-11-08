@@ -68,8 +68,10 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     root = common.resolve_project_root(args, parser)
     config = project.resolve_path(args.config, root, project.CONFIG_FILE)
     with common.apply_log_level(args.log_level):
+        logger.info("Start Uptimely engine run")
         try:
             if args.build:
+                logger.info("Start building the project bundle")
                 bundle = project_build.build_project(root)
                 logger.info("Build files created to %s", bundle.root)
             with project.read_build_bundle(root) as bundle:
@@ -109,33 +111,21 @@ def _log_summary(
     result: engine_module.ExecutionResult,
     duration: float,
 ) -> None:
-    """Log execution timing and counts, with saved-build details at debug level.
+    """Log processed profiles followed by execution totals at info level.
 
     Args:
         bundle: Saved build used for execution.
         result: Execution result containing the final profile frames.
         duration: Execution duration in seconds.
     """
-    logger.info(
-        "\nEngine completed in %.3f s: %d profiles processed",
-        duration,
-        len(result.datasets),
-    )
-    if logger.isEnabledFor(logging.DEBUG):
-        scope = (
-            "all features"
-            if bundle.manifest.features is None
-            else f"selected features: {', '.join(bundle.manifest.features)}"
-        )
-        logger.debug("\nScope: %s", scope)
+    for profile_id in result.datasets:
+        profile = bundle.spec_definition.profiles.get(profile_id)
+        if profile is None:
+            logger.info("Processed profile %s", profile_id)
+        else:
+            logger.info("Processed profile %s: %d features", profile_id, len(profile.features))
 
-        logger.debug("\nProcessed profiles:")
-        for profile_id, profile in bundle.spec_definition.profiles.items():
-            logger.debug(
-                "- Profile: %s - %d features",
-                profile_id,
-                len(profile.features),
-            )
+    logger.info("Engine processed %d profiles in %.3f s.", len(result.datasets), duration)
 
 
 def _log_previews(result: engine_module.ExecutionResult, rows: int) -> None:

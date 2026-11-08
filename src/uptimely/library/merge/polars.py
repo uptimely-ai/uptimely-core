@@ -145,21 +145,21 @@ def merge_by_grain(
             raise ValueError(
                 "A fragment with fewer identifier columns requires the accumulated main dataframe"
             )
-        logger.debug("    - initialize from fragment (no join)")
+        logger.debug("Initialize from fragment (no join)")
         return fragment
 
     if type(target) is not type(fragment):
         target, fragment = target.lazy(), fragment.lazy()
 
     if same_grain:
-        logger.debug("    - full join on %s (cardinality %s)", tuple(target_keys), join_cardinality)
+        logger.debug("Full join on %s (cardinality %s)", tuple(target_keys), join_cardinality)
         return full_join(target, fragment, target_keys, validate=join_cardinality)
     if not fragment_keys:
-        logger.debug("    - cross join (dimensionless broadcast)")
+        logger.debug("Cross join (dimensionless broadcast)")
         return cross_join(target, fragment)
 
     logger.debug(
-        "    - left join on %s (cardinality %s)",
+        "Left join on %s (cardinality %s)",
         tuple(fragment_keys),
         broadcast_cardinality,
     )

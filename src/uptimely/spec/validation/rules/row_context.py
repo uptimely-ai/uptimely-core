@@ -13,7 +13,7 @@ logger = logging.getLogger(__name__)
 
 def validate_row_context_profile_order(spec: spec_model.Spec) -> None:
     """Require profile order for directional row context."""
-    logger.debug("    - checking directional row context has profile order")
+    logger.debug("Check directional row context has profile order")
     for key, operator in spec.operator_items:
         declaration = operator.row_context
         if declaration is None or not declaration.requires_order:
@@ -27,7 +27,7 @@ def validate_row_context_profile_order(spec: spec_model.Spec) -> None:
 
 def validate_dimension(spec: spec_model.Spec) -> None:
     """Require the context dimension to belong to the input profile."""
-    logger.debug("    - checking row-context dimensions belong to the input profile")
+    logger.debug("Check row-context dimensions belong to the input profile")
     for key, operator in spec.operator_items:
         declaration = operator.row_context
         if declaration is None or declaration.dimension is None:
@@ -43,7 +43,7 @@ def validate_dimension(spec: spec_model.Spec) -> None:
 
 def validate_dimension_type(spec: spec_model.Spec) -> None:
     """Require the context dimension type to match the requested measure."""
-    logger.debug("    - checking row-context dimension types match requested measures")
+    logger.debug("Check row-context dimension types match requested measures")
     for key, operator in spec.operator_items:
         declaration = operator.row_context
         if declaration is None or declaration.dimension is None:
@@ -70,7 +70,7 @@ def validate_dimension_type(spec: spec_model.Spec) -> None:
 
 def validate_dimension_order(spec: spec_model.Spec) -> None:
     """Require a directional context dimension to occur in profile order."""
-    logger.debug("    - checking directional row-context dimensions occur in profile order")
+    logger.debug("Check directional row-context dimensions occur in profile order")
     for key, operator in spec.operator_items:
         declaration = operator.row_context
         if declaration is None or declaration.dimension is None or not declaration.requires_order:

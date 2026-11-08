@@ -14,6 +14,18 @@ from . import backend as backend_module
 logger = logging.getLogger(__name__)
 
 
+def _log_validation(invocation: plan_module.Invocation, message: str, *args: object) -> None:
+    """Log a fragment check with the identity of its producing invocation."""
+    logger.debug(
+        message + " from operator %s, function %s, invocation %s, profile %s",
+        *args,
+        invocation.operator_id,
+        invocation.function_id,
+        invocation.id,
+        invocation.profile_id,
+    )
+
+
 @dataclasses.dataclass(frozen=True)
 class Fragment:
     """Data contributed to a dataset, with its carried dimension keys.
@@ -98,8 +110,7 @@ class Fragment:
         Raises:
             ValueError: The result violates its dataframe contract.
         """
-        logger.debug("  Fragment:")
-        logger.debug("    - checking dataframe type")
+        _log_validation(invocation, "Check fragment dataframe type")
         if not backend.is_frame(self.dataframe):
             raise ValueError(
                 f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
@@ -123,7 +134,7 @@ class Fragment:
         if definition is None:
             raise ValueError(f"Unknown function kind: {invocation.function_kind}")
         if definition.row_count_relation == "same":
-            logger.debug("    - checking row-count preservation")
+            _log_validation(invocation, "Check fragment row-count preservation")
             if comparison_frame is None or backend.row_count(comparison_frame) != backend.row_count(
                 self.dataframe
             ):
@@ -133,18 +144,22 @@ class Fragment:
                     "must preserve the accumulated profile row count"
                 )
         else:
-            logger.debug("    - skipping row-count preservation (not required)")
+            _log_validation(invocation, "Skipping fragment row-count preservation (not required)")
 
         self._validate_unique_dimension_keys(backend, invocation)
         self._validate_output_columns(backend, invocation, expected_outputs)
-        logger.debug("    - checking dimension and output types")
+        _log_validation(invocation, "Check fragment dimension and output types")
         self._validate_column_types(
             backend,
             invocation,
             [*self.dimensions, *expected_outputs],
         )
         if definition.key_relation == "identical":
-            logger.debug("    - checking dimension-key preservation")
+            _log_validation(
+                invocation,
+                "Check fragment dimension-key preservation for columns %s",
+                self.dimensions,
+            )
             if comparison_frame is None or not backend.same_keys(
                 comparison_frame, self.dataframe, self.dimensions
             ):
@@ -154,14 +169,16 @@ class Fragment:
                     "must preserve the profile grain keys"
                 )
         else:
-            logger.debug("    - skipping dimension-key preservation (not required)")
+            _log_validation(
+                invocation, "Skipping fragment dimension-key preservation (not required)"
+            )
 
     def _validate_dimension_columns(
         self,
         backend: backend_module.DataFrameBackend,
         invocation: plan_module.Invocation,
     ) -> None:
-        logger.debug("    - checking required dimension columns")
+        _log_validation(invocation, "Check fragment required dimension columns %s", self.dimensions)
         missing = sorted(set(self.dimensions) - set(backend.column_names(self.dataframe)))
         if missing:
             raise ValueError(
@@ -173,9 +190,11 @@ class Fragment:
         self, backend: backend_module.DataFrameBackend, invocation: plan_module.Invocation
     ) -> None:
         if self.dimensions:
-            logger.debug("    - skipping dimensionless row count (data has dimensions)")
+            _log_validation(
+                invocation, "Skipping fragment dimensionless row count (data has dimensions)"
+            )
             return
-        logger.debug("    - checking dimensionless row count")
+        _log_validation(invocation, "Check fragment dimensionless row count is at most one")
         if backend.row_count(self.dataframe) > 1:
             raise ValueError(
                 f"Fragment {invocation.function_id} contains duplicate dimension keys "
@@ -188,9 +207,13 @@ class Fragment:
         invocation: plan_module.Invocation,
     ) -> None:
         if not self.dimensions:
-            logger.debug("    - skipping dimension-key uniqueness (no dimensions)")
+            _log_validation(
+                invocation, "Skipping fragment dimension-key uniqueness (no dimensions)"
+            )
             return
-        logger.debug("    - checking dimension-key uniqueness")
+        _log_validation(
+            invocation, "Check fragment dimension-key uniqueness for columns %s", self.dimensions
+        )
         keys = backend.select(self.dataframe, self.dimensions)
         if backend.is_duplicated(keys):
             raise ValueError(f"Fragment {invocation.function_id} contains duplicate dimension keys")
@@ -201,7 +224,9 @@ class Fragment:
         invocation: plan_module.Invocation,
         output_features: abc.Sequence[str],
     ) -> None:
-        logger.debug("    - checking declared output columns")
+        _log_validation(
+            invocation, "Check fragment declared output columns %s", list(output_features)
+        )
         missing = sorted(set(output_features) - set(backend.column_names(self.dataframe)))
         if missing:
             raise ValueError(
@@ -220,5 +245,5 @@ class Fragment:
             for name in columns
             if name in invocation.column_types
         }
-        logger.debug("      Declared types: %s", types)
+        _log_validation(invocation, "Check fragment declared column types %s", types)
         backend.validate_types(self.dataframe, types)

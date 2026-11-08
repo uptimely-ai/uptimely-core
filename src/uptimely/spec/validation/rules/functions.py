@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def validate_function_contracts(spec: spec_model.Spec) -> None:
     """Validate function-owned contracts and report spec paths."""
-    logger.debug("    - checking function contracts")
+    logger.debug("Check function contracts")
     for function_id, function in spec.functions.root.items():
         checks = (
             (function.check_return_contract, "invalid_function_return_contract", "returns"),

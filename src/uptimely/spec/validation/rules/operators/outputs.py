@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def validate_output_presence(spec: spec_model.Spec) -> None:
     """Require feature-producing operators to declare required outputs."""
-    logger.debug("    - checking required operator outputs are declared")
+    logger.debug("Check required operator outputs are declared")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if (
@@ -25,7 +25,7 @@ def validate_output_presence(spec: spec_model.Spec) -> None:
 
 def validate_function_id(spec: spec_model.Spec) -> None:
     """Require a calculation function ID to be nonempty."""
-    logger.debug("    - checking calculation function IDs are nonempty")
+    logger.debug("Check calculation function IDs are nonempty")
     for operator in spec.operators:
         function = spec.functions.root.get(operator.compute.function)
         if (
@@ -38,7 +38,7 @@ def validate_function_id(spec: spec_model.Spec) -> None:
 
 def validate_output_names(spec: spec_model.Spec) -> None:
     """Require calculated output names to be nonempty."""
-    logger.debug("    - checking calculated output names are nonempty")
+    logger.debug("Check calculated output names are nonempty")
     for operator in spec.operators:
         function = spec.functions.root.get(operator.compute.function)
         if (
@@ -51,7 +51,7 @@ def validate_output_names(spec: spec_model.Spec) -> None:
 
 def validate_dimension_collision(spec: spec_model.Spec) -> None:
     """Reject calculated feature names that collide with selected grain keys."""
-    logger.debug("    - checking calculated outputs do not collide with dimensions")
+    logger.debug("Check calculated outputs do not collide with dimensions")
     for operator in spec.operators:
         function = spec.functions.root.get(operator.compute.function)
         collisions = set(operator.output_features) & spec.grain_key_ids
@@ -64,7 +64,7 @@ def validate_dimension_collision(spec: spec_model.Spec) -> None:
 
 def validate_compute_function_exists(spec: spec_model.Spec) -> None:
     """Require compute function references to resolve."""
-    logger.debug("    - checking compute functions exist")
+    logger.debug("Check compute functions exist")
     for key, operator in spec.operator_items:
         profile_id, _ = key
         function_id = operator.compute.function
@@ -78,7 +78,7 @@ def validate_compute_function_exists(spec: spec_model.Spec) -> None:
 
 def validate_compute_function_kind(spec: spec_model.Spec) -> None:
     """Reject merge functions used as compute functions."""
-    logger.debug("    - checking compute functions are not merge functions")
+    logger.debug("Check compute functions are not merge functions")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is not None and function.kind == functions.MERGE:
@@ -91,7 +91,7 @@ def validate_compute_function_kind(spec: spec_model.Spec) -> None:
 
 def validate_merge_function_exists(spec: spec_model.Spec) -> None:
     """Require declared merge function references to resolve."""
-    logger.debug("    - checking merge functions exist")
+    logger.debug("Check merge functions exist")
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
@@ -107,7 +107,7 @@ def validate_merge_function_exists(spec: spec_model.Spec) -> None:
 
 def validate_merge_function_kind(spec: spec_model.Spec) -> None:
     """Require declared merge functions to have kind ``merge``."""
-    logger.debug("    - checking merge functions have kind 'merge'")
+    logger.debug("Check merge functions have kind 'merge'")
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
@@ -122,7 +122,7 @@ def validate_merge_function_kind(spec: spec_model.Spec) -> None:
 
 def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
     """Reject output feature declarations on kinds that do not support them."""
-    logger.debug("    - checking nonproducing operator do not declare outputs")
+    logger.debug("Check nonproducing operator do not declare outputs")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if (
@@ -137,7 +137,7 @@ def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
 
 def validate_output_feature(spec: spec_model.Spec) -> None:
     """Require an output feature to be declared in the target profile."""
-    logger.debug("    - checking operator outputs are declared in the target profile")
+    logger.debug("Check operator outputs are declared in the target profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or not functions.FUNCTION_KINDS[function.kind].produces_features:
@@ -152,7 +152,7 @@ def validate_output_feature(spec: spec_model.Spec) -> None:
 
 def validate_unique_producer(spec: spec_model.Spec) -> None:
     """Reject multiple producers for a non-dimension feature in declaration order."""
-    logger.debug("    - checking unique producers for non-dimension features")
+    logger.debug("Check unique producers for non-dimension features")
     producers: dict[tuple[spec_model.ProfileKey, str], str] = {}
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
@@ -172,7 +172,7 @@ def validate_unique_producer(spec: spec_model.Spec) -> None:
 
 def validate_collapse_output(spec: spec_model.Spec) -> None:
     """Require collapse to produce a non-dimension feature."""
-    logger.debug("    - checking collapse operator produce non-dimension features")
+    logger.debug("Check collapse operator produce non-dimension features")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if (
@@ -185,7 +185,7 @@ def validate_collapse_output(spec: spec_model.Spec) -> None:
 
 def validate_current_feature_selector(spec: spec_model.Spec) -> None:
     """Reject ambiguous current-feature selectors on multi-output calculations."""
-    logger.debug("    - checking current-feature selectors are unambiguous")
+    logger.debug("Check current-feature selectors are unambiguous")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or function.kind not in {functions.VECTORIZE, functions.COLLAPSE}:
@@ -204,7 +204,7 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
 
 def warn_unproduced_features(spec: spec_model.Spec) -> None:
     """Warn when declared profile features have no operator producer."""
-    logger.debug("    - checking declared features have producers (warning only)")
+    logger.debug("Check declared features have producers (warning only)")
     for key, profile in spec.profile_items:
         produced = {
             feature

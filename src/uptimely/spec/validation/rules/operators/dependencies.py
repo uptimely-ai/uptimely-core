@@ -12,7 +12,7 @@ type OperatorKey = tuple[str, str]
 
 def validate_operator_cycle(spec: spec_model.Spec) -> None:
     """Reject cycles between feature-producing operators in declaration DFS order."""
-    logger.debug("    - checking operator feature dependencies are acyclic")
+    logger.debug("Check operator feature dependencies are acyclic")
     producers: dict[str, OperatorKey] = {}
     for key, operator in spec.operator_items:
         if spec.functions[operator.compute.function].kind == functions.WRITE:

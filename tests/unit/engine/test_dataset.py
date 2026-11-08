@@ -53,15 +53,14 @@ def test_dataset_selects_merge_by_fragment_dimensions(
     assert "new" not in initial.columns
     if grain == "same":
         expected_log = (
-            "    - full join on ('group', 'id') "
-            f"(cardinality {'1:1' if strict_cardinality else 'm:m'})"
+            f"Full join on ('group', 'id') (cardinality {'1:1' if strict_cardinality else 'm:m'})"
         )
     elif grain == "subset":
         expected_log = (
-            f"    - left join on ('group',) (cardinality {'m:1' if strict_cardinality else 'm:m'})"
+            f"Left join on ('group',) (cardinality {'m:1' if strict_cardinality else 'm:m'})"
         )
     else:
-        expected_log = "    - cross join (dimensionless broadcast)"
+        expected_log = "Cross join (dimensionless broadcast)"
     assert caplog.messages == [expected_log]
 
 
@@ -75,7 +74,7 @@ def test_dataset_adopts_first_fragment(lazy: bool, caplog: pytest.LogCaptureFixt
 
     assert main.merge(fragment) is fragment
     assert main.dataframe is frame
-    assert caplog.messages == ["    - initialize from fragment (no join)"]
+    assert caplog.messages == ["Initialize from fragment (no join)"]
 
 
 @pytest.mark.parametrize("dimensions", [(), ("other",)])

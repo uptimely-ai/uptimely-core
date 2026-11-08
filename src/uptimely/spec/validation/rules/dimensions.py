@@ -32,9 +32,15 @@ def iter_parent_cycles(
 
 def validate_parent(spec: spec_model.Spec) -> None:
     """Require each resolution parent to be declared within the same dimension."""
-    logger.debug("    - checking dimension-resolution parent references")
+    logger.debug("Check spec dimension parents name resolutions in the same dimension")
     for dimension_id, dimension in spec.dimensions.items():
         for resolution_id, resolution in dimension.resolutions.items():
+            logger.debug(
+                "Check parent resolution %s for spec dimension %s, resolution %s",
+                resolution.parent if resolution.parent is not None else "none (root resolution)",
+                dimension_id,
+                resolution_id,
+            )
             if resolution.parent is not None and resolution.parent not in dimension.resolutions:
                 raise ValueError(
                     f"Dimension {dimension_id} resolution {resolution_id} references "
@@ -44,8 +50,13 @@ def validate_parent(spec: spec_model.Spec) -> None:
 
 def validate_parent_cycle(spec: spec_model.Spec) -> None:
     """Reject a cycle in resolution ancestry after parent references are validated."""
-    logger.debug("    - checking resolution ancestry is acyclic")
+    logger.debug("Check spec dimension-resolution parent chains contain no cycles")
     for (dimension_id, resolution_id), cycle in iter_parent_cycles(spec):
+        logger.debug(
+            "Check parent chain for spec dimension %s, resolution %s",
+            dimension_id,
+            resolution_id,
+        )
         if cycle:
             raise errors.SpecError(
                 "Dimension resolution parent cycle: "

@@ -68,7 +68,7 @@ class Engine:
             ValueError: The plan requires a different dataframe backend.
         """
         logger.debug(
-            "Checking plan backend compatibility: required=%s, configured=%s",
+            "Check plan backend compatibility: required=%s, configured=%s",
             self.plan.required_backend,
             self.backend.name,
         )
@@ -132,21 +132,20 @@ class Engine:
         failures: dict[str, str] = {}
 
         logger.debug(
-            "\nExecution plan: %d stages (runtime validation %s)",
+            "Executing plan with %d stages (runtime validation %s)",
             len(self.plan.execution_stages),
             "enabled" if validate else "disabled",
         )
         for invocation in self.plan.execution_invocations:
             started = time.perf_counter()
-            logger.debug(
-                "\nInvocation: %s [%s]",
-                invocation.operator_id,
-                invocation.function_kind,
-                extra={"invocation_id": invocation.id, "profile_id": invocation.profile_id},
-            )
-            if invocation.function_id != invocation.operator_id:
-                logger.debug("  Function: %s", invocation.function_id)
             try:
+                logger.debug(
+                    "Executing operator %s, function %s (%s)",
+                    invocation.operator_id,
+                    invocation.function_id,
+                    invocation.function_kind,
+                    extra={"invocation_id": invocation.id, "profile_id": invocation.profile_id},
+                )
                 invocation_executor.execute(invocation)
             except Exception as error:
                 statuses[invocation.id] = result_module.INVOCATION_STATUS_FAILED

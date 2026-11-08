@@ -16,7 +16,7 @@ EXPAND_INPUT_ERROR = (
 
 def validate_dataframe_argument_profile_reference(spec: spec_model.Spec) -> None:
     """Require each dataframe argument to reference a profile."""
-    logger.debug("    - checking dataframe arguments use profile references")
+    logger.debug("Check dataframe arguments use profile references")
     for key, arguments in spec.operator_dataframe_arguments.items():
         for name, value, _ in arguments:
             if not isinstance(value, str) or not value.startswith(selectors.PROFILE_PREFIX):
@@ -29,7 +29,7 @@ def validate_dataframe_argument_profile_reference(spec: spec_model.Spec) -> None
 
 def validate_dataframe_argument_selector(spec: spec_model.Spec) -> None:
     """Reject identifier and grain-key selectors for dataframe arguments."""
-    logger.debug("    - checking dataframe arguments select profile data, not IDs or grain keys")
+    logger.debug("Check dataframe arguments select profile data, not IDs or grain keys")
     for key, arguments in spec.operator_dataframe_arguments.items():
         for name, value, _ in arguments:
             if isinstance(value, str) and (
@@ -46,7 +46,7 @@ def validate_dataframe_argument_selector(spec: spec_model.Spec) -> None:
 
 def validate_dataframe_argument_profile_source(spec: spec_model.Spec) -> None:
     """Require each dataframe argument to resolve to a declared profile."""
-    logger.debug("    - checking dataframe argument profiles are declared")
+    logger.debug("Check dataframe argument profiles are declared")
     for key, arguments in spec.operator_dataframe_arguments.items():
         for name, _, source_id in arguments:
             if source_id not in spec.profiles:
@@ -59,7 +59,7 @@ def validate_dataframe_argument_profile_source(spec: spec_model.Spec) -> None:
 
 def validate_dataframe_argument_count(spec: spec_model.Spec) -> None:
     """Require operator to consume the foreign profile count in their kind contract."""
-    logger.debug("    - checking foreign profile input counts match function kinds")
+    logger.debug("Check foreign profile input counts match function kinds")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
@@ -81,7 +81,7 @@ def validate_dataframe_argument_count(spec: spec_model.Spec) -> None:
 
 def validate_matching_keys(spec: spec_model.Spec) -> None:
     """Require matching keys on every participating profile."""
-    logger.debug("    - checking matching keys exist on every participating profile")
+    logger.debug("Check matching keys exist on every participating profile")
     for key, matches in spec.matching_profile_keys.items():
         participants = (spec.operator_profile_keys[key], *spec.dataframe_argument_profiles[key])
         for grain_key, path in matches:
@@ -96,7 +96,7 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
 
 def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
     """Require profile-scoped feature inputs to belong to at most one profile."""
-    logger.debug("    - checking profile-scoped feature inputs have at most one source")
+    logger.debug("Check profile-scoped feature inputs have at most one source")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
@@ -114,7 +114,7 @@ def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
 
 def validate_foreign_profile_argument(spec: spec_model.Spec) -> None:
     """Reject the target profile when a kind requires a foreign profile input."""
-    logger.debug("    - checking foreign profile arguments do not reference the target")
+    logger.debug("Check foreign profile arguments do not reference the target")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
@@ -131,7 +131,7 @@ def validate_foreign_profile_argument(spec: spec_model.Spec) -> None:
 
 def validate_dataframe_argument_feature_source(spec: spec_model.Spec) -> None:
     """Require a feature source to match the operator's profile input."""
-    logger.debug("    - checking feature sources match profile arguments")
+    logger.debug("Check feature sources match profile arguments")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
@@ -159,7 +159,7 @@ def validate_dataframe_argument_feature_source(spec: spec_model.Spec) -> None:
 
 def validate_dataframe_argument_features(spec: spec_model.Spec) -> None:
     """Require profile-scoped feature inputs to belong to the operator's profile inputs."""
-    logger.debug("    - checking feature inputs belong to profile arguments")
+    logger.debug("Check feature inputs belong to profile arguments")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].feature_input_scope != (
@@ -189,7 +189,7 @@ def validate_dataframe_argument_features(spec: spec_model.Spec) -> None:
 
 def validate_feature_input_scope(spec: spec_model.Spec) -> None:
     """Reject feature inputs for kinds that do not accept feature dependencies."""
-    logger.debug("    - checking function kinds permit declared feature inputs")
+    logger.debug("Check function kinds permit declared feature inputs")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if (
@@ -206,7 +206,7 @@ def validate_feature_input_scope(spec: spec_model.Spec) -> None:
 
 def validate_target_profile_input(spec: spec_model.Spec) -> None:
     """Require target-scoped operator to consume their target profile."""
-    logger.debug("    - checking target-scoped operator consume their target profile")
+    logger.debug("Check target-scoped operator consume their target profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
@@ -222,7 +222,7 @@ def validate_target_profile_input(spec: spec_model.Spec) -> None:
 
 def validate_target_profile_only(spec: spec_model.Spec) -> None:
     """Reject foreign profile inputs on target-scoped operator."""
-    logger.debug("    - checking target-scoped operator do not consume foreign profiles")
+    logger.debug("Check target-scoped operator do not consume foreign profiles")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
@@ -244,7 +244,7 @@ def validate_target_profile_only(spec: spec_model.Spec) -> None:
 
 def validate_dimension_source(spec: spec_model.Spec) -> None:
     """Require dimension-reducing operator to consume their inferred source."""
-    logger.debug("    - checking dimension-reducing operator consume their inferred source")
+    logger.debug("Check dimension-reducing operator consume their inferred source")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
@@ -279,7 +279,7 @@ def _dataframe_input_violations(
 
 def validate_dimension_change(spec: spec_model.Spec) -> None:
     """Require profile sources and targets to follow their declared grain policy."""
-    logger.debug("    - checking source and target dimensions follow function-kind policies")
+    logger.debug("Check source and target dimensions follow function-kind policies")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
@@ -322,7 +322,7 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
 
 def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
     """Require dimensional expansion to use a feature from a lower-dimensional source."""
-    logger.debug("    - checking dimensional expansion inputs come from lower-dimensional sources")
+    logger.debug("Check dimensional expansion inputs come from lower-dimensional sources")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or functions.FUNCTION_KINDS[function.kind].dimension_change != "add":

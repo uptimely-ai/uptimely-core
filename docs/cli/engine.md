@@ -17,6 +17,11 @@ Give the project directory positionally after `run`, or use
 `--project-root PATH`; do not use both. If omitted, the current working
 directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
 
+At info level, the CLI announces the start of the engine run. With `--build`,
+it also announces the project-bundle build before building it. Successful runs
+log individual processed-profile details first, followed by
+`Engine processed X profiles in Y s.` The engine scope is not logged.
+
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
 | `PROJECT_ROOT` | No | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
@@ -36,8 +41,9 @@ uptimely run --preview 10
 ```
 
 Previews show all columns and omit the Polars shape line. They are logged after
-the completion summary and any debug details. Levels above `info` hide previews
-and the completion summary. Lazy frames are limited before
+the completion summary and processed-profile summary, before any debug details.
+Levels above `info` hide previews, the completion summary, and processed-profile
+details. Lazy frames are limited before
 collection, but their upstream operations may still require substantial work or
 repeat computation. Execution timing excludes preview collection, artifact
 publication, and display. Console display reuses the saved sample rather than
@@ -58,10 +64,16 @@ uptimely run examples/pump_analytics --build
 
 The log level applies to Uptimely loggers, not third-party dependency loggers.
 It does not enable validation; use `--validate` to run the runtime checks.
-Debug headings use `Invocation: read_constants [read]`, with the function ID
-below when different. Subsections are `Requirements:`, `Fragment:`,
-`Dataset:`, and `Merge:`, shown only when reached.
-The merge section identifies the target profile and merge invocation.
+Execution debug logs use flat messages with the logger's module name,
+rather than headers, indentation, or bullets. For example:
+
+```text
+DEBUG    | Check fragment dataframe type
+DEBUG    | Merging into profile pump_profile
+```
+
+Module prefixes identify where each message originates. Invocation start messages
+identify the operator, function, and function kind.
 Structured logs use the invocation IDs from the saved plan. Newly compiled
 plans use [compact invocation IDs](../components/compiler.md#invocations);
 rebuild the project to adopt them.

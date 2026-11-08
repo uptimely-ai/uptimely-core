@@ -67,6 +67,35 @@ def test_fragment_checks_required_outputs_even_without_content_validation() -> N
         )
 
 
+@pytest.mark.parametrize("resource", ["fragment", "dataset"])
+def test_missing_dimension_log_identifies_resource_before_failure(
+    resource: str, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.DEBUG, logger="uptimely.engine.dataframe")
+    backend = backend_module.PolarsBackend()
+    frame = pl.DataFrame({"value": [1]})
+    invocation = _invocation()
+
+    with pytest.raises(ValueError, match="missing dimension columns: key"):
+        if resource == "fragment":
+            fragment_module.Fragment(frame, ("key",), invocation).validate_invocation_result(
+                backend, invocation
+            )
+        else:
+            dataset_module.Dataset(backend, ["key"], frame).validate_accumulated_frame(
+                description="Accumulated profile telemetry"
+            )
+
+    expected = f"Check {resource} required dimension columns ('key',)"
+    if resource == "fragment":
+        expected += (
+            " from operator calculate, function calculate, invocation invocation, profile dataset"
+        )
+    else:
+        expected += " for Accumulated profile telemetry"
+    assert caplog.messages[-1] == expected
+
+
 def test_fragment_checks_only_declared_column_types() -> None:
     invocation = _invocation(
         output_features=["value"],
@@ -189,8 +218,13 @@ def test_candidate_dataset_skips_optional_checks_when_disabled(
     candidate.validate_merge_candidate(None, fragment, description="Merge result")
 
 
-def test_executor_checks_vectorized_contract_and_preservation() -> None:
-    invocation = _invocation("vectorize", output_features=["new"])
+def test_executor_checks_vectorized_contract_and_preservation(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
+    invocation = _invocation(
+        "vectorize", output_features=["new"], column_types={"key": "string", "new": "integer"}
+    )
     backend = backend_module.PolarsBackend()
     executor = execution_module.InvocationExecutor(
         backend,
@@ -218,6 +252,26 @@ def test_executor_checks_vectorized_contract_and_preservation() -> None:
         comparison,
         preserve_data=True,
     ) == ["new"]
+    context = (
+        "vectorize result from operator calculate, function calculate, "
+        "invocation invocation, profile dataset"
+    )
+    assert all(context in message for message in caplog.messages)
+    assert f"Check required dimension columns ['key'] for {context}" in caplog.messages
+    assert f"Check declared output columns ['new'] exist in {context}" in caplog.messages
+    assert (
+        "Check output columns ['new'] do not replace existing feature columns ['value'] "
+        f"in {context}" in caplog.messages
+    )
+    assert f"Check existing columns ['key', 'value'] remain present in {context}" in caplog.messages
+    assert (
+        f"Check {context} contains no columns outside existing and declared outputs "
+        "['key', 'new', 'value']" in caplog.messages
+    )
+    assert (
+        "Check declared types of dimension and output columns "
+        f"{{'key': 'string', 'new': 'integer'}} in {context}" in caplog.messages
+    )
 
 
 def test_vectorized_validation_skips_content_comparison_when_disabled(
@@ -311,9 +365,11 @@ def test_owner_validation_logs_checks(caplog: pytest.LogCaptureFixture) -> None:
         ("key",),
         invocation,
     ).validate_invocation_result(backend_module.PolarsBackend(), invocation)
-    assert "  Fragment:" in caplog.messages
-    assert "    - checking dataframe type" in caplog.messages
-    assert "    - checking declared output columns" in caplog.messages
+    identity = "from operator calculate, function calculate, invocation invocation, profile dataset"
+    assert f"Check fragment dataframe type {identity}" in caplog.messages
+    assert f"Check fragment declared output columns [] {identity}" in caplog.messages
+    assert f"Check fragment required dimension columns ('key',) {identity}" in caplog.messages
+    assert all(identity in message for message in caplog.messages)
 
     caplog.clear()
     caplog.set_level(logging.DEBUG, logger=dataset_module.__name__)
@@ -321,6 +377,13 @@ def test_owner_validation_logs_checks(caplog: pytest.LogCaptureFixture) -> None:
         backend_module.PolarsBackend(),
         [],
         pl.DataFrame({"value": [1]}),
-    ).validate_accumulated_frame()
-    assert "  Dataset:" in caplog.messages
-    assert "    - checking dimensionless row count" in caplog.messages
+    ).validate_accumulated_frame(description="Accumulated profile telemetry")
+    assert (
+        "Check dataset dimensionless row count is at most one for Accumulated profile telemetry"
+        in caplog.messages
+    )
+    assert (
+        "Check dataset required dimension columns () for Accumulated profile telemetry"
+        in caplog.messages
+    )
+    assert all("Accumulated profile telemetry" in message for message in caplog.messages)

@@ -51,13 +51,12 @@ class Compiler:
             ValueError: The Spec, feature selection, or implementation contract is invalid.
         """
         spec_validation.validate_spec(spec_definition)
-        logger.debug("\nCompiler validation:")
         validation.validation_feature_selection(features)
 
         nodes = self._create_invocation_nodes(spec_definition)
         graph, feature_producers = self._create_invocation_graph(spec_definition, nodes)
         if features is not None:
-            logger.debug("\nCompiler feature selection:\n  Selected features: %s", sorted(features))
+            logger.debug("Selected features: %s", sorted(features))
             graph = self._select_invocations(
                 spec_definition,
                 graph,
@@ -66,14 +65,13 @@ class Compiler:
                 list(dict.fromkeys(features)),
             )
         else:
-            logger.debug("\nCompiler feature selection:\n  - using all features")
+            logger.debug("Using all features")
 
-        logger.debug("  Invocation graph:")
-        logger.debug("    - checking dependency graph is acyclic and schedulable")
+        logger.debug("Check dependency graph is acyclic and schedulable")
         execution_stages = graph.topology()
         nodes = graph.invocations
 
-        logger.debug("  Invocation checks for %d invocations:", len(nodes))
+        logger.debug("Validating %d invocations", len(nodes))
         selected_functions, first_node_by_function = self._collect_selected_functions(
             spec_definition, nodes
         )
@@ -88,7 +86,7 @@ class Compiler:
             entrypoints,
             packages,
         )
-        logger.debug("    - checking structural argument references resolve")
+        logger.debug("Check structural argument references resolve")
         invocations = self._create_plan_invocations(
             spec_definition,
             graph,
@@ -99,8 +97,7 @@ class Compiler:
         )
         stages = [[node.node_id for node in stage] for stage in execution_stages]
 
-        logger.debug("  Execution plan:")
-        logger.debug("    - checking emitted invocation IDs, dependencies, and stage ordering")
+        logger.debug("Check emitted invocation IDs, dependencies, and stage ordering")
         return plan_module.ExecutionPlan(
             plan_version=plan_module.PLAN_VERSION,
             required_backend="polars",
@@ -117,8 +114,8 @@ class Compiler:
         dict[str, invocation_graph.InvocationNode],
     ]:
         """Validate entrypoints and collect each selected function once."""
-        logger.debug("    - checking functions declare entrypoints")
-        logger.debug("    - selecting unique functions for implementation checks")
+        logger.debug("Check functions declare entrypoints")
+        logger.debug("Selecting unique functions for implementation checks")
         selected_functions: dict[str, spec_model.FunctionTemplate] = {}
         first_node_by_function: dict[str, invocation_graph.InvocationNode] = {}
         for node in nodes:
@@ -137,9 +134,8 @@ class Compiler:
         locations: abc.Iterable[str],
     ) -> dict[str, entrypoint.Entrypoint]:
         """Parse and validate the selected implementation locations."""
-        logger.debug("  Entrypoints:")
         locations = list(locations)
-        logger.debug("    - checking syntax for %d unique entrypoints", len(locations))
+        logger.debug("Check syntax for %d unique entrypoints", len(locations))
         entrypoints: dict[str, entrypoint.Entrypoint] = {}
         for location in locations:
             try:
@@ -153,8 +149,7 @@ class Compiler:
         entrypoints: dict[str, entrypoint.Entrypoint],
     ) -> dict[str, plan_module.Package]:
         """Read portable package provenance once per entrypoint."""
-        logger.debug("  Package provenance:")
-        logger.debug("    - checking package ownership for %d unique entrypoints", len(entrypoints))
+        logger.debug("Check package ownership for %d unique entrypoints", len(entrypoints))
         packages: dict[str, plan_module.Package] = {}
         for location, implementation in entrypoints.items():
             try:
@@ -181,18 +176,14 @@ class Compiler:
         disabled_count = sum(
             not function.validate_signature for function in selected_functions.values()
         )
-        logger.debug(
-            "  Signature checks for %d functions:\n"
-            "    - checking callable signatures\n"
-            "    - checking implementations accept declared arguments\n"
-            "    - checking declared arguments can be passed as keywords\n"
-            "    - checking declared implementation argument annotations\n"
-            "    - checking required implementation parameters are declared\n"
-            "    - checking declared implementation return annotations",
-            enabled_count,
-        )
+        logger.debug("Check callable signatures for %d functions", enabled_count)
+        logger.debug("Check implementations accept declared arguments")
+        logger.debug("Check declared arguments can be passed as keywords")
+        logger.debug("Check declared implementation argument annotations")
+        logger.debug("Check required implementation parameters are declared")
+        logger.debug("Check declared implementation return annotations")
         if disabled_count:
-            logger.debug("    - skipping %d functions (validate_signature=false)", disabled_count)
+            logger.debug("Skipping %d functions (validate_signature=false)", disabled_count)
 
         signatures: dict[str, entrypoint.Signature] = {}
         for function_id, function in selected_functions.items():
@@ -239,7 +230,7 @@ class Compiler:
         packages: dict[str, plan_module.Package],
     ) -> list[plan_module.Invocation]:
         """Convert scheduled nodes to portable invocations with resolved metadata."""
-        logger.debug("    - creating portable invocation representations")
+        logger.debug("Creating portable invocation representations")
         invocations: list[plan_module.Invocation] = []
         for node in nodes:
             function = selected_functions[node.function_id]
@@ -354,7 +345,7 @@ class Compiler:
         features: list[str],
     ) -> invocation_graph.InvocationGraph:
         """Select requested outputs, their prerequisites, and matching sinks."""
-        logger.debug("    - checking selected output features have producers")
+        logger.debug("Check selected output features have producers")
         selectable_features = feature_producers.keys() - spec_definition.grain_key_ids
         missing = sorted(set(features) - selectable_features)
         if missing:

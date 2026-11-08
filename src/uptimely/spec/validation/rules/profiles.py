@@ -10,9 +10,14 @@ logger = logging.getLogger(__name__)
 
 def validate_grain_dimensions(spec: spec_model.Spec) -> None:
     """Require profile grain references to name declared dimensions."""
-    logger.debug("    - checking profile grain dimension references")
+    logger.debug("Check spec profile grains reference declared dimensions")
     for profile_id, profile in spec.profile_items:
         for index, reference in enumerate(profile.grain):
+            logger.debug(
+                "Check grain dimension %s for spec profile %s",
+                reference.dimension,
+                profile_id,
+            )
             if reference.dimension not in spec.dimensions:
                 raise errors.SpecError(
                     f"Profile {profile_id} grain references unknown dimension: "
@@ -24,8 +29,9 @@ def validate_grain_dimensions(spec: spec_model.Spec) -> None:
 
 def validate_unique_grain_dimensions(spec: spec_model.Spec) -> None:
     """Require each profile grain to select at most one resolution per dimension."""
-    logger.debug("    - checking profile grain dimension uniqueness")
+    logger.debug("Check spec profile grains select each dimension at most once")
     for profile_id, profile in spec.profile_items:
+        logger.debug("Check grain dimension uniqueness for spec profile %s", profile_id)
         seen: set[str] = set()
         for index, reference in enumerate(profile.grain):
             if reference.dimension in seen:
@@ -39,9 +45,15 @@ def validate_unique_grain_dimensions(spec: spec_model.Spec) -> None:
 
 def validate_grain_resolutions(spec: spec_model.Spec) -> None:
     """Require profile grain references to name resolutions of their dimensions."""
-    logger.debug("    - checking profile grain resolution references")
+    logger.debug("Check spec profile grains reference resolutions of their dimensions")
     for profile_id, profile in spec.profile_items:
         for index, reference in enumerate(profile.grain):
+            logger.debug(
+                "Check grain resolution %s in dimension %s for spec profile %s",
+                reference.resolution,
+                reference.dimension,
+                profile_id,
+            )
             dimension = spec.dimensions[reference.dimension]
             if reference.resolution not in dimension.resolutions:
                 raise errors.SpecError(
@@ -54,8 +66,9 @@ def validate_grain_resolutions(spec: spec_model.Spec) -> None:
 
 def validate_unique_grain_keys(spec: spec_model.Spec) -> None:
     """Require profile grain resolutions to use distinct dataframe key columns."""
-    logger.debug("    - checking profile grain dataframe keys are unique")
+    logger.debug("Check spec profile grains use distinct dataframe key columns")
     for profile_id, profile in spec.profile_items:
+        logger.debug("Check grain dataframe-key uniqueness for spec profile %s", profile_id)
         seen: set[str] = set()
         for index, reference in enumerate(profile.grain):
             dimension = spec.dimensions[reference.dimension]

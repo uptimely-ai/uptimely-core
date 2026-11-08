@@ -114,7 +114,8 @@ def validate_spec(spec: spec_model.Spec) -> None:
     Raises:
         ValueError: A semantic invariant is violated.
     """
-    for group_name, checks in VALIDATION_GROUPS:
-        logger.debug("  %s:", group_name)
+    logger.info("Start spec validation")
+    for _group_name, checks in VALIDATION_GROUPS:
         for check in checks:
             check(spec)
+    logger.info("Spec validated")

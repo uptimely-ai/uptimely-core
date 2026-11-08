@@ -131,21 +131,20 @@ def test_engine_cli_reports_processed_profiles(
     cli.main()
 
     output = capsys.readouterr().out
-    assert "Scope: all features" in output
-    assert "- Profile: pump_profile - 6 features" in output
+    assert "Scope:" not in output
+    assert "Processed profile pump_profile: 6 features" in output
     assert "Profile: pump_profile\n" in output
     assert "Profile: pump_telemetry\n" in output
-    assert output.index("- Profile: pump_profile - 6 features") < output.index(
+    assert output.index("Processed profile pump_profile: 6 features") < output.index(
         "Profile: pump_profile\n"
     )
     assert "shape:" not in output
-    assert "\nInvocation: read_constants [read]\n" in output
-    assert "  Function: read_constants\n" not in output
-    assert "\n  Fragment:\n    - checking dataframe type\n" in output
-    assert "Fragment read_constants:" not in output
-    assert "\n  Dataset:\n    - checking dataframe type\n" in output
-    assert "Enriched target frame:" in output
-    assert "    - checking existing values and row order" in output
+    assert "Executing operator read_constants, function read_constants (read)" in output
+    assert f"{'DEBUG':8} | Check fragment dataframe type" in output
+    assert f"{'DEBUG':8} | Check dataset dataframe type" in output
+    assert f"{'DEBUG':8} | Check values and row order of existing columns" in output
+    assert "  Fragment:" not in output
+    assert "  Requirements:" not in output
     assert "\n  Completed in " not in output
     assert "\x1b[" not in output
 
@@ -177,8 +176,8 @@ def test_engine_cli_reports_scoped_saved_build(
     cli.main()
 
     output = capsys.readouterr().out
-    assert "Scope: selected features: health_signal_normalized" in output
-    assert "- Profile: pump_profile - 6 features" in output
+    assert "Scope:" not in output
+    assert "Processed profile pump_profile: 6 features" in output
 
 
 def test_engine_rejects_missing_parameter(
