@@ -110,10 +110,13 @@ human-readable labels generated from IDs when omitted.
 `up.Spec` accepts the profile declarations only. It infers dimension and
 resolution definitions from each profile's grain, requires repeated declarations
 to agree, rejects unresolved resolutions and conflicting metadata, and emits
-deterministic output. Profile IDs are globally unique. The function catalog is
-collected from the registered profiles; reference resolution does not mutate
-the supplied declarations. `ProfileRegistry([Pump]).to_declarations()` can
-instantiate and register profile classes.
+deterministic output. A profile's missing ID is inferred from its name, and a
+missing name is humanized from its ID. If both are omitted, the profile class
+name supplies the snake-case ID and humanized name. Profile IDs are globally
+unique. The function catalog is collected from the registered profiles;
+reference resolution does not mutate the supplied declarations.
+`ProfileRegistry([Pump]).to_declarations()` can instantiate and register
+profile classes.
 
 `Operator` declares work without executing it. It takes an `id`, an `interface`,
 and a `compute` binding. `Binding` contains the implementation `function` and

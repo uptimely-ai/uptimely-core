@@ -115,12 +115,18 @@ class Profile:
     ) -> None:
         if id is not None:
             self.id = id
-        if not isinstance(getattr(self, "id", None), str) or not self.id.strip():
-            raise ValueError("Profile requires a non-empty id")
         if name is not None:
             self.name = name
-        elif self.name is None:
-            self.name = model_base.humanize_identifier(self.id)
+        profile_id = getattr(self, "id", None)
+        if profile_id is None:
+            profile_name = getattr(self, "name", None)
+            source_name = profile_name if profile_name is not None else type(self).__name__
+            profile_id = model_base.snake_case_identifier(source_name)
+            self.id = profile_id
+        if not isinstance(profile_id, str) or not profile_id.strip():
+            raise ValueError("Profile requires a non-empty id")
+        if self.name is None:
+            self.name = model_base.humanize_identifier(profile_id)
         if description is not None:
             self.description = description
         if category is not None:
