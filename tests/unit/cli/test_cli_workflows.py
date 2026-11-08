@@ -5,6 +5,7 @@ import json
 import logging
 import pathlib
 import re
+import shlex
 import sys
 import types
 
@@ -406,8 +407,13 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
     assert len(processed_profiles) == dataset_count
     assert all(line.startswith("INFO     | ") for line in processed_profiles)
     assert any("Processed profile pump_profile: 6 features" in line for line in processed_profiles)
-    assert lines[-1] == (f"INFO     | Engine processed {dataset_count} profiles in 1.234 s.")
-    assert all(lines.index(line) < len(lines) - 1 for line in processed_profiles)
+    assert lines[-3] == (f"INFO     | Engine processed {dataset_count} profiles in 1.234 s.")
+    assert all(lines.index(line) < len(lines) - 3 for line in processed_profiles)
+    assert lines[-2] == "INFO     | View results in Explorer:"
+    assert lines[-1] == (
+        "INFO     | "
+        + shlex.join(["uptimely", "explore", "--project-root", str(project_root.resolve())])
+    )
     assert "Scope:" not in result.out
 
 
@@ -476,6 +482,9 @@ def test_run_log_level_filters_uptimely_only_and_restores_configuration(
             getattr(logging, message_level.upper()) >= getattr(logging, level.upper())
         )
     assert ("execution failed" in output.err) is failed
+    assert ("View results in Explorer:" in output.out) is (
+        not failed and level in ("debug", "info")
+    )
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -543,11 +552,13 @@ def test_engine_previews_final_profiles(
     output = capsys.readouterr()
     assert not output.err
     assert "Engine processed 2 profiles in " in output.out
+    assert output.out.rfind("View results in Explorer:") > output.out.index("Engine processed")
     assert "shape:" not in output.out
     if row_limit is None:
         assert "Profile:" not in output.out
         assert not collected_heights
     else:
+        assert output.out.rfind("View results in Explorer:") > output.out.rfind("Profile: second")
         assert output.out.index("Engine processed") < output.out.index("Profile: first")
         for dataset in ("first", "second"):
             assert f"Profile: {dataset}\n" in output.out
@@ -619,12 +630,15 @@ def test_engine_preview_errors_are_reported(
 
 
 @pytest.mark.parametrize("debug", [False, True])
+@pytest.mark.parametrize("directory", ["project", "project with spaces"])
 def test_engine_empty_plan_summary(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     debug: bool,
+    directory: str,
 ) -> None:
+    tmp_path = tmp_path / directory
     _write_empty_build(tmp_path)
     config = tmp_path / "config.json"
     config.write_text("{}", encoding="utf-8")
@@ -649,6 +663,13 @@ def test_engine_empty_plan_summary(
 
     result = capsys.readouterr()
     assert not result.err
+    command = result.out.split("View results in Explorer:\nINFO     | ", maxsplit=1)[1].strip()
+    assert shlex.split(command) == [
+        "uptimely",
+        "explore",
+        "--project-root",
+        str(tmp_path.resolve()),
+    ]
     summary = "INFO     | Engine processed 0 profiles in 0.000 s.\n"
     if debug:
         assert summary in result.out
@@ -657,7 +678,11 @@ def test_engine_empty_plan_summary(
         assert result.out == (
             "INFO     | Start Uptimely engine run\n"
             "INFO     | Start spec validation\n"
-            "INFO     | Spec validated\n" + summary
+            "INFO     | Spec validated\n"
+            + summary
+            + "INFO     | View results in Explorer:\nINFO     | "
+            + shlex.join(["uptimely", "explore", "--project-root", str(tmp_path.resolve())])
+            + "\n"
         )
 
 

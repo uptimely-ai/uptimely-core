@@ -3,6 +3,7 @@
 import argparse
 import logging
 import pathlib
+import shlex
 import time
 
 import polars as pl
@@ -94,6 +95,12 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 _log_summary(bundle, result, duration)
                 if args.preview is not None:
                     _log_previews(result, args.preview)
+            logger.info(
+                "View results in Explorer:",
+            )
+            logger.info(
+                shlex.join(["uptimely", "explore", "--project-root", str(root.resolve())]),
+            )
         except (
             OSError,
             ValueError,
