@@ -93,9 +93,9 @@ class Profile:
     ) = ()
 
     @property
-    def data(self) -> references.Reference:
-        """Reference this profile's dataframe without materializing it."""
-        return references.ProfileReference(kind="string", value=f"$profiles.{self.id}").data
+    def dataset(self) -> references.Reference:
+        """Reference this profile's dataset without materializing it."""
+        return references.ProfileReference(kind="string", value=f"$profiles.{self.id}").dataset
 
     def __init__(
         self,

@@ -156,7 +156,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.extract_field,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         column=features.operating_point_recommendation,
                         field="recommended_flow_rate",
                         output=features.recommended_flow_rate,
@@ -171,7 +171,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.extract_field,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         column=features.operating_point_recommendation,
                         field="recommended_discharge_pressure",
                         output=features.recommended_discharge_pressure,
@@ -186,7 +186,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.extract_field,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         column=features.operating_point_recommendation,
                         field="energy_cost_score",
                         output=features.energy_cost_score,
@@ -201,7 +201,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.extract_field,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         column=features.operating_point_recommendation,
                         field="converged",
                         output=features.converged,
@@ -216,7 +216,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.ratio,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         numerator_features=[
                             features.discharge_pressure,
                             features.flow_rate,
@@ -235,7 +235,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.broadcast_constant,
                     arguments=dict(
-                        constants=ref.data("constants"),
+                        constants=ref.dataset("constants"),
                         feature=ref.feature("room_temperature"),
                         output=features.room_temperature_reference,
                     ),
@@ -249,7 +249,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.subtract,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         feature=features.bearing_temperature,
                         subtrahend=features.room_temperature_reference,
                         output=features.bearing_temperature_rise,
@@ -265,7 +265,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.delta,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         feature=features.bearing_temperature,
                         partition_by=[ref.dimension("machine").resolution("machine").key],
                         order_by=ref.dimension("timestamp").resolution("timestamp").key,
@@ -283,7 +283,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.delta,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         feature=features.vibration_rms,
                         partition_by=[ref.dimension("machine").resolution("machine").key],
                         order_by=ref.dimension("timestamp").resolution("timestamp").key,
@@ -300,7 +300,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.pump_health_score,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         health_features=[
                             features.bearing_temperature_delta,
                             features.vibration_delta,
@@ -318,7 +318,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.optimize_pump_operating_point,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         optimization_features=[
                             features.discharge_pressure,
                             features.flow_rate,
@@ -340,7 +340,7 @@ class Telemetry(Profile):
                 compute=Binding(
                     function=analytics.write_pump_telemetry,
                     arguments=dict(
-                        dataset=ref.data(),
+                        dataset=ref.dataset(),
                         features=[
                             features.recommended_flow_rate,
                             features.recommended_discharge_pressure,

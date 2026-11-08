@@ -67,7 +67,7 @@ class Pump(up.Profile):
             compute=up.Binding(
                 function=maximum,
                 arguments=dict(
-                    dataset=up.ref.data("telemetry"),
+                    dataset=up.ref.dataset("telemetry"),
                     feature=up.ref.feature("bearing_temperature"),
                     dimensions=up.ref.profile().grain.ids,
                     output=up.ref.feature("bearing_temperature_max"),
@@ -343,15 +343,15 @@ references to functions and spec objects. It does not construct or load data.
 
 | Helper | Meaning |
 | --- | --- |
-| `up.ref.data()` | Current profile's dataframe. |
-| `up.ref.data("telemetry")` | Named profile's dataframe. |
+| `up.ref.dataset()` | Current profile's dataframe. |
+| `up.ref.dataset("telemetry")` | Named profile's dataframe. |
 | `up.ref.fragment()` | Staged fragment for the current operator's merge binding. |
 | `up.ref.feature("temperature")` | Input feature column; infers a dependency unless `inputs` is explicit. |
 | `up.ref.feature("maximum")` | Identifier of a feature in the containing operator's `outputs`; no input dependency. |
 
 `ref.feature()` does not declare a feature. An undeclared output name raises
 `ValueError`, including references nested in lists, dictionaries, and bindings.
-Use `ref.profile().data`, `ref.profile(name).data`,
+Use `ref.profile().dataset`, `ref.profile(name).dataset`,
 `ref.feature(name)`, and `ref.feature(name).id` to create deferred references.
 The general `.id` selector does not require the feature to be an operator output.
 

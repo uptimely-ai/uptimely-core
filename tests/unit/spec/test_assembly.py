@@ -77,7 +77,7 @@ def test_binding_target_optionality_depends_on_function_kind(
 ) -> None:
     binding = assembly.Binding(
         function=ref.function("unavailable_assembly_test_package:combine", kind=kind),
-        arguments={"target": ref.data()},
+        arguments={"target": ref.dataset()},
     )
     assert binding.to_function_template().args["target"].type == expected
 
@@ -122,7 +122,7 @@ def test_interface_rejects_duplicate_outputs_at_construction() -> None:
 
 def test_interface_rejects_non_feature_input_references() -> None:
     with pytest.raises(ValueError, match="Operator input must reference a feature"):
-        assembly.Interface(inputs=[ref.data()])
+        assembly.Interface(inputs=[ref.dataset()])
 
 
 @pytest.mark.parametrize(
@@ -171,7 +171,7 @@ def test_operator_combines_binding_contracts_but_only_compute_row_context() -> N
     )
     merge = assembly.Binding(
         function=ref.function("unavailable_assembly_test_package:combine", kind="merge"),
-        arguments={"target": row_context.rows(ref.data(), before=9)},
+        arguments={"target": row_context.rows(ref.dataset(), before=9)},
     )
     operator = assembly.Operator(
         id="calculate",

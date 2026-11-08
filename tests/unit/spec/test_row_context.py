@@ -87,7 +87,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                         compute=assembly.Binding(
                             function=ref.function(calculate, kind="vectorize"),
                             arguments={
-                                "dataset": ref.profile().data,
+                                "dataset": ref.profile().dataset,
                                 "column": ref.feature("temperature").id,
                                 "output": ref.feature("result").id,
                                 "configuration": {"windows": ["8h", "24h"]},
@@ -600,7 +600,7 @@ def test_collapse_functions_execute_without_row_context(
                 compute=assembly.Binding(
                     function=ref.function(maximum, kind="collapse"),
                     arguments={
-                        "dataset": ref.profile("observations").data,
+                        "dataset": ref.profile("observations").dataset,
                         "column": ref.feature("temperature").id,
                         "output": ref.feature("temperature_max").id,
                     },

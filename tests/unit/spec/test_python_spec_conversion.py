@@ -87,7 +87,7 @@ def _declaration(
                 ),
                 arguments={
                     **(
-                        {"dataset": ref.profile().data}
+                        {"dataset": ref.profile().dataset}
                         if category in {"write", "vectorize", "collapse"}
                         else {}
                     ),
@@ -95,7 +95,7 @@ def _declaration(
                         {
                             "dataset": ref.profile(
                                 "shared_source" if is_expand else f"{identifier}_source"
-                            ).data,
+                            ).dataset,
                         }
                         if is_dimensional
                         else {}

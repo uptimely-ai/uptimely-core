@@ -44,7 +44,7 @@ def test_root_authoring_api_compiles_and_executes(
                 compute=up.Binding(
                     function=double,
                     arguments={
-                        "dataset": up.ref.data(),
+                        "dataset": up.ref.dataset(),
                         "value": up.ref.feature("value"),
                         "output": up.ref.feature("doubled"),
                     },
@@ -76,8 +76,8 @@ def test_root_authoring_api_compiles_and_executes(
 @pytest.mark.parametrize("name", [None, "telemetry"])
 def test_dataframe_helper_matches_existing_selectors(name: str | None) -> None:
     expected = ref.profile() if name is None else ref.profile(name)
-    assert up.ref.data(name) == expected.data
-    assert binding_conversion.argument_definition(up.ref.data(name)) == {"type": "dataframe"}
+    assert up.ref.dataset(name) == expected.dataset
+    assert binding_conversion.argument_definition(up.ref.dataset(name)) == {"type": "dataframe"}
 
 
 def test_feature_reference_defaults_to_id_binding() -> None:

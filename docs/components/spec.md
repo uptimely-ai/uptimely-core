@@ -575,7 +575,7 @@ change the merge function.
 
 When declared, `merge.args.target` must be `$profiles.@.dataframe` and
 `merge.args.fragment` must be `$operators.@.fragment`. The target is nullable
-for the first merge. Python declarations use `ref.data()` and `ref.fragment()`.
+for the first merge. Python declarations use `ref.dataset()` and `ref.fragment()`.
 Merge bindings cannot reference features; assembly
 uses the target profile's declared dimensions to determine join keys.
 `interface.inputs` declares compute dependencies only.

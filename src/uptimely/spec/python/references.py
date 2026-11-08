@@ -96,8 +96,8 @@ class ProfileReference(Reference):
         return f"{self.value}.id"
 
     @property
-    def data(self) -> Reference:
-        """Select the runtime dataframe, retaining the portable document format."""
+    def dataset(self) -> Reference:
+        """Select the runtime dataset, retaining the portable document format."""
         return Reference(kind=arg_types.DATAFRAME, value=f"{self.value}.dataframe")
 
     @property
