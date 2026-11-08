@@ -4,6 +4,7 @@ import json
 
 import pytest
 
+from uptimely import entrypoint
 from uptimely import plan as uptimely_plan
 
 
@@ -358,7 +359,62 @@ def test_entrypoints_by_id_include_saved_package_provenance() -> None:
     assert entrypoints[location].package is not None
     assert entrypoints[location].package.distribution == "recorded-package"
     assert entrypoints[location].package.version == "1.0"
+    assert plan.packages[location].distribution == "recorded-package"
     assert plan.entrypoints_by_id is entrypoints
+
+
+def test_plan_implementation_views_do_not_read_runtime_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    original = _sample_plan()
+    monkeypatch.setattr(
+        entrypoint.PackageProvenance,
+        "read",
+        lambda *_: pytest.fail("Plan package views must not inspect the runtime environment"),
+    )
+    monkeypatch.setattr(
+        entrypoint.Signature,
+        "read",
+        lambda *_: pytest.fail("Plan function views must not load implementation modules"),
+    )
+    plan = copy.replace(
+        original,
+        resources={
+            **original.resources,
+            "entrypoint_packages": {
+                "example.functions:load": {
+                    "distribution": "recorded-package",
+                    "version": "1.0",
+                }
+            },
+        },
+    )
+
+    assert plan.packages["example.functions:load"].distribution == "recorded-package"
+    assert (
+        plan.entrypoints_by_id["example.functions:load"].package
+        == plan.packages["example.functions:load"]
+    )
+    assert {name: function.name for name, function in plan.functions.items()} == {
+        "load": "load",
+        "maximum": "maximum",
+        "save": "save",
+    }
+
+
+def test_plan_rejects_function_ids_with_multiple_entrypoints() -> None:
+    original = _sample_plan()
+    conflicting = copy.replace(
+        original.invocations[1],
+        function_id=original.invocations[0].function_id,
+        entrypoint="other.functions:load",
+    )
+
+    with pytest.raises(ValueError, match="assigns function 'load' to multiple entrypoints"):
+        copy.replace(
+            original,
+            invocations=[original.invocations[0], conflicting, *original.invocations[2:]],
+        )
 
 
 def test_plan_replacement_does_not_retain_stale_indexes() -> None:

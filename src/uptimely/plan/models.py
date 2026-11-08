@@ -90,6 +90,15 @@ class ExecutionPlan(_PlanModel):
         invocation_ids = {invocation.id for invocation in self.invocations}
         if len(invocation_ids) != len(self.invocations):
             raise ValueError("Plan contains duplicate invocation ids")
+        entrypoints_by_function: dict[str, str] = {}
+        for invocation in self.invocations:
+            previous = entrypoints_by_function.setdefault(
+                invocation.function_id, invocation.entrypoint
+            )
+            if previous != invocation.entrypoint:
+                raise ValueError(
+                    f"Plan assigns function {invocation.function_id!r} to multiple entrypoints"
+                )
         referenced = {
             dependency_id
             for invocation in self.invocations
@@ -182,20 +191,36 @@ class ExecutionPlan(_PlanModel):
         return dict.fromkeys(invocation.entrypoint for invocation in self.invocations)
 
     @functools.cached_property
+    def packages(self) -> dict[str, entrypoint_module.PackageProvenance]:
+        """Return saved package provenance keyed by entrypoint without reading the environment."""
+        package_resources = self.resources.get("entrypoint_packages", {})
+        return {
+            location: entrypoint_module.PackageProvenance(**package)
+            for location, package in package_resources.items()
+        }
+
+    @functools.cached_property
     def entrypoints_by_id(self) -> dict[str, entrypoint_module.Entrypoint]:
-        """Return parsed entrypoints with their saved package provenance."""
-        packages = self.resources.get("entrypoint_packages", {})
+        """Return parsed entrypoints with saved package provenance."""
+        packages = self.packages
         return {
             location: entrypoint_module.Entrypoint(
                 location,
-                package=(
-                    entrypoint_module.PackageProvenance(**packages[location])
-                    if location in packages
-                    else None
-                ),
+                package=packages.get(location),
             )
             for location in self.entrypoints
         }
+
+    @functools.cached_property
+    def functions(self) -> dict[str, entrypoint_module.Function]:
+        """Return unique functions keyed by declaration ID without loading them."""
+        functions_by_id: dict[str, entrypoint_module.Function] = {}
+        for invocation in self.invocations:
+            functions_by_id.setdefault(
+                invocation.function_id,
+                self.entrypoints_by_id[invocation.entrypoint].function,
+            )
+        return functions_by_id
 
     @functools.cached_property
     def count_per_kind(self) -> dict[functions.FunctionKindId, int]:

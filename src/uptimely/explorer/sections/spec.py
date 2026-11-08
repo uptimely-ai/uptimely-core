@@ -217,7 +217,7 @@ def _build_context(
             function_entrypoint = entrypoint_module.Entrypoint(entrypoint)
             source_file = function_entrypoint.module.source_file
             function["entrypoint_file"] = pathlib.Path(source_file).resolve().as_uri()
-            return_type = function_entrypoint.function.signature.returns
+            return_type = function_entrypoint.function.read_signature().returns
             if return_type:
                 function["return_type"] = return_type
             docstring = function_entrypoint.function.docstring

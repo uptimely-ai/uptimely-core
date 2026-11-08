@@ -12,49 +12,11 @@ from support import examples as example_support
 from uptimely import compiler, project, spec
 from uptimely import entrypoint as shared_entrypoint
 from uptimely import plan as plan
-from uptimely.compiler import compiler as compiler_module
 from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec.python import ref
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
-
-
-def test_compiler_entrypoints_deduplicate_locations_without_importing(
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    caplog.set_level(logging.DEBUG, logger="uptimely.compiler")
-    calls: list[str] = []
-    original = shared_entrypoint.Entrypoint
-
-    def parse(location: str) -> shared_entrypoint.Entrypoint:
-        calls.append(location)
-        return original(location)
-
-    monkeypatch.setattr(shared_entrypoint, "Entrypoint", parse)
-    locations = ["missing_module:first", "missing_module:second", "missing_module:first"]
-    compilation = compiler_module._Compilation(spec.Spec())
-    compilation.__dict__["invocations"] = [
-        types.SimpleNamespace(entrypoint=location) for location in locations
-    ]
-    parsed = compilation.entrypoints
-    assert list(parsed) == locations[:2]
-    assert calls == locations[:2]
-    assert compilation.entrypoints is parsed
-    assert calls == locations[:2]
-    assert caplog.messages == [
-        "  Entrypoints:",
-        "    - checking syntax for 2 unique entrypoints",
-    ]
-    caplog.clear()
-    empty_compilation = compiler_module._Compilation(spec.Spec())
-    empty_compilation.__dict__["invocations"] = []
-    assert empty_compilation.entrypoints == {}
-    assert caplog.messages == [
-        "  Entrypoints:",
-        "    - checking syntax for 0 unique entrypoints",
-    ]
 
 
 @pytest.fixture(autouse=True)
@@ -669,7 +631,7 @@ def test_function_load_rejects_noncallable_attributes() -> None:
         shared_entrypoint.Entrypoint("math:pi").function.load()
 
 
-def test_entrypoint_reuses_module_function_and_signature(
+def test_entrypoint_reuses_module_and_function_but_reads_signature_explicitly(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     reads = 0
@@ -687,11 +649,12 @@ def test_entrypoint_reuses_module_function_and_signature(
     assert implementation.module is implementation.module
     assert implementation.function is implementation.function
     assert implementation.function.module is implementation.module
-    assert implementation.function.signature is implementation.function.signature
-    assert reads == 1
+    implementation.function.read_signature()
+    implementation.function.read_signature()
+    assert reads == 2
 
 
-def test_module_reuses_package_metadata_without_importing(
+def test_module_reads_package_metadata_without_importing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     reads = 0
@@ -710,9 +673,9 @@ def test_module_reuses_package_metadata_without_importing(
     monkeypatch.setattr(shared_entrypoint.Module, "load", fail_import)
     module = shared_entrypoint.Module("not_imported.module")
 
-    assert module.package is package
-    assert module.package is package
-    assert reads == 1
+    assert module.read_package() is package
+    assert module.read_package() is package
+    assert reads == 2
 
 
 def test_compiler_inspects_each_distinct_entrypoint_once(

@@ -133,7 +133,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         if template is None:
             raise ValueError(f"Unknown function: {function_id}")
         signature = (
-            entrypoint.Entrypoint(template.entrypoint).function.signature
+            entrypoint.Entrypoint(template.entrypoint).function.read_signature()
             if template.validate_signature
             else None
         )

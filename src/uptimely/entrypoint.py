@@ -125,9 +125,12 @@ class Module:
             and all(part.isidentifier() for part in location.split("."))
         )
 
-    @functools.cached_property
-    def package(self) -> PackageProvenance:
-        """Return installed package provenance without importing this module."""
+    def read_package(self) -> PackageProvenance:
+        """Read installed package provenance without importing this module.
+
+        Raises:
+            ValueError: The package namespace has ambiguous distribution ownership.
+        """
         return PackageProvenance.read(self.location)
 
     @property
@@ -252,9 +255,15 @@ class Function:
 
         return cls(Module(module_path), function_name)
 
-    @functools.cached_property
-    def signature(self) -> Signature:
-        """Return the annotated signature of this function."""
+    def read_signature(self) -> Signature:
+        """Import this function and read its annotated signature.
+
+        Raises:
+            ImportError: The function's module or a dependency cannot be imported.
+            NameError: A signature annotation refers to an unavailable name.
+            TypeError: The resolved function has no inspectable signature.
+            ValueError: The function's signature or annotations cannot be inspected.
+        """
         return Signature.read(self)
 
     @functools.cached_property
@@ -334,7 +343,7 @@ class Entrypoint:
             return typing.cast(typing.Callable[..., typing.Any], function)
         except (ImportError, AttributeError, TypeError) as error:
             try:
-                available = str(self.module.package)
+                available = str(self.module.read_package())
             except (ImportError, ValueError) as package_error:
                 available = f"unresolved ({package_error})"
             raise ValueError(
