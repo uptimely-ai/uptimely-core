@@ -22,7 +22,7 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
                 "entrypoint": invocation.entrypoint,
                 "function_id": invocation.function_id,
                 "operator_id": invocation.operator_id,
-                "dataset_id": invocation.dataset_id,
+                "profile_id": invocation.profile_id,
                 "arguments": invocation.arguments,
                 "dependency_ids": invocation.dependency_ids,
                 "output_features": invocation.output_features,

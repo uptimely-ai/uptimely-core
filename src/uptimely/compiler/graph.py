@@ -22,7 +22,7 @@ class InvocationNode:
     """One function invocation in the compilation graph."""
 
     function_id: str
-    dataset_id: str
+    profile_id: str
     operator_id: str
     function_kind: functions.FunctionKindId
     output_features: tuple[str, ...] = ()
@@ -39,14 +39,14 @@ class InvocationNode:
         """Stable graph identifier for this invocation."""
         return (
             f"invocation:{self.function_kind}:{self.function_id}:"
-            f"{self.dataset_id}:{self.operator_id}"
+            f"{self.profile_id}:{self.operator_id}"
         )
 
     def __str__(self) -> str:
-        return f"{self.function_kind}:{self.function_id}({self.dataset_id})"
+        return f"{self.function_kind}:{self.function_id}({self.profile_id})"
 
     def __repr__(self) -> str:
-        return f"{self.function_kind}:{self.function_id}({self.dataset_id})"
+        return f"{self.function_kind}:{self.function_id}({self.profile_id})"
 
 
 class InvocationGraph:
@@ -85,7 +85,7 @@ class InvocationGraph:
             outputs = operator.output_features
             invocation = InvocationNode(
                 function_id=operator.compute.function,
-                dataset_id=profile.id,
+                profile_id=profile.id,
                 operator_id=operator.id,
                 function_kind=function_kind,
                 output_features=tuple(outputs),
@@ -98,7 +98,7 @@ class InvocationGraph:
                 merge_kind = self.spec.functions[operator.merge.function].kind
                 merge_invocation = InvocationNode(
                     function_id=operator.merge.function,
-                    dataset_id=profile.id,
+                    profile_id=profile.id,
                     operator_id=operator.id,
                     function_kind=merge_kind,
                     arguments=operator.merge.args,
@@ -116,7 +116,7 @@ class InvocationGraph:
             [node.reference for node in nodes.values()]
         )
         by_binding = {
-            (node.dataset_id, node.operator_id, node.function_id): node
+            (node.profile_id, node.operator_id, node.function_id): node
             for node in (graph_node.reference for graph_node in nodes.values())
         }
         for graph_node in nodes.values():
@@ -146,14 +146,14 @@ class InvocationGraph:
         merge = self.operator_for(node).merge
         if merge is None:
             return None
-        return by_binding.get((node.dataset_id, node.operator_id, merge.function))
+        return by_binding.get((node.profile_id, node.operator_id, merge.function))
 
     def _index_feature_producers(
         self, invocations: list[InvocationNode]
     ) -> dict[str, InvocationNode]:
         """Map declared logical outputs to their producing invocations."""
         by_binding = {
-            (node.dataset_id, node.operator_id, node.function_id): node for node in invocations
+            (node.profile_id, node.operator_id, node.function_id): node for node in invocations
         }
         producers: dict[str, InvocationNode] = {}
         for compute in invocations:
@@ -167,7 +167,7 @@ class InvocationGraph:
 
     def profile_for(self, node: InvocationNode) -> spec.Profile:
         """Return a node's profile by its globally unique ID."""
-        return self.spec.profiles[node.dataset_id]
+        return self.spec.profiles[node.profile_id]
 
     def operator_for(self, node: InvocationNode) -> spec.Operator:
         """Return the declaration that produced an invocation node."""
@@ -194,12 +194,12 @@ class InvocationGraph:
         for node in list(selected_nodes):
             selected_nodes.update(self.graph.ancestors(node))
 
-        selected_dataset_ids = {node.dataset_id for node in requested_nodes}
+        selected_profile_ids = {node.profile_id for node in requested_nodes}
         for invocation in self.invocations:
             function_kind = self.spec.functions[invocation.function_id].kind
             if not functions.FUNCTION_KINDS[function_kind].is_sink:
                 continue
-            if invocation.dataset_id not in selected_dataset_ids:
+            if invocation.profile_id not in selected_profile_ids:
                 continue
             sink_node = self._node_by_key(invocation.node_id)
             selected_nodes.add(sink_node)

@@ -105,7 +105,7 @@ export function prepareInvocationLayout(data) {
 			+ computeHeight + publishHeight + trackHeight(effectCount)
 			+ (computeCount ? INVOCATION_LAYOUT.trackGap : 0)
 			+ (effectCount ? INVOCATION_LAYOUT.trackGap : 0) + INVOCATION_LAYOUT.footerHeight;
-		lane.name = groups.flat()[0].dataset_name || lane.id;
+		lane.name = groups.flat()[0].profile_name || lane.id;
 		lane.color = groups.flat()[0].datasetColor;
 		lane.publicationGroups = [];
 		for (const nodes of groups) {

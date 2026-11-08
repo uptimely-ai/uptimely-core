@@ -33,7 +33,7 @@ def _build_step(
         feature_labels = common.feature_labels(spec_definition)
 
     function_name = spec_definition.functions[invocation.function_id].name or invocation.function_id
-    dataset = spec_definition.profiles.get(invocation.dataset_id) if invocation.dataset_id else None
+    dataset = spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
     input_labels = [feature_labels.get(name, name) for name in invocation.input_features]
     output_labels = [feature_labels.get(name, name) for name in invocation.output_features]
     kind = functions.FUNCTION_KINDS[invocation.function_kind]
@@ -53,8 +53,8 @@ def _build_step(
         "title": function_name,
         "function_label": function_name,
         "entrypoint": invocation.entrypoint,
-        "profile": invocation.dataset_id,
-        "dataset": invocation.dataset_id,
+        "profile": invocation.profile_id,
+        "dataset": invocation.profile_id,
         "dataset_label": dataset.name,
         "feature": displayed_feature,
         "input_features": input_labels,

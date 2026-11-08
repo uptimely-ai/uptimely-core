@@ -47,7 +47,7 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
-        dataset_id="data",
+        profile_id="data",
         arguments=arguments,
         argument_types=argument_types,
     )
@@ -98,7 +98,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         entrypoint="example:read",
         function_id="read",
         operator_id="source",
-        dataset_id="data",
+        profile_id="data",
         output_features=["value"],
     )
     merge = execution_plan.Invocation(
@@ -107,7 +107,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         entrypoint="example:join",
         function_id="join",
         operator_id="source",
-        dataset_id="data",
+        profile_id="data",
         arguments={
             "target": "data",
             "fragment": "$operators.source.fragment",
@@ -134,6 +134,9 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
     assert merge_node["merge_target"] == card["merge_target"] == "data"
     assert merge_node["fragment_source"] == card["fragment_source"] == "$operators.source.fragment"
     assert merge_node["merge_keys"] == card["merge_keys"] == ["id"]
+    assert all(node["profile_id"] == "data" for node in nodes)
+    assert all(node["profile_name"] == "Data" for node in nodes)
+    assert all("dataset_id" not in node and "dataset_name" not in node for node in nodes)
     assert links == [{"source": read_id, "target": merge_id, "dependency_type": "fragment"}]
 
 
@@ -172,9 +175,7 @@ def test_feature_labels_use_ids_for_empty_names_and_prefer_global_dimensions() -
 
 
 def test_feature_data_preserves_empty_strings() -> None:
-    node = models.FeatureNode(
-        name="reading", data_type="", profile_id="telemetry", dataset_id="telemetry"
-    )
+    node = models.FeatureNode(name="reading", data_type="", profile_id="telemetry")
 
     assert feature_lineage._node_data(node) == {
         "node_type": "feature",
@@ -182,7 +183,7 @@ def test_feature_data_preserves_empty_strings() -> None:
         "label": "reading",
         "feature_id": "reading",
         "profile": "telemetry",
-        "dataset_id": "telemetry",
+        "profile_id": "telemetry",
         "data_type": "",
     }
 
@@ -230,7 +231,6 @@ def test_operator_data_includes_declared_function_metadata() -> None:
         operator_id="double_operator",
         features=("doubled",),
         profile_id="telemetry",
-        dataset_id="telemetry",
         function=function,
     )
 
@@ -241,7 +241,7 @@ def test_operator_data_includes_declared_function_metadata() -> None:
         "operator_id": "double_operator",
         "features": ["doubled"],
         "profile": "telemetry",
-        "dataset_id": "telemetry",
+        "profile_id": "telemetry",
         "function_id": "double",
         "function_name": "Double",
         "function_kind": "vectorize",
@@ -292,7 +292,7 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
-        dataset_id="data",
+        profile_id="data",
         input_features=["a"],
     )
     a, b, c = [
@@ -354,7 +354,7 @@ def test_kind_capabilities_preserve_presentation_contracts(
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
-        dataset_id="data",
+        profile_id="data",
         input_features=["raw"],
         output_features=["value"],
     )
@@ -408,7 +408,7 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
-        dataset_id="data",
+        profile_id="data",
         output_features=["value"],
     )
     compiled = execution_plan.ExecutionPlan(

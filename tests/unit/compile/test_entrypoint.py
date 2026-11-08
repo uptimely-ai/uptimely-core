@@ -74,12 +74,12 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     specification = spec.load_spec(SPEC_PATH)
     compiled = compiler.Compiler().compile(specification)
     compute_by_operator = {
-        (invocation.dataset_id, invocation.operator_id): invocation
+        (invocation.profile_id, invocation.operator_id): invocation
         for invocation in compiled.invocations
         if invocation.function_kind != "merge"
     }
     merges_by_operator = {
-        (invocation.dataset_id, invocation.operator_id): invocation
+        (invocation.profile_id, invocation.operator_id): invocation
         for invocation in compiled.invocations
         if invocation.function_kind == "merge"
     }
@@ -114,7 +114,7 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
             if producer is None or producer.operator_id == invocation.operator_id:
                 continue
             publication = merges_by_operator.get(
-                (producer.dataset_id, producer.operator_id), producer
+                (producer.profile_id, producer.operator_id), producer
             )
             assert publication.id in invocation.dependency_ids
 
@@ -124,7 +124,7 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     selected = compiler.Compiler().compile(specification, features=[selected_feature])
     selected_producer = feature_producers[selected_feature]
     selected_merge = merges_by_operator.get(
-        (selected_producer.dataset_id, selected_producer.operator_id)
+        (selected_producer.profile_id, selected_producer.operator_id)
     )
     if selected_merge is not None:
         assert selected_merge.id in {invocation.id for invocation in selected.invocations}

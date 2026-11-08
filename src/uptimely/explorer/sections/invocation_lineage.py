@@ -39,11 +39,11 @@ def invocation_lineage_payload(
         function = spec_definition.functions[invocation.function_id]
         kind = functions.FUNCTION_KINDS[invocation.function_kind]
         is_merge = invocation.function_kind == functions.MERGE
-        dataset = (
-            spec_definition.profiles.get(invocation.dataset_id) if invocation.dataset_id else None
+        profile = (
+            spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
         )
         function_name = function.name or invocation.function_id
-        dataset_name = dataset.name or dataset.id if dataset is not None else invocation.dataset_id
+        profile_name = profile.name or profile.id if profile is not None else invocation.profile_id
         nodes.append(
             {
                 "id": invocation.id,
@@ -62,9 +62,9 @@ def invocation_lineage_payload(
                 "merge_keys": invocation.arguments.get("target_keys") if is_merge else None,
                 "operator_id": invocation.operator_id,
                 "operator_name": base.humanize_identifier(invocation.operator_id),
-                "profile": invocation.dataset_id,
-                "dataset_id": invocation.dataset_id,
-                "dataset_name": dataset_name,
+                "profile": invocation.profile_id,
+                "profile_id": invocation.profile_id,
+                "profile_name": profile_name,
                 "feature": (
                     ", ".join(
                         feature_labels.get(feature, feature)
@@ -86,7 +86,7 @@ def invocation_lineage_payload(
                 "fragment"
                 if invocation.function_kind == functions.MERGE
                 and dependency.operator_id == invocation.operator_id
-                and dependency.dataset_id == invocation.dataset_id
+                and dependency.profile_id == invocation.profile_id
                 else "feature"
             )
             links.append(

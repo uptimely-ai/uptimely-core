@@ -49,7 +49,7 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
         entrypoint="example:transfer",
         function_id="transfer",
         operator_id="transfer_source-values",
-        dataset_id="target",
+        profile_id="target",
         input_features=["input_value"],
         output_features=["result"],
     )

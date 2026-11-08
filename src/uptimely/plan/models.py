@@ -11,7 +11,7 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely.spec import function_kinds as functions
 from uptimely.spec import row_context as uptimely_row_context
 
-PLAN_VERSION = 6
+PLAN_VERSION = 7
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
@@ -34,7 +34,7 @@ class Invocation(_PlanModel):
     entrypoint: NonEmptyString
     function_id: NonEmptyString
     operator_id: NonEmptyString
-    dataset_id: NonEmptyString | None
+    profile_id: NonEmptyString | None
     arguments: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
     dependency_ids: list[NonEmptyString] = pydantic.Field(default_factory=list)
     output_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
@@ -70,7 +70,7 @@ class Invocation(_PlanModel):
 class ExecutionPlan(_PlanModel):
     """Portable execution plan with validated invocation and staging contracts."""
 
-    plan_version: typing.Literal[6]
+    plan_version: typing.Literal[7]
     required_backend: NonEmptyString
     resources: dict[str, typing.Any]
     invocations: list[Invocation]
@@ -141,7 +141,7 @@ class ExecutionPlan(_PlanModel):
     @functools.cached_property
     def profile_ids(self) -> set[str | None]:
         """Return the distinct profile IDs used by this plan."""
-        return {invocation.dataset_id for invocation in self.invocations}
+        return {invocation.profile_id for invocation in self.invocations}
 
     @functools.cached_property
     def arguments(self) -> dict[str, dict[str, typing.Any]]:
@@ -209,5 +209,6 @@ def _validate_plan_version(version: object) -> None:
     """Reject plan versions this runtime cannot load."""
     if type(version) is not int or version != PLAN_VERSION:
         raise ValueError(
-            f"Unsupported plan version: {version!r}. Supported version is {PLAN_VERSION}."
+            f"Unsupported plan version: {version!r}. Supported version is {PLAN_VERSION}. "
+            "Recompile the project build."
         )

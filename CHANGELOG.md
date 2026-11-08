@@ -10,6 +10,12 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking (plans and Python API):** Plan version 7 replaces invocation
+  `dataset_id` with `profile_id`, without a legacy alias. Compiler graph nodes
+  and Explorer lineage metadata likewise use profile fields; feature graph
+  nodes no longer duplicate profile identity as dataset metadata. Datasets
+  remain engine-owned runtime accumulators. Rebuild bundles from their source
+  Specs to replace version 6 plans.
 - **Breaking (Python authoring):** Renamed `row_context.dataset()` to
   `row_context.all_rows()` to describe its row-context behavior without implying
   a spec-level Dataset.

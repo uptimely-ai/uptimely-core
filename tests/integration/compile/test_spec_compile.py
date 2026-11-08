@@ -523,7 +523,7 @@ def test_compiled_inputs_match_each_profile_mapping() -> None:
 
     assert len(profiles) > 1
     for invocation in execution_plan.invocations:
-        operator = profiles[invocation.dataset_id].assembly[invocation.operator_id]
+        operator = profiles[invocation.profile_id].assembly[invocation.operator_id]
         if invocation.function_kind == "merge":
             assert invocation.input_features == []
             assert invocation.output_features == []
@@ -538,7 +538,7 @@ def test_graph_subset_retains_profile_mapping_lookups() -> None:
     subset = graph.subset(["health_signal_normalized"])
 
     for node in subset.invocations:
-        assert graph.profile_for(node) is document.profiles[node.dataset_id]
+        assert graph.profile_for(node) is document.profiles[node.profile_id]
         assert subset.profile_for(node) is graph.profile_for(node)
         assert subset.operator_for(node) is graph.operator_for(node)
         assert {dependency.node_id for dependency in subset.dependencies(node)} == {

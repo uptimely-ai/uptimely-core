@@ -126,7 +126,7 @@ class Engine:
                 "\nInvocation: %s [%s]",
                 invocation.operator_id,
                 invocation.function_kind,
-                extra={"invocation_id": invocation.id, "profile_id": invocation.dataset_id},
+                extra={"invocation_id": invocation.id, "profile_id": invocation.profile_id},
             )
             if invocation.function_id != invocation.operator_id:
                 logger.debug("  Function: %s", invocation.function_id)
@@ -141,7 +141,7 @@ class Engine:
                     invocation.id,
                     error,
                     exc_info=True,
-                    extra={"invocation_id": invocation.id, "profile_id": invocation.dataset_id},
+                    extra={"invocation_id": invocation.id, "profile_id": invocation.profile_id},
                 )
                 break
             statuses[invocation.id] = result_module.INVOCATION_STATUS_SUCCEEDED

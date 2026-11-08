@@ -74,7 +74,7 @@ export function lineage(data, topology) {
     : data.graphs.feature_lineage;
   const style = topology ? data.graphs.invocation_style : data.graphs.feature_style;
   const profileCount = new Set(graphData.nodes.filter(node => !node.is_operator)
-    .map(node => node.dataset_id || UNASSIGNED_DATASET)).size;
+    .map(node => node.profile_id || UNASSIGNED_DATASET)).size;
   const kinds = [...new Set(graphData.nodes.map(node => node.function_kind).filter(Boolean))];
   const payload = (id, value) => `<script id="${id}" type="application/json">${JSON.stringify(value).replace(/</g, "\\u003c")}</script>`;
   return {

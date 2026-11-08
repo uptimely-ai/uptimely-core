@@ -20,7 +20,7 @@ function node(id, stage, kind, profile = "pump") {
     phase: kind === "merge" ? "merge" : "compute",
     is_effect: ["write", "escape"].includes(kind),
     operator_id: id.replace("-merge", ""),
-    dataset_id: profile, dataset_name: `${profile} profile`, datasetColor: "#2dd4bf",
+    profile_id: profile, profile_name: `${profile} profile`, datasetColor: "#2dd4bf",
   };
 }
 

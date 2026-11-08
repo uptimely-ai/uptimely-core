@@ -19,8 +19,8 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
     restored = execution_plan.from_dict(execution_plan.to_dict(pump_bundle.execution_plan))
 
     for invocation in restored.invocations:
-        grain_keys = document.grain_keys_by_profile[invocation.dataset_id]
-        profile = document.profiles[invocation.dataset_id]
+        grain_keys = document.grain_keys_by_profile[invocation.profile_id]
+        profile = document.profiles[invocation.profile_id]
         assert invocation.id_columns == grain_keys
         assert invocation.column_types == {
             **{
@@ -28,7 +28,7 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
                 for name, feature in profile.features.items()
                 if feature.type is not None
             },
-            **document.grain_key_types_by_profile[invocation.dataset_id],
+            **document.grain_key_types_by_profile[invocation.profile_id],
         }
         assert invocation.argument_types == {
             name: argument.type
@@ -90,7 +90,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "invocations",
         "stages",
     }
-    assert metadata["plan_version"] == 6
+    assert metadata["plan_version"] == 7
     assert {invocation["function_kind"] for invocation in metadata["invocations"]} == {
         "read",
         "collapse",

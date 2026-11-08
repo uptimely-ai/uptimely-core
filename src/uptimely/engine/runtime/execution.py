@@ -56,8 +56,8 @@ class InvocationExecutor:
             else:
                 self._execute_column_operator(invocation)
         else:
-            if invocation.dataset_id not in self.state.datasets:
-                raise KeyError(invocation.dataset_id)
+            if invocation.profile_id not in self.state.datasets:
+                raise KeyError(invocation.profile_id)
             self._invoke(invocation)
 
     def check_input_requirements(self, invocation: plan_module.Invocation) -> None:
@@ -80,7 +80,7 @@ class InvocationExecutor:
     def _check_input_features(self, invocation: plan_module.Invocation) -> None:
         """Require each feature locally or in exactly one other profile."""
         logger.debug("    - checking declared input features")
-        target = self.state.datasets.get(invocation.dataset_id)
+        target = self.state.datasets.get(invocation.profile_id)
         target_columns = (
             set(self.backend.column_names(target.dataframe)) if target is not None else set()
         )
@@ -90,7 +90,7 @@ class InvocationExecutor:
         available = collections.Counter(
             column
             for dataset_id, frame in self.state.datasets.items()
-            if dataset_id != invocation.dataset_id
+            if dataset_id != invocation.profile_id
             for column in set(self.backend.column_names(frame.dataframe))
         )
         for feature in invocation.input_features:
@@ -126,7 +126,7 @@ class InvocationExecutor:
         """Require a dataset reference distinct from the invocation's target."""
         logger.debug("    - checking foreign source reference")
         source_id = invocation.arguments.get(argument_name)
-        if not isinstance(source_id, str) or source_id == invocation.dataset_id:
+        if not isinstance(source_id, str) or source_id == invocation.profile_id:
             raise ValueError(
                 f"Operator {invocation.operator_id} must reference a foreign source profile"
             )
@@ -336,9 +336,9 @@ class InvocationExecutor:
     @staticmethod
     def _profile_id(invocation: plan_module.Invocation) -> str:
         """Require a target profile ID for a dataframe invocation."""
-        if invocation.dataset_id is None:
+        if invocation.profile_id is None:
             raise ValueError(f"Dataframe invocation {invocation.id} must declare a profile ID")
-        return invocation.dataset_id
+        return invocation.profile_id
 
     def _invoke(
         self,
