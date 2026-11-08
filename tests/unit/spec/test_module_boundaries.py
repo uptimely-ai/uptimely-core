@@ -179,7 +179,6 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
     assert reloaded == document
     first = compiler.Compiler().compile(document)
     second = compiler.Compiler().compile(reloaded)
-    assert first.resources == second.resources
     assert {
         item.id: copy.replace(item, dependency_ids=sorted(item.dependency_ids))
         for item in first.invocations

@@ -54,7 +54,6 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
     compiled = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={},
         invocations=[invocation],
         stages=[["calculate"]],
     )
@@ -118,7 +117,6 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
     compiled = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={},
         invocations=[read, merge],
         stages=[[read_id], [merge_id]],
     )
@@ -281,7 +279,6 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
     empty_plan = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={},
         invocations=[],
         stages=[],
     )
@@ -361,7 +358,6 @@ def test_kind_capabilities_preserve_presentation_contracts(
     compiled = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={},
         invocations=[invocation],
         stages=[["calculate"]],
     )
@@ -414,7 +410,6 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
     compiled = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={},
         invocations=[invocation],
         stages=[["calculate"]],
     )

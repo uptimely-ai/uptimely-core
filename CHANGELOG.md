@@ -14,6 +14,10 @@ While the version is `0.x`, minor releases may include breaking changes.
   fingerprints, with single dashes within labels and `--` before the hash.
   IDs are at most 36 characters and identify the function, profile, and
   operator independently of function kind.
+- **Breaking (plans):** Plan version 8 moves inspected return annotations and
+  entrypoint package provenance onto each invocation, removing the root
+  `resources` field. Rebuild bundles from their source Specs; version 7 plans
+  are not supported.
 - **Breaking (plans and Python API):** Plan version 7 replaces invocation
   `dataset_id` with `profile_id`, without a legacy alias. Compiler graph nodes
   and Explorer lineage metadata likewise use profile fields; feature graph

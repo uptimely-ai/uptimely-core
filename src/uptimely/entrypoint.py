@@ -293,6 +293,14 @@ class Entrypoint:
         self._function_name = function_name
         self.package = package
 
+    def read_package(self) -> PackageProvenance:
+        """Read package provenance for this entrypoint without importing its module."""
+        return self.module.read_package()
+
+    def read_signature(self) -> Signature:
+        """Import this entrypoint and read its callable signature."""
+        return self.function.read_signature()
+
     @classmethod
     def from_path(
         cls, path: pathlib.Path, import_root: pathlib.Path, function_name: str

@@ -15,7 +15,6 @@ def test_engine_checks_matching_backend(
     plan = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={},
         invocations=[],
         stages=[],
     )
@@ -34,7 +33,6 @@ def test_engine_rejects_mismatched_backend(
     plan = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
         required_backend="pandas",
-        resources={},
         invocations=[],
         stages=[],
     )

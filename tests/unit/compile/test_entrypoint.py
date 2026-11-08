@@ -225,15 +225,12 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
         assert set(actual.dependency_ids) == set(expected.dependency_ids)
         assert actual.input_features == expected.input_features
         assert actual.output_features == expected.output_features
+        assert actual.package == expected.package
         if actual.function_id == function.id:
             assert actual.entrypoint == function.entrypoint
-            assert actual.id not in compiled.resources["signatures"]
-            assert compiled.resources["entrypoint_packages"][function.entrypoint] == {
-                "distribution": None,
-                "version": None,
-            }
+            assert actual.return_type is None
         else:
-            assert actual.id in compiled.resources["signatures"]
+            assert actual.return_type == expected.return_type
 
     function.validate_signature = True
     with pytest.raises(
@@ -698,10 +695,8 @@ def test_compiler_inspects_each_distinct_entrypoint_once(
     assert reads
     assert all(count == 1 for count in reads.values())
     restored = plan.from_dict(plan.to_dict(compiled))
-    assert restored.resources == compiled.resources
-    assert set(restored.resources["entrypoint_packages"]) == {
-        node.entrypoint for node in compiled.invocations
-    }
+    assert restored.packages == compiled.packages
+    assert set(restored.packages) == {node.entrypoint for node in compiled.invocations}
 
 
 @pytest.mark.parametrize(

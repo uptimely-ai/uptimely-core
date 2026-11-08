@@ -10,14 +10,8 @@ from uptimely import plan as uptimely_plan
 
 def _sample_plan() -> uptimely_plan.ExecutionPlan:
     return uptimely_plan.ExecutionPlan(
-        plan_version=7,
+        plan_version=uptimely_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={
-            "signatures": {
-                "opaque-read": "DataFrame",
-                "opaque-write": "None",
-            }
-        },
         invocations=[
             uptimely_plan.Invocation(
                 id="opaque-read",
@@ -31,6 +25,11 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 id_columns=["plant", "pump"],
                 column_types={"plant": "string", "pump": "string", "pressure": "float"},
                 argument_types={"dataset": "dataframe"},
+                return_type="DataFrame",
+                package=uptimely_plan.Package(
+                    distribution="example-package",
+                    version="1.0",
+                ),
             ),
             uptimely_plan.Invocation(
                 id="opaque-collapse",
@@ -106,7 +105,10 @@ def test_invocation_rejects_legacy_dataset_id_without_an_alias(
         uptimely_plan.Invocation.model_validate(invocation)
 
 
-@pytest.mark.parametrize("field", ["id_columns", "column_types", "argument_types"])
+@pytest.mark.parametrize(
+    "field",
+    ["id_columns", "column_types", "argument_types", "return_type", "package"],
+)
 def test_plan_requires_runtime_metadata_in_saved_invocations(field: str) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     del payload["invocations"][0][field]
@@ -136,14 +138,8 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
     payload = uptimely_plan.to_dict(plan)
 
     assert payload == uptimely_plan.to_dict(uptimely_plan.from_dict(payload))
-    assert set(payload) == {
-        "plan_version",
-        "required_backend",
-        "resources",
-        "invocations",
-        "stages",
-    }
-    assert payload["plan_version"] == 7
+    assert set(payload) == {"plan_version", "required_backend", "invocations", "stages"}
+    assert payload["plan_version"] == 8
     assert "phase" not in payload["invocations"][0]
     assert not hasattr(plan.invocations[0], "phase")
     assert {"function_id", "operator_id"} <= set(payload["invocations"][0])
@@ -189,11 +185,11 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["plan_version"] = 1
     payload["callables"] = payload.pop("invocations")
 
-    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 7\."):
+    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 8\."):
         uptimely_plan.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, "7", "unsupported", None, True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, 7, "8", "unsupported", None, True])
 def test_plan_rejects_unsupported_versions(version: object) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = version
@@ -307,7 +303,6 @@ def test_plan_cached_views_are_independent() -> None:
     plan = uptimely_plan.ExecutionPlan.model_construct(
         plan_version=original.plan_version,
         required_backend=original.required_backend,
-        resources=original.resources,
         invocations=counted,
         stages=original.stages,
     )
@@ -343,14 +338,13 @@ def test_plan_cached_views_are_independent() -> None:
 def test_entrypoints_by_id_include_saved_package_provenance() -> None:
     original = _sample_plan()
     location = original.invocations[0].entrypoint
+    package = uptimely_plan.Package(distribution="recorded-package", version="1.0")
     plan = copy.replace(
         original,
-        resources={
-            **original.resources,
-            "entrypoint_packages": {
-                location: {"distribution": "recorded-package", "version": "1.0"}
-            },
-        },
+        invocations=[
+            copy.replace(original.invocations[0], package=package),
+            *original.invocations[1:],
+        ],
     )
 
     entrypoints = plan.entrypoints_by_id
@@ -379,15 +373,16 @@ def test_plan_implementation_views_do_not_read_runtime_metadata(
     )
     plan = copy.replace(
         original,
-        resources={
-            **original.resources,
-            "entrypoint_packages": {
-                "example.functions:load": {
-                    "distribution": "recorded-package",
-                    "version": "1.0",
-                }
-            },
-        },
+        invocations=[
+            copy.replace(
+                original.invocations[0],
+                package=uptimely_plan.Package(
+                    distribution="recorded-package",
+                    version="1.0",
+                ),
+            ),
+            *original.invocations[1:],
+        ],
     )
 
     assert plan.packages["example.functions:load"].distribution == "recorded-package"

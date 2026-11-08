@@ -2,8 +2,8 @@
 
 from __future__ import annotations
 
+import copy
 import logging
-import typing
 from collections import abc
 
 from uptimely import entrypoint, spec
@@ -73,7 +73,7 @@ class Compiler:
         packages: dict[str, entrypoint.PackageProvenance] = {}
         for location, implementation in entrypoints.items():
             try:
-                packages[location] = implementation.module.read_package()
+                packages[location] = implementation.read_package()
             except (ImportError, ValueError) as error:
                 raise ValueError(
                     f"Could not read package provenance for entrypoint {location}: {error}"
@@ -111,7 +111,7 @@ class Compiler:
                 continue
             implementation = entrypoints[function.entrypoint]
             try:
-                signature = implementation.function.read_signature()
+                signature = implementation.read_signature()
                 validation.validation_callable_signature(
                     validation.CallableValidationContext(function, signature)
                 )
@@ -126,16 +126,21 @@ class Compiler:
                 ) from error
             signatures[function.id] = signature
 
-        resources: dict[str, typing.Any] = {
-            "signatures": {
-                invocation.id: signatures[invocation.function_id].returns
-                for invocation in invocations
-                if invocation.function_id in signatures
-            },
-            "entrypoint_packages": {
-                location: package.to_dict() for location, package in packages.items()
-            },
-        }
+        invocations = [
+            copy.replace(
+                invocation,
+                return_type=(
+                    signatures[invocation.function_id].returns
+                    if invocation.function_id in signatures
+                    else None
+                ),
+                package=plan_module.Package(
+                    distribution=packages[invocation.entrypoint].distribution,
+                    version=packages[invocation.entrypoint].version,
+                ),
+            )
+            for invocation in invocations
+        ]
         invocation_ids = {invocation.id for invocation in invocations}
         stages = [
             [node.node_id for node in stage if node.node_id in invocation_ids]
@@ -147,7 +152,6 @@ class Compiler:
         return plan_module.ExecutionPlan(
             plan_version=plan_module.PLAN_VERSION,
             required_backend="polars",
-            resources=resources,
             invocations=invocations,
             stages=stages,
         )

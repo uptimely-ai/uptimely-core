@@ -56,7 +56,6 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
     plan = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={},
         invocations=[invocation],
         stages=[["transfer"]],
     )

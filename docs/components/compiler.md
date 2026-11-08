@@ -17,28 +17,26 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `7`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `8`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
-| `resources` | object | Compiler-generated metadata not represented by the Spec, including inspected function return annotations and entrypoint package provenance. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Invocation identifiers grouped by dependency order. |
 
 All root fields are required. Unknown fields and unsupported versions are
 rejected. Earlier plan versions are not converted. Rebuild generated bundles
-from their source Specs to create version 7 plans.
+from their source Specs to create version 8 plans.
 
-## Resources
+## Invocation metadata
 
-The build bundle includes `spec.json`, which is the source of dimensions,
-profiles, functions, and operators used by the engine. Plan resources contain
-compiler-generated metadata that is not part of the Spec: inspected return
-annotations keyed by invocation identifier and the installed distribution name
-and version associated with each entrypoint. Signature-disabled functions have
-no return-annotation entry, but their package provenance is read from installed
-metadata without importing their implementation. Missing distribution metadata
-is recorded as unavailable, while ambiguous namespace ownership is an error.
-Package versions are informational and are not enforced by the engine. A plan
-is consumed as part of its build bundle, not as a replacement for `spec.json`.
+The build bundle includes `spec.json`, which remains the source of dimensions,
+profiles, functions, and operators used by the engine. Each invocation carries
+its inspected return annotation and entrypoint package provenance directly.
+Signature-disabled functions have no return annotation. Package provenance is
+read independently without importing the implementation; missing distribution
+metadata is recorded as unavailable, while ambiguous namespace ownership is an
+error. Package versions are informational and are not enforced by the engine.
+A plan is consumed as part of its build bundle, not as a replacement for
+`spec.json`.
 
 ## Invocations
 
@@ -65,9 +63,10 @@ and merge invocations use the same operator label and are distinguished by
 their function IDs. Compilation rejects ID collisions rather than overwriting a
 node. Use the invocation's separate metadata fields for full names and meaning.
 Rebuild existing bundles to adopt compact IDs consistently in plans, run logs,
-and Explorer. Version 7 replaces invocation `dataset_id` with `profile_id`,
-without a legacy alias. Datasets are engine-owned runtime accumulators, not
-invocation declaration metadata.
+and Explorer. Version 8 stores inspected function and package metadata on each
+invocation instead of in a separate `resources` object. Version 7 replaced
+invocation `dataset_id` with `profile_id`, without a legacy alias. Datasets are
+engine-owned runtime accumulators, not invocation declaration metadata.
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
@@ -83,6 +82,8 @@ invocation declaration metadata.
 | `id_columns` | array of strings | Target profile grain keys, in declaration order. |
 | `column_types` | object | Logical types for target keys and typed features, used by runtime validation. |
 | `argument_types` | object | Declared argument types used for runtime binding. |
+| `return_type` | string or null | Inspected implementation return annotation, when signature validation is enabled. |
+| `package` | object or null | Installed distribution name and version for the entrypoint. |
 | `dependency_ids` | array of strings | Identifiers of invocation prerequisites. |
 | `row_context` | object or null | Input row-context requirement, when declared. |
 
@@ -155,7 +156,7 @@ Use `uptimely.plan` to read and write plans, and use
 `ExecutionPlan.invocations` to access the planned steps. Do not rely on the
 format of their IDs.
 
-Plans earlier than version 7, including version 6 plans with `dataset_id`, are not supported.
+Plans earlier than version 8, including version 7 plans, are not supported.
 Rebuild from the source Spec with `uptimely build PROJECT_ROOT`.
 Plans lacking invocation runtime metadata (`id_columns`, `column_types`, and
 `argument_types`) must likewise be rebuilt.

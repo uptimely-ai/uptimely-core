@@ -11,7 +11,7 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely.spec import function_kinds as functions
 from uptimely.spec import row_context as uptimely_row_context
 
-PLAN_VERSION = 7
+PLAN_VERSION = 8
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
@@ -24,6 +24,20 @@ class _PlanModel(pydantic.BaseModel):
         """Return a revalidated copy with selected fields replaced."""
         values = {name: getattr(self, name) for name in type(self).model_fields}
         return type(self).model_validate({**values, **changes})
+
+
+class Package(_PlanModel):
+    """Portable installed-package provenance for an invocation entrypoint."""
+
+    distribution: str | None
+    version: str | None
+
+    def to_provenance(self) -> entrypoint_module.PackageProvenance:
+        """Return the public entrypoint package-provenance value."""
+        return entrypoint_module.PackageProvenance(
+            distribution=self.distribution,
+            version=self.version,
+        )
 
 
 class Invocation(_PlanModel):
@@ -43,6 +57,8 @@ class Invocation(_PlanModel):
     id_columns: list[NonEmptyString] = pydantic.Field(default_factory=list)
     column_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     argument_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
+    return_type: str | None = None
+    package: Package | None = None
 
     @pydantic.field_validator("entrypoint", "function_id", "operator_id", mode="before")
     @classmethod
@@ -70,9 +86,8 @@ class Invocation(_PlanModel):
 class ExecutionPlan(_PlanModel):
     """Portable execution plan with validated invocation and staging contracts."""
 
-    plan_version: typing.Literal[7]
+    plan_version: typing.Literal[8]
     required_backend: NonEmptyString
-    resources: dict[str, typing.Any]
     invocations: list[Invocation]
     stages: list[list[NonEmptyString]]
 
@@ -91,6 +106,7 @@ class ExecutionPlan(_PlanModel):
         if len(invocation_ids) != len(self.invocations):
             raise ValueError("Plan contains duplicate invocation ids")
         entrypoints_by_function: dict[str, str] = {}
+        packages_by_entrypoint: dict[str, Package | None] = {}
         for invocation in self.invocations:
             previous = entrypoints_by_function.setdefault(
                 invocation.function_id, invocation.entrypoint
@@ -98,6 +114,14 @@ class ExecutionPlan(_PlanModel):
             if previous != invocation.entrypoint:
                 raise ValueError(
                     f"Plan assigns function {invocation.function_id!r} to multiple entrypoints"
+                )
+            previous_package = packages_by_entrypoint.setdefault(
+                invocation.entrypoint, invocation.package
+            )
+            if previous_package != invocation.package:
+                raise ValueError(
+                    f"Plan has conflicting package provenance for entrypoint "
+                    f"{invocation.entrypoint!r}"
                 )
         referenced = {
             dependency_id
@@ -190,13 +214,13 @@ class ExecutionPlan(_PlanModel):
         """Return distinct entrypoints in invocation declaration order."""
         return dict.fromkeys(invocation.entrypoint for invocation in self.invocations)
 
-    @functools.cached_property
+    @property
     def packages(self) -> dict[str, entrypoint_module.PackageProvenance]:
-        """Return saved package provenance keyed by entrypoint without reading the environment."""
-        package_resources = self.resources.get("entrypoint_packages", {})
+        """Return saved package provenance keyed by entrypoint."""
         return {
-            location: entrypoint_module.PackageProvenance(**package)
-            for location, package in package_resources.items()
+            invocation.entrypoint: invocation.package.to_provenance()
+            for invocation in self.invocations
+            if invocation.package is not None
         }
 
     @functools.cached_property

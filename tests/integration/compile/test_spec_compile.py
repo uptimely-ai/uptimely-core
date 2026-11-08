@@ -94,8 +94,10 @@ def test_compilation_preserves_the_saved_plan() -> None:
     assert actual.keys() == expected.keys()
     assert actual["plan_version"] == expected["plan_version"]
     assert actual["required_backend"] == expected["required_backend"]
-    assert actual["resources"]["signatures"] == expected["resources"]["signatures"]
-    assert actual["resources"]["entrypoint_packages"]
+    assert {
+        invocation["id"]: invocation["return_type"] for invocation in actual["invocations"]
+    } == {invocation["id"]: invocation["return_type"] for invocation in expected["invocations"]}
+    assert all(invocation["package"] is not None for invocation in actual["invocations"])
     assert {
         item["id"]: item | {"dependency_ids": sorted(item["dependency_ids"])}
         for item in actual["invocations"]
@@ -486,7 +488,7 @@ def test_escape_return_annotations_do_not_constrain_compilation(
     escaped = {invocation.function_id: invocation for invocation in compiled.invocations}
 
     assert {
-        function_id: compiled.resources["signatures"][invocation.id]
+        function_id: invocation.return_type
         for function_id, invocation in escaped.items()
         if function_id
         in {

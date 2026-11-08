@@ -11,6 +11,7 @@ import pytest
 from support import examples as example_support
 
 from uptimely import engine as engine_module
+from uptimely import plan as execution_plan
 from uptimely import project as project_module
 from uptimely.cli import cli
 from uptimely.project import build as project_build
@@ -102,7 +103,7 @@ def test_engine_cli_forwards_validation_flag(
             invocation_statuses={},
             durations={},
             failures={},
-            plan_version=7,
+            plan_version=execution_plan.PLAN_VERSION,
         )
 
     monkeypatch.setattr(engine_module.Engine, "run", run)
@@ -142,7 +143,7 @@ def test_engine_cli_builds_before_running(
             invocation_statuses={},
             durations={},
             failures={},
-            plan_version=7,
+            plan_version=execution_plan.PLAN_VERSION,
         )
 
     monkeypatch.setattr(project_build, "build_project", build)
@@ -251,7 +252,7 @@ def test_run_log_level_filters_uptimely_only_and_restores_configuration(
             invocation_statuses={},
             durations={},
             failures={},
-            plan_version=7,
+            plan_version=execution_plan.PLAN_VERSION,
         )
 
     monkeypatch.setattr(engine_module.Engine, "run", run)
@@ -314,7 +315,7 @@ def test_engine_previews_final_profiles(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=7,
+        plan_version=execution_plan.PLAN_VERSION,
     )
     monkeypatch.setattr(
         engine_module.Engine, "run", lambda self, *, validate=False, preview_rows=5: result
@@ -399,7 +400,7 @@ def test_engine_preview_errors_are_reported(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=7,
+        plan_version=execution_plan.PLAN_VERSION,
     )
     monkeypatch.setattr(
         engine_module.Engine, "run", lambda self, *, validate=False, preview_rows=5: result
@@ -602,9 +603,8 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": 7,
+                "plan_version": 8,
                 "required_backend": "polars",
-                "resources": {},
                 "invocations": [],
                 "stages": [],
             }

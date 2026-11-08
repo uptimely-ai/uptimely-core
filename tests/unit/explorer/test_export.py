@@ -10,6 +10,7 @@ import pytest
 from support import examples as example_support
 
 from uptimely import engine, project
+from uptimely import plan as execution_plan
 from uptimely.explorer import export, presentation
 from uptimely.run import models, store
 
@@ -118,7 +119,7 @@ def test_export_includes_validated_run_previews_and_all_log_pages(
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=7,
+        plan_version=execution_plan.PLAN_VERSION,
     )
     monkeypatch.setattr(runtime, "_execute", lambda **kwargs: result)
     runtime.run(preview_rows=10)

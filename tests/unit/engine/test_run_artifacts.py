@@ -34,7 +34,7 @@ def _result(frame: object | None = None) -> engine.ExecutionResult:
         invocation_statuses={},
         durations={},
         failures={},
-        plan_version=7,
+        plan_version=execution_plan.PLAN_VERSION,
     )
 
 

@@ -100,7 +100,7 @@ def _build_step(
             }
             for name, value in invocation.arguments.items()
         },
-        "returns": {"type": {"engine": plan.resources.get("signatures", {}).get(invocation.id)}},
+        "returns": {"type": {"engine": invocation.return_type}},
     }
 
 

@@ -84,7 +84,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
-    assert result.plan_version == 7
+    assert result.plan_version == uptimely_plan.PLAN_VERSION
     assert not hasattr(result, "main_frames")
     assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
     assert set(result.datasets) == {"telemetry"}
@@ -204,30 +204,8 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
         argument_types={"dataset": "dataframe"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=7,
+        plan_version=uptimely_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={
-            "dimensions": {"id": {"resolutions": {"id": {"key": "id", "type": "string"}}}},
-            "profiles": {"telemetry": {"grain": [{"dimension": "id", "resolution": "id"}]}},
-            "functions": {
-                "read_first": {"kind": "read", "returns": "dataframe", "args": {}},
-                "read_second": {"kind": "read", "returns": "dataframe", "args": {}},
-                "custom_merge": {
-                    "kind": "merge",
-                    "returns": "dataframe",
-                    "args": {
-                        "target": {"type": "dataframe | null"},
-                        "fragment": {"type": "dataframe"},
-                        "target_keys": {"type": "array[string]"},
-                    },
-                },
-                "write": {
-                    "kind": "write",
-                    "returns": "none",
-                    "args": {"dataset": {"type": "dataframe"}},
-                },
-            },
-        },
         invocations=[*reads, first_merge, second_merge, writer],
         stages=[
             [read_first_id],
@@ -627,11 +605,20 @@ def test_executor_validates_inputs_against_current_runtime_state(
 def test_engine_entrypoints_include_saved_package_provenance(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
-    saved_plan = _plan()
-    location = saved_plan.invocations[0].entrypoint
-    saved_plan.resources["entrypoint_packages"] = {
-        location: {"distribution": "recorded-package", "version": "1.0"}
-    }
+    original = _plan()
+    saved_plan = copy.replace(
+        original,
+        invocations=[
+            copy.replace(
+                original.invocations[0],
+                package=uptimely_plan.Package(
+                    distribution="recorded-package",
+                    version="1.0",
+                ),
+            ),
+            *original.invocations[1:],
+        ],
+    )
     engine = engine_for_plan(saved_plan, {"source": "/tmp/input.parquet"})
 
     result = engine.run()
@@ -733,18 +720,8 @@ def test_escape_ignores_any_return_without_materializing_features(
         input_features=["external_input"],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=7,
+        plan_version=uptimely_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={
-            "profiles": {"external": {"grain": []}},
-            "functions": {
-                "external_operator": {
-                    "kind": "escape",
-                    "returns": "any",
-                    "args": {},
-                }
-            },
-        },
         invocations=[escape],
         stages=[[invocation_id]],
     )
@@ -796,15 +773,8 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=7,
+        plan_version=uptimely_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={
-            "profiles": {"external": {"grain": []}},
-            "functions": {
-                function_id: {"kind": "escape", "returns": "any", "args": {}}
-                for function_id in ("first", "second")
-            },
-        },
         invocations=[first_invocation, second_invocation],
         stages=[[first_id], [second_id]],
     )
@@ -833,23 +803,11 @@ def test_escape_resolves_literal_and_runtime_arguments(
         output_features=[],
         input_features=["external_input"],
         arguments={"path": "$params.output", "mode": "replace"},
+        argument_types={"path": "string", "mode": "string"},
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=7,
+        plan_version=uptimely_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={
-            "profiles": {"external": {"grain": []}},
-            "functions": {
-                "external_operator": {
-                    "kind": "escape",
-                    "returns": "any",
-                    "args": {
-                        "path": {"type": "string"},
-                        "mode": {"type": "string"},
-                    },
-                }
-            },
-        },
         invocations=[escape],
         stages=[[invocation_id]],
     )
@@ -881,6 +839,7 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         output_features=[],
         input_features=["external_input"],
         arguments={"frame": "missing"},
+        argument_types={"frame": "dataframe"},
     )
     second_invocation = copy.replace(
         first_invocation,
@@ -892,19 +851,8 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=7,
+        plan_version=uptimely_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={
-            "profiles": {"external": {"grain": []}},
-            "functions": {
-                function_id: {
-                    "kind": "escape",
-                    "returns": "any",
-                    "args": {"frame": {"type": "dataframe"}},
-                }
-                for function_id in ("first", "second")
-            },
-        },
         invocations=[first_invocation, second_invocation],
         stages=[[first_id], [second_id]],
     )
@@ -974,6 +922,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         output_features=["external_result"],
         input_features=["reading"],
         arguments={"dataset": "telemetry"},
+        argument_types={"dataset": "dataframe"},
         dependency_ids=[merge_id],
     )
     vectorize_invocation = uptimely_plan.Invocation(
@@ -988,26 +937,8 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         dependency_ids=[escape_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=7,
+        plan_version=uptimely_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={
-            "dimensions": {
-                "asset_id": {"resolutions": {"asset_id": {"key": "asset_id", "type": "string"}}}
-            },
-            "profiles": {
-                "telemetry": {"grain": [{"dimension": "asset_id", "resolution": "asset_id"}]}
-            },
-            "functions": {
-                "load": {"kind": "read", "returns": "dataframe", "args": {}},
-                "combine": {"kind": "merge", "returns": "dataframe", "args": {}},
-                "external_operator": {
-                    "kind": "escape",
-                    "returns": "any",
-                    "args": {"dataset": {"type": "dataframe"}},
-                },
-                "consume": {"kind": "vectorize", "returns": "dataframe", "args": {}},
-            },
-        },
         invocations=[read_invocation, merge_invocation, escape_invocation, vectorize_invocation],
         stages=[[read_id], [merge_id], [escape_id], [vectorize_id]],
     )
@@ -1033,7 +964,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         "input feature is unavailable or ambiguous: external_result"
         in result.failures[vectorize_id]
     )
-    assert observed == [result.datasets["telemetry"]]
+    assert observed[0].to_dicts() == result.datasets["telemetry"].to_dicts()
     assert "external_result" not in result.datasets["telemetry"].columns
     assert result.calculated_outputs == {}
 
@@ -1063,15 +994,8 @@ def test_escape_exception_fails_and_skips_downstream(
         dependency_ids=[first_id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=7,
+        plan_version=uptimely_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={
-            "profiles": {"external": {"grain": []}},
-            "functions": {
-                function_id: {"kind": "escape", "returns": "any", "args": {}}
-                for function_id in ("first", "second")
-            },
-        },
         invocations=[first_invocation, second_invocation],
         stages=[[first_id], [second_id]],
     )
@@ -1640,21 +1564,8 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         dependency_ids=[merge_invocation.id],
     )
     plan = uptimely_plan.ExecutionPlan(
-        plan_version=7,
+        plan_version=uptimely_plan.PLAN_VERSION,
         required_backend="polars",
-        resources={
-            "dimensions": {
-                "asset_id": {"resolutions": {"asset_id": {"key": "asset_id", "type": "string"}}}
-            },
-            "profiles": {
-                "telemetry": {"grain": [{"dimension": "asset_id", "resolution": "asset_id"}]}
-            },
-            "functions": {
-                "load": {"kind": "read", "args": {}},
-                "merge_by_grain": {"kind": "merge", "args": {}},
-                "calculate": {"kind": "vectorize", "args": {}},
-            },
-        },
         invocations=[read_invocation, merge_invocation, vectorize_invocation],
         stages=[[read_invocation.id], [merge_invocation.id], [vectorize_invocation.id]],
     )
