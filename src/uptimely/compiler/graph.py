@@ -1,21 +1,18 @@
-"""Describe invocation dependencies and resolve execution order."""
+"""Generic dependency ordering for compiler-created invocation nodes."""
 
 from __future__ import annotations
 
 import dataclasses
 import hashlib
 import json
-import logging
 import re
+from collections.abc import Collection
 
 import graphable as graphable_
 
-from uptimely import spec
 from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec import row_context
-
-logger = logging.getLogger(__name__)
 
 INVOCATION_LABEL_MAX_LENGTH = 24
 INVOCATION_HASH_LENGTH = 10
@@ -25,7 +22,7 @@ type GraphNode = graphable_.graphable.Graphable
 
 @dataclasses.dataclass(frozen=True)
 class InvocationNode:
-    """One function invocation in the compilation graph."""
+    """Compiler-created invocation data used while building a dependency graph."""
 
     function_id: str
     profile_id: str
@@ -60,176 +57,71 @@ class InvocationNode:
 
 
 class InvocationGraph:
-    """Dependency graph built from interface features and fragment merges."""
+    """Generic dependency graph for nodes and dependencies supplied by the compiler."""
 
     def __init__(
-        self, spec_definition: spec.Spec, *, graph: graphable_.graph.Graph | None = None
+        self,
+        invocations: Collection[InvocationNode],
+        dependencies: dict[str, Collection[str]],
     ) -> None:
-        """Build a dependency graph from a validated Spec.
+        """Build an execution graph from nodes and their dependency identifiers.
 
         Args:
-            spec_definition: The validated Spec containing operators and functions.
-            graph: An existing graph to index, used when constructing a subset.
+            invocations: Nodes already created by the compiler.
+            dependencies: Invocation identifiers mapped to their prerequisites.
         """
-        self.spec = spec_definition
-        self.graph = self._create_graph() if graph is None else graph
-        self._nodes = {node.reference.node_id: node for node in self.graph}
-        self._feature_producers = self._index_feature_producers(self.invocations)
-
-    def _create_graph(self) -> graphable_.graph.Graph:
-        """Build invocation dependencies from operator interfaces and fragment merges."""
-        nodes = self._create_nodes()
-        graph = graphable_.graph.Graph(set(nodes.values()), discover=False)
-        self._add_edges(graph, nodes)
-        return graph
-
-    def _create_nodes(self) -> dict[str, GraphNode]:
-        """Create compute and optional merge nodes for each operator."""
-        invocations: list[InvocationNode] = []
-
-        for key, operator in self.spec.operator_items:
-            profile_id = key[0]
-            profile = self.spec.profiles_by_key[profile_id]
-            function_kind = self.spec.functions[operator.compute.function].kind
-            function_definition = functions.FUNCTION_KINDS[function_kind]
-            outputs = operator.output_features
-            invocation = InvocationNode(
-                function_id=operator.compute.function,
-                profile_id=profile.id,
-                operator_id=operator.id,
-                function_kind=function_kind,
-                output_features=tuple(outputs),
-                arguments=operator.compute.args,
-                input_features=tuple(operator.input_features),
-                row_context=operator.row_context,
-            )
-            invocations.append(invocation)
-            if function_definition.produces_fragment and operator.merge is not None:
-                merge_kind = self.spec.functions[operator.merge.function].kind
-                merge_invocation = InvocationNode(
-                    function_id=operator.merge.function,
-                    profile_id=profile.id,
-                    operator_id=operator.id,
-                    function_kind=merge_kind,
-                    arguments=operator.merge.args,
-                )
-                invocations.append(merge_invocation)
-        nodes: dict[str, GraphNode] = {}
-        for invocation in invocations:
-            node_id = invocation.node_id
-            if node_id in nodes:
-                previous = nodes[node_id].reference
-                raise ValueError(
-                    f"Invocation ID collision {node_id!r} between operators "
-                    f"{previous.profile_id!r}/{previous.operator_id!r} "
-                    f"({previous.function_kind}:{previous.function_id}) and "
-                    f"{invocation.profile_id!r}/{invocation.operator_id!r} "
-                    f"({invocation.function_kind}:{invocation.function_id})"
-                )
-            nodes[node_id] = graphable_.graphable.Graphable(invocation)
-        return nodes
-
-    def _add_edges(
-        self,
-        graph: graphable_.graph.Graph,
-        nodes: dict[str, GraphNode],
-    ) -> None:
-        """Connect declared feature dependencies and compute-to-merge edges."""
-        feature_producers = self._index_feature_producers(
-            [node.reference for node in nodes.values()]
+        invocation_order = list(invocations)
+        nodes_by_id: dict[str, GraphNode] = {}
+        for invocation in invocation_order:
+            if invocation.node_id in nodes_by_id:
+                raise ValueError(f"Duplicate invocation node ID: {invocation.node_id}")
+            nodes_by_id[invocation.node_id] = graphable_.graphable.Graphable(invocation)
+        self.graph = graphable_.graph.Graph(
+            set(nodes_by_id.values()),
+            discover=False,
         )
-        by_binding = {
-            (node.profile_id, node.operator_id, node.function_id): node
-            for node in (graph_node.reference for graph_node in nodes.values())
-        }
-        for graph_node in nodes.values():
-            invocation = graph_node.reference
-            merge = self._merge_for(invocation, by_binding)
-            if merge is not None:
-                graph.add_edge(
-                    graph_node,
-                    nodes[merge.node_id],
-                )
-            for feature in invocation.input_features:
-                producer = feature_producers.get(feature)
-                if producer is not None and producer != invocation:
-                    graph.add_edge(
-                        nodes[producer.node_id],
-                        graph_node,
-                    )
+        self._nodes = nodes_by_id
+        self._invocations = invocation_order
+        for invocation_id, dependency_ids in dependencies.items():
+            invocation = self._node_by_key(invocation_id)
+            for dependency_id in dependency_ids:
+                self.graph.add_edge(self._node_by_key(dependency_id), invocation)
 
-    def _merge_for(
-        self,
-        node: InvocationNode,
-        by_binding: dict[tuple[str, str, str], InvocationNode],
-    ) -> InvocationNode | None:
-        """Return the configured merge node for a fragment-producing invocation."""
-        if not functions.FUNCTION_KINDS[node.function_kind].produces_fragment:
-            return None
-        merge = self.operator_for(node).merge
-        if merge is None:
-            return None
-        return by_binding.get((node.profile_id, node.operator_id, merge.function))
-
-    def _index_feature_producers(
-        self, invocations: list[InvocationNode]
-    ) -> dict[str, InvocationNode]:
-        """Map declared logical outputs to their producing invocations."""
-        by_binding = {
-            (node.profile_id, node.operator_id, node.function_id): node for node in invocations
-        }
-        producers: dict[str, InvocationNode] = {}
-        for compute in invocations:
-            definition = functions.FUNCTION_KINDS[compute.function_kind]
-            if not definition.produces_features:
-                continue
-            output = self._merge_for(compute, by_binding) or compute
-            for feature in compute.output_features:
-                producers[feature] = output
-        return producers
-
-    def profile_for(self, node: InvocationNode) -> spec.Profile:
-        """Return a node's profile by its globally unique ID."""
-        return self.spec.profiles[node.profile_id]
-
-    def operator_for(self, node: InvocationNode) -> spec.Operator:
-        """Return the declaration that produced an invocation node."""
-        return self.profile_for(node).assembly[node.operator_id]
+    @classmethod
+    def _from_graph(
+        cls,
+        graph: graphable_.graph.Graph,
+        invocations: list[InvocationNode],
+    ) -> InvocationGraph:
+        """Wrap an induced subgraph without interpreting its nodes or edges."""
+        instance = cls.__new__(cls)
+        instance.graph = graph
+        instance._nodes = {node.reference.node_id: node for node in graph}
+        instance._invocations = invocations
+        return instance
 
     def topology(self) -> list[list[InvocationNode]]:
-        """Return invocations grouped by dependency level (topological order)."""
-        logger.debug("  Invocation graph:")
-        logger.debug("    - checking dependency graph is acyclic and schedulable")
+        """Return nodes grouped by dependency level in topological order."""
         levels = self.graph.parallelized_topological_order()
-        return [[level_node.reference for level_node in level] for level in levels]
+        order = {invocation.node_id: index for index, invocation in enumerate(self._invocations)}
+        return [
+            sorted((node.reference for node in level), key=lambda node: order[node.node_id])
+            for level in levels
+        ]
 
-    def subset(self, features: list[str]) -> InvocationGraph:
-        """Return the dependency closure needed to produce selected features."""
-        logger.debug("    - checking selected output features have producers")
-        selectable_features = self._feature_producers.keys() - self.spec.grain_key_ids
-        missing = sorted(set(features) - selectable_features)
-        if missing:
-            raise ValueError("Unknown output feature(s): " + ", ".join(missing))
+    def ancestors(self, invocation_id: str) -> set[InvocationNode]:
+        """Return all prerequisite nodes of an invocation."""
+        return {node.reference for node in self.graph.ancestors(self._node_by_key(invocation_id))}
 
-        requested_nodes = [self._feature_producers[feature] for feature in features]
-
-        selected_nodes = {self._node_by_key(node.node_id) for node in requested_nodes}
-        for node in list(selected_nodes):
-            selected_nodes.update(self.graph.ancestors(node))
-
-        selected_profile_ids = {node.profile_id for node in requested_nodes}
-        for invocation in self.invocations:
-            function_kind = self.spec.functions[invocation.function_id].kind
-            if not functions.FUNCTION_KINDS[function_kind].is_sink:
-                continue
-            if invocation.profile_id not in selected_profile_ids:
-                continue
-            sink_node = self._node_by_key(invocation.node_id)
-            selected_nodes.add(sink_node)
-            selected_nodes.update(self.graph.ancestors(sink_node))
-
+    def subset(self, invocation_ids: Collection[str]) -> InvocationGraph:
+        """Return the induced subgraph containing the supplied node identifiers."""
+        selected_ids = set(invocation_ids)
+        selected_nodes = {self._node_by_key(node_id) for node_id in selected_ids}
         graph = graphable_.graph.Graph(selected_nodes, discover=False).clone(include_edges=True)
-        return self.__class__(self.spec, graph=graph)
+        invocations = [
+            invocation for invocation in self._invocations if invocation.node_id in selected_ids
+        ]
+        return self._from_graph(graph, invocations)
 
     def _node_by_key(self, node_key: str) -> GraphNode:
         """Return a graph node using an invocation node identifier."""
@@ -241,10 +133,10 @@ class InvocationGraph:
     @property
     def invocations(self) -> list[InvocationNode]:
         """All invocation nodes in the graph."""
-        return [node.reference for node in self.graph]
+        return list(self._invocations)
 
     def dependencies(self, node: InvocationNode) -> list[InvocationNode]:
-        """Return invocations that directly produce a node's dependencies."""
+        """Return nodes that directly precede the given invocation."""
         graph_node = self._node_by_key(node.node_id)
         return sorted(
             (dependency.reference for dependency in graph_node.depends_on),

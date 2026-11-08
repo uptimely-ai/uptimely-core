@@ -20,10 +20,15 @@ Compilation checks the Spec before creating the plan. Use
 it. Plans from older versions are not supported; rebuild the bundle from its
 source Spec after upgrading Uptimely.
 
-An invocation represents one function call and retains the owning operator ID.
-Fragment-producing operators have separate compute and merge invocations,
-distinguished by their function kinds; consumers depend on publication after
-merge. Only the compute invocation owns the operator's logical output features.
+Today, each Spec operator's compute binding becomes one plan invocation;
+fragment-producing operators may also have a separate merge invocation.
+Invocations retain the associated operator ID, and compute and merge are
+distinguished by their function kinds. Consumers depend on publication after
+merge, and only the compute invocation owns the operator's logical output
+features. This is the current compiler strategy, not a guaranteed one-to-one
+relationship: future optimization strategies may split, combine, or otherwise
+transform operator work, so Spec operators and executable plan invocations are
+separate concepts.
 Invocation nodes carry their full output feature list, not a single feature ID.
 The compiler resolves `$features.@` from an unambiguous declared output when
 emitting binding arguments.
@@ -39,12 +44,16 @@ compiler takes key types from canonical dimension declarations, ahead of any
 local feature metadata. These fields survive plan serialization. Saved plans
 without them must be rebuilt; loading reports a recompile error rather than
 running without key or type information.
-The portable plan also stores each invocation's inspected return annotation and
-entrypoint package provenance, so plan properties do not need to inspect or
-import implementation modules.
+Each invocation stores its portable return annotation and package provenance.
+The plan stays data-only; runtime entrypoint objects are created by the engine
+when execution starts.
 
 Plans use strict Pydantic models to validate invocation fields and stage
-relationships at construction and load time. They cache `invocations_by_id`
+relationships at construction and load time. `Stage` represents the invocation
+IDs scheduled together; serialization remains an array of invocation-ID arrays.
+The compiler chooses their order, and `ExecutionPlan` verifies that the supplied
+stages cover every invocation and place dependencies earlier. It does not
+schedule or reorder them. Plans cache `invocations_by_id`
 and `execution_stages`, along with derived views: `function_ids`, `profile_ids`,
 `arguments` (invocation ID to bound arguments), `features` (output feature ID to
 producing invocations), `calculated_features`, `entrypoints`, and
@@ -57,16 +66,20 @@ read-only. For changes, use `copy.replace`; it constructs a new validated plan
 with fresh cached views.
 Indexes do not change the portable JSON format.
 
-`Compiler.compile()` makes the compilation sequence explicit: validate the
-Spec, construct and select the invocation graph, order it, emit invocations,
-read implementation signatures and package provenance, and construct the
-validated plan. A compiler instance retains no active build state, so it can be
-reused for sequential, nested, or concurrent compilations. Graph selection
-deduplicates identifiers in input order. `compiler.validation` checks
+`Compiler.compile()` owns the strategy that expands Spec operators into
+invocation nodes and resolves feature and fragment dependencies. It selects the
+requested graph, obtains its topological schedule from the generic
+`InvocationGraph`, reads signatures once per selected function and package
+provenance once per selected entrypoint, then creates portable invocations and
+stages. `InvocationGraph` only orders the nodes and edges supplied by the
+compiler; it does not interpret the Spec. A compiler instance retains no active
+build state, so it can be reused for sequential, nested, or concurrent
+compilations. Feature selection deduplicates identifiers in input order.
+`compiler.validation` checks
 keyword-call compatibility and annotations against Spec function contracts.
 `Function.read_signature()` and `Module.read_package()` independently inspect
-their respective implementation metadata; plan views only read metadata already
-stored on invocations.
+their respective implementation metadata; the compiler saves the portable
+results on each invocation.
 
 `plan.invocations` retains declaration order. For sequential execution, use
 `plan.execution_invocations`: this cached flat list follows stage order and
@@ -86,8 +99,9 @@ preserves ordering within each stage, avoiding nested loops in consumers.
 
 ## graph
 
-`uptimely.compiler.graph` defines invocation nodes and organizes their
-interface-derived dependencies.
+`uptimely.compiler.graph` defines compiler-created invocation nodes and a
+generic dependency graph. Spec-to-node expansion and dependency rules belong to
+`Compiler`.
 
 ::: uptimely.compiler.graph
     options:
@@ -104,7 +118,7 @@ invocations.
     options:
       heading_level: 3
       show_root_heading: false
-      members: [Invocation, ExecutionPlan, PLAN_VERSION]
+      members: [Invocation, Stage, ExecutionPlan, PLAN_VERSION]
 
 ## plan.serialization
 

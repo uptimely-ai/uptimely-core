@@ -4,7 +4,6 @@ import json
 
 import pytest
 
-from uptimely import entrypoint
 from uptimely import plan as uptimely_plan
 
 
@@ -26,10 +25,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 column_types={"plant": "string", "pump": "string", "pressure": "float"},
                 argument_types={"dataset": "dataframe"},
                 return_type="DataFrame",
-                package=uptimely_plan.Package(
-                    distribution="example-package",
-                    version="1.0",
-                ),
+                package=uptimely_plan.Package(distribution="example-package", version="1.0"),
             ),
             uptimely_plan.Invocation(
                 id="opaque-collapse",
@@ -120,7 +116,8 @@ def test_plan_requires_runtime_metadata_in_saved_invocations(field: str) -> None
 def test_plan_stages_track_invocation_order() -> None:
     plan = _sample_plan()
 
-    assert plan.stages == [
+    assert all(isinstance(stage, uptimely_plan.Stage) for stage in plan.stages)
+    assert [stage.invocation_ids for stage in plan.stages] == [
         ["opaque-read"],
         ["opaque-collapse"],
         ["opaque-write"],
@@ -131,6 +128,11 @@ def test_plan_stages_track_invocation_order() -> None:
 
     restored = uptimely_plan.from_dict(uptimely_plan.to_dict(plan))
     assert restored.stages == plan.stages
+    assert uptimely_plan.to_dict(plan)["stages"] == [
+        ["opaque-read"],
+        ["opaque-collapse"],
+        ["opaque-write"],
+    ]
 
 
 def test_execution_plan_serializes_only_the_portable_plan() -> None:
@@ -138,7 +140,12 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
     payload = uptimely_plan.to_dict(plan)
 
     assert payload == uptimely_plan.to_dict(uptimely_plan.from_dict(payload))
-    assert set(payload) == {"plan_version", "required_backend", "invocations", "stages"}
+    assert set(payload) == {
+        "plan_version",
+        "required_backend",
+        "invocations",
+        "stages",
+    }
     assert payload["plan_version"] == 8
     assert "phase" not in payload["invocations"][0]
     assert not hasattr(plan.invocations[0], "phase")
@@ -146,6 +153,11 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
     assert "function_kind" in payload["invocations"][0]
     assert "operation" not in payload["invocations"][0]
     assert "output" not in payload["invocations"][0]
+    assert payload["invocations"][0]["return_type"] == "DataFrame"
+    assert payload["invocations"][0]["package"] == {
+        "distribution": "example-package",
+        "version": "1.0",
+    }
 
 
 def test_plan_json_helpers_round_trip(tmp_path) -> None:
@@ -162,7 +174,13 @@ def test_plan_json_helpers_round_trip(tmp_path) -> None:
 
 
 @pytest.mark.parametrize(
-    "missing_field", ["plan_version", "invocations", "required_backend", "stages"]
+    "missing_field",
+    [
+        "plan_version",
+        "invocations",
+        "required_backend",
+        "stages",
+    ],
 )
 def test_plan_rejects_missing_required_fields(missing_field: str) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
@@ -189,7 +207,7 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
         uptimely_plan.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, 7, "8", "unsupported", None, True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, 7, 9, "8", "unsupported", None, True])
 def test_plan_rejects_unsupported_versions(version: object) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = version
@@ -335,66 +353,14 @@ def test_plan_cached_views_are_independent() -> None:
     assert uptimely_plan.to_dict(plan) == uptimely_plan.to_dict(original)
 
 
-def test_entrypoints_by_id_include_saved_package_provenance() -> None:
+def test_plan_keeps_signature_and_package_metadata_on_invocations() -> None:
     original = _sample_plan()
-    location = original.invocations[0].entrypoint
-    package = uptimely_plan.Package(distribution="recorded-package", version="1.0")
-    plan = copy.replace(
-        original,
-        invocations=[
-            copy.replace(original.invocations[0], package=package),
-            *original.invocations[1:],
-        ],
-    )
-
-    entrypoints = plan.entrypoints_by_id
-
-    assert list(entrypoints) == list(plan.entrypoints)
-    assert entrypoints[location].package is not None
-    assert entrypoints[location].package.distribution == "recorded-package"
-    assert entrypoints[location].package.version == "1.0"
-    assert plan.packages[location].distribution == "recorded-package"
-    assert plan.entrypoints_by_id is entrypoints
-
-
-def test_plan_implementation_views_do_not_read_runtime_metadata(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    original = _sample_plan()
-    monkeypatch.setattr(
-        entrypoint.PackageProvenance,
-        "read",
-        lambda *_: pytest.fail("Plan package views must not inspect the runtime environment"),
-    )
-    monkeypatch.setattr(
-        entrypoint.Signature,
-        "read",
-        lambda *_: pytest.fail("Plan function views must not load implementation modules"),
-    )
-    plan = copy.replace(
-        original,
-        invocations=[
-            copy.replace(
-                original.invocations[0],
-                package=uptimely_plan.Package(
-                    distribution="recorded-package",
-                    version="1.0",
-                ),
-            ),
-            *original.invocations[1:],
-        ],
-    )
-
-    assert plan.packages["example.functions:load"].distribution == "recorded-package"
-    assert (
-        plan.entrypoints_by_id["example.functions:load"].package
-        == plan.packages["example.functions:load"]
-    )
-    assert {name: function.name for name, function in plan.functions.items()} == {
-        "load": "load",
-        "maximum": "maximum",
-        "save": "save",
-    }
+    invocation = original.invocations[0]
+    assert invocation.return_type == "DataFrame"
+    assert invocation.package is not None
+    assert invocation.package.distribution == "example-package"
+    assert not hasattr(original, "entrypoints_by_id")
+    assert not hasattr(original, "entrypoint_packages")
 
 
 def test_plan_rejects_function_ids_with_multiple_entrypoints() -> None:
@@ -406,6 +372,23 @@ def test_plan_rejects_function_ids_with_multiple_entrypoints() -> None:
     )
 
     with pytest.raises(ValueError, match="assigns function 'load' to multiple entrypoints"):
+        copy.replace(
+            original,
+            invocations=[original.invocations[0], conflicting, *original.invocations[2:]],
+        )
+
+
+def test_plan_rejects_conflicting_return_types_for_function() -> None:
+    original = _sample_plan()
+    conflicting = copy.replace(
+        original.invocations[1],
+        function_id=original.invocations[0].function_id,
+        entrypoint=original.invocations[0].entrypoint,
+        return_type="int",
+        package=original.invocations[0].package,
+    )
+
+    with pytest.raises(ValueError, match="conflicting return annotations for function 'load'"):
         copy.replace(
             original,
             invocations=[original.invocations[0], conflicting, *original.invocations[2:]],
@@ -461,7 +444,11 @@ def test_execution_invocations_follow_stages_not_declaration_order() -> None:
         "opaque-read",
         "opaque-collapse",
     ]
-    empty = copy.replace(original, invocations=[], stages=[])
+    empty = copy.replace(
+        original,
+        invocations=[],
+        stages=[],
+    )
     assert empty.execution_invocations == []
     assert empty.count_per_kind == {}
 

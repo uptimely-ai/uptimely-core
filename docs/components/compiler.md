@@ -1,9 +1,18 @@
 # Compiler
 
 The Spec declares functions and operators. An operator says how a function is
-used. The compiler records each operator as an invocation, or planned step, and
-orders the steps by their input features. The engine later loads and calls the
-Python function named in the Spec. Compiling a plan does not run the analytics.
+used. Today, each operator's compute binding becomes a plan invocation; a
+fragment-producing operator may also have a separate merge invocation. The
+compiler orders these steps by their input features. It does not yet rewrite or
+combine operator work through optimization. The engine later loads and calls
+the Python function named in the Spec. Compiling a plan does not run the
+analytics.
+
+The current correspondence between Spec operators and plan invocations is an
+implementation choice, not a required one-to-one relationship. Future compiler
+optimization strategies may split, combine, or otherwise transform operator
+work, making it important to distinguish a Spec operator (the declared
+operation) from a plan invocation (an executable step).
 
 The build bundle contains both the plan and the Spec. The engine uses the Spec
 for declarations and supplies runtime values when it runs each step.
@@ -30,7 +39,7 @@ from their source Specs to create version 8 plans.
 
 The build bundle includes `spec.json`, which remains the source of dimensions,
 profiles, functions, and operators used by the engine. Each invocation carries
-its inspected return annotation and entrypoint package provenance directly.
+its implementation return annotation and entrypoint package provenance.
 Signature-disabled functions have no return annotation. Package provenance is
 read independently without importing the implementation; missing distribution
 metadata is recorded as unavailable, while ambiguous namespace ownership is an
@@ -40,7 +49,8 @@ A plan is consumed as part of its build bundle, not as a replacement for
 
 ## Invocations
 
-Each invocation represents one function-to-operator application. Its inputs
+Each invocation represents one executable function application associated
+with a Spec operator. Its inputs
 declare the features used by that operation, while dependencies identify
 invocations that must finish first. Invocation IDs are opaque references.
 Consumers must not infer operation or identity metadata by parsing their
@@ -128,9 +138,12 @@ known contradictions are not. Disabling signature validation does not disable
 Spec checks. Execution still requires a loadable function.
 
 Plan loading checks supported versions and valid root fields, invocation IDs,
-dependency references, and stage ordering. The compiler's generated stages
-follow the dependency order. Loading a portable plan checks that its declared
-stages preserve that order.
+dependency references, and stage ordering. The compiler owns operator expansion,
+dependency resolution, feature selection, and scheduling. `ExecutionPlan`
+validates that the compiler-supplied stages cover every invocation and preserve
+dependency order; it does not choose or optimize the schedule. The Python
+`Stage` model groups invocation IDs while the portable JSON representation
+remains an array of arrays of strings.
 
 ## API migration and rebuilding plans
 

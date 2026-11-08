@@ -17,10 +17,11 @@ from uptimely.spec import model as spec_model
     [
         None,
         "spec",
+        "nodes",
         "graph",
-        "subset",
+        "selection",
         "topology",
-        "emit",
+        "invocation",
         "entrypoint",
         "package",
         "signature",
@@ -39,7 +40,6 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
     specification = spec.Spec(functions={"calculate": function})
     graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     selected_graph = mock.Mock(spec=invocation_graph.InvocationGraph)
-    graph.subset.return_value = selected_graph
     node = invocation_graph.InvocationNode(
         function_id="calculate",
         profile_id="entity",
@@ -47,6 +47,7 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         function_kind="vectorize",
     )
     selected_graph.invocations = [node]
+    selected_graph.dependencies.return_value = []
     emitted_invocation = execution_plan.Invocation(
         id=node.node_id,
         function_kind="vectorize",
@@ -54,17 +55,20 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         function_id="calculate",
         operator_id="calculate",
         profile_id="entity",
+        return_type="float",
+        package=execution_plan.Package(distribution=None, version=None),
     )
     operations = {
         "spec": mock.Mock(),
-        "graph": mock.Mock(return_value=graph),
-        "subset": graph.subset,
+        "nodes": mock.Mock(return_value=[node]),
+        "graph": mock.Mock(return_value=(graph, {})),
+        "selection": mock.Mock(return_value=selected_graph),
         "topology": mock.Mock(return_value=[[node]]),
-        "emit": mock.Mock(return_value=emitted_invocation),
         "entrypoint": mock.Mock(),
         "package": mock.Mock(return_value=entrypoint.PackageProvenance(None, None)),
         "signature": mock.Mock(return_value=entrypoint.Signature(returns="float")),
         "signature_validation": mock.Mock(),
+        "invocation": mock.Mock(return_value=emitted_invocation),
     }
     implementation = mock.Mock()
     implementation.read_package = operations["package"]
@@ -78,8 +82,10 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         operations[failure].side_effect = ValueError("invalid compilation")
 
     monkeypatch.setattr(compiler.spec_validation, "validate_spec", operations["spec"])
-    monkeypatch.setattr(invocation_graph, "InvocationGraph", operations["graph"])
-    monkeypatch.setattr(compiler.plan_emission, "emit_invocation", operations["emit"])
+    monkeypatch.setattr(compiler.Compiler, "_create_invocation_nodes", operations["nodes"])
+    monkeypatch.setattr(compiler.Compiler, "_create_invocation_graph", operations["graph"])
+    monkeypatch.setattr(compiler.Compiler, "_select_invocations", operations["selection"])
+    monkeypatch.setattr(execution_plan.Invocation, "from_node", operations["invocation"])
     monkeypatch.setattr(compiler.entrypoint, "Entrypoint", operations["entrypoint"])
     monkeypatch.setattr(
         compiler.validation, "validation_callable_signature", operations["signature_validation"]
@@ -96,15 +102,22 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
 
     expected = [
         mock.call.spec(specification),
-        mock.call.graph(specification),
-        mock.call.subset(["result"]),
+        mock.call.nodes(specification),
+        mock.call.graph(specification, [node]),
+        mock.call.selection(specification, graph, [node], {}, ["result"]),
         mock.call.topology(),
-        mock.call.emit(specification, selected_graph, node),
         mock.call.entrypoint("module:calculate"),
         mock.call.package(),
         mock.call.signature(),
         mock.call.signature_validation(
             validation.CallableValidationContext(function, entrypoint.Signature(returns="float"))
+        ),
+        mock.call.invocation(
+            specification,
+            node,
+            dependency_ids=[],
+            return_type="float",
+            package=execution_plan.Package(distribution=None, version=None),
         ),
     ]
     if failure is not None:
@@ -113,10 +126,11 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
     if failure is None:
         assert len(plan.invocations) == 1
         assert plan.invocations[0].id == emitted_invocation.id
-        assert plan.stages == [[node.node_id]]
+        assert [stage.invocation_ids for stage in plan.stages] == [[node.node_id]]
         assert plan.invocations[0].return_type == "float"
         assert plan.invocations[0].package == execution_plan.Package(
-            distribution=None, version=None
+            distribution=None,
+            version=None,
         )
         assert calls.mock_calls == expected
 
@@ -179,20 +193,38 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     graph.topology.return_value = [nodes]
     graph.invocations = nodes
-    monkeypatch.setattr(compiler.invocation_graph, "InvocationGraph", mock.Mock(return_value=graph))
+    graph.dependencies.return_value = []
     monkeypatch.setattr(
-        compiler.plan_emission,
-        "emit_invocation",
-        mock.Mock(
-            side_effect=lambda _specification, _graph, node: execution_plan.Invocation(
-                id=node.node_id,
-                function_kind=node.function_kind,
-                entrypoint="module:calculate",
-                function_id=node.function_id,
-                operator_id=node.operator_id,
-                profile_id=node.profile_id,
-            )
-        ),
+        compiler.Compiler, "_create_invocation_nodes", mock.Mock(return_value=nodes)
+    )
+    monkeypatch.setattr(
+        compiler.Compiler, "_create_invocation_graph", mock.Mock(return_value=(graph, {}))
+    )
+
+    def create_invocation(
+        _specification: spec.Spec,
+        node: invocation_graph.InvocationNode,
+        *,
+        dependency_ids: list[str],
+        return_type: str | None,
+        package: execution_plan.Package,
+    ) -> execution_plan.Invocation:
+        return execution_plan.Invocation(
+            id=node.node_id,
+            function_kind=node.function_kind,
+            entrypoint="module:calculate",
+            function_id=node.function_id,
+            operator_id=node.operator_id,
+            profile_id=node.profile_id,
+            dependency_ids=dependency_ids,
+            return_type=return_type,
+            package=package,
+        )
+
+    monkeypatch.setattr(
+        execution_plan.Invocation,
+        "from_node",
+        mock.Mock(side_effect=create_invocation),
     )
 
     plan = compiler.Compiler().compile(specification)

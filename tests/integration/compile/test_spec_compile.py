@@ -8,6 +8,7 @@ from support import examples as example_support
 
 from uptimely import compiler, entrypoint, spec
 from uptimely import plan as compiler_plan
+from uptimely.compiler import compiler as compiler_module
 from uptimely.compiler import validation
 from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
@@ -154,12 +155,6 @@ def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Pat
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     definition = spec.load_spec(path)
-    graph = compiler.InvocationGraph(definition)
-    node = next(
-        item
-        for item in graph.invocations
-        if item.operator_id == "bearing_temperature_by_pump" and item.function_kind == "collapse"
-    )
     plan = compiler.Compiler().compile(definition)
     invocation = next(
         item
@@ -167,7 +162,7 @@ def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Pat
         if item.operator_id == "bearing_temperature_by_pump" and item.function_kind == "collapse"
     )
 
-    assert "bearing_temperature_max" in node.output_features
+    assert "bearing_temperature_max" in invocation.output_features
     assert invocation.arguments["output"] == "bearing_temperature_max"
 
 
@@ -365,13 +360,14 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
     path = tmp_path / "escape_spec.json"
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
     document = spec.load_spec(path)
-    graph = compiler.InvocationGraph(document)
-    by_operator = {node.operator_id: node for node in graph.invocations}
+    compiled = compiler.Compiler().compile(document)
+    by_operator = {invocation.operator_id: invocation for invocation in compiled.invocations}
+    by_id = compiled.invocations_by_id
 
     assert {
-        node.operator_id
-        for node in graph.invocations
-        if document.functions[node.function_id].kind == "escape"
+        invocation.operator_id
+        for invocation in compiled.invocations
+        if invocation.function_kind == "escape"
     } == {
         "escape_start",
         "escape_chain",
@@ -380,29 +376,31 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
         "process_pump_external_workflow",
     }
     assert {
-        dependency.operator_id for dependency in graph.dependencies(by_operator["escape_start"])
+        by_id[dependency_id].operator_id
+        for dependency_id in by_operator["escape_start"].dependency_ids
     } == {"read_pump_telemetry"}
     assert {
-        dependency.operator_id for dependency in graph.dependencies(by_operator["escape_chain"])
+        by_id[dependency_id].operator_id
+        for dependency_id in by_operator["escape_chain"].dependency_ids
     } == {"escape_start"}
 
     assert {
-        dependency.operator_id for dependency in graph.dependencies(by_operator["escape_unrelated"])
+        by_id[dependency_id].operator_id
+        for dependency_id in by_operator["escape_unrelated"].dependency_ids
     } == {"read_pump_telemetry"}
-    assert graph.dependencies(by_operator["escape_source"]) == []
-    assert by_operator["escape_start"].output_features == ("escape_start_output",)
-    assert by_operator["escape_chain"].output_features == ("escape_chain_output",)
-    assert by_operator["escape_source"].input_features == ()
-    assert by_operator["escape_source"].output_features == ("escape_source_output",)
+    assert by_operator["escape_source"].dependency_ids == []
+    assert by_operator["escape_start"].output_features == ["escape_start_output"]
+    assert by_operator["escape_chain"].output_features == ["escape_chain_output"]
+    assert by_operator["escape_source"].input_features == []
+    assert by_operator["escape_source"].output_features == ["escape_source_output"]
     assert {
         "escape_chain_output",
         "escape_source_output",
     } <= spec.FeatureGraph(document).feature_names
-    feature_subset = graph.subset(["escape_chain_output"])
+    feature_subset = compiler.Compiler().compile(document, features=["escape_chain_output"])
     assert {"escape_start", "escape_chain"} <= {
-        node.operator_id for node in feature_subset.invocations
+        invocation.operator_id for invocation in feature_subset.invocations
     }
-    compiled = compiler.Compiler().compile(document)
     compiled_escapes = {
         invocation.operator_id: invocation
         for invocation in compiled.invocations
@@ -426,10 +424,9 @@ def test_feature_subset_retains_sink_roles_independent_of_function_kind(
 
     path = tmp_path / "sink_spec.json"
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
-    graph = compiler.InvocationGraph(spec.load_spec(path))
-    subset = graph.subset(["escape_start_output"])
+    subset = compiler.Compiler().compile(spec.load_spec(path), features=["escape_start_output"])
 
-    assert "escape_unrelated" in {node.operator_id for node in subset.invocations}
+    assert "escape_unrelated" in {invocation.operator_id for invocation in subset.invocations}
 
 
 def test_feature_index_uses_function_kind_output_contract(
@@ -443,12 +440,13 @@ def test_feature_index_uses_function_kind_output_contract(
         definitions[functions.ESCAPE], produces_features=False
     )
     monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(compiler_module.spec_validation, "validate_spec", lambda _spec: None)
 
-    graph = compiler.InvocationGraph(document)
-    chain = next(node for node in graph.invocations if node.operator_id == "escape_chain")
-    assert graph.dependencies(chain) == []
+    plan = compiler.Compiler().compile(document)
+    chain = next(item for item in plan.invocations if item.operator_id == "escape_chain")
+    assert chain.dependency_ids == []
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): escape_start_output"):
-        graph.subset(["escape_start_output"])
+        compiler.Compiler().compile(document, features=["escape_start_output"])
 
 
 def test_escape_return_annotations_do_not_constrain_compilation(
@@ -532,40 +530,39 @@ def test_controlled_function_return_annotations_remain_validated() -> None:
         )
 
 
-def test_invocation_graph_subset_contains_requested_output_and_ancestors() -> None:
-    graph = compiler.InvocationGraph(spec.load_spec(SPEC_PATH))
-
-    subset = graph.subset(["health_signal_normalized"])
+def test_compiler_feature_subset_contains_requested_output_and_ancestors() -> None:
+    document = spec.load_spec(SPEC_PATH)
+    subset = compiler.Compiler().compile(document, features=["health_signal_normalized"])
     normalized = next(
-        node for node in subset.invocations if "health_signal_normalized" in node.output_features
+        invocation
+        for invocation in subset.invocations
+        if "health_signal_normalized" in invocation.output_features
     )
 
-    assert [
-        feature
-        for node in subset.get_invocation_order()
-        if graph.spec.functions[node.function_id].kind == "vectorize"
-        for feature in node.output_features
-    ] == [
-        "health_signal_normalized",
-    ]
+    assert normalized.output_features == ["health_signal_normalized"]
     assert {
-        (graph.spec.functions[node.function_id].kind, node.function_id)
-        for node in subset.dependencies(normalized)
+        (
+            subset.invocations_by_id[dependency_id].function_kind,
+            subset.invocations_by_id[dependency_id].function_id,
+        )
+        for dependency_id in normalized.dependency_ids
     } == {("merge", "__uptimely_merge_by_grain")}
     assert {
-        node.operator_id for node in subset.invocations if node.function_kind == "collapse"
+        invocation.operator_id
+        for invocation in subset.invocations
+        if invocation.function_kind == "collapse"
     } == {"bearing_temperature_by_pump"}
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
-        graph.subset(["missing"])
+        compiler.Compiler().compile(document, features=["missing"])
     grain_key_output = next(
-        feature for feature in graph.spec.grain_key_ids if feature in graph.spec.feature_producers
+        feature for feature in document.grain_key_ids if feature in document.feature_producers
     )
     with pytest.raises(
         ValueError,
         match=rf"Unknown output feature\(s\): {grain_key_output}",
     ):
-        graph.subset([grain_key_output])
+        compiler.Compiler().compile(document, features=[grain_key_output])
 
 
 def test_compiled_inputs_match_each_profile_mapping() -> None:
@@ -584,20 +581,15 @@ def test_compiled_inputs_match_each_profile_mapping() -> None:
         assert invocation.output_features == operator.output_features
 
 
-def test_graph_subset_retains_profile_mapping_lookups() -> None:
+def test_compiler_feature_subset_uses_source_profile_and_operator_declarations() -> None:
     document = spec.load_spec(SPEC_PATH)
-    graph = compiler.InvocationGraph(document)
-    subset = graph.subset(["health_signal_normalized"])
+    subset = compiler.Compiler().compile(document, features=["health_signal_normalized"])
 
-    for node in subset.invocations:
-        assert graph.profile_for(node) is document.profiles[node.profile_id]
-        assert subset.profile_for(node) is graph.profile_for(node)
-        assert subset.operator_for(node) is graph.operator_for(node)
-        assert {dependency.node_id for dependency in subset.dependencies(node)} == {
-            dependency.node_id for dependency in graph.dependencies(node)
-        }
-
-    nested_subset = subset.subset(["health_signal_normalized"])
-    assert {node.node_id for node in nested_subset.invocations} == {
-        node.node_id for node in subset.invocations
-    }
+    for invocation in subset.invocations:
+        operator = document.profiles[invocation.profile_id].assembly[invocation.operator_id]
+        if invocation.function_kind == "merge":
+            assert invocation.input_features == []
+            assert invocation.output_features == []
+            continue
+        assert invocation.input_features == operator.input_features
+        assert invocation.output_features == operator.output_features

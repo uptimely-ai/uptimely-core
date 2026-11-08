@@ -4,6 +4,7 @@ import logging
 import time
 from collections import abc
 
+from uptimely import entrypoint as entrypoint_module
 from uptimely.project import paths
 from uptimely.project.build import models as build_models
 from uptimely.run import recording
@@ -104,9 +105,24 @@ class Engine:
     def _execute(self, *, validate: bool) -> result_module.ExecutionResult:
         """Execute invocations without coupling runtime state to artifact storage."""
         state = state_module.RuntimeState()
+        entrypoints: dict[str, entrypoint_module.Entrypoint] = {}
+        invocation_by_entrypoint = {
+            invocation.entrypoint: invocation for invocation in self.plan.invocations
+        }
+        for location, invocation in invocation_by_entrypoint.items():
+            package = invocation.package
+            provenance = (
+                entrypoint_module.PackageProvenance(
+                    distribution=package.distribution,
+                    version=package.version,
+                )
+                if package is not None
+                else None
+            )
+            entrypoints[location] = entrypoint_module.Entrypoint(location, package=provenance)
         invocation_executor = execution_module.InvocationExecutor(
             self.backend,
-            self.plan.entrypoints_by_id,
+            entrypoints,
             self.parameters,
             state,
             validate=validate,

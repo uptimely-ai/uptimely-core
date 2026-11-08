@@ -8,7 +8,7 @@ from unittest import mock
 import pytest
 
 from uptimely import spec
-from uptimely.compiler import graph
+from uptimely.compiler import compiler, graph
 from uptimely.spec import model as spec_model
 
 
@@ -131,4 +131,4 @@ def test_graph_rejects_id_collisions_before_overwriting_nodes(
     )
 
     with pytest.raises(ValueError, match=r"Invocation ID collision.*first.*second"):
-        graph.InvocationGraph(specification)
+        compiler.Compiler._create_invocation_nodes(specification)
