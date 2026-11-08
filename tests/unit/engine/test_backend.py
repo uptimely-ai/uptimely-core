@@ -2,6 +2,7 @@ import polars as pl
 import pytest
 
 from uptimely.engine.dataframe import backend
+from uptimely.spec import feature_types
 
 
 @pytest.mark.parametrize(
@@ -44,7 +45,7 @@ def test_backend_reports_supported_feature_types() -> None:
 
     assert str(error.value) == (
         "Unsupported feature type for value: floatti. "
-        "Supported types: string, integer, float, numeric, boolean, datetime, date, object, array"
+        f"Supported types: {', '.join(feature_types.FEATURE_TYPES)}"
     )
 
 

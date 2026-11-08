@@ -29,6 +29,7 @@ setting fails rather than reinterpreting the plan.
 ```python
 import polars as pl
 import uptimely as up
+from uptimely.spec import feature_types
 
 machine = up.Dimension(
     id="machine",
@@ -44,7 +45,7 @@ def maximum(
 
 class PumpFeatures(up.FeatureSet):
     bearing_temperature_max = up.Feature(
-        type="float",
+        type=feature_types.FLOAT,
         unit="C",
         description="Maximum observed bearing temperature.",
     )
@@ -83,7 +84,8 @@ by humanizing the ID (for example, `bearing_temperature_max` becomes
 as the ID when `id` is omitted; an explicit ID can be supplied when it should
 differ from the attribute name. A `FeatureSet` subclass groups a profile's
 feature declarations as attributes, which operators reference in their outputs
-instead of repeating metadata inline.
+instead of repeating metadata inline. Logical feature types are available as
+constants in `uptimely.spec.feature_types` and remain strings in the spec.
 
 ```python
 python_spec = up.Spec(
