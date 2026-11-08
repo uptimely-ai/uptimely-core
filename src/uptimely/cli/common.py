@@ -4,9 +4,27 @@ import argparse
 import contextlib
 import logging
 import pathlib
+import traceback
+import typing
 from collections.abc import Iterator
 
 LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
+
+
+def exit_with_error(parser: argparse.ArgumentParser, error: Exception) -> typing.NoReturn:
+    """Report a command failure, including its traceback when DEBUG is enabled.
+
+    Args:
+        parser: Command parser used to write to stderr and exit.
+        error: Exception that caused the command to fail.
+
+    Raises:
+        SystemExit: Always exits with status 1.
+    """
+    message = f"uptimely: error: {error}\n"
+    if logging.getLogger("uptimely").isEnabledFor(logging.DEBUG):
+        message += "".join(traceback.format_exception(error))
+    parser.exit(1, message)
 
 
 def configure_project_root_arguments(parser: argparse.ArgumentParser, *, option_help: str) -> None:

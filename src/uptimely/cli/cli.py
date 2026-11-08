@@ -65,6 +65,7 @@ class _ArgumentParser(argparse.ArgumentParser):
     def exit(self, status: int = 0, message: str | None = None) -> typing.NoReturn:
         """Exit with the original status and color the whole error message."""
         if status != 0 and message is not None:
+            message = message.replace("uptimely: error: ", f"{'ERROR':{_LEVEL_COLUMN_WIDTH}} | ", 1)
             message = _color_text(message, logging.ERROR, sys.stderr)
         super().exit(status, message)
 

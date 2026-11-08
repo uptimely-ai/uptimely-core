@@ -37,4 +37,4 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 if subset is not None:
                     logger.debug("\nSelected feature subset\n%s", subset.render_graph())
         except (OSError, ValueError, ImportError, AttributeError, TypeError, RuntimeError) as error:
-            parser.exit(1, f"uptimely: error: {error}\n")
+            common.exit_with_error(parser, error)

@@ -118,4 +118,4 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             OSError,
             ValueError,
         ) as error:
-            parser.exit(1, f"uptimely: error: {error}\n")
+            common.exit_with_error(parser, error)

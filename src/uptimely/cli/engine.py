@@ -110,7 +110,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             RuntimeError,
             pl.exceptions.PolarsError,
         ) as error:
-            parser.exit(1, f"uptimely: error: {error}\n")
+            common.exit_with_error(parser, error)
 
 
 def _log_summary(

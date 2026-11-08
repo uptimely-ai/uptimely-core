@@ -13,6 +13,8 @@ from importlib import metadata
 from urllib import error as urllib_error
 from urllib import parse, request
 
+from uptimely.cli import common
+
 logger = logging.getLogger(__name__)
 
 EXAMPLES_FOLDER: str = "examples"
@@ -183,5 +185,5 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         ValueError,
         metadata.PackageNotFoundError,
     ) as error:
-        parser.exit(1, f"uptimely: error: {error}\n")
+        common.exit_with_error(parser, error)
     logger.info("Downloaded examples to %s", destination)
