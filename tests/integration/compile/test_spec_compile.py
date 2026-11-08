@@ -185,6 +185,56 @@ def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> No
     assert len({invocation.id for invocation in invocations}) == 4
 
 
+def test_compact_invocation_ids_are_stable_across_recompilation_and_selection() -> None:
+    document = spec.load_spec(SPEC_PATH)
+    builder = compiler.Compiler()
+    full_plan = builder.compile(document)
+    repeated_plan = builder.compile(document)
+    selected_plan = builder.compile(document, features=["health_signal_normalized"])
+    full_by_binding = {
+        (item.function_kind, item.function_id, item.profile_id, item.operator_id): item.id
+        for item in full_plan.invocations
+    }
+
+    assert {
+        (item.function_kind, item.function_id, item.profile_id, item.operator_id): item.id
+        for item in repeated_plan.invocations
+    } == full_by_binding
+    assert selected_plan.invocations
+    for item in selected_plan.invocations:
+        assert (
+            item.id
+            == full_by_binding[
+                (item.function_kind, item.function_id, item.profile_id, item.operator_id)
+            ]
+        )
+        assert len(item.id) <= 36
+        assert item.id.count("--") == 1
+    assert compiler_plan.from_dict(compiler_plan.to_dict(selected_plan)) == selected_plan
+
+
+def test_existing_invocation_ids_survive_unrelated_additions_and_reordering() -> None:
+    document = spec.load_spec(SPEC_PATH)
+    builder = compiler.Compiler()
+    original = builder.compile(document)
+    configuration = document.model_dump(mode="json")
+    _add_escape_mapping(
+        configuration,
+        "unrelated_escape",
+        "unrelated_escape",
+        [],
+        "examples.pump_analytics.functions.external_workflow:process_pump_external_workflow",
+    )
+    configuration["functions"]["unrelated_escape"]["validate_signature"] = False
+    configuration["profiles"] = dict(reversed(configuration["profiles"].items()))
+    for profile in configuration["profiles"].values():
+        profile["assembly"] = dict(reversed(profile["assembly"].items()))
+    expanded = builder.compile(spec.Spec.model_validate(configuration))
+
+    assert {item.id for item in original.invocations} < {item.id for item in expanded.invocations}
+    assert len(expanded.invocations) == len(original.invocations) + 1
+
+
 def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None:
     definition = spec.load_spec(SPEC_PATH)
     pump_profile = definition.profiles["pump_profile"]

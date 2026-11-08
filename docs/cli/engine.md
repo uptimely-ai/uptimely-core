@@ -62,7 +62,9 @@ Debug headings use `Invocation: read_constants [read]`, with the function ID
 below when different. Subsections are `Requirements:`, `Fragment:`,
 `Dataset:`, and `Merge:`, shown only when reached.
 The merge section identifies the target profile and merge invocation.
-Internal invocation IDs remain unchanged.
+Structured logs use the invocation IDs from the saved plan. Newly compiled
+plans use [compact invocation IDs](../components/compiler.md#invocations);
+rebuild the project to adopt them.
 
 ## Latest-run artifacts
 
