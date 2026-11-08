@@ -84,9 +84,12 @@ depending on a particular authoring language. The other tools consume this
 shared contract.
 
 The Spec declares functions and operators. An operator says what data a function
-reads and writes. The compiler records each operator as a planned step; the
-engine runs those steps using the Python functions. Building a plan does not
-run the analytics.
+reads and writes. Today, the compiler represents each operator's compute binding
+as a planned step, with a possible additional merge step for fragment-producing
+operators. This is not a permanent one-to-one contract: future compiler
+optimizations may transform the declared work into a different set of planned
+steps. The engine runs those steps using the Python functions. Building a plan
+does not run the analytics.
 
 ## Compiler
 

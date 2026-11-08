@@ -10,6 +10,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Compiler now owns operator-to-invocation expansion, Spec dependency rules,
+  feature selection, and schedule selection. **Breaking (compiler API):**
+  `InvocationGraph` now accepts compiler-created nodes and dependency IDs rather
+  than a Spec. The Python plan API now represents each execution stage with
+  `plan.Stage`; serialized stages remain arrays of invocation IDs.
 - Compiler-generated invocation IDs now use compact operator labels and stable
   fingerprints, with single dashes within labels and `--` before the hash.
   IDs are at most 36 characters and identify the function, profile, and

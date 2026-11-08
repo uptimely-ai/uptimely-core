@@ -2,30 +2,43 @@
 
 from __future__ import annotations
 
-import copy
 import logging
 from collections import abc
 
 from uptimely import entrypoint, spec
 from uptimely import plan as plan_module
+from uptimely.spec import function_kinds as functions
+from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
 from uptimely.spec.validation import errors
 
 from . import graph as invocation_graph
-from . import plan_emission, validation
+from . import validation
 
 logger = logging.getLogger(__name__)
 
 
 class Compiler:
-    """Turn Specs into portable execution plans without retaining build state."""
+    """Own Spec-to-plan strategy without retaining build state.
+
+    The compiler expands operators into invocation nodes, resolves their feature and
+    fragment dependencies, selects the requested graph, and determines its schedule.
+    The graph module supplies generic dependency ordering; plan models represent and
+    validate the resulting portable invocations and stages.
+    """
 
     def compile(
         self,
         spec_definition: spec.Spec,
         features: abc.Collection[str] | None = None,
     ) -> plan_module.ExecutionPlan:
-        """Validate and compile a Spec using fresh state for this call.
+        """Compile a Spec by creating, selecting, scheduling, and serializing its invocations.
+
+        This method owns the rules that turn operators into invocation nodes and
+        connect their dependencies. It obtains a topological schedule from the
+        generic invocation graph, checks implementation metadata, then converts
+        each scheduled node to a portable plan invocation. The plan validates the
+        compiler-selected schedule; it does not choose execution order.
 
         Args:
             spec_definition: The Spec document to compile.
@@ -41,25 +54,91 @@ class Compiler:
         logger.debug("\nCompiler validation:")
         validation.validation_feature_selection(features)
 
-        graph = invocation_graph.InvocationGraph(spec_definition)
+        nodes = self._create_invocation_nodes(spec_definition)
+        graph, feature_producers = self._create_invocation_graph(spec_definition, nodes)
         if features is not None:
             logger.debug("\nCompiler feature selection:\n  Selected features: %s", sorted(features))
-            graph = graph.subset(list(dict.fromkeys(features)))
+            graph = self._select_invocations(
+                spec_definition,
+                graph,
+                nodes,
+                feature_producers,
+                list(dict.fromkeys(features)),
+            )
         else:
             logger.debug("\nCompiler feature selection:\n  - using all features")
 
+        logger.debug("  Invocation graph:")
+        logger.debug("    - checking dependency graph is acyclic and schedulable")
         execution_stages = graph.topology()
         nodes = graph.invocations
-        logger.debug("  Invocation checks for %d invocations:", len(nodes))
-        logger.debug("    - checking functions declare entrypoints")
-        logger.debug("    - checking structural argument references resolve")
-        logger.debug("    - checking emitted invocation contracts")
-        invocations = [
-            plan_emission.emit_invocation(spec_definition, graph, node) for node in nodes
-        ]
 
-        locations = dict.fromkeys(invocation.entrypoint for invocation in invocations)
+        logger.debug("  Invocation checks for %d invocations:", len(nodes))
+        selected_functions, first_node_by_function = self._collect_selected_functions(
+            spec_definition, nodes
+        )
+        locations = dict.fromkeys(
+            function.entrypoint for function in selected_functions.values() if function.entrypoint
+        )
+        entrypoints = self._parse_entrypoints(locations)
+        packages = self._read_package_provenance(entrypoints)
+        signatures = self._validate_signatures(
+            selected_functions,
+            first_node_by_function,
+            entrypoints,
+            packages,
+        )
+        logger.debug("    - checking structural argument references resolve")
+        invocations = self._create_plan_invocations(
+            spec_definition,
+            graph,
+            nodes,
+            selected_functions,
+            signatures,
+            packages,
+        )
+        stages = [[node.node_id for node in stage] for stage in execution_stages]
+
+        logger.debug("  Execution plan:")
+        logger.debug("    - checking emitted invocation IDs, dependencies, and stage ordering")
+        return plan_module.ExecutionPlan(
+            plan_version=plan_module.PLAN_VERSION,
+            required_backend="polars",
+            invocations=invocations,
+            stages=[plan_module.Stage(stage) for stage in stages],
+        )
+
+    @staticmethod
+    def _collect_selected_functions(
+        spec_definition: spec.Spec,
+        nodes: list[invocation_graph.InvocationNode],
+    ) -> tuple[
+        dict[str, spec_model.FunctionTemplate],
+        dict[str, invocation_graph.InvocationNode],
+    ]:
+        """Validate entrypoints and collect each selected function once."""
+        logger.debug("    - checking functions declare entrypoints")
+        logger.debug("    - selecting unique functions for implementation checks")
+        selected_functions: dict[str, spec_model.FunctionTemplate] = {}
+        first_node_by_function: dict[str, invocation_graph.InvocationNode] = {}
+        for node in nodes:
+            function = spec_definition.functions.get(node.function_id)
+            if function is None or not function.entrypoint:
+                raise ValueError(
+                    f"Missing entrypoint for function {node.function_id} "
+                    f"used by operator {node.operator_id}"
+                )
+            selected_functions.setdefault(node.function_id, function)
+            first_node_by_function.setdefault(node.function_id, node)
+        return selected_functions, first_node_by_function
+
+    @staticmethod
+    def _parse_entrypoints(
+        locations: abc.Iterable[str],
+    ) -> dict[str, entrypoint.Entrypoint]:
+        """Parse and validate the selected implementation locations."""
         logger.debug("  Entrypoints:")
+        locations = list(locations)
         logger.debug("    - checking syntax for %d unique entrypoints", len(locations))
         entrypoints: dict[str, entrypoint.Entrypoint] = {}
         for location in locations:
@@ -67,29 +146,40 @@ class Compiler:
                 entrypoints[location] = entrypoint.Entrypoint(location)
             except ValueError as error:
                 raise ValueError(f"Invalid entrypoint {location!r}: {error}") from error
+        return entrypoints
 
+    @staticmethod
+    def _read_package_provenance(
+        entrypoints: dict[str, entrypoint.Entrypoint],
+    ) -> dict[str, plan_module.Package]:
+        """Read portable package provenance once per entrypoint."""
         logger.debug("  Package provenance:")
-        logger.debug("    - checking package ownership for %d unique entrypoints", len(locations))
-        packages: dict[str, entrypoint.PackageProvenance] = {}
+        logger.debug("    - checking package ownership for %d unique entrypoints", len(entrypoints))
+        packages: dict[str, plan_module.Package] = {}
         for location, implementation in entrypoints.items():
             try:
-                packages[location] = implementation.read_package()
+                provenance = implementation.read_package()
             except (ImportError, ValueError) as error:
                 raise ValueError(
                     f"Could not read package provenance for entrypoint {location}: {error}"
                 ) from error
+            packages[location] = plan_module.Package(
+                distribution=provenance.distribution,
+                version=provenance.version,
+            )
+        return packages
 
-        selected_functions = {
-            invocation.function_id: spec_definition.functions.get(invocation.function_id)
-            for invocation in invocations
-        }
-        enabled_count = sum(
-            function is not None and function.validate_signature
-            for function in selected_functions.values()
-        )
+    @staticmethod
+    def _validate_signatures(
+        selected_functions: dict[str, spec_model.FunctionTemplate],
+        first_node_by_function: dict[str, invocation_graph.InvocationNode],
+        entrypoints: dict[str, entrypoint.Entrypoint],
+        packages: dict[str, plan_module.Package],
+    ) -> dict[str, entrypoint.Signature]:
+        """Read and validate each enabled function's implementation signature."""
+        enabled_count = sum(function.validate_signature for function in selected_functions.values())
         disabled_count = sum(
-            function is not None and not function.validate_signature
-            for function in selected_functions.values()
+            not function.validate_signature for function in selected_functions.values()
         )
         logger.debug(
             "  Signature checks for %d functions:\n"
@@ -105,53 +195,180 @@ class Compiler:
             logger.debug("    - skipping %d functions (validate_signature=false)", disabled_count)
 
         signatures: dict[str, entrypoint.Signature] = {}
-        for invocation in invocations:
-            function = spec_definition.functions.get(invocation.function_id)
-            if function is None or not function.validate_signature or function.id in signatures:
+        for function_id, function in selected_functions.items():
+            if not function.validate_signature:
                 continue
-            implementation = entrypoints[function.entrypoint]
-            try:
-                signature = implementation.read_signature()
-                validation.validation_callable_signature(
-                    validation.CallableValidationContext(function, signature)
-                )
-            except errors.SpecError:
-                raise
-            except (ImportError, AttributeError, ValueError, TypeError, NameError) as error:
-                raise ValueError(
-                    f"Could not read signature of function {function.id} "
-                    f"used by operator {invocation.operator_id} from entrypoint "
-                    f"{function.entrypoint}; available build package: "
-                    f"{packages[function.entrypoint]}: {error}"
-                ) from error
-            signatures[function.id] = signature
-
-        invocations = [
-            copy.replace(
-                invocation,
-                return_type=(
-                    signatures[invocation.function_id].returns
-                    if invocation.function_id in signatures
-                    else None
-                ),
-                package=plan_module.Package(
-                    distribution=packages[invocation.entrypoint].distribution,
-                    version=packages[invocation.entrypoint].version,
-                ),
+            signatures[function_id] = Compiler._validate_function_signature(
+                function,
+                first_node_by_function[function_id],
+                entrypoints[function.entrypoint],
+                packages[function.entrypoint],
             )
-            for invocation in invocations
-        ]
-        invocation_ids = {invocation.id for invocation in invocations}
-        stages = [
-            [node.node_id for node in stage if node.node_id in invocation_ids]
-            for stage in execution_stages
-        ]
+        return signatures
 
-        logger.debug("  Execution plan:")
-        logger.debug("    - checking emitted invocation IDs, dependencies, and stage ordering")
-        return plan_module.ExecutionPlan(
-            plan_version=plan_module.PLAN_VERSION,
-            required_backend="polars",
-            invocations=invocations,
-            stages=stages,
-        )
+    @staticmethod
+    def _validate_function_signature(
+        function: spec_model.FunctionTemplate,
+        node: invocation_graph.InvocationNode,
+        implementation: entrypoint.Entrypoint,
+        package: plan_module.Package,
+    ) -> entrypoint.Signature:
+        """Read one implementation signature and check it against the Spec."""
+        try:
+            signature = implementation.read_signature()
+            validation.validation_callable_signature(
+                validation.CallableValidationContext(function, signature)
+            )
+        except errors.SpecError:
+            raise
+        except (ImportError, AttributeError, ValueError, TypeError, NameError) as error:
+            raise ValueError(
+                f"Could not read signature of function {function.id} "
+                f"used by operator {node.operator_id} from entrypoint "
+                f"{function.entrypoint}; available build package: {package}: {error}"
+            ) from error
+        return signature
+
+    @staticmethod
+    def _create_plan_invocations(
+        spec_definition: spec.Spec,
+        graph: invocation_graph.InvocationGraph,
+        nodes: list[invocation_graph.InvocationNode],
+        selected_functions: dict[str, spec_model.FunctionTemplate],
+        signatures: dict[str, entrypoint.Signature],
+        packages: dict[str, plan_module.Package],
+    ) -> list[plan_module.Invocation]:
+        """Convert scheduled nodes to portable invocations with resolved metadata."""
+        logger.debug("    - creating portable invocation representations")
+        invocations: list[plan_module.Invocation] = []
+        for node in nodes:
+            function = selected_functions[node.function_id]
+            invocations.append(
+                plan_module.Invocation.from_node(
+                    spec_definition,
+                    node,
+                    dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
+                    return_type=(
+                        signatures[node.function_id].returns
+                        if node.function_id in signatures
+                        else None
+                    ),
+                    package=packages[function.entrypoint],
+                )
+            )
+        return invocations
+
+    @staticmethod
+    def _create_invocation_nodes(
+        spec_definition: spec.Spec,
+    ) -> list[invocation_graph.InvocationNode]:
+        """Expand Spec operators into compiler-owned compute and merge nodes."""
+        invocations: list[invocation_graph.InvocationNode] = []
+        for key, operator in spec_definition.operator_items:
+            profile = spec_definition.profiles_by_key[key[0]]
+            function_kind = spec_definition.functions[operator.compute.function].kind
+            invocations.append(
+                invocation_graph.InvocationNode(
+                    function_id=operator.compute.function,
+                    profile_id=profile.id,
+                    operator_id=operator.id,
+                    function_kind=function_kind,
+                    output_features=tuple(operator.output_features),
+                    arguments=operator.compute.args,
+                    input_features=tuple(operator.input_features),
+                    row_context=operator.row_context,
+                )
+            )
+            if (
+                functions.FUNCTION_KINDS[function_kind].produces_fragment
+                and operator.merge is not None
+            ):
+                invocations.append(
+                    invocation_graph.InvocationNode(
+                        function_id=operator.merge.function,
+                        profile_id=profile.id,
+                        operator_id=operator.id,
+                        function_kind=spec_definition.functions[operator.merge.function].kind,
+                        arguments=operator.merge.args,
+                    )
+                )
+
+        nodes_by_id: dict[str, invocation_graph.InvocationNode] = {}
+        for invocation in invocations:
+            previous = nodes_by_id.get(invocation.node_id)
+            if previous is not None:
+                raise ValueError(
+                    f"Invocation ID collision {invocation.node_id!r} between operators "
+                    f"{previous.profile_id!r}/{previous.operator_id!r} "
+                    f"({previous.function_kind}:{previous.function_id}) and "
+                    f"{invocation.profile_id!r}/{invocation.operator_id!r} "
+                    f"({invocation.function_kind}:{invocation.function_id})"
+                )
+            nodes_by_id[invocation.node_id] = invocation
+        return invocations
+
+    @staticmethod
+    def _create_invocation_graph(
+        spec_definition: spec.Spec,
+        invocations: list[invocation_graph.InvocationNode],
+    ) -> tuple[
+        invocation_graph.InvocationGraph,
+        dict[str, invocation_graph.InvocationNode],
+    ]:
+        """Resolve Spec feature and fragment relationships into graph edges."""
+        by_binding = {
+            (node.profile_id, node.operator_id, node.function_id): node for node in invocations
+        }
+        feature_producers: dict[str, invocation_graph.InvocationNode] = {}
+        dependencies: dict[str, set[str]] = {node.node_id: set() for node in invocations}
+
+        for node in invocations:
+            definition = functions.FUNCTION_KINDS[node.function_kind]
+            producer = node
+            if definition.produces_fragment:
+                operator = spec_definition.profiles[node.profile_id].assembly[node.operator_id]
+                if operator.merge is not None:
+                    merge_node = by_binding.get(
+                        (node.profile_id, node.operator_id, operator.merge.function)
+                    )
+                    if merge_node is not None:
+                        dependencies[merge_node.node_id].add(node.node_id)
+                        producer = merge_node
+            if definition.produces_features:
+                for feature in node.output_features:
+                    feature_producers[feature] = producer
+
+        for node in invocations:
+            for feature in node.input_features:
+                producer = feature_producers.get(feature)
+                if producer is not None and producer != node:
+                    dependencies[node.node_id].add(producer.node_id)
+        return invocation_graph.InvocationGraph(invocations, dependencies), feature_producers
+
+    @staticmethod
+    def _select_invocations(
+        spec_definition: spec.Spec,
+        graph: invocation_graph.InvocationGraph,
+        invocations: list[invocation_graph.InvocationNode],
+        feature_producers: dict[str, invocation_graph.InvocationNode],
+        features: list[str],
+    ) -> invocation_graph.InvocationGraph:
+        """Select requested outputs, their prerequisites, and matching sinks."""
+        logger.debug("    - checking selected output features have producers")
+        selectable_features = feature_producers.keys() - spec_definition.grain_key_ids
+        missing = sorted(set(features) - selectable_features)
+        if missing:
+            raise ValueError("Unknown output feature(s): " + ", ".join(missing))
+
+        requested_nodes = {feature_producers[feature] for feature in features}
+        selected_nodes = set(requested_nodes)
+        for node in tuple(selected_nodes):
+            selected_nodes.update(graph.ancestors(node.node_id))
+
+        selected_profiles = {node.profile_id for node in requested_nodes}
+        for node in invocations:
+            kind = spec_definition.functions[node.function_id].kind
+            if functions.FUNCTION_KINDS[kind].is_sink and node.profile_id in selected_profiles:
+                selected_nodes.add(node)
+                selected_nodes.update(graph.ancestors(node.node_id))
+        return graph.subset([node.node_id for node in selected_nodes])

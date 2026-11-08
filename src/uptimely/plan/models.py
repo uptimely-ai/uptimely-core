@@ -7,12 +7,26 @@ import typing
 
 import pydantic
 
-from uptimely import entrypoint as entrypoint_module
+from uptimely import spec
 from uptimely.spec import function_kinds as functions
 from uptimely.spec import row_context as uptimely_row_context
 
 PLAN_VERSION = 8
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
+
+
+class _InvocationNode(typing.Protocol):
+    """Compiler node fields needed to create its portable representation."""
+
+    function_id: str
+    profile_id: str
+    operator_id: str
+    output_features: tuple[str, ...]
+    input_features: tuple[str, ...]
+    row_context: uptimely_row_context.RowContext | None
+
+    @property
+    def node_id(self) -> str: ...
 
 
 class _PlanModel(pydantic.BaseModel):
@@ -27,21 +41,29 @@ class _PlanModel(pydantic.BaseModel):
 
 
 class Package(_PlanModel):
-    """Portable installed-package provenance for an invocation entrypoint."""
+    """Portable installed-package provenance for a module entrypoint."""
 
     distribution: str | None
     version: str | None
 
-    def to_provenance(self) -> entrypoint_module.PackageProvenance:
-        """Return the public entrypoint package-provenance value."""
-        return entrypoint_module.PackageProvenance(
-            distribution=self.distribution,
-            version=self.version,
-        )
+
+class Stage(pydantic.RootModel[list[NonEmptyString]]):
+    """Portable group of invocation identifiers scheduled at the same time."""
+
+    model_config = pydantic.ConfigDict(strict=True, frozen=True)
+
+    @property
+    def invocation_ids(self) -> list[str]:
+        """Return the invocation identifiers assigned to this stage."""
+        return self.root
+
+    def __iter__(self) -> typing.Iterator[str]:
+        """Iterate through invocation identifiers in stage order."""
+        return iter(self.root)
 
 
 class Invocation(_PlanModel):
-    """One executable function invocation in a portable plan."""
+    """Portable representation of one compiler-created executable invocation."""
 
     id: NonEmptyString
     function_kind: functions.FunctionKindId
@@ -59,6 +81,78 @@ class Invocation(_PlanModel):
     argument_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     return_type: str | None = None
     package: Package | None = None
+
+    @classmethod
+    def from_node(
+        cls,
+        spec_definition: spec.Spec,
+        node: _InvocationNode,
+        *,
+        dependency_ids: list[str],
+        return_type: str | None,
+        package: Package,
+    ) -> typing.Self:
+        """Create a portable invocation from a compiler node and resolved metadata.
+
+        The compiler supplies dependency IDs, signature metadata, and package
+        provenance. This factory resolves the node's Spec-backed arguments and
+        copies its declared invocation data; it does not determine graph edges
+        or execution order.
+
+        Args:
+            spec_definition: The validated source Spec.
+            node: Compiler-created node to represent in the plan.
+            dependency_ids: IDs of the node's direct prerequisites.
+            return_type: Portable return annotation, if signature validation is enabled.
+            package: Portable package provenance for the node's entrypoint.
+
+        Returns:
+            The portable invocation corresponding to the compiler node.
+
+        Raises:
+            ValueError: If the node's function does not declare an entrypoint.
+        """
+        function = spec_definition.functions.get(node.function_id)
+        if function is None or not function.entrypoint:
+            raise ValueError(
+                f"Missing entrypoint for function {node.function_id} "
+                f"used by operator {node.operator_id}"
+            )
+        profile_key = spec_definition.profile_keys[node.profile_id]
+        id_columns = spec_definition.grain_keys_by_profile[profile_key]
+        operator = spec_definition.profiles[node.profile_id].assembly[node.operator_id]
+        arguments = operator.resolve_args(
+            function_id=node.function_id,
+            function_kind=function.kind,
+            profile_id=node.profile_id,
+            grain_keys_by_profile=spec_definition.grain_keys_by_profile,
+            resources=spec_definition.binding_resources,
+            id_columns=id_columns,
+        )
+        profile = spec_definition.profiles[node.profile_id]
+        column_types = {
+            feature_id: feature.type
+            for feature_id, feature in profile.features.items()
+            if feature.type is not None
+        } | spec_definition.grain_key_types_by_profile[profile_key]
+        return cls(
+            id=node.node_id,
+            function_kind=function.kind,
+            entrypoint=function.entrypoint,
+            function_id=node.function_id,
+            operator_id=node.operator_id,
+            profile_id=node.profile_id,
+            output_features=list(node.output_features),
+            input_features=list(node.input_features),
+            arguments=arguments,
+            dependency_ids=dependency_ids,
+            row_context=node.row_context,
+            id_columns=list(id_columns),
+            column_types=column_types,
+            argument_types={key: argument.type for key, argument in function.args.items()},
+            return_type=return_type,
+            package=package,
+        )
 
     @pydantic.field_validator("entrypoint", "function_id", "operator_id", mode="before")
     @classmethod
@@ -84,12 +178,12 @@ class Invocation(_PlanModel):
 
 
 class ExecutionPlan(_PlanModel):
-    """Portable execution plan with validated invocation and staging contracts."""
+    """Portable invocations and the compiler-selected execution schedule."""
 
     plan_version: typing.Literal[8]
     required_backend: NonEmptyString
     invocations: list[Invocation]
-    stages: list[list[NonEmptyString]]
+    stages: list[Stage]
 
     @pydantic.model_validator(mode="before")
     @classmethod
@@ -100,20 +194,32 @@ class ExecutionPlan(_PlanModel):
         return value
 
     @pydantic.model_validator(mode="after")
-    def validate_execution_order(self) -> typing.Self:
-        """Validate references and ordering after invocation metadata is parsed."""
+    def validate_plan_contracts(self) -> typing.Self:
+        """Validate invocation consistency and the compiler-selected schedule."""
         invocation_ids = {invocation.id for invocation in self.invocations}
         if len(invocation_ids) != len(self.invocations):
             raise ValueError("Plan contains duplicate invocation ids")
-        entrypoints_by_function: dict[str, str] = {}
+        self._validate_invocation_metadata()
+        self._validate_execution_order(invocation_ids)
+        return self
+
+    def _validate_invocation_metadata(self) -> None:
+        """Require consistent entrypoints, return types, and packages."""
+        entrypoint_and_return_by_function: dict[str, tuple[str, str | None]] = {}
         packages_by_entrypoint: dict[str, Package | None] = {}
         for invocation in self.invocations:
-            previous = entrypoints_by_function.setdefault(
-                invocation.function_id, invocation.entrypoint
+            metadata = (invocation.entrypoint, invocation.return_type)
+            previous = entrypoint_and_return_by_function.setdefault(
+                invocation.function_id, metadata
             )
-            if previous != invocation.entrypoint:
+            if previous[0] != invocation.entrypoint:
                 raise ValueError(
                     f"Plan assigns function {invocation.function_id!r} to multiple entrypoints"
+                )
+            if previous[1] != invocation.return_type:
+                raise ValueError(
+                    f"Plan has conflicting return annotations for function "
+                    f"{invocation.function_id!r}"
                 )
             previous_package = packages_by_entrypoint.setdefault(
                 invocation.entrypoint, invocation.package
@@ -123,23 +229,25 @@ class ExecutionPlan(_PlanModel):
                     f"Plan has conflicting package provenance for entrypoint "
                     f"{invocation.entrypoint!r}"
                 )
-        referenced = {
+
+    def _validate_execution_order(self, invocation_ids: set[str]) -> None:
+        """Require a schedule that respects dependencies."""
+        stage_by_invocation: dict[str, int] = {}
+        for stage_number, stage in enumerate(self.stages):
+            for invocation_id in stage.invocation_ids:
+                stage_by_invocation[invocation_id] = stage_number
+
+        dependencies = {
             dependency_id
             for invocation in self.invocations
             for dependency_id in invocation.dependency_ids
         }
-        staged_invocations = [invocation_id for stage in self.stages for invocation_id in stage]
-        staged = set(staged_invocations)
-        unknown = (referenced | staged) - invocation_ids
+        unknown = (dependencies | stage_by_invocation.keys()) - invocation_ids
         if unknown:
             raise ValueError("Plan references unknown invocation(s): " + ", ".join(sorted(unknown)))
-        if len(staged_invocations) != len(self.invocations) or staged != invocation_ids:
+        staged_count = sum(len(stage.invocation_ids) for stage in self.stages)
+        if staged_count != len(stage_by_invocation) or stage_by_invocation.keys() != invocation_ids:
             raise ValueError("Plan must stage every invocation exactly once")
-        stage_by_invocation = {
-            invocation_id: stage_number
-            for stage_number, stage in enumerate(self.stages)
-            for invocation_id in stage
-        }
         for invocation in self.invocations:
             if any(
                 stage_by_invocation[dependency_id] >= stage_by_invocation[invocation.id]
@@ -148,7 +256,6 @@ class ExecutionPlan(_PlanModel):
                 raise ValueError(
                     f"Dependencies for invocation {invocation.id} must be scheduled before it"
                 )
-        return self
 
     @functools.cached_property
     def invocations_by_id(self) -> dict[str, Invocation]:
@@ -159,7 +266,10 @@ class ExecutionPlan(_PlanModel):
     def execution_stages(self) -> list[list[Invocation]]:
         """Return staged invocations resolved from stage identifiers."""
         by_id = self.invocations_by_id
-        return [[by_id[invocation_id] for invocation_id in stage] for stage in self.stages]
+        return [
+            [by_id[invocation_id] for invocation_id in stage.invocation_ids]
+            for stage in self.stages
+        ]
 
     @functools.cached_property
     def execution_invocations(self) -> list[Invocation]:
@@ -213,38 +323,6 @@ class ExecutionPlan(_PlanModel):
     def entrypoints(self) -> dict[str, None]:
         """Return distinct entrypoints in invocation declaration order."""
         return dict.fromkeys(invocation.entrypoint for invocation in self.invocations)
-
-    @property
-    def packages(self) -> dict[str, entrypoint_module.PackageProvenance]:
-        """Return saved package provenance keyed by entrypoint."""
-        return {
-            invocation.entrypoint: invocation.package.to_provenance()
-            for invocation in self.invocations
-            if invocation.package is not None
-        }
-
-    @functools.cached_property
-    def entrypoints_by_id(self) -> dict[str, entrypoint_module.Entrypoint]:
-        """Return parsed entrypoints with saved package provenance."""
-        packages = self.packages
-        return {
-            location: entrypoint_module.Entrypoint(
-                location,
-                package=packages.get(location),
-            )
-            for location in self.entrypoints
-        }
-
-    @functools.cached_property
-    def functions(self) -> dict[str, entrypoint_module.Function]:
-        """Return unique functions keyed by declaration ID without loading them."""
-        functions_by_id: dict[str, entrypoint_module.Function] = {}
-        for invocation in self.invocations:
-            functions_by_id.setdefault(
-                invocation.function_id,
-                self.entrypoints_by_id[invocation.entrypoint].function,
-            )
-        return functions_by_id
 
     @functools.cached_property
     def count_per_kind(self) -> dict[functions.FunctionKindId, int]:

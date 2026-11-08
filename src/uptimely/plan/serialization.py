@@ -39,7 +39,7 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
             }
             for invocation in plan.invocations
         ],
-        "stages": plan.stages,
+        "stages": [stage.invocation_ids for stage in plan.stages],
     }
 
 

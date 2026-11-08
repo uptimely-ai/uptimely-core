@@ -97,7 +97,7 @@ def test_project_build_examples(
         assert "  Invocation checks for " in result.out
         assert result.out.count("    - checking functions declare entrypoints") == 1
         assert result.out.count("    - checking structural argument references resolve") == 1
-        assert result.out.count("    - checking emitted invocation contracts") == 1
+        assert result.out.count("    - creating portable invocation representations") == 1
         assert "  Entrypoints:" in result.out
         assert result.out.count("    - checking syntax for ") == 1
         assert "    - checking entrypoint syntax: " not in result.out

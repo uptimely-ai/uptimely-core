@@ -136,8 +136,8 @@ def test_compiler_summarizes_invocation_checks_once(
     )
     for check in (
         "    - checking functions declare entrypoints",
-        "    - checking structural argument references resolve",
-        "    - checking emitted invocation contracts",
+        "    - selecting unique functions for implementation checks",
+        "    - creating portable invocation representations",
     ):
         assert caplog.messages.count(check) == (1 if level == logging.DEBUG else 0)
     assert not any(message.startswith("\nCompiler operator:") for message in caplog.messages)
@@ -695,8 +695,12 @@ def test_compiler_inspects_each_distinct_entrypoint_once(
     assert reads
     assert all(count == 1 for count in reads.values())
     restored = plan.from_dict(plan.to_dict(compiled))
-    assert restored.packages == compiled.packages
-    assert set(restored.packages) == {node.entrypoint for node in compiled.invocations}
+    assert {node.entrypoint for node in restored.invocations} == {
+        node.entrypoint for node in compiled.invocations
+    }
+    assert [node.package for node in restored.invocations] == [
+        node.package for node in compiled.invocations
+    ]
 
 
 @pytest.mark.parametrize(
