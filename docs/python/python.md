@@ -44,7 +44,6 @@ def maximum(
 
 class PumpFeatures(up.FeatureSet):
     bearing_temperature_max = up.Feature(
-        id="bearing_temperature_max",
         type="float",
         unit="C",
         description="Maximum observed bearing temperature.",
@@ -80,7 +79,9 @@ class Pump(up.Profile):
 `Feature.id` is the stable feature identifier used by references and serialized
 keys. `Feature.name` is an optional display label; when omitted, it is generated
 by humanizing the ID (for example, `bearing_temperature_max` becomes
-`Bearing Temperature Max`). A `FeatureSet` subclass groups a profile's
+`Bearing Temperature Max`). Within a `FeatureSet`, the attribute name is used
+as the ID when `id` is omitted; an explicit ID can be supplied when it should
+differ from the attribute name. A `FeatureSet` subclass groups a profile's
 feature declarations as attributes, which operators reference in their outputs
 instead of repeating metadata inline.
 

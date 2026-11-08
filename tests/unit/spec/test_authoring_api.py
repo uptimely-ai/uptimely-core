@@ -101,7 +101,7 @@ def test_global_parameter_and_feature_authoring() -> None:
 
 def test_profile_features_attributes_can_be_operator_outputs() -> None:
     class Features(up.FeatureSet):
-        value = up.Feature(id="value", type="float")
+        value = up.Feature(type="float")
 
     features = Features()
     operator = up.Operator(
@@ -116,7 +116,16 @@ def test_profile_features_attributes_can_be_operator_outputs() -> None:
     )
 
     assert operator.to_model().output_features == ["value"]
+    assert features.value.id == "value"
+    assert features.value.name == "Value"
     assert Features.value.to_model().type == "float"
+
+
+def test_feature_set_preserves_explicit_feature_id() -> None:
+    class Features(up.FeatureSet):
+        display_value = up.Feature(id="value", type="float")
+
+    assert Features.display_value.id == "value"
 
 
 @pytest.mark.parametrize("shape", ["direct", "list", "tuple", "dict", "bind", "context"])

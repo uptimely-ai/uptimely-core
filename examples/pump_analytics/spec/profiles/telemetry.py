@@ -29,93 +29,77 @@ class TelemetryFeatures(FeatureSet):
     """Features declared by the telemetry profile."""
 
     discharge_pressure = Feature(
-        id="discharge_pressure",
         type="float",
         unit="bar",
         description="Pump discharge pressure",
     )
     flow_rate = Feature(
-        id="flow_rate",
         type="float",
         unit="m3/h",
         description="Pump discharge flow rate",
     )
     bearing_temperature = Feature(
-        id="bearing_temperature",
         type="float",
         unit="C",
         description="Drive-end bearing temperature",
     )
     vibration_rms = Feature(
-        id="vibration_rms",
         type="float",
         unit="mm/s",
         description="Overall pump vibration RMS",
     )
     motor_power = Feature(
-        id="motor_power",
         type="float",
         unit="kW",
         description="Electric motor active power consumption",
     )
     operation_mode = Feature(
-        id="operation_mode",
         type="string",
         description="Pump speed mode: low_speed below rated flow, otherwise high_speed.",
     )
     recommended_flow_rate = Feature(
-        id="recommended_flow_rate",
         type="float",
         unit="m3/h",
         description="Recommended flow rate for efficient operation",
     )
     recommended_discharge_pressure = Feature(
-        id="recommended_discharge_pressure",
         type="float",
         unit="bar",
         description="Recommended discharge pressure for efficient operation",
     )
     energy_cost_score = Feature(
-        id="energy_cost_score",
         type="float",
         description="Estimated energy-cost score for the recommended operating point",
     )
     converged = Feature(
-        id="converged",
         type="boolean",
         description="Whether the optimization converged",
     )
     pressure_flow_efficiency = Feature(
-        id="pressure_flow_efficiency",
         type="float",
         description="Hydraulic efficiency proxy from pressure, flow, and motor power",
     )
     room_temperature_reference = Feature(
-        id="room_temperature_reference",
         type="float",
         unit="C",
         description="Room-temperature constant broadcast to every telemetry row.",
     )
     bearing_temperature_rise = Feature(
-        id="bearing_temperature_rise",
         type="float",
         unit="C",
         description="Bearing-temperature rise above the room-temperature constant.",
     )
     bearing_temperature_delta = Feature(
-        id="bearing_temperature_delta",
         type="float",
         unit="C",
         description="Bearing-temperature change from the previous pump reading.",
     )
     vibration_delta = Feature(
-        id="vibration_delta",
         type="float",
         unit="mm/s",
         description="Vibration change from the previous pump reading.",
     )
     pump_health_score = Feature(
-        id="pump_health_score",
         type="float",
         description=(
             "Composite pump health score from bearing-temperature trend, "
@@ -123,7 +107,6 @@ class TelemetryFeatures(FeatureSet):
         ),
     )
     operating_point_recommendation = Feature(
-        id="operating_point_recommendation",
         type="object",
         description="Recommended pump operating point based on process demand and energy use",
     )
