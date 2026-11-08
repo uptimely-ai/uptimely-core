@@ -245,9 +245,30 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
     assert set(derived.function_catalog()) == {"replacement"}
 
 
-def test_dataset_requires_identifier() -> None:
-    with pytest.raises((TypeError, ValueError), match="id"):
-        authoring.Profile().to_model()
+@pytest.mark.parametrize(
+    ("declaration", "expected_id", "expected_name"),
+    [
+        (authoring.Profile(id="pump_telemetry"), "pump_telemetry", "Pump Telemetry"),
+        (authoring.Profile(name="Pump Telemetry"), "pump_telemetry", "Pump Telemetry"),
+        (authoring.Profile(), "profile", "Profile"),
+    ],
+)
+def test_profile_identity_defaults(
+    declaration: authoring.Profile, expected_id: str, expected_name: str
+) -> None:
+    assert declaration.id == expected_id
+    assert declaration.name == expected_name
+    assert declaration.to_model().id == expected_id
+
+
+def test_profile_identity_defaults_from_subclass_name() -> None:
+    class PumpAnalytics(authoring.Profile):
+        pass
+
+    declaration = PumpAnalytics()
+
+    assert declaration.id == "pump_analytics"
+    assert declaration.name == "Pump Analytics"
 
 
 def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
