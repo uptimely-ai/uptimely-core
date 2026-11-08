@@ -534,7 +534,7 @@ def test_python_spec_merge_binding_export() -> None:
         merge=authoring.Binding(
             function=merge_frames,
             arguments={
-                "target": ref.data(),
+                "target": ref.dataset(),
                 "fragment": ref.fragment(),
             },
         ),

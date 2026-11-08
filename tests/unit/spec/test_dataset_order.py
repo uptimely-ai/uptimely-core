@@ -261,7 +261,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                         "left_feature": python_spec.ref.feature("input_1"),
                         "right_feature": python_spec.ref.feature("input_2"),
                         "output": "sum",
-                        "dataset": python_spec.ref.profile().data,
+                        "dataset": python_spec.ref.profile().dataset,
                     },
                 ),
             ),

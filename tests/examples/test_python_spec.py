@@ -223,7 +223,7 @@ def test_sources_and_transforms_python_spec() -> None:
                 compute=python_spec.Binding(
                     function=python_spec.ref.function(expand_data, kind="expand"),
                     arguments={
-                        "source": python_spec.ref.profile("transformed_dataset").data,
+                        "source": python_spec.ref.profile("transformed_dataset").dataset,
                     },
                 ),
             ),
@@ -242,7 +242,7 @@ def test_sources_and_transforms_python_spec() -> None:
                 compute=python_spec.Binding(
                     function=python_spec.ref.function(analytics.aggregate, kind="collapse"),
                     arguments={
-                        "dataset": python_spec.ref.profile("target").data,
+                        "dataset": python_spec.ref.profile("target").dataset,
                         "feature": python_spec.ref.feature("input_2").id,
                         "group_by": python_spec.ref.profile().grain.ids,
                         "output": python_spec.ref.feature("collapsed_feature").id,

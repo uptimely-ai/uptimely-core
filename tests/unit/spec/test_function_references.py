@@ -273,7 +273,7 @@ def test_generic_mapping_exports_function_kind_without_importing(
             ),
             compute=assembly.Binding(
                 function=ref.function("unavailable_package.functions:calculate", kind=kind),
-                arguments={"dataset": ref.profile().data},
+                arguments={"dataset": ref.profile().dataset},
             ),
         ),
     )

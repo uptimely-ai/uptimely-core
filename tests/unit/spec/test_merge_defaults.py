@@ -85,7 +85,7 @@ def test_each_fragment_operator_receives_a_default_merge_binding() -> None:
 def test_user_binding_takes_precedence() -> None:
     custom_merge = assembly.Binding(
         function=ref.function("merger:combine", kind="merge"),
-        arguments={"target": ref.data(), "fragment": ref.fragment()},
+        arguments={"target": ref.dataset(), "fragment": ref.fragment()},
     )
     document = _resolved_python_spec([_operator("read", merge=custom_merge)])
 
@@ -101,7 +101,7 @@ def test_vectorize_is_not_counted_as_a_fragment_producer() -> None:
         interface=assembly.Interface(outputs=[feature.Feature(id="calculated")]),
         compute=assembly.Binding(
             function=ref.function("calculator:calculate", kind="vectorize"),
-            arguments={"dataset": ref.data()},
+            arguments={"dataset": ref.dataset()},
         ),
     )
 

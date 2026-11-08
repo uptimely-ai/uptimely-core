@@ -170,7 +170,7 @@ def _spec(*, lazy=False, empty=False):
                 compute=assembly.Binding(
                     function=ref.function(double, kind="vectorize"),
                     arguments={
-                        "dataset": ref.profile().data,
+                        "dataset": ref.profile().dataset,
                         "column": ref.feature("value").id,
                         "output": ref.feature("doubled").id,
                     },
@@ -185,7 +185,7 @@ def _spec(*, lazy=False, empty=False):
                 compute=assembly.Binding(
                     function=ref.function(double, kind="vectorize"),
                     arguments={
-                        "dataset": ref.profile().data,
+                        "dataset": ref.profile().dataset,
                         "column": ref.feature("value").id,
                         "output": ref.feature("unneeded").id,
                     },
@@ -206,7 +206,7 @@ def _spec(*, lazy=False, empty=False):
                 compute=assembly.Binding(
                     function=ref.function(summarize, kind="collapse"),
                     arguments={
-                        "dataset": ref.profile("observations").data,
+                        "dataset": ref.profile("observations").dataset,
                         "column": ref.feature("value").id,
                         "calculated": ref.feature("doubled").id,
                     },
@@ -225,7 +225,7 @@ def _spec(*, lazy=False, empty=False):
                 ),
                 compute=assembly.Binding(
                     function=ref.function(total, kind="collapse"),
-                    arguments={"dataset": ref.profile("summary").data},
+                    arguments={"dataset": ref.profile("summary").dataset},
                 ),
             ),
             assembly.Operator(
@@ -236,7 +236,7 @@ def _spec(*, lazy=False, empty=False):
                 ),
                 compute=assembly.Binding(
                     function=ref.function(maximum, kind="collapse"),
-                    arguments={"dataset": ref.profile("summary").data},
+                    arguments={"dataset": ref.profile("summary").dataset},
                 ),
             ),
         ],
@@ -298,7 +298,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                 compute=assembly.Binding(
                     function=ref.function(conform_source, kind="conform"),
                     arguments={
-                        "source": ref.profile("foreign").data,
+                        "source": ref.profile("foreign").dataset,
                         "matching_keys": ref.profile().grain.ids,
                     },
                 ),
@@ -629,7 +629,7 @@ def _broadcast_spec(
                 compute=assembly.Binding(
                     function=ref.function(expand_function, kind="expand"),
                     arguments={
-                        "source": ref.profile("reference_source").data,
+                        "source": ref.profile("reference_source").dataset,
                         "feature": ref.feature("source_value").id,
                         "output": ref.feature("reference").id,
                     },

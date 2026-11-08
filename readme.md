@@ -152,7 +152,7 @@ class MyAnalyticalProfile(up.Profile):
             compute=up.Binding(
                 function=double,
                 arguments={
-                    "dataset": up.ref.data(),
+                    "dataset": up.ref.dataset(),
                     "value": up.ref.feature("value"),
                     "output": up.ref.feature("doubled"),
                 },
@@ -163,7 +163,7 @@ class MyAnalyticalProfile(up.Profile):
             interface=up.Interface(outputs=[]),
             compute=up.Binding(
                 function=print_results,
-                arguments={"dataset": up.ref.data()},
+                arguments={"dataset": up.ref.dataset()},
             ),
         ),
     ]

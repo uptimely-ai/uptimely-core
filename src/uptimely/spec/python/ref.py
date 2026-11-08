@@ -15,7 +15,7 @@ __all__ = [
     "feature",
     "dimension",
     "profile",
-    "data",
+    "dataset",
     "fragment",
     "params",
     "row_context",
@@ -43,9 +43,9 @@ def profile(name: str | None = None) -> references.ProfileReference:
     )
 
 
-def data(name: str | None = None) -> references.Reference:
-    """Select a named profile's runtime data, or the current profile's data."""
-    return profile(name).data
+def dataset(name: str | None = None) -> references.Reference:
+    """Select a named profile's runtime dataset, or the current profile's dataset."""
+    return profile(name).dataset
 
 
 def fragment() -> references.Reference:

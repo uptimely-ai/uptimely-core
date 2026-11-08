@@ -59,7 +59,7 @@ class Pump(Profile):
             compute=Binding(
                 function=analytics.aggregate,
                 arguments=dict(
-                    dataset=ref.data("pump_telemetry"),
+                    dataset=ref.dataset("pump_telemetry"),
                     feature=ref.feature("bearing_temperature"),
                     method="max",
                     dimensions=ref.profile().grain.ids,
@@ -76,7 +76,7 @@ class Pump(Profile):
             compute=Binding(
                 function=analytics.min_max_scale,
                 arguments=dict(
-                    dataset=ref.data(),
+                    dataset=ref.dataset(),
                     feature=features.bearing_temperature_max,
                     lower_bound=-1.0,
                     upper_bound=1.0,
@@ -97,7 +97,7 @@ class Pump(Profile):
             merge=Binding(
                 function=external_workflow.merge_pump_inputs,
                 arguments={
-                    "target": ref.data(),
+                    "target": ref.dataset(),
                     "fragment": ref.fragment(),
                     "target_keys": ref.profile().grain.ids,
                 },
