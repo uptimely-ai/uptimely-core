@@ -267,8 +267,8 @@ class Telemetry(Profile):
                     arguments=dict(
                         dataset=ref.data(),
                         feature=features.bearing_temperature,
-                        partition_by=[ref.feature("pump_id").id],
-                        order_by=ref.feature("timestamp").id,
+                        partition_by=[ref.dimension("machine").resolution("machine").key],
+                        order_by=ref.dimension("timestamp").resolution("timestamp").key,
                         num_rows=ref.row_context("before"),
                         output=features.bearing_temperature_delta,
                     ),
@@ -285,8 +285,8 @@ class Telemetry(Profile):
                     arguments=dict(
                         dataset=ref.data(),
                         feature=features.vibration_rms,
-                        partition_by=[ref.feature("pump_id").id],
-                        order_by=ref.feature("timestamp").id,
+                        partition_by=[ref.dimension("machine").resolution("machine").key],
+                        order_by=ref.dimension("timestamp").resolution("timestamp").key,
                         num_rows=ref.row_context("before"),
                         output=features.vibration_delta,
                     ),
