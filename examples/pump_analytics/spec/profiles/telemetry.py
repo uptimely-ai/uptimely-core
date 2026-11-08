@@ -95,7 +95,6 @@ class TelemetryFeatures(FeatureSet):
         description="Bearing-temperature change from the previous pump reading.",
     )
     vibration_delta = Feature(
-        type="float",
         unit="mm/s",
         description="Vibration change from the previous pump reading.",
     )
