@@ -10,6 +10,7 @@ import polars as pl
 from uptimely import engine as engine_module
 from uptimely import project
 from uptimely.cli import common
+from uptimely.project import build as project_build
 
 logger = logging.getLogger(__name__)
 DEFAULT_PREVIEW_ROWS = 5
@@ -27,6 +28,11 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
     common.configure_project_root_arguments(
         parser,
         option_help="Project root containing the active build and function entrypoints",
+    )
+    parser.add_argument(
+        "--build",
+        action="store_true",
+        help="Build and publish the project before executing it",
     )
     parser.add_argument(
         "--validate",
@@ -63,6 +69,9 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     config = project.resolve_path(args.config, root, project.CONFIG_FILE)
     with common.apply_log_level(args.log_level):
         try:
+            if args.build:
+                bundle = project_build.build_project(root)
+                logger.info("Build files created to %s", bundle.root)
             with project.read_build_bundle(root) as bundle:
                 settings = engine_module.Config.model_validate_json(
                     config.read_text(encoding="utf-8")

@@ -13,6 +13,7 @@ from support import examples as example_support
 from uptimely import engine as engine_module
 from uptimely import project as project_module
 from uptimely.cli import cli
+from uptimely.project import build as project_build
 from uptimely.run import recording
 
 PROJECT = example_support.EXAMPLES_ROOT / "pump_analytics"
@@ -115,6 +116,72 @@ def test_engine_cli_forwards_validation_flag(
     )
 
     assert received == [validate]
+
+
+@pytest.mark.parametrize("command", [("run",), ("engine", "run")])
+def test_engine_cli_builds_before_running(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    command: tuple[str, ...],
+) -> None:
+    _write_empty_build(tmp_path)
+    config = tmp_path / "config.json"
+    config.write_text("{}", encoding="utf-8")
+    events: list[str] = []
+
+    def build(root: pathlib.Path) -> project_module.BuildBundle:
+        events.append("build")
+        assert root == tmp_path
+        return project_module.load_build_bundle(root)
+
+    def run(self: engine_module.Engine, *, validate: bool = False) -> engine_module.ExecutionResult:
+        events.append("run")
+        return engine_module.ExecutionResult(
+            datasets={},
+            calculated_outputs={},
+            invocation_statuses={},
+            durations={},
+            failures={},
+            plan_version=6,
+        )
+
+    monkeypatch.setattr(project_build, "build_project", build)
+    monkeypatch.setattr(engine_module.Engine, "run", run)
+
+    invoke(
+        monkeypatch,
+        *command,
+        str(tmp_path),
+        "--config",
+        str(config),
+        "--build",
+    )
+
+    assert events == ["build", "run"]
+
+
+@pytest.mark.parametrize("command", [("run",), ("engine", "run")])
+def test_engine_cli_does_not_run_after_build_failure(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    command: tuple[str, ...],
+) -> None:
+    def fail_build(root: pathlib.Path) -> project_module.BuildBundle:
+        raise project_build.ProjectBuildError("generation", "invalid source")
+
+    monkeypatch.setattr(project_build, "build_project", fail_build)
+    monkeypatch.setattr(
+        engine_module.Engine,
+        "run",
+        lambda *_args, **_kwargs: pytest.fail("Engine must not run after a failed build"),
+    )
+
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, *command, str(tmp_path), "--build")
+
+    assert error.value.code == 1
+    assert "Project build generation failed: invalid source" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("scoped", [False, True])
