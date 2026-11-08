@@ -38,6 +38,16 @@ def test_backend_value_queries(lazy: bool) -> None:
     assert adapter.same_data(value, value, ["key"])
 
 
+def test_backend_reports_supported_feature_types() -> None:
+    with pytest.raises(ValueError) as error:
+        backend.PolarsBackend().validate_types(pl.DataFrame({"value": [1]}), {"value": "floatti"})
+
+    assert str(error.value) == (
+        "Unsupported feature type for value: floatti. "
+        "Supported types: string, integer, float, numeric, boolean, datetime, date, object, array"
+    )
+
+
 @pytest.mark.parametrize("lazy", [False, True])
 def test_backend_same_data_preserves_row_order_and_values(lazy: bool) -> None:
     adapter = backend.PolarsBackend()

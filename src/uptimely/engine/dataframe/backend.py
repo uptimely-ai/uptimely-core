@@ -145,7 +145,10 @@ class PolarsBackend:
                 "array": isinstance(actual, (pl.List, pl.Array)),
             }
             if expected not in compatible:
-                raise ValueError(f"Unsupported feature type for {name}: {expected}")
+                supported = ", ".join(compatible)
+                raise ValueError(
+                    f"Unsupported feature type for {name}: {expected}. Supported types: {supported}"
+                )
             if not compatible[expected]:
                 raise ValueError(f"Output column {name} has type {actual}; expected {expected}")
 
