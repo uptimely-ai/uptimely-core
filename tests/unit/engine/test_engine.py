@@ -354,6 +354,30 @@ def test_validation_flag_checks_lazy_schema(
     assert not result.datasets
 
 
+def test_unsupported_feature_type_is_reported_in_warning(
+    monkeypatch: pytest.MonkeyPatch,
+    engine_for_plan: execution_support.EngineFactory,
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.WARNING, logger="uptimely.engine")
+    plan = _plan()
+    read = next(item for item in plan.invocations if item.function_kind == "read")
+    read.column_types["reading"] = "floatti"
+    _patch_callables(
+        monkeypatch,
+        {"test:read": lambda source: pl.DataFrame({"asset_id": ["A"], "reading": [1]})},
+    )
+
+    engine_for_plan(plan, {"source": "/tmp/input"}).run(validate=True)
+
+    warning = next(message for message in caplog.messages if message.startswith("Invocation "))
+    assert warning == (
+        "Invocation invocation:read:load:telemetry:reading failed: "
+        "Unsupported feature type for reading: floatti. "
+        "Supported types: string, integer, float, numeric, boolean, datetime, date, object, array"
+    )
+
+
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("invalid", ["duplicates", "types", "row_count", "keys"])
 def test_validation_is_opt_in_for_eager_and_lazy_frames(
