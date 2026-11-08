@@ -166,6 +166,9 @@ def test_formatter_preserves_multiline_terminal_content(
     ("arguments", "status"),
     [
         (("--invalid-option",), 2),
+        (("run", "--log-level", "INFO"), 2),
+        (("engine", "run", "--log-level", "INFO"), 2),
+        (("project", "build", "--log-level", "INFO"), 2),
         (("run", "--preview", "0"), 2),
         (("run", "--build"), 1),
     ],
@@ -194,6 +197,7 @@ def test_cli_errors_use_stderr_terminal_colors(
 
     assert error.value.code == status
     message = output.getvalue()
+    assert ": error:" not in message
     assert ("\033[31m" in message) is (terminal and not no_color)
     if terminal and not no_color:
         assert "\033[31mERROR    | " in message
