@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import dataclasses
 
+from uptimely.spec import feature_types
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import base as model_base
 
@@ -16,7 +17,7 @@ class Feature:
 
     id: str | None = None
     name: str | None = None
-    type: str | None = None
+    type: feature_types.FeatureType | None = None
     unit: str | None = None
     description: str | None = None
 

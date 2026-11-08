@@ -8,6 +8,7 @@ from collections import abc
 import polars as pl
 
 from uptimely.library.merge import polars as merge_module
+from uptimely.spec import feature_types
 
 from .. import config as config_module
 
@@ -134,18 +135,18 @@ class PolarsBackend:
         for name, expected in types.items():
             actual = schema[name]
             compatible = {
-                "string": actual == pl.String,
-                "integer": actual.is_integer(),
-                "float": actual.is_float(),
-                "numeric": actual.is_numeric(),
-                "boolean": actual == pl.Boolean,
-                "datetime": isinstance(actual, pl.Datetime),
-                "date": actual == pl.Date,
-                "object": isinstance(actual, (pl.Struct, pl.Object)),
-                "array": isinstance(actual, (pl.List, pl.Array)),
+                feature_types.STRING: actual == pl.String,
+                feature_types.INTEGER: actual.is_integer(),
+                feature_types.FLOAT: actual.is_float(),
+                feature_types.NUMERIC: actual.is_numeric(),
+                feature_types.BOOLEAN: actual == pl.Boolean,
+                feature_types.DATETIME: isinstance(actual, pl.Datetime),
+                feature_types.DATE: actual == pl.Date,
+                feature_types.OBJECT: isinstance(actual, (pl.Struct, pl.Object)),
+                feature_types.ARRAY: isinstance(actual, (pl.List, pl.Array)),
             }
             if expected not in compatible:
-                supported = ", ".join(compatible)
+                supported = ", ".join(feature_types.FEATURE_TYPES)
                 raise ValueError(
                     f"Unsupported feature type for {name}: {expected}. Supported types: {supported}"
                 )

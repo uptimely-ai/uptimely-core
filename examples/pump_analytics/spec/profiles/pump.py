@@ -4,6 +4,7 @@ from examples.pump_analytics.functions import analytics, external_workflow
 from examples.pump_analytics.spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Grain, Interface, Operator, Profile, ref
+from uptimely.spec import feature_types
 
 
 class PumpFeatures(FeatureSet):
@@ -11,28 +12,28 @@ class PumpFeatures(FeatureSet):
 
     measurement = Feature(
         id="measurement",
-        type="float",
+        type=feature_types.FLOAT,
         description="Measured pump value provided to the external workflow.",
     )
     reference_value = Feature(
         id="reference_value",
-        type="float",
+        type=feature_types.FLOAT,
         description="Reference value used to normalize the pump measurement.",
     )
     ratio = Feature(
         id="ratio",
-        type="float",
+        type=feature_types.FLOAT,
         description="Pump measurement divided by its reference value.",
     )
     bearing_temperature_max = Feature(
         id="bearing_temperature_max",
-        type="float",
+        type=feature_types.FLOAT,
         unit="C",
         description="Maximum observed bearing temperature",
     )
     health_signal_normalized = Feature(
         id="health_signal_normalized",
-        type="float",
+        type=feature_types.FLOAT,
         description="Normalized bearing-temperature health signal by pump.",
     )
 
