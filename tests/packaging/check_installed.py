@@ -98,7 +98,7 @@ class InstalledImportsTest(unittest.TestCase):
                         package["version"], importlib.metadata.version("uptimely-core")
                     )
                 result = self.command("run", str(project), "--preview", "2")
-                self.assertIn("Engine completed", result.stdout)
+                self.assertIn("Engine processed", result.stdout)
                 self.assertIn("Profile:", result.stdout)
 
     def test_installed_project_builds_and_executes_in_separate_processes(self) -> None:
@@ -125,7 +125,7 @@ class InstalledImportsTest(unittest.TestCase):
         config.parent.mkdir()
         config.write_text("{}", encoding="utf-8")
         result = self.command("engine", "run", "--project-root", str(project), "--preview", "2")
-        self.assertIn("1 profiles processed", result.stdout)
+        self.assertIn("Engine processed 1 profiles in ", result.stdout)
         self.assertIn("Profile: values", result.stdout)
         result = subprocess.run(
             [
@@ -177,7 +177,7 @@ class InstalledImportsTest(unittest.TestCase):
         self.assertIn("uptimely_missing_runtime_dependency", result.stderr)
         self.assertIn("recorded package provenance: uptimely-import-fixture==1.2.3", result.stderr)
         self.assertIn("available runtime package: uptimely-import-fixture==1.2.3", result.stderr)
-        self.assertNotIn("Engine completed", result.stdout)
+        self.assertNotIn("Engine processed", result.stdout)
 
         function["validate_signature"] = True
         source_path.write_text(json.dumps(source), encoding="utf-8")

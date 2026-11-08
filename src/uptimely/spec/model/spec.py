@@ -419,8 +419,6 @@ class Spec(base.StrictModel):
         log_structure = not isinstance(info.context, dict) or info.context.get(
             "log_structure", True
         )
-        if log_structure:
-            logger.debug("\nSpec validation:\n  Document structure:")
         if not isinstance(value, dict):
             return value
 
@@ -467,9 +465,9 @@ class Spec(base.StrictModel):
                 continue
             profile_count += 1
             operator_count += len(assembly)
-        logger.debug("    - checking object keys as identifiers for %d profiles", profile_count)
-        logger.debug("    - checking spec version is an integer")
-        logger.debug("    - checking feature references for %d operators", operator_count)
+        logger.debug("Check object keys as identifiers for %d profiles", profile_count)
+        logger.debug("Check spec version is an integer")
+        logger.debug("Check feature references for %d operators", operator_count)
 
     @classmethod
     def _normalize_functions(cls, value: typing.Any) -> typing.Any:

@@ -13,8 +13,9 @@ from uptimely import spec
 from uptimely.spec import function_kinds
 from uptimely.spec.validation import errors
 from uptimely.spec.validation import spec as spec_validation
-from uptimely.spec.validation.rules import bindings, functions
+from uptimely.spec.validation.rules import bindings, dimensions, functions, profiles
 from uptimely.spec.validation.rules.operators import contracts as operator_contracts
+from uptimely.spec.validation.rules.operators import inputs as operator_inputs
 from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 
 
@@ -34,14 +35,107 @@ def test_each_spec_rule_logs_its_check(
 
     validate(document)
 
-    assert len(caplog.records) == 1
-    assert caplog.messages[0].startswith("    - checking ")
-    assert caplog.records[0].levelno == logging.DEBUG
-    assert caplog.records[0].name == validate.__module__
+    assert caplog.records
+    assert all(message.startswith("Check ") for message in caplog.messages)
+    assert all(record.levelno == logging.DEBUG for record in caplog.records)
+    assert all(record.name == validate.__module__ for record in caplog.records)
+
+
+@pytest.mark.parametrize(
+    ("validate", "reference", "message"),
+    [
+        (
+            operator_inputs.validate_profile_reference,
+            "$profiles.missing.dataframe",
+            "Check referenced profile missing for spec operator compute in target profile target",
+        ),
+        (
+            operator_inputs.validate_feature_reference,
+            "$features.missing",
+            "Check feature selector missing for spec operator compute in target profile target",
+        ),
+        (
+            operator_inputs.validate_dimension_reference,
+            "$dimensions.missing.id",
+            "Check referenced dimension missing for spec operator compute in target profile target",
+        ),
+    ],
+)
+def test_operator_reference_log_identifies_resource_before_failure(
+    caplog: pytest.LogCaptureFixture,
+    validate: spec_validation.Validator,
+    reference: str,
+    message: str,
+) -> None:
+    document = spec.Spec.model_validate(
+        {
+            "profiles": {
+                "target": {
+                    "assembly": {
+                        "compute": {
+                            "compute": {"function": "calculate", "args": {"data": reference}}
+                        }
+                    }
+                }
+            }
+        }
+    )
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec.validation")
+
+    with pytest.raises(ValueError, match="unknown"):
+        validate(document)
+
+    assert caplog.messages[-1] == message
+
+
+def test_dimension_and_grain_logs_identify_resources(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    document = spec.Spec.model_validate(
+        {
+            "dimensions": {
+                "machine": {
+                    "resolutions": {
+                        "pump": {"key": "pump_id", "type": "string", "parent": "fleet"},
+                        "fleet": {"key": "fleet_id", "type": "string"},
+                    }
+                }
+            },
+            "profiles": {
+                "telemetry": {"grain": [{"dimension": "machine", "resolution": "pump"}]},
+                "summary": {"grain": [{"dimension": "machine", "resolution": "fleet"}]},
+            },
+        }
+    )
+    caplog.set_level(logging.DEBUG, logger="uptimely.spec.validation")
+
+    dimensions.validate_parent(document)
+    dimensions.validate_parent_cycle(document)
+    profiles.validate_grain_dimensions(document)
+    profiles.validate_grain_resolutions(document)
+    profiles.validate_unique_grain_dimensions(document)
+    profiles.validate_unique_grain_keys(document)
+
+    assert "Check parent resolution fleet for spec dimension machine, resolution pump" in (
+        caplog.messages
+    )
+    for resolution in ("pump", "fleet"):
+        assert (
+            f"Check parent chain for spec dimension machine, resolution {resolution}"
+            in caplog.messages
+        )
+    for profile, resolution in (("telemetry", "pump"), ("summary", "fleet")):
+        assert f"Check grain dimension machine for spec profile {profile}" in caplog.messages
+        assert (
+            f"Check grain resolution {resolution} in dimension machine "
+            f"for spec profile {profile}" in caplog.messages
+        )
+        assert f"Check grain dimension uniqueness for spec profile {profile}" in caplog.messages
+        assert f"Check grain dataframe-key uniqueness for spec profile {profile}" in caplog.messages
 
 
 @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
-def test_spec_validation_logs_heading_and_all_checks_only_at_debug(
+def test_spec_validation_logs_flat_checks_only_at_debug(
     document: spec.Spec,
     caplog: pytest.LogCaptureFixture,
     level: int,
@@ -50,15 +144,22 @@ def test_spec_validation_logs_heading_and_all_checks_only_at_debug(
 
     spec_validation.validate_spec(document)
 
+    assert caplog.messages[-1] == "Spec validated"
+    assert caplog.records[-1].levelno == logging.INFO
     if level == logging.INFO:
-        assert not caplog.records
+        assert caplog.messages == ["Start spec validation", "Spec validated"]
         return
-    assert caplog.messages[0] == "  Reference checks:"
-    assert sum(message.endswith(":") for message in caplog.messages) == len(
-        spec_validation.VALIDATION_GROUPS
+    assert caplog.messages[0] == "Start spec validation"
+    assert caplog.records[0].levelno == logging.INFO
+    assert caplog.messages[1] == "Check globally unique profile IDs"
+    assert len(caplog.messages) - 2 >= sum(
+        len(checks) for _name, checks in spec_validation.VALIDATION_GROUPS
     )
-    assert caplog.messages[-1] == "    - checking declared features have producers (warning only)"
-    assert all(record.levelno == logging.DEBUG for record in caplog.records)
+    assert all(
+        message.startswith("Check ") and "\n" not in message for message in caplog.messages[1:-1]
+    )
+    assert caplog.messages[-2] == "Check declared features have producers (warning only)"
+    assert all(record.levelno == logging.DEBUG for record in caplog.records[1:-1])
 
 
 def test_failed_spec_validation_logs_the_failing_check_before_stopping(
@@ -71,11 +172,12 @@ def test_failed_spec_validation_logs_the_failing_check_before_stopping(
         spec_validation.validate_spec(document)
 
     assert error.value.code == "unknown_function_reference"
-    assert caplog.messages[-1] == "    - checking compute functions exist"
-    assert (
-        "    - checking binding argument names match function declarations" not in caplog.messages
-    )
+    assert caplog.messages[0] == "Start spec validation"
+    assert caplog.records[0].levelno == logging.INFO
+    assert caplog.messages[-1] == "Check compute functions exist"
+    assert "Check binding argument names match function declarations" not in caplog.messages
     assert not any("warning only" in message for message in caplog.messages)
+    assert "Spec validated" not in caplog.messages
 
 
 @pytest.fixture

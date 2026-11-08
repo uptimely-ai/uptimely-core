@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 def validate_default_merge_function(spec: spec_model.Spec) -> None:
     """Reject declarations that conflict with the builtin default merge function."""
-    logger.debug("    - checking the builtin default merge declaration")
+    logger.debug("Check the builtin default merge declaration")
     if not any(
         operator.merge is not None and operator.merge.function == merge.DEFAULT_FUNCTION.id
         for operator in spec.operators
@@ -32,7 +32,7 @@ def validate_default_merge_function(spec: spec_model.Spec) -> None:
 
 def validate_arguments(spec: spec_model.Spec) -> None:
     """Require the supplied argument names to match the function signature."""
-    logger.debug("    - checking binding argument names match function declarations")
+    logger.debug("Check binding argument names match function declarations")
     for key, operator in spec.operator_items:
         for name, binding in operator.bindings.items():
             function = spec.functions.root.get(binding.function)
@@ -52,7 +52,7 @@ def validate_arguments(spec: spec_model.Spec) -> None:
 
 def validate_merge_operator_kind(spec: spec_model.Spec) -> None:
     """Require merge bindings to belong to fragment-producing operators."""
-    logger.debug("    - checking merge bindings belong to fragment-producing operators")
+    logger.debug("Check merge bindings belong to fragment-producing operators")
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
@@ -76,7 +76,7 @@ def validate_merge_operator_kind(spec: spec_model.Spec) -> None:
 
 def validate_merge_target(spec: spec_model.Spec) -> None:
     """Require merge bindings to use the current profile dataframe as their target."""
-    logger.debug("    - checking merge bindings reference the current target")
+    logger.debug("Check merge bindings reference the current target")
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
@@ -91,7 +91,7 @@ def validate_merge_target(spec: spec_model.Spec) -> None:
 
 def validate_merge_fragment(spec: spec_model.Spec) -> None:
     """Require merge bindings to use their operator's staged fragment."""
-    logger.debug("    - checking merge bindings reference their staged fragment")
+    logger.debug("Check merge bindings reference their staged fragment")
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
@@ -106,7 +106,7 @@ def validate_merge_fragment(spec: spec_model.Spec) -> None:
 
 def validate_merge_feature_references(spec: spec_model.Spec) -> None:
     """Reject feature references in merge bindings."""
-    logger.debug("    - checking merge bindings do not reference features")
+    logger.debug("Check merge bindings do not reference features")
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
@@ -120,7 +120,7 @@ def validate_merge_feature_references(spec: spec_model.Spec) -> None:
 
 def validate_selector_type(spec: spec_model.Spec) -> None:
     """Require selector arguments to accept the selected value."""
-    logger.debug("    - checking binding selector argument types")
+    logger.debug("Check binding selector argument types")
     for path, argument, argument_type in spec.binding_arguments_with_paths:
         expected = argument.required_type(argument_type)
         if expected is None or argument_type == expected:
@@ -135,7 +135,7 @@ def validate_selector_type(spec: spec_model.Spec) -> None:
 
 def validate_selector_metadata(spec: spec_model.Spec) -> None:
     """Require metadata selectors to resolve to declared resources and attributes."""
-    logger.debug("    - checking binding selector metadata")
+    logger.debug("Check binding selector metadata")
     for key, operator in spec.operator_items:
         profile_id, _ = key
         for name, binding in operator.bindings.items():

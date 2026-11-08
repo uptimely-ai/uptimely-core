@@ -156,8 +156,7 @@ def validation_callable_signature(context: CallableValidationContext) -> None:
 
 def validation_feature_selection(features: collections.abc.Collection[str] | None) -> None:
     """Reject strings where a collection of feature identifiers is expected."""
-    logger.debug("  Feature selection:")
-    logger.debug("    - checking feature selection is a collection, not a string")
+    logger.debug("Check feature selection is a collection, not a string")
     if isinstance(features, str):
         raise ValueError("features must be a collection of feature identifiers")
 

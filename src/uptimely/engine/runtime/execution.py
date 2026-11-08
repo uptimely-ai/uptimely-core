@@ -67,7 +67,6 @@ class InvocationExecutor:
             ValueError: A source reference is invalid or required features are
                 unavailable or ambiguous.
         """
-        logger.debug("  Requirements:")
         definition = function_kinds.FUNCTION_KINDS[invocation.function_kind]
         if definition.dataframe_input_scope == "foreign":
             argument_name = self._check_foreign_dataframe_argument(invocation)
@@ -79,7 +78,7 @@ class InvocationExecutor:
 
     def _check_input_features(self, invocation: plan_module.Invocation) -> None:
         """Require each feature locally or in exactly one other profile."""
-        logger.debug("    - checking declared input features")
+        logger.debug("Check declared input features")
         target = self.state.datasets.get(invocation.profile_id)
         target_columns = (
             set(self.backend.column_names(target.dataframe)) if target is not None else set()
@@ -111,7 +110,7 @@ class InvocationExecutor:
 
     def _check_foreign_dataframe_argument(self, invocation: plan_module.Invocation) -> str:
         """Require and return the single dataframe argument for a foreign input."""
-        logger.debug("    - checking foreign dataframe argument")
+        logger.debug("Check foreign dataframe argument")
         arguments = self._dataframe_arguments(invocation)
         if len(arguments) != 1:
             raise ValueError(
@@ -124,7 +123,7 @@ class InvocationExecutor:
         self, invocation: plan_module.Invocation, argument_name: str
     ) -> str:
         """Require a dataset reference distinct from the invocation's target."""
-        logger.debug("    - checking foreign source reference")
+        logger.debug("Check foreign source reference")
         source_id = invocation.arguments.get(argument_name)
         if not isinstance(source_id, str) or source_id == invocation.profile_id:
             raise ValueError(
@@ -134,7 +133,7 @@ class InvocationExecutor:
 
     def _check_foreign_source_available(self, source_id: str) -> dataset_module.Dataset:
         """Require the referenced source profile to be available."""
-        logger.debug("    - checking foreign source availability")
+        logger.debug("Check foreign source availability")
         source = self.state.datasets.get(source_id)
         if source is None:
             raise ValueError(f"Profile dataframe is unavailable: {source_id}")
@@ -144,7 +143,7 @@ class InvocationExecutor:
         self, invocation: plan_module.Invocation, source: dataset_module.Dataset
     ) -> None:
         """Require declared features in the validated foreign source."""
-        logger.debug("    - checking foreign input features")
+        logger.debug("Check foreign input features")
         columns = set(self.backend.column_names(source.dataframe))
         for feature in invocation.input_features:
             if feature not in columns:
@@ -172,12 +171,12 @@ class InvocationExecutor:
         fragment_id, fragment = self.state.staged_fragment_for(invocation)
         current = self.state.datasets.get(dataset_id)
         target = current.dataframe if current is not None else None
-        logger.debug("  Merge:\n    Target profile: %s", dataset_id)
+        logger.debug("Merging into profile %s", dataset_id)
         arguments = self.bindings.resolve_args(invocation, staged_fragment=fragment.dataframe)
         if current is not None:
             current.validate_fragment_merge(
                 fragment,
-                description="Accumulated profile",
+                description=f"Accumulated profile {dataset_id}",
                 column_types=invocation.column_types,
                 validate=self.validate,
             )
@@ -191,7 +190,10 @@ class InvocationExecutor:
         candidate.validate_merge_candidate(
             target,
             fragment,
-            description=f"Merge result {invocation.function_id}",
+            description=(
+                f"Merge result {invocation.function_id} for profile {dataset_id}, "
+                f"operator {invocation.operator_id}, invocation {invocation.id}"
+            ),
             column_types=invocation.column_types,
             validate=self.validate,
         )
@@ -260,11 +262,15 @@ class InvocationExecutor:
             ValueError: The result violates the vectorized dataframe contract.
         """
         description = f"Vectorize result {invocation.function_id}"
-        logger.debug("  Enriched target frame:")
-        logger.debug("    - checking dataframe type")
+        context = (
+            f"vectorize result from operator {invocation.operator_id}, "
+            f"function {invocation.function_id}, invocation {invocation.id}, "
+            f"profile {invocation.profile_id}"
+        )
+        logger.debug("Check dataframe type for %s", context)
         if not self.backend.is_frame(frame):
             raise ValueError(f"{description} must be a Polars DataFrame or LazyFrame")
-        logger.debug("    - checking required dimension columns")
+        logger.debug("Check required dimension columns %s for %s", invocation.id_columns, context)
         frame_columns = set(self.backend.column_names(frame))
         missing_dimensions = sorted(set(invocation.id_columns) - frame_columns)
         if missing_dimensions:
@@ -275,7 +281,7 @@ class InvocationExecutor:
         output_features = [
             output for output in invocation.output_features if output not in invocation.id_columns
         ]
-        logger.debug("    - checking declared vectorize outputs")
+        logger.debug("Check declared output columns %s exist in %s", output_features, context)
         missing_outputs = sorted(set(output_features) - frame_columns)
         if missing_outputs:
             raise ValueError(
@@ -283,9 +289,14 @@ class InvocationExecutor:
                 + ", ".join(missing_outputs)
             )
 
-        logger.debug("    - checking vectorize output collisions")
         existing_columns = set(self.backend.column_names(comparison_frame))
         existing_features = existing_columns - set(invocation.id_columns)
+        logger.debug(
+            "Check output columns %s do not replace existing feature columns %s in %s",
+            output_features,
+            sorted(existing_features),
+            context,
+        )
         collisions = sorted(set(output_features) & existing_features)
         if collisions:
             raise ValueError(
@@ -293,7 +304,9 @@ class InvocationExecutor:
                 "columns: " + ", ".join(collisions)
             )
 
-        logger.debug("    - checking preservation of existing columns")
+        logger.debug(
+            "Check existing columns %s remain present in %s", sorted(existing_columns), context
+        )
         missing_existing = sorted(existing_columns - frame_columns)
         if missing_existing:
             raise ValueError(
@@ -301,8 +314,12 @@ class InvocationExecutor:
                 "columns: " + ", ".join(missing_existing)
             )
 
-        logger.debug("    - checking undeclared added columns")
         allowed_columns = existing_columns | set(output_features)
+        logger.debug(
+            "Check %s contains no columns outside existing and declared outputs %s",
+            context,
+            sorted(allowed_columns),
+        )
         unexpected = sorted(frame_columns - allowed_columns)
         if unexpected:
             raise ValueError(
@@ -316,20 +333,27 @@ class InvocationExecutor:
                 definition.row_order_relation == "preserve"
                 or definition.existing_data_relation == "preserve"
             ):
-                logger.debug("    - checking existing values and row order")
                 existing_names = self.backend.column_names(comparison_frame)
+                logger.debug(
+                    "Check values and row order of existing columns %s are unchanged in %s",
+                    existing_names,
+                    context,
+                )
                 if not self.backend.same_data(comparison_frame, frame, existing_names):
                     raise ValueError(
                         f"Vectorize operator {invocation.operator_id} must preserve existing "
                         "column values and row order"
                     )
-            logger.debug("    - checking types of target keys and outputs")
             column_types = {
                 name: invocation.column_types[name]
                 for name in [*invocation.id_columns, *output_features]
                 if name in invocation.column_types
             }
-            logger.debug("      Declared types: %s", column_types)
+            logger.debug(
+                "Check declared types of dimension and output columns %s in %s",
+                column_types,
+                context,
+            )
             self.backend.validate_types(frame, column_types)
         return output_features
 

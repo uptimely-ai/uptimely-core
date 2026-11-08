@@ -35,17 +35,16 @@ class Dataset:
         """Validate the accumulated dataframe's structure, keys, and known types.
 
         Args:
-            description: Name used in validation errors.
+            description: Dataset identity used in validation logs and errors.
             column_types: Declared logical types keyed by column name.
 
         Raises:
             ValueError: The dataset violates its structural or type contract.
         """
-        logger.debug("  Dataset:")
         self._validate_frame_structure(self.dataframe, description)
         self._validate_dimensionless_row_count(self.dataframe, description)
         self._validate_unique_dimension_keys(self.dataframe, description)
-        self._validate_declared_types(self.dataframe, column_types)
+        self._validate_declared_types(self.dataframe, column_types, description)
 
     def validate_fragment_merge(
         self,
@@ -59,7 +58,7 @@ class Dataset:
 
         Args:
             fragment: Prepared contribution whose dimension columns may overlap.
-            description: Name used if full validation of this dataset fails.
+            description: Dataset identity used in validation logs and errors.
             column_types: Declared logical types keyed by column name.
             validate: Whether to check this dataset's full runtime contract.
 
@@ -67,7 +66,7 @@ class Dataset:
             ValueError: The fragment collides with existing features or the dataset
                 violates its runtime contract.
         """
-        logger.debug("    - checking fragment feature collisions")
+        logger.debug("Check fragment feature collisions in dataset %s", description)
         fragment_columns = set(self.backend.column_names(fragment.dataframe))
         existing_columns = set(self.backend.column_names(self.dataframe))
         collisions = sorted((fragment_columns - set(self.id_columns)) & existing_columns)
@@ -96,7 +95,7 @@ class Dataset:
         Args:
             target: The previous target dataframe, or ``None`` for initialization.
             fragment: Staged contribution included in the merge.
-            description: Name used in validation errors.
+            description: Merge-result identity used in validation logs and errors.
             column_types: Declared logical types keyed by column name.
             validate: Whether to check key uniqueness and declared types.
 
@@ -120,22 +119,26 @@ class Dataset:
         if validate:
             self._validate_dimensionless_row_count(self.dataframe, description)
             self._validate_unique_dimension_keys(self.dataframe, description)
-            self._validate_declared_types(self.dataframe, column_types)
+            self._validate_declared_types(self.dataframe, column_types, description)
 
     def _validate_frame_structure(self, frame: object, description: str) -> None:
-        logger.debug("    - checking dataframe type")
+        logger.debug("Check dataset dataframe type for %s", description)
         if not self.backend.is_frame(frame):
             raise ValueError(f"{description} must be a Polars DataFrame or LazyFrame")
-        logger.debug("    - checking required dimension columns")
+        logger.debug(
+            "Check dataset required dimension columns %s for %s", self.id_columns, description
+        )
         missing = sorted(set(self.id_columns) - set(self.backend.column_names(frame)))
         if missing:
             raise ValueError(f"{description} is missing dimension columns: " + ", ".join(missing))
 
     def _validate_dimensionless_row_count(self, frame: object, description: str) -> None:
         if self.id_columns:
-            logger.debug("    - skipping dimensionless row count (data has dimensions)")
+            logger.debug(
+                "Skipping dataset dimensionless row count for %s (data has dimensions)", description
+            )
             return
-        logger.debug("    - checking dimensionless row count")
+        logger.debug("Check dataset dimensionless row count is at most one for %s", description)
         if self.backend.row_count(frame) > 1:
             raise ValueError(
                 f"{description} contains duplicate dimension keys "
@@ -144,27 +147,39 @@ class Dataset:
 
     def _validate_unique_dimension_keys(self, frame: object, description: str) -> None:
         if not self.id_columns:
-            logger.debug("    - skipping dimension-key uniqueness (no dimensions)")
+            logger.debug(
+                "Skipping dataset dimension-key uniqueness for %s (no dimensions)", description
+            )
             return
-        logger.debug("    - checking dimension-key uniqueness")
+        logger.debug(
+            "Check dataset dimension-key uniqueness for columns %s for %s",
+            self.id_columns,
+            description,
+        )
         keys = self.backend.select(frame, self.id_columns)
         if self.backend.is_duplicated(keys):
             raise ValueError(f"{description} contains duplicate dimension keys")
 
     def _validate_declared_types(
-        self, frame: object, column_types: abc.Mapping[str, str] | None
+        self, frame: object, column_types: abc.Mapping[str, str] | None, description: str
     ) -> None:
-        logger.debug("    - checking types of present columns")
         columns = set(self.backend.column_names(frame))
         types = {
             name: expected for name, expected in (column_types or {}).items() if name in columns
         }
-        logger.debug("      Declared types: %s", types)
+        logger.debug(
+            "Check dataset declared types of present columns %s for %s", types, description
+        )
         self.backend.validate_types(frame, types)
 
     def _validate_merge_candidate_columns(
         self, frame: object, expected_columns: list[str], description: str
     ) -> None:
+        logger.debug(
+            "Check dataset merge result contains exactly columns %s for %s",
+            expected_columns,
+            description,
+        )
         actual_columns = set(self.backend.column_names(frame))
         missing = sorted(set(expected_columns) - actual_columns)
         if missing:

@@ -83,39 +83,46 @@ def test_project_build_examples(
 
     assert not result.err
     if debug:
-        assert "\n  Reference checks:" in result.out
-        assert "    - checking operator feature dependencies are acyclic" in result.out
-        assert result.out.count("Compiler validation:") == 1
+        assert "Check operator feature dependencies are acyclic" in result.out
+        assert result.out.count("Check feature selection is a collection, not a string") == 1
         assert (
-            result.out.index("Document structure:")
-            < result.out.index("  Reference checks:")
-            < result.out.index("Compiler validation:")
+            result.out.index("Check spec version is an integer")
+            < result.out.index("Check globally unique profile IDs")
+            < result.out.index("Check feature selection is a collection, not a string")
         )
-        assert "  Invocation graph:" in result.out
-        assert "    - checking dependency graph is acyclic and schedulable" in result.out
+        assert "Check dependency graph is acyclic and schedulable" in result.out
         assert "\nCompiler operator: " not in result.out
-        assert "  Invocation checks for " in result.out
-        assert result.out.count("    - checking functions declare entrypoints") == 1
-        assert result.out.count("    - checking structural argument references resolve") == 1
-        assert result.out.count("    - creating portable invocation representations") == 1
-        assert "  Entrypoints:" in result.out
-        assert result.out.count("    - checking syntax for ") == 1
-        assert "    - checking entrypoint syntax: " not in result.out
-        assert "  Package provenance:" in result.out
-        assert result.out.count("    - checking package ownership for ") == 1
-        assert "    - checking entrypoint package ownership: " not in result.out
-        assert result.out.count("  Signature checks for ") == 1
+        assert result.out.count("Check functions declare entrypoints") == 1
+        assert result.out.count("Check structural argument references resolve") == 1
+        assert result.out.count("Creating portable invocation representations") == 1
+        assert result.out.count("Check syntax for ") == 1
+        assert result.out.count("Check package ownership for ") == 1
+        assert result.out.count("Check callable signatures for ") == 1
         assert "\nCompiler function:" not in result.out
-        assert result.out.index("\nBuild summary\n+") > result.out.index("  Execution plan:")
+        assert result.out.index("Build summary\n+") > result.out.index(
+            "Check emitted invocation IDs, dependencies, and stage ordering"
+        )
         assert "Compiled plan:" not in result.out
-        assert result.out.count("Spec validation:") == 1
+        assert result.out.count("Check spec version is an integer") == 1
+        for line in result.out.splitlines():
+            if " | " in line and not line.startswith("|"):
+                level, message = line.split(" | ", maxsplit=1)
+                assert len(level) == 8
+                assert message == message.lstrip()
+                assert not message.startswith("- ")
+                assert not message.endswith(":")
         assert result.out.endswith(f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n")
         assert "| Build   | Build scope" in result.out
         assert "| all features" in result.out
         source = REPOSITORY_ROOT / "examples" / "pump_analytics" / project.SPEC_PYTHON_ENTRY_FILE
         assert f"| {source}" in result.out
     else:
-        assert result.out == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
+        assert result.out == (
+            "INFO     | Start spec validation\n"
+            "INFO     | Spec validated\n"
+            f"{'INFO':8} | "
+            f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
+        )
     bundle = project.load_build_bundle(root)
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).profiles
@@ -143,7 +150,12 @@ def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None
 
     assert result.returncode == 0, result.stderr
     assert not result.stderr
-    assert result.stdout == f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
+    assert result.stdout == (
+        "INFO     | Start spec validation\n"
+        "INFO     | Spec validated\n"
+        f"{'INFO':8} | "
+        f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
+    )
     bundle = project.load_build_bundle(root)
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).profiles
@@ -250,8 +262,8 @@ def test_project_build_explicit_source_does_not_execute_workflow(
         arguments.extend(["--log-level", "debug"])
     invoke(monkeypatch, "--project-root", str(root), *arguments)
 
-    bundle = project.load_build_bundle(root)
     result = capsys.readouterr()
+    bundle = project.load_build_bundle(root)
     assert not result.err
     if debug:
         source_file = root / "declaration.py" if source_kind != "json" else source
@@ -265,7 +277,12 @@ def test_project_build_explicit_source_does_not_execute_workflow(
         assert ["Spec", "Number of profiles", "1"] in rows
         assert ["Spec", "Number of features", "1"] in rows
     else:
-        assert result.out == f"Build files created to {bundle.root}\n"
+        assert result.out == (
+            "INFO     | Start spec validation\n"
+            "INFO     | Spec validated\n"
+            f"{'INFO':8} | "
+            f"Build files created to {bundle.root}\n"
+        )
     assert spec.load_spec(bundle.spec_path).profiles
     assert bundle.execution_plan.invocations
     assert (root / project.EXPLORER_DATA_FILE).is_file()
@@ -290,8 +307,8 @@ def test_project_build_debug_summary(
 
     invoke(monkeypatch, "--project-root", str(root), "--log-level", "debug", *arguments)
 
-    bundle = project.load_build_bundle(root)
     result = capsys.readouterr()
+    bundle = project.load_build_bundle(root)
     scope = "pump_health_score" if scoped else "all features"
     assert not result.err
     rows = [
@@ -311,9 +328,11 @@ def test_project_build_debug_summary(
         ["Plan", "Number of stages", str(len(bundle.execution_plan.stages))],
         ["Plan", "Number of invocations", str(len(bundle.execution_plan.invocations))],
     ]
-    assert result.out.index("\nBuild summary\n+") > result.out.index("  Execution plan:")
+    assert result.out.index("Build summary\n+") > result.out.index(
+        "Check emitted invocation IDs, dependencies, and stage ordering"
+    )
     assert "Compiled plan:" not in result.out
-    assert result.out.index("| Plan") > result.out.index("Spec validation:")
+    assert result.out.index("| Plan") > result.out.index("Check spec version is an integer")
     assert result.out.endswith(f"Build files created to {bundle.root}\n")
 
 
@@ -337,7 +356,7 @@ def test_failed_build_prints_trace_without_summary_and_preserves_logging(
 
     result = capsys.readouterr()
     assert error.value.code == 1
-    assert result.out == "attempting build\nbuild warning\n"
+    assert result.out == (f"{'DEBUG':8} | attempting build\n{'WARNING':8} | build warning\n")
     assert "\nBuild summary" not in result.out
     assert "injected failure" in result.err
     assert target.handlers == handlers
@@ -368,7 +387,11 @@ def test_project_build_keeps_warnings_visible(
     result = capsys.readouterr()
     assert not result.err
     assert result.out == (
-        f"Build warning\nBuild files created to {root / project.BUILD_OUTPUT_DIR}\n"
+        f"{'WARNING':8} | Build warning\n"
+        "INFO     | Start spec validation\n"
+        "INFO     | Spec validated\n"
+        f"{'INFO':8} | "
+        f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
     )
 
 

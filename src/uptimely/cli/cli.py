@@ -3,7 +3,9 @@
 import argparse
 import logging
 import os
+import shutil
 import sys
+import textwrap
 import typing
 
 from uptimely.cli import engine, examples, explorer, project, spec
@@ -16,6 +18,7 @@ _LOG_COLORS = {
     logging.CRITICAL: "\033[1;31m",
 }
 _RESET_COLOR = "\033[0m"
+_LEVEL_COLUMN_WIDTH = 8
 
 
 def _color_text(text: str, level: int, stream: typing.TextIO) -> str:
@@ -27,17 +30,33 @@ def _color_text(text: str, level: int, stream: typing.TextIO) -> str:
 
 
 class _ColorFormatter(logging.Formatter):
-    """Color terminal labels, or whole messages for error and higher levels."""
+    """Format CLI logs with a fixed-width level followed by the message."""
 
     def format(self, record: logging.LogRecord) -> str:
-        """Format terminal logs with severity-dependent color coverage."""
-        message = super().format(record)
-        label = _color_text(record.levelname, record.levelno, sys.stdout)
-        if label == record.levelname:
-            return message
+        """Format logs as level and message."""
+        message = super().format(record).lstrip("\n")
+        if sys.stdout.isatty() and "\n" not in message:
+            continuation = " " * _LEVEL_COLUMN_WIDTH + " | "
+            width = shutil.get_terminal_size().columns - len(continuation) - 1
+            if width > 0:
+                message = ("\n" + continuation).join(
+                    textwrap.wrap(
+                        message,
+                        width=width,
+                        break_on_hyphens=False,
+                        replace_whitespace=False,
+                    )
+                )
+        level_name = record.levelname[:_LEVEL_COLUMN_WIDTH]
+        label = (
+            level_name
+            if record.levelno >= logging.ERROR
+            else _color_text(level_name, record.levelno, sys.stdout)
+        )
+        level_field = label + " " * (_LEVEL_COLUMN_WIDTH - len(level_name))
         if record.levelno >= logging.ERROR:
-            return _color_text(f"{record.levelname} {message}", record.levelno, sys.stdout)
-        return f"{label} {message}"
+            return _color_text(f"{level_field} | {message}", record.levelno, sys.stdout)
+        return f"{level_field} | {message}"
 
 
 class _ArgumentParser(argparse.ArgumentParser):

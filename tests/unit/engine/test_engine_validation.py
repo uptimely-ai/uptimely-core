@@ -23,7 +23,7 @@ def test_engine_checks_matching_backend(
     assert engine.plan == plan
     assert engine.backend.name == "polars"
     assert caplog.messages == [
-        "Checking plan backend compatibility: required=polars, configured=polars"
+        "Check plan backend compatibility: required=polars, configured=polars"
     ]
 
 

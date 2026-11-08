@@ -94,19 +94,28 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     ]
     assert written["features"] == ["doubled"]
     assert written["dataset"].select("asset_id", "doubled").rows() == [("A", 4), ("B", 6)]
-    headings = [message for message in caplog.messages if message.startswith("\nInvocation: ")]
-    assert headings == [
-        f"\nInvocation: {invocation.operator_id} [{invocation.function_kind}]"
+    executions = [
+        message for message in caplog.messages if message.startswith("Executing operator ")
+    ]
+    assert executions == [
+        f"Executing operator {invocation.operator_id}, "
+        f"function {invocation.function_id} ({invocation.function_kind})"
         for invocation in engine.plan.execution_invocations
     ]
-    assert caplog.messages.count("  Merge:\n    Target profile: telemetry") == 1
-    assert [message for message in caplog.messages if message.startswith("  Function: ")] == [
-        "  Function: load",
-        "  Function: __uptimely_merge_by_grain",
-        "  Function: double",
-        "  Function: save",
+    assert caplog.messages.count("Merging into profile telemetry") == 1
+    assert any(
+        message.startswith("Check fragment dataframe type from operator ")
+        and "profile telemetry" in message
+        for message in caplog.messages
+    )
+    assert all("\n" not in message and message == message.lstrip() for message in caplog.messages)
+    execution_records = [
+        record for record in caplog.records if record.getMessage().startswith("Executing operator ")
     ]
-    assert "  Fragment:" in caplog.messages
+    assert execution_records
+    assert all(
+        record.invocation_id and record.profile_id == "telemetry" for record in execution_records
+    )
 
 
 @pytest.mark.parametrize("merge_failure", [None, "exception", "incomplete"])
@@ -592,14 +601,7 @@ def test_executor_validates_inputs_against_current_runtime_state(
     executor.check_input_requirements(invocation)
     invocation.input_features[:] = ["shared"]
     executor.check_input_requirements(invocation)
-    assert (
-        caplog.messages
-        == [
-            "  Requirements:",
-            "    - checking declared input features",
-        ]
-        * 5
-    )
+    assert caplog.messages == ["Check declared input features"] * 5
 
 
 def test_engine_entrypoints_include_saved_package_provenance(
@@ -1298,15 +1300,15 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
         with pytest.raises(ValueError, match=message):
             executor.check_input_requirements(invocation)
 
-    assert caplog.messages == [
-        "  Requirements:",
-        *[
-            "    - checking foreign dataframe argument",
-            "    - checking foreign source reference",
-            "    - checking foreign source availability",
-            "    - checking foreign input features",
-        ][:check_count],
-    ]
+    assert (
+        caplog.messages
+        == [
+            "Check foreign dataframe argument",
+            "Check foreign source reference",
+            "Check foreign source availability",
+            "Check foreign input features",
+        ][:check_count]
+    )
 
 
 @pytest.mark.parametrize("sources", [0, 2])

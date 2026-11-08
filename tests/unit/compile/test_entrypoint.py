@@ -114,8 +114,8 @@ def test_compiler_rejects_missing_function_entrypoints(
     ):
         compiler.Compiler().compile(spec_definition)
 
-    assert f"  Invocation checks for {expected_invocations} invocations:" in caplog.messages
-    assert caplog.messages.count("    - checking functions declare entrypoints") == 1
+    assert f"Validating {expected_invocations} invocations" in caplog.messages
+    assert caplog.messages.count("Check functions declare entrypoints") == 1
     assert not any(message.startswith("\nCompiler operator:") for message in caplog.messages)
 
 
@@ -127,22 +127,19 @@ def test_compiler_summarizes_invocation_checks_once(
     builder = compiler.Compiler()
 
     compiled = builder.compile(pump_bundle.spec_definition)
-    assert caplog.messages.count("\nCompiler validation:") == (1 if level == logging.DEBUG else 0)
-    summaries = [message for message in caplog.messages if "  Invocation checks for " in message]
+    summaries = [message for message in caplog.messages if message.startswith("Validating ")]
     assert summaries == (
-        [f"  Invocation checks for {len(compiled.invocations)} invocations:"]
-        if level == logging.DEBUG
-        else []
+        [f"Validating {len(compiled.invocations)} invocations"] if level == logging.DEBUG else []
     )
     for check in (
-        "    - checking functions declare entrypoints",
-        "    - selecting unique functions for implementation checks",
-        "    - creating portable invocation representations",
+        "Check functions declare entrypoints",
+        "Selecting unique functions for implementation checks",
+        "Creating portable invocation representations",
     ):
         assert caplog.messages.count(check) == (1 if level == logging.DEBUG else 0)
     assert not any(message.startswith("\nCompiler operator:") for message in caplog.messages)
     signature_summaries = [
-        message for message in caplog.messages if "  Signature checks for " in message
+        message for message in caplog.messages if "Check callable signatures for " in message
     ]
     enabled_functions = {
         invocation.function_id
@@ -152,18 +149,21 @@ def test_compiler_summarizes_invocation_checks_once(
     if level == logging.DEBUG:
         assert len(signature_summaries) == 1
         assert (
-            f"  Signature checks for {len(enabled_functions)} functions:" in signature_summaries[0]
+            signature_summaries[0]
+            == f"Check callable signatures for {len(enabled_functions)} functions"
         )
-        assert signature_summaries[0].count("    - checking ") == 6
+        assert all(
+            "\n" not in message and message == message.lstrip() for message in caplog.messages
+        )
     else:
         assert not signature_summaries
     assert not any(message.startswith("\nCompiler function:") for message in caplog.messages)
     package_summaries = [
-        message for message in caplog.messages if "checking package ownership for " in message
+        message for message in caplog.messages if "Check package ownership for " in message
     ]
     assert package_summaries == (
         [
-            "    - checking package ownership for "
+            "Check package ownership for "
             f"{len({invocation.entrypoint for invocation in compiled.invocations})} "
             "unique entrypoints"
         ]

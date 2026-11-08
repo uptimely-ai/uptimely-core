@@ -245,9 +245,7 @@ def test_compiler_logs_signature_validation_summary(
 ) -> None:
     caplog.set_level(logging.DEBUG, logger=compiler.__name__)
     compiler.Compiler().compile(spec.Spec())
-    assert any(
-        message.startswith("  Signature checks for 0 functions:") for message in caplog.messages
-    )
+    assert "Check callable signatures for 0 functions" in caplog.messages
 
 
 @pytest.mark.parametrize("features", [None, [], ["missing"], "result"])
@@ -265,30 +263,27 @@ def test_compiler_logs_feature_and_graph_checks_before_failure(
     else:
         builder.compile(specification, features=features)
 
-    assert caplog.messages.count("\nCompiler validation:") == 1
-    compiler_start = caplog.messages.index("\nCompiler validation:")
-    assert caplog.messages[0] == "  Reference checks:"
-    assert caplog.messages.index("    - checking globally unique profile IDs") < compiler_start
-    assert caplog.messages[compiler_start : compiler_start + 3] == [
-        "\nCompiler validation:",
-        "  Feature selection:",
-        "    - checking feature selection is a collection, not a string",
-    ]
+    selection_check = "Check feature selection is a collection, not a string"
+    assert caplog.messages.count(selection_check) == 1
+    compiler_start = caplog.messages.index(selection_check)
+    assert caplog.messages[0] == "Start spec validation"
+    assert caplog.records[0].levelno == logging.INFO
+    assert caplog.messages[1] == "Check globally unique profile IDs"
+    assert caplog.messages.index("Check globally unique profile IDs") < compiler_start
+    assert all("\n" not in message and message == message.lstrip() for message in caplog.messages)
     if isinstance(features, str):
-        assert len(caplog.messages) == compiler_start + 3
+        assert len(caplog.messages) == compiler_start + 1
     elif features:
-        assert caplog.messages[-1] == "    - checking selected output features have producers"
-        assert "    - checking dependency graph is acyclic and schedulable" not in caplog.messages
+        assert caplog.messages[-1] == "Check selected output features have producers"
+        assert "Check dependency graph is acyclic and schedulable" not in caplog.messages
     else:
-        assert "  Invocation graph:" in caplog.messages
-        assert "    - checking dependency graph is acyclic and schedulable" in caplog.messages
-        assert "  Entrypoints:" in caplog.messages
-        assert "  Package provenance:" in caplog.messages
-        assert "  Execution plan:" in caplog.messages
+        assert "Check dependency graph is acyclic and schedulable" in caplog.messages
+        assert "Check syntax for 0 unique entrypoints" in caplog.messages
+        assert "Check package ownership for 0 unique entrypoints" in caplog.messages
         assert caplog.messages[-1] == (
-            "    - checking emitted invocation IDs, dependencies, and stage ordering"
+            "Check emitted invocation IDs, dependencies, and stage ordering"
         )
         assert not any("Compiled plan:" in message for message in caplog.messages)
         caplog.clear()
         builder.compile(specification, features=features)
-        assert caplog.messages.count("\nCompiler validation:") == 1
+        assert caplog.messages.count(selection_check) == 1

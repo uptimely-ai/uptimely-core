@@ -41,7 +41,7 @@ class FunctionTemplate(base.StrictModel):
 
     def check_return_contract(self) -> None:
         """Require the return kind defined by the function kind."""
-        logger.debug("    - checking function return contract: %s", self.id)
+        logger.debug("Check function return contract: %s", self.id)
         expected = functions.FUNCTION_KINDS[self.kind].returns
         if self.returns != expected:
             dataframe_inputs = sum(
@@ -54,7 +54,7 @@ class FunctionTemplate(base.StrictModel):
 
     def check_dataframe_input_contract(self) -> None:
         """Require the dataframe argument count defined by the function kind."""
-        logger.debug("    - checking function dataframe argument count: %s", self.id)
+        logger.debug("Check function dataframe argument count: %s", self.id)
         expected = functions.FUNCTION_KINDS[self.kind].dataframe_inputs
         dataframe_inputs = sum(
             arg_types.is_dataframe(argument.type) for argument in self.args.values()
@@ -67,7 +67,7 @@ class FunctionTemplate(base.StrictModel):
 
     def check_argument_contracts(self) -> None:
         """Validate argument rules that depend only on this function declaration."""
-        logger.debug("    - checking function argument contracts: %s", self.id)
+        logger.debug("Check function argument contracts: %s", self.id)
         if self.kind != functions.MERGE and any(
             argument.type == arg_types.OPTIONAL_DATAFRAME for argument in self.args.values()
         ):

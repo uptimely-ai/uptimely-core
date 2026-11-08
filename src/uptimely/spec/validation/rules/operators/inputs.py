@@ -12,7 +12,7 @@ logger = logging.getLogger(__name__)
 
 def validate_source_feature(spec: spec_model.Spec) -> None:
     """Require collapse to reference a source feature."""
-    logger.debug("    - checking collapse operator reference source features")
+    logger.debug("Check collapse operator reference source features")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if (
@@ -25,7 +25,7 @@ def validate_source_feature(spec: spec_model.Spec) -> None:
 
 def validate_feature_owner(spec: spec_model.Spec) -> None:
     """Require a collapse source feature to have exactly one owner."""
-    logger.debug("    - checking collapse source features have exactly one owner")
+    logger.debug("Check collapse source features have exactly one owner")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or function.kind != functions.COLLAPSE:
@@ -41,7 +41,7 @@ def validate_feature_owner(spec: spec_model.Spec) -> None:
 
 def validate_source_count(spec: spec_model.Spec) -> None:
     """Require all collapse source features to belong to one profile."""
-    logger.debug("    - checking collapse source features belong to one profile")
+    logger.debug("Check collapse source features belong to one profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or function.kind != functions.COLLAPSE:
@@ -56,7 +56,7 @@ def validate_source_count(spec: spec_model.Spec) -> None:
 
 def validate_source_target(spec: spec_model.Spec) -> None:
     """Reject the target profile as a collapse source."""
-    logger.debug("    - checking collapse sources differ from their target profiles")
+    logger.debug("Check collapse sources differ from their target profiles")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         source = spec.input_sources[key]
@@ -66,7 +66,7 @@ def validate_source_target(spec: spec_model.Spec) -> None:
 
 def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
     """Require grouping dimensions to exist in the collapse source."""
-    logger.debug("    - checking collapse grouping dimensions exist in the source")
+    logger.debug("Check collapse grouping dimensions exist in the source")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or function.kind != functions.COLLAPSE:
@@ -80,7 +80,7 @@ def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
 
 def validate_source_features(spec: spec_model.Spec) -> None:
     """Require collapse input features to belong to its source."""
-    logger.debug("    - checking collapse input features belong to the source profile")
+    logger.debug("Check collapse input features belong to the source profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or function.kind != functions.COLLAPSE:
@@ -97,7 +97,7 @@ def validate_source_features(spec: spec_model.Spec) -> None:
 
 def validate_source_dimensions(spec: spec_model.Spec) -> None:
     """Require structural dimension references to belong to the source."""
-    logger.debug("    - checking collapse dimension references belong to the source profile")
+    logger.debug("Check collapse dimension references belong to the source profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or function.kind != functions.COLLAPSE:
@@ -116,7 +116,7 @@ def validate_source_dimensions(spec: spec_model.Spec) -> None:
 
 def validate_input_feature(spec: spec_model.Spec) -> None:
     """Require an explicit input feature to be declared."""
-    logger.debug("    - checking operator input feature declarations")
+    logger.debug("Check operator input feature declarations")
     feature_names = spec.grain_key_ids | spec.feature_owners.keys()
     for operator in spec.operators:
         for feature in operator.input_features:
@@ -128,7 +128,7 @@ def validate_input_feature(spec: spec_model.Spec) -> None:
 
 def validate_input_scope(spec: spec_model.Spec) -> None:
     """Require target-scoped function inputs to belong to the target profile."""
-    logger.debug("    - checking target-scoped input features belong to the target profile")
+    logger.debug("Check target-scoped input features belong to the target profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if (
@@ -145,28 +145,46 @@ def validate_input_scope(spec: spec_model.Spec) -> None:
 
 def validate_feature_reference(spec: spec_model.Spec) -> None:
     """Require a structural feature reference to be declared."""
-    logger.debug("    - checking structural feature references")
+    logger.debug("Check spec operator feature selectors name declared features or current")
     feature_names = spec.grain_key_ids | spec.feature_owners.keys()
-    for operator in spec.operators:
+    for (target_profile_id, _), operator in spec.operator_items:
         for feature in operator.feature_selectors:
+            logger.debug(
+                "Check feature selector %s for spec operator %s in target profile %s",
+                "current feature (@)" if feature == selectors.CURRENT_ID else feature,
+                operator.id,
+                target_profile_id,
+            )
             if feature != selectors.CURRENT_ID and feature not in feature_names:
                 raise ValueError(f"Operator {operator.id} references unknown feature: {feature}")
 
 
 def validate_profile_reference(spec: spec_model.Spec) -> None:
     """Require a structural profile reference to be declared."""
-    logger.debug("    - checking structural profile references")
-    for operator in spec.operators:
+    logger.debug("Check spec operator profile references name declared profiles or current")
+    for (target_profile_id, _), operator in spec.operator_items:
         for profile_id in operator.profile_references:
+            logger.debug(
+                "Check referenced profile %s for spec operator %s in target profile %s",
+                "current target profile (@)" if profile_id == selectors.CURRENT_ID else profile_id,
+                operator.id,
+                target_profile_id,
+            )
             if profile_id != selectors.CURRENT_ID and profile_id not in spec.profiles:
                 raise ValueError(f"Operator {operator.id} references unknown profile: {profile_id}")
 
 
 def validate_dimension_reference(spec: spec_model.Spec) -> None:
     """Require a structural dimension reference to be declared."""
-    logger.debug("    - checking structural dimension references")
+    logger.debug("Check spec operator dimension references name declared dimensions")
     for key, operator in spec.operator_items:
         for dimension, path in operator.dimension_reference_paths:
+            logger.debug(
+                "Check referenced dimension %s for spec operator %s in target profile %s",
+                dimension,
+                operator.id,
+                key[0],
+            )
             if dimension not in spec.dimensions:
                 raise errors.SpecError(
                     f"Operator {operator.id} references unknown dimension: {dimension}",

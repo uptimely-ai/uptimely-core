@@ -4,6 +4,7 @@ import io
 import json
 import logging
 import pathlib
+import re
 import sys
 import types
 
@@ -44,9 +45,17 @@ def test_color_formatter_respects_terminal_and_environment(
     formatter = cli._ColorFormatter("%(message)s")
     record = logging.LogRecord("test", level, __file__, 1, "debug trace\n/path/to/file", (), None)
     message = "debug trace\n/path/to/file"
-    colored = f"{color}{record.levelname}\033[0m {message}"
+    plain_level_field = f"{record.levelname:8}"
+    colored_level_field = (
+        plain_level_field
+        if level >= logging.ERROR
+        else f"{color}{record.levelname}\033[0m{' ' * (8 - len(record.levelname))}"
+    )
+    plain_message = f"{plain_level_field} | {message}"
+    colored_message = f"{colored_level_field} | {message}"
+    colored = colored_message
     if level >= logging.ERROR:
-        colored = f"{color}{record.levelname} {message}\033[0m"
+        colored = f"{color}{plain_message}\033[0m"
     monkeypatch.delenv("NO_COLOR", raising=False)
     monkeypatch.setattr(sys, "stdout", TerminalOutput())
 
@@ -55,13 +64,99 @@ def test_color_formatter_respects_terminal_and_environment(
     assert record.levelname == logging.getLevelName(level)
 
     monkeypatch.setattr(sys, "stdout", io.StringIO())
-    assert formatter.format(record) == message
+    assert formatter.format(record) == plain_message
 
     monkeypatch.setattr(sys, "stdout", TerminalOutput())
     assert formatter.format(record) == colored
 
     monkeypatch.setenv("NO_COLOR", "1")
-    assert formatter.format(record) == message
+    assert formatter.format(record) == plain_message
+
+
+@pytest.mark.parametrize(
+    "module",
+    [
+        "uptimely.cli",
+        "uptimely.spec.validation.rules.profile_identity",
+        "uptimely.spec.validation.rules.profile_identity.extra",
+        "third_party.uptimely.client",
+    ],
+)
+def test_formatter_omits_source_fields_without_changing_logger_name(
+    monkeypatch: pytest.MonkeyPatch, module: str
+) -> None:
+    monkeypatch.setattr(sys, "stdout", io.StringIO())
+    record = logging.LogRecord(module, logging.DEBUG, __file__, 1, "Message", (), None)
+
+    output = cli._ColorFormatter("%(message)s").format(record)
+
+    assert output == "DEBUG    | Message"
+    assert record.name == module
+
+
+def test_formatter_removes_leading_newlines_but_preserves_message_layout(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(sys, "stdout", io.StringIO())
+    record = logging.LogRecord(
+        "uptimely.engine", logging.INFO, __file__, 1, "\n\nSummary\n  table", (), None
+    )
+
+    output = cli._ColorFormatter("%(message)s").format(record)
+
+    assert output == "INFO     | Summary\n  table"
+
+
+@pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO, logging.ERROR, logging.CRITICAL])
+@pytest.mark.parametrize("no_color", [False, True])
+@pytest.mark.parametrize("columns", [30, 60, 100])
+def test_formatter_wraps_terminal_messages_under_message_column(
+    monkeypatch: pytest.MonkeyPatch, level: int, no_color: bool, columns: int
+) -> None:
+    class TerminalOutput(io.StringIO):
+        def isatty(self) -> bool:
+            return True
+
+    monkeypatch.setattr(sys, "stdout", TerminalOutput())
+    monkeypatch.setattr(
+        cli.shutil, "get_terminal_size", lambda: types.SimpleNamespace(columns=columns)
+    )
+    monkeypatch.delenv("NO_COLOR", raising=False)
+    if no_color:
+        monkeypatch.setenv("NO_COLOR", "1")
+    message = "Check required dimension columns for vectorize result " + "x" * 110
+    record = logging.LogRecord("uptimely.engine", level, __file__, 1, message, (), None)
+
+    output = cli._ColorFormatter("%(message)s").format(record)
+    plain = re.sub(r"\033\[[0-9;]*m", "", output)
+    lines = plain.splitlines()
+
+    assert len(lines) > 1
+    assert lines[0].startswith(f"{record.levelname:8} | ")
+    assert all(line.startswith("         | ") for line in lines[1:])
+    assert all(len(line) < columns for line in lines)
+    assert "".join(line[11:] for line in lines).replace(" ", "") == message.replace(" ", "")
+    assert record.getMessage() == message
+    assert ("\033[" in output) is not no_color
+
+    monkeypatch.setattr(sys, "stdout", io.StringIO())
+    assert cli._ColorFormatter("%(message)s").format(record) == f"{record.levelname:8} | {message}"
+
+
+def test_formatter_preserves_multiline_terminal_content(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class TerminalOutput(io.StringIO):
+        def isatty(self) -> bool:
+            return True
+
+    monkeypatch.setattr(sys, "stdout", TerminalOutput())
+    monkeypatch.setenv("NO_COLOR", "1")
+    monkeypatch.setattr(cli.shutil, "get_terminal_size", lambda: types.SimpleNamespace(columns=25))
+    message = "Summary\n  | column with intentional spacing and long content |\nTraceback:\n  frame"
+    record = logging.LogRecord("uptimely.engine", logging.INFO, __file__, 1, message, (), None)
+
+    assert cli._ColorFormatter("%(message)s").format(record) == f"INFO     | {message}"
 
 
 @pytest.mark.parametrize("terminal", [False, True])
@@ -164,10 +259,9 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     monkeypatch.setattr("uptimely.compiler.Compiler.compile", fail_compile)
     invoke(monkeypatch, "run", str(project_root), "--log-level", "debug")
     text = capsys.readouterr().out
-    assert "Engine completed in " in text
-    assert "2 profiles processed" in text
-    assert "Scope: selected features: health_signal_normalized" in text
-    assert "- Profile: pump_profile - 6 features" in text
+    assert "Engine processed 2 profiles in " in text
+    assert "Scope:" not in text
+    assert "Processed profile pump_profile: 6 features" in text
 
 
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
@@ -211,6 +305,7 @@ def test_engine_cli_forwards_validation_flag(
 def test_engine_cli_builds_before_running(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
     command: tuple[str, ...],
 ) -> None:
     _write_empty_build(tmp_path)
@@ -219,6 +314,12 @@ def test_engine_cli_builds_before_running(
     events: list[str] = []
 
     def build(root: pathlib.Path) -> project_module.BuildBundle:
+        output = capsys.readouterr().out
+        assert "Start Uptimely engine run" in output
+        assert "Start building the project bundle" in output
+        assert output.index("Start Uptimely engine run") < output.index(
+            "Start building the project bundle"
+        )
         events.append("build")
         assert root == tmp_path
         return project_module.load_build_bundle(root)
@@ -296,10 +397,18 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
     result = capsys.readouterr()
     assert not result.err
     dataset_count = 2 if scoped else 3
-    assert result.out.splitlines() == [
-        "",
-        f"Engine completed in 1.234 s: {dataset_count} profiles processed",
-    ]
+    lines = result.out.splitlines()
+    assert lines[0] == "INFO     | Start Uptimely engine run"
+    assert "Start building the project bundle" not in result.out
+    assert lines[1] == "INFO     | Start spec validation"
+    assert lines[2] == "INFO     | Spec validated"
+    processed_profiles = [line for line in lines[1:] if "Processed profile " in line]
+    assert len(processed_profiles) == dataset_count
+    assert all(line.startswith("INFO     | ") for line in processed_profiles)
+    assert any("Processed profile pump_profile: 6 features" in line for line in processed_profiles)
+    assert lines[-1] == (f"INFO     | Engine processed {dataset_count} profiles in 1.234 s.")
+    assert all(lines.index(line) < len(lines) - 1 for line in processed_profiles)
+    assert "Scope:" not in result.out
 
 
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
@@ -433,15 +542,13 @@ def test_engine_previews_final_profiles(
 
     output = capsys.readouterr()
     assert not output.err
-    assert "2 profiles processed" in output.out
+    assert "Engine processed 2 profiles in " in output.out
     assert "shape:" not in output.out
     if row_limit is None:
         assert "Profile:" not in output.out
         assert not collected_heights
     else:
-        assert output.out.index("Engine completed") < output.out.index("Profile: first")
-        if "debug" in arguments:
-            assert output.out.index("Processed profiles:") < output.out.index("Profile: first")
+        assert output.out.index("Engine processed") < output.out.index("Profile: first")
         for dataset in ("first", "second"):
             assert f"Profile: {dataset}\n" in output.out
             assert f"Dataset(sample, {dataset}):\n" not in output.out
@@ -507,7 +614,7 @@ def test_engine_preview_errors_are_reported(
     assert error.value.code == 1
     output = capsys.readouterr()
     assert "uptimely: error:" in output.err
-    assert "Engine completed" in output.out
+    assert "Engine processed" in output.out
     assert "Profile:" not in output.out
 
 
@@ -542,13 +649,16 @@ def test_engine_empty_plan_summary(
 
     result = capsys.readouterr()
     assert not result.err
-    summary = "\nEngine completed in 0.000 s: 0 profiles processed\n"
+    summary = "INFO     | Engine processed 0 profiles in 0.000 s.\n"
     if debug:
         assert summary in result.out
-        assert "\nScope: all features\n" in result.out
-        assert "\nProcessed profiles:\n" in result.out
+        assert "Processed profiles:" not in result.out
     else:
-        assert result.out == summary
+        assert result.out == (
+            "INFO     | Start Uptimely engine run\n"
+            "INFO     | Start spec validation\n"
+            "INFO     | Spec validated\n" + summary
+        )
 
 
 @pytest.mark.parametrize(
@@ -603,7 +713,10 @@ def test_workflow_missing_inputs_are_reported(
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
     assert "uptimely project build --project-root" in result.err
-    assert not result.out
+    if command == ["engine", "run"]:
+        assert result.out == ("INFO     | Start Uptimely engine run\n")
+    else:
+        assert not result.out
 
 
 @pytest.mark.parametrize("command", [["spec", "feature-graph"]])
@@ -647,7 +760,7 @@ def test_engine_invalid_config_is_reported(
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
-    assert "Engine completed" not in result.out
+    assert "Engine processed" not in result.out
 
 
 def test_engine_operation_failures_are_reported(
@@ -671,7 +784,7 @@ def test_engine_operation_failures_are_reported(
     result = capsys.readouterr()
     assert "Engine flow failed:" in result.err
     assert "Unresolved parameter:" in result.err
-    assert "Engine completed" not in result.out
+    assert "Engine processed" not in result.out
     assert "Profile:" not in result.out
 
 
@@ -743,7 +856,10 @@ def test_engine_invalid_build_fails_before_execution(
     result = capsys.readouterr()
     assert "uptimely: error:" in result.err
     assert "uptimely project build --project-root" in result.err
-    assert not result.out
+    expected = "INFO     | Start Uptimely engine run\n"
+    if content is not None:
+        expected += "INFO     | Start spec validation\nINFO     | Spec validated\n"
+    assert result.out == expected
 
 
 @pytest.mark.parametrize("command", [["spec", "feature-graph"]])

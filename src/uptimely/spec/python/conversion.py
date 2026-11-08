@@ -86,7 +86,7 @@ def to_model(
             if isinstance(declaration, profile_module.Profile)
         )
         logger.debug(
-            "\nPython spec validation:\n  - collected feature interfaces for %d operators",
+            "Collected feature interfaces for %d operators",
             operator_count,
         )
 

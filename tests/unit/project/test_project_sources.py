@@ -173,7 +173,7 @@ def test_complete_build_validates_spec_semantics_once(
         bundle = project.build_project(tmp_path, json_spec=path)
 
     check.assert_called_once()
-    assert caplog.messages.count("\nSpec validation:\n  Document structure:") == 1
+    assert caplog.messages.count("Check spec version is an integer") == 1
     assert bundle.spec_path.is_file()
     assert (tmp_path / project.EXPLORER_DATA_FILE).is_file()
     assert project.load_build_bundle(tmp_path).spec_definition == bundle.spec_definition

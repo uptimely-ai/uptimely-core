@@ -23,8 +23,8 @@ def test_loading_can_suppress_structure_debug_without_disabling_checks(
 
     spec.load_spec(path, log_structure=False)
 
-    assert not any("Document structure:" in message for message in caplog.messages)
-    assert "  Reference checks:" in caplog.messages
+    assert "Check spec version is an integer" not in caplog.messages
+    assert "Check globally unique profile IDs" in caplog.messages
     caplog.clear()
     path.write_text('{"spec_version": true}', encoding="utf-8")
     with pytest.raises(ValueError, match="spec_version must be an integer"):
@@ -32,7 +32,9 @@ def test_loading_can_suppress_structure_debug_without_disabling_checks(
     assert not caplog.records
 
 
-def test_document_structure_checks_emit_debug_bullets(caplog: pytest.LogCaptureFixture) -> None:
+def test_document_structure_checks_emit_flat_debug_messages(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profiles = list(configuration["profiles"].values())
     operator_count = sum(len(profile["assembly"]) for profile in profiles)
@@ -41,29 +43,28 @@ def test_document_structure_checks_emit_debug_bullets(caplog: pytest.LogCaptureF
     spec.Spec.model_validate(configuration)
 
     assert caplog.messages == [
-        "\nSpec validation:\n  Document structure:",
-        f"    - checking object keys as identifiers for {len(profiles)} profiles",
-        "    - checking spec version is an integer",
-        f"    - checking feature references for {operator_count} operators",
+        f"Check object keys as identifiers for {len(profiles)} profiles",
+        "Check spec version is an integer",
+        f"Check feature references for {operator_count} operators",
     ]
     assert all(record.levelno == logging.DEBUG for record in caplog.records)
 
 
-def test_loading_logs_one_document_and_each_validation_group(
+def test_loading_logs_flat_checks_once_in_validation_order(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.DEBUG, logger="uptimely.spec")
 
     spec.load_spec(SPEC_PATH)
 
-    assert caplog.messages.count("\nSpec validation:\n  Document structure:") == 1
-    assert caplog.messages.count("  Reference checks:") == 1
-    assert caplog.messages.count("  Declaration checks:") == 1
-    assert caplog.messages.count("  Graph checks:") == 1
-    assert caplog.messages.count("  Warnings:") == 1
-    assert sum(message.count("Spec validation:") for message in caplog.messages) == 1
-    assert caplog.messages.index("  Reference checks:") > caplog.messages.index(
-        "\nSpec validation:\n  Document structure:"
+    assert caplog.messages.count("Check spec version is an integer") == 1
+    assert caplog.messages.count("Check globally unique profile IDs") == 1
+    assert all(
+        "\n" not in message and message == message.lstrip() and not message.endswith(":")
+        for message in caplog.messages
+    )
+    assert caplog.messages.index("Check globally unique profile IDs") > caplog.messages.index(
+        "Check spec version is an integer"
     )
 
 
@@ -114,10 +115,9 @@ def test_structure_summary_counts_profiles_and_operator_once(
 
     assert caplog.messages == (
         [
-            "\nSpec validation:\n  Document structure:",
-            "    - checking object keys as identifiers for 3 profiles",
-            "    - checking spec version is an integer",
-            "    - checking feature references for 20 operators",
+            "Check object keys as identifiers for 3 profiles",
+            "Check spec version is an integer",
+            "Check feature references for 20 operators",
         ]
         if level == logging.DEBUG
         else []
@@ -135,10 +135,9 @@ def test_structure_summary_counts_existing_resource_models(
     spec.Spec.model_validate({"profiles": document.profiles})
 
     assert caplog.messages == [
-        "\nSpec validation:\n  Document structure:",
-        f"    - checking object keys as identifiers for {profile_count} profiles",
-        "    - checking spec version is an integer",
-        f"    - checking feature references for {operator_count} operators",
+        f"Check object keys as identifiers for {profile_count} profiles",
+        "Check spec version is an integer",
+        f"Check feature references for {operator_count} operators",
     ]
 
 
@@ -162,7 +161,7 @@ def test_structure_summary_preserves_invalid_document_errors(
         spec.Spec.model_validate(configuration)
 
     assert logged.value.errors() == original.value.errors()
-    assert len(caplog.messages) == 4
+    assert len(caplog.messages) == 3
 
 
 def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str) -> pathlib.Path:

@@ -20,7 +20,7 @@ def log_stages(plan: plan_module.ExecutionPlan) -> None:
             ]
             suffix = f" <- [{', '.join(dependencies)}]" if dependencies else ""
             logger.info(
-                "  %s(%s) -> %s%s",
+                "%s(%s) -> %s%s",
                 invocation.function_id,
                 invocation.profile_id,
                 ", ".join(invocation.output_features) or invocation.operator_id,
