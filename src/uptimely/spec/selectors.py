@@ -11,6 +11,8 @@ DIMENSION_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}dimensions."
 OPERATOR_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}operators."
 PARAMS_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}params."
 CURRENT_ID: typing.Final[str] = "@"
+ROW_CONTEXT_PREFIX: typing.Final[str] = f"{OPERATOR_PREFIX}{CURRENT_ID}.row_context."
+ROW_CONTEXT_ATTRIBUTES: typing.Final[tuple[str, ...]] = ("before", "after", "dimension")
 ID_SELECTOR: typing.Final[str] = ".id"
 DATAFRAME_SELECTOR: typing.Final[str] = ".dataframe"
 PROFILE_GRAIN_IDS_SELECTOR: typing.Final[str] = ".grain.ids"
@@ -33,6 +35,8 @@ __all__ = [
     "PROFILE_GRAIN_IDS_SELECTOR",
     "DIMENSION_PREFIX",
     "OPERATOR_PREFIX",
+    "ROW_CONTEXT_PREFIX",
+    "ROW_CONTEXT_ATTRIBUTES",
     "PARAMS_PREFIX",
     "FEATURE_PREFIX",
     "ID_SELECTOR",

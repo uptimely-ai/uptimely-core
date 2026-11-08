@@ -4,12 +4,14 @@ from __future__ import annotations
 
 import typing
 
-from uptimely.spec import arg_types
+from uptimely.spec import arg_types, selectors
+from uptimely.spec import row_context as row_context_values
 
-from . import bind, references, row_context
+from . import bind, references
 from . import dimension as dimension_module
 from . import feature as feature_module
 from . import profile as profile_module
+from . import row_context as row_context_module
 
 
 def resource_reference(value: object) -> references.Reference | references.Params | None:
@@ -29,7 +31,7 @@ def resource_reference(value: object) -> references.Reference | references.Param
 
 def to_value(value: typing.Any) -> typing.Any:
     """Convert Python references and nested bindings to document values."""
-    if isinstance(value, row_context.RowContextBinding):
+    if isinstance(value, row_context_module.RowContextBinding):
         return to_value(value.value)
     reference = resource_reference(value)
     if reference is not None:
@@ -46,12 +48,40 @@ def to_value(value: typing.Any) -> typing.Any:
     return value
 
 
-def argument_definition(value: typing.Any) -> dict[str, str]:
+def argument_definition(
+    value: typing.Any,
+    *,
+    row_context: row_context_values.RowContext | None = None,
+) -> dict[str, str]:
     """Infer a recursive function-argument schema from a bound value."""
-    if isinstance(value, row_context.RowContextBinding):
-        return argument_definition(value.value)
+    if isinstance(value, row_context_module.RowContextBinding):
+        return argument_definition(value.value, row_context=row_context)
     reference = resource_reference(value)
     if reference is not None:
+        if isinstance(reference, references.Reference) and reference.value.startswith(
+            selectors.ROW_CONTEXT_PREFIX
+        ):
+            attribute = reference.value.removeprefix(selectors.ROW_CONTEXT_PREFIX)
+            if attribute not in selectors.ROW_CONTEXT_ATTRIBUTES:
+                return {"type": arg_types.OBJECT}
+            if attribute == "dimension":
+                return {"type": arg_types.STRING}
+            if row_context is None:
+                return {"type": arg_types.OBJECT}
+            extent = getattr(row_context, attribute)
+            if extent == row_context_values.UNBOUNDED:
+                return {"type": arg_types.STRING}
+            measurements = extent.model_dump(exclude_none=True)
+            if not measurements:
+                return {"type": arg_types.INTEGER}
+            measurement, amount = next(iter(measurements.items()))
+            return {
+                "type": (
+                    arg_types.STRING
+                    if measurement == "time" or amount == row_context_values.UNBOUNDED
+                    else arg_types.INTEGER
+                )
+            }
         if isinstance(reference, references.Reference) and reference.kind in {
             arg_types.DATAFRAME,
             arg_types.array_of(arg_types.STRING),
@@ -59,13 +89,15 @@ def argument_definition(value: typing.Any) -> dict[str, str]:
             return {"type": reference.kind}
         return {"type": arg_types.STRING}
     if isinstance(value, (list, tuple)):
-        item_definitions = [argument_definition(item) for item in value]
+        item_definitions = [argument_definition(item, row_context=row_context) for item in value]
         if item_definitions and all(item == item_definitions[0] for item in item_definitions[1:]):
             return {"type": arg_types.array_of(item_definitions[0]["type"])}
         return {"type": arg_types.ARRAY}
     if isinstance(value, dict):
         if value and all(isinstance(key, str) for key in value):
-            value_definitions = [argument_definition(item) for item in value.values()]
+            value_definitions = [
+                argument_definition(item, row_context=row_context) for item in value.values()
+            ]
             if value_definitions and all(
                 item == value_definitions[0] for item in value_definitions[1:]
             ):

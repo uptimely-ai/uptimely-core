@@ -135,6 +135,19 @@ class RowContext(pydantic.BaseModel):
         default_factory=ContextExtent
     )
 
+    @pydantic.model_validator(mode="before")
+    @classmethod
+    def normalize_row_count_shorthand(cls, value: object) -> object:
+        """Interpret bare integer directions as observation counts."""
+        if not isinstance(value, dict):
+            return value
+        normalized = value.copy()
+        for direction in ("before", "after"):
+            extent = normalized.get(direction)
+            if isinstance(extent, int) and not isinstance(extent, bool):
+                normalized[direction] = {"rows": extent}
+        return normalized
+
     @pydantic.model_validator(mode="after")
     def validate_extent(self) -> RowContext:
         """Require one measurement across both directional requirements."""

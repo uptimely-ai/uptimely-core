@@ -145,6 +145,7 @@ def validate_selector_metadata(spec: spec_model.Spec) -> None:
                         profile_id,
                         grain_keys_by_profile=spec.grain_keys_by_profile,
                         resources=spec.binding_resources,
+                        row_context=operator.row_context,
                     )
                 except ValueError as error:
                     raise errors.SpecError(

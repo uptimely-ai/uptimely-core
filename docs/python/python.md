@@ -118,9 +118,10 @@ reference resolution does not mutate the supplied declarations.
 `ProfileRegistry([Pump]).to_declarations()` can instantiate and register
 profile classes.
 
-`Operator` declares work without executing it. It takes an `id`, an `interface`,
-and a `compute` binding. `Binding` contains the implementation `function` and
-named `arguments`; `Interface` contains feature `inputs` and `outputs`.
+`Operator` declares work without executing it. Its declaration fields are
+ordered `id`, `interface`, optional `row_context`, `compute`, and optional
+`merge`. `Binding` contains the implementation `function` and named
+`arguments`; `Interface` contains feature `inputs` and `outputs`.
 Interface inputs are optional: if omitted, feature references in compute
 and optional merge arguments are inferred as dependencies, excluding declared
 outputs and retaining first-occurrence order. If supplied, they define the
@@ -138,9 +139,11 @@ properties and `bound_arguments()` delegate to the compute binding.
 Entrypoint strings and function references are not imported during these
 conversions; their signature checks are deferred until compilation.
 
-`Operator` also accepts an optional `row_context`
-requirement. Its function catalog ID is derived from the referenced function
-name. Optionally annotate callable implementations with `@function(kind=...)`.
+`Operator` accepts an optional `row_context` requirement. The compute binding
+can refer to its scalar attributes with `ref.row_context("before")`,
+`ref.row_context("after")`, or `ref.row_context("dimension")`. Its function
+catalog ID is derived from the referenced function name. Optionally annotate
+callable implementations with `@function(kind=...)`.
 The decorator attaches
 semantic metadata for validation;
 it returns the original function without wrapping or executing it. Alternatively,

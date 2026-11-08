@@ -183,10 +183,12 @@ class Binding:
             args={name: binding_conversion.to_value(value) for name, value in arguments.items()},
         )
 
-    def to_function_template(self) -> spec_model.FunctionTemplate:
+    def to_function_template(
+        self, *, row_context: row_context_values.RowContext | None = None
+    ) -> spec_model.FunctionTemplate:
         """Build the reusable function contract, including merge-target optionality."""
         argument_definitions = {
-            name: binding_conversion.argument_definition(value)
+            name: binding_conversion.argument_definition(value, row_context=row_context)
             for name, value in self.bound_arguments().items()
         }
         reference = self.reference
@@ -215,19 +217,19 @@ class Operator:
         id: Non-empty operator identifier, unique within its profile.
         interface: Feature dependencies and outputs. Inputs are inferred from
             compute and merge arguments when omitted.
-        compute: Computation function and named arguments.
-        merge: Optional merge function and named arguments.
         row_context: Operator-specific observation requirements, merged with
             argument annotations.
+        compute: Computation function and named arguments.
+        merge: Optional merge function and named arguments.
     """
 
     id: str
     interface: Interface
-    compute: Binding
-    merge: Binding | None = None
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
+    compute: Binding
+    merge: Binding | None = None
 
     def __post_init__(self) -> None:
         """Validate the declaration and merge argument-level row-context annotations."""
@@ -297,6 +299,6 @@ class Operator:
             bindings.append(self.merge)
         catalogs = []
         for binding in bindings:
-            template = binding.to_function_template()
+            template = binding.to_function_template(row_context=self.row_context)
             catalogs.append(spec_model.FunctionCatalog(root={template.id: template}))
         return spec_model.FunctionCatalog.merge(catalogs)

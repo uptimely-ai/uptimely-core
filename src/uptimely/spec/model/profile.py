@@ -68,10 +68,10 @@ class Operator(base.StrictModel):
     """A computation with declared feature inputs, outputs, and optional merge."""
 
     id: str = pydantic.Field(exclude=True)
-    compute: binding.Binding
-    merge: binding.Binding | None = None
     interface: Interface = pydantic.Field(default_factory=Interface)
     row_context: uptimely_row_context.RowContext | None = None
+    compute: binding.Binding
+    merge: binding.Binding | None = None
 
     def bind_default_merge(self) -> None:
         """Attach the builtin merge binding when no merge is declared."""
@@ -127,6 +127,7 @@ class Operator(base.StrictModel):
             feature_id,
             grain_keys_by_profile,
             resources,
+            row_context=self.row_context,
         )
 
     @functools.cached_property

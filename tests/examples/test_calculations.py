@@ -184,7 +184,21 @@ def test_delta_uses_all_partition_keys_and_preserves_null_gaps() -> None:
         }
     )
 
-    result = analytics.delta(frame, "value", ["plant", "pump"], "timestamp", "delta").collect()
+    result = analytics.delta(frame, "value", ["plant", "pump"], "timestamp", 1, "delta").collect()
 
     assert result.drop("delta").equals(frame.collect())
     assert result["delta"].to_list() == [-1.0, -2.0, None, None, None, None]
+
+
+def test_delta_uses_the_requested_number_of_rows() -> None:
+    frame = pl.LazyFrame(
+        {
+            "pump": ["one"] * 4,
+            "timestamp": [1, 2, 3, 4],
+            "value": [10.0, 12.0, 16.0, 21.0],
+        }
+    )
+
+    result = analytics.delta(frame, "value", ["pump"], "timestamp", 2, "delta").collect()
+
+    assert result["delta"].to_list() == [None, None, 6.0, 9.0]

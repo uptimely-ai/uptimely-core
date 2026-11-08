@@ -7,6 +7,7 @@ import typing
 
 import pydantic
 
+from uptimely.spec import row_context as row_context_values
 from uptimely.spec import selectors
 
 from . import base, binding_argument
@@ -144,9 +145,17 @@ class Binding(base.StrictModel):
         feature_id: str | None = None,
         grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
         resources: binding_argument.BindingResources | None = None,
+        *,
+        row_context: row_context_values.RowContext | None = None,
     ) -> dict[str, object]:
         """Resolve all arguments with a shared invocation context."""
         return {
-            name: argument.resolve(profile_id, feature_id, grain_keys_by_profile, resources)
+            name: argument.resolve(
+                profile_id,
+                feature_id,
+                grain_keys_by_profile,
+                resources,
+                row_context=row_context,
+            )
             for name, argument in self.args.items()
         }
