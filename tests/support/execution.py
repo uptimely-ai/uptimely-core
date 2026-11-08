@@ -96,12 +96,9 @@ class EngineFactory(typing.Protocol):
 
 def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Spec:
     """Create a minimal runtime spec for tests using hand-authored plans."""
-    resources = execution_plan.resources
-    dimensions = dict(resources.get("dimensions", {}))
-    profiles = {
-        profile_id: dict(profile) for profile_id, profile in resources.get("profiles", {}).items()
-    }
-    functions = dict(resources.get("functions", {}))
+    dimensions: dict[str, typing.Any] = {}
+    profiles: dict[str, typing.Any] = {}
+    functions: dict[str, typing.Any] = {}
 
     for invocation in execution_plan.invocations:
         if invocation.profile_id is None:
@@ -131,7 +128,13 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
             {"escape": "any", "write": "none"}.get(invocation.function_kind, "dataframe"),
         )
         function.setdefault("entrypoint", invocation.entrypoint)
-        function.setdefault("args", {})
+        function.setdefault(
+            "args",
+            {
+                name: {"type": argument_type}
+                for name, argument_type in invocation.argument_types.items()
+            },
+        )
         profile.setdefault("name", invocation.profile_id)
         features = profile.setdefault("features", {})
         for feature in invocation.output_features:

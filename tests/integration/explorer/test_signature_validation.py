@@ -50,7 +50,7 @@ def test_disabled_signature_does_not_import_entrypoint_module(
 
     assert not marker.exists()
     assert "signature_validation_fixture" not in sys.modules
-    assert invocation.id not in compiled.resources["signatures"]
+    assert invocation.return_type is None
     assert invocation.input_features
     assert step["returns"]["type"]["engine"] is None
     assert function_data["signature_validation_disabled"]

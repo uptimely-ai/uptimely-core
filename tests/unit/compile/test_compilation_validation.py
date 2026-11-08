@@ -67,8 +67,8 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         "signature_validation": mock.Mock(),
     }
     implementation = mock.Mock()
-    implementation.module.read_package = operations["package"]
-    implementation.function.read_signature = operations["signature"]
+    implementation.read_package = operations["package"]
+    implementation.read_signature = operations["signature"]
     operations["entrypoint"].return_value = implementation
     selected_graph.topology = operations["topology"]
     calls = mock.Mock()
@@ -111,12 +111,13 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         expected = expected[: list(operations).index(failure) + 1]
     assert calls.mock_calls == expected
     if failure is None:
-        assert plan.invocations == [emitted_invocation]
+        assert len(plan.invocations) == 1
+        assert plan.invocations[0].id == emitted_invocation.id
         assert plan.stages == [[node.node_id]]
-        assert plan.resources == {
-            "signatures": {node.node_id: "float"},
-            "entrypoint_packages": {"module:calculate": {"distribution": None, "version": None}},
-        }
+        assert plan.invocations[0].return_type == "float"
+        assert plan.invocations[0].package == execution_plan.Package(
+            distribution=None, version=None
+        )
         assert calls.mock_calls == expected
 
 
@@ -138,7 +139,7 @@ def test_compiler_rejects_string_features_and_recovers() -> None:
 
     replacement_plan = builder.compile(specification, features=[])
     assert replacement_plan == original_plan
-    assert replacement_plan.resources is not original_plan.resources
+    assert replacement_plan.invocations is not original_plan.invocations
     assert builder.__dict__ == {}
 
 
@@ -156,8 +157,8 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     monkeypatch.setattr(compiler.spec_validation, "validate_spec", mock.Mock())
     signature = entrypoint.Signature(returns="float")
     implementation = mock.Mock()
-    implementation.module.read_package.return_value = entrypoint.PackageProvenance(None, None)
-    implementation.function.read_signature.return_value = signature
+    implementation.read_package.return_value = entrypoint.PackageProvenance(None, None)
+    implementation.read_signature.return_value = signature
     parse_entrypoint = mock.Mock(return_value=implementation)
     validate = mock.Mock()
     monkeypatch.setattr(compiler.entrypoint, "Entrypoint", parse_entrypoint)
@@ -197,13 +198,14 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     plan = compiler.Compiler().compile(specification)
 
     assert parse_entrypoint.call_count == 1
-    implementation.module.read_package.assert_called_once_with()
-    implementation.function.read_signature.assert_called_once_with()
+    implementation.read_package.assert_called_once_with()
+    implementation.read_signature.assert_called_once_with()
     validate.assert_called_once_with(validation.CallableValidationContext(function, signature))
-    assert plan.resources["signatures"] == {
-        plan.invocations[0].id: "float",
-        plan.invocations[1].id: "float",
-    }
+    assert [invocation.return_type for invocation in plan.invocations] == [
+        "float",
+        "float",
+        None,
+    ]
 
 
 def test_compiler_logs_signature_validation_summary(

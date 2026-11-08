@@ -14,7 +14,6 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
     return {
         "plan_version": plan.plan_version,
         "required_backend": plan.required_backend,
-        "resources": plan.resources,
         "invocations": [
             {
                 "id": invocation.id,
@@ -30,6 +29,10 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
                 "id_columns": invocation.id_columns,
                 "column_types": invocation.column_types,
                 "argument_types": invocation.argument_types,
+                "return_type": invocation.return_type,
+                "package": (
+                    invocation.package.model_dump() if invocation.package is not None else None
+                ),
                 "row_context": (
                     invocation.row_context.to_dict() if invocation.row_context is not None else None
                 ),
@@ -47,7 +50,6 @@ def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     required = {
         "plan_version",
         "required_backend",
-        "resources",
         "invocations",
         "stages",
     }
@@ -59,7 +61,13 @@ def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
         raise ValueError("Plan contains unknown fields: " + ", ".join(unexpected))
     invocations = []
     for invocation in payload["invocations"]:
-        missing_metadata = {"id_columns", "column_types", "argument_types"} - invocation.keys()
+        missing_metadata = {
+            "id_columns",
+            "column_types",
+            "argument_types",
+            "return_type",
+            "package",
+        } - invocation.keys()
         if missing_metadata:
             raise ValueError(
                 f"Invocation {invocation.get('id', '<unknown>')} is missing runtime metadata: "
@@ -70,7 +78,6 @@ def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     return models.ExecutionPlan(
         plan_version=payload["plan_version"],
         required_backend=payload["required_backend"],
-        resources=payload["resources"],
         invocations=invocations,
         stages=payload["stages"],
     )

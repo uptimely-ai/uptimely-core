@@ -1,78 +1,6 @@
 {
-  "plan_version": 7,
+  "plan_version": 8,
   "required_backend": "polars",
-  "resources": {
-    "dimensions": {
-      "asset_id": {
-        "resolutions": {
-          "asset_id": {
-            "key": "asset_id",
-            "type": "string"
-          }
-        }
-      }
-    },
-    "profiles": {
-      "telemetry": {
-        "grain": [
-          {
-            "dimension": "asset_id",
-            "resolution": "asset_id"
-          }
-        ]
-      }
-    },
-    "functions": {
-      "load": {
-        "kind": "read",
-        "args": {
-          "source": {
-            "type": "string"
-          }
-        },
-        "returns": "dataframe"
-      },
-      "double": {
-        "kind": "vectorize",
-        "args": {
-          "column": {
-            "type": "string"
-          },
-          "dataset": {
-            "type": "dataframe"
-          }
-        },
-        "returns": "dataframe"
-      },
-      "save": {
-        "kind": "write",
-        "args": {
-          "dataset": {
-            "type": "dataframe"
-          },
-          "features": {
-            "type": "array[string]"
-          }
-        },
-        "returns": "none"
-      },
-      "__uptimely_merge_by_grain": {
-        "kind": "merge",
-        "args": {
-          "target": {
-            "type": "dataframe | null"
-          },
-          "fragment": {
-            "type": "dataframe"
-          },
-          "target_keys": {
-            "type": "array[string]"
-          }
-        },
-        "returns": "dataframe"
-      }
-    }
-  },
   "invocations": [
     {
       "id": "invocation:read:load:telemetry:reading",
@@ -84,6 +12,8 @@
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},
       "argument_types": {"source": "string"},
+      "return_type": null,
+      "package": null,
       "output_features": [
         "reading"
       ],
@@ -102,6 +32,8 @@
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},
       "argument_types": {"column": "string", "dataset": "dataframe"},
+      "return_type": null,
+      "package": null,
       "input_features": [
         "reading"
       ],
@@ -130,6 +62,8 @@
         "fragment": "dataframe",
         "target_keys": "array[string]"
       },
+      "return_type": null,
+      "package": null,
       "arguments": {
         "target": "telemetry",
         "fragment": "$operators.@.fragment",
@@ -149,6 +83,8 @@
       "id_columns": ["asset_id"],
       "column_types": {"asset_id": "string"},
       "argument_types": {"dataset": "dataframe", "features": "array[string]"},
+      "return_type": null,
+      "package": null,
       "arguments": {
         "dataset": "telemetry",
         "features": [

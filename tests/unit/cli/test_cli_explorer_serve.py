@@ -13,6 +13,7 @@ import pytest
 from starlette.types import ASGIApp, Message, Scope
 
 from uptimely import engine, project, spec
+from uptimely import plan as execution_plan
 from uptimely.cli import explorer
 from uptimely.explorer import server as explorer_server
 from uptimely.run import store as run_store
@@ -99,7 +100,7 @@ def _saved_run(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> engin
             invocation_statuses={},
             durations={},
             failures={},
-            plan_version=7,
+            plan_version=execution_plan.PLAN_VERSION,
         )
 
     monkeypatch.setattr(runtime, "_execute", execute)

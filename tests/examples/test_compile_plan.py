@@ -81,16 +81,14 @@ def test_compiled_plan_export_omits_generated_timestamp(
     metadata = json.loads(output_path.read_text(encoding="utf-8"))
 
     assert metadata == execution_plan.to_dict(plan)
-    assert set(metadata["resources"]) == {"signatures", "entrypoint_packages"}
     assert "spec_version" not in metadata
     assert set(metadata) == {
         "plan_version",
         "required_backend",
-        "resources",
         "invocations",
         "stages",
     }
-    assert metadata["plan_version"] == 7
+    assert metadata["plan_version"] == execution_plan.PLAN_VERSION
     assert {invocation["function_kind"] for invocation in metadata["invocations"]} == {
         "read",
         "collapse",

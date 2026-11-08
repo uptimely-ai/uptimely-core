@@ -89,7 +89,10 @@ class InstalledImportsTest(unittest.TestCase):
                 self.assertTrue((frontend / "css" / "lineage.css").is_file())
                 plan = json.loads((build / "execution_plan.json").read_text(encoding="utf-8"))
                 self.assertTrue(plan["invocations"])
-                for package in plan["resources"]["entrypoint_packages"].values():
+                for package in {
+                    invocation["entrypoint"]: invocation["package"]
+                    for invocation in plan["invocations"]
+                }.values():
                     self.assertEqual(package["distribution"], "uptimely-core")
                     self.assertEqual(
                         package["version"], importlib.metadata.version("uptimely-core")
@@ -106,7 +109,7 @@ class InstalledImportsTest(unittest.TestCase):
         build = project / "_generated" / "build"
         plan = json.loads((build / "execution_plan.json").read_text(encoding="utf-8"))
         self.assertEqual(
-            plan["resources"]["entrypoint_packages"],
+            {invocation["entrypoint"]: invocation["package"] for invocation in plan["invocations"]},
             {
                 "installed_analytics.functions:Readers.values": {
                     "distribution": "uptimely-import-fixture",

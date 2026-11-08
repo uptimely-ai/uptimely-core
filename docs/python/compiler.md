@@ -39,30 +39,34 @@ compiler takes key types from canonical dimension declarations, ahead of any
 local feature metadata. These fields survive plan serialization. Saved plans
 without them must be rebuilt; loading reports a recompile error rather than
 running without key or type information.
+The portable plan also stores each invocation's inspected return annotation and
+entrypoint package provenance, so plan properties do not need to inspect or
+import implementation modules.
 
 Plans use strict Pydantic models to validate invocation fields and stage
 relationships at construction and load time. They cache `invocations_by_id`
-and `execution_stages`, along with resource views: `function_ids`, `profile_ids`,
+and `execution_stages`, along with derived views: `function_ids`, `profile_ids`,
 `arguments` (invocation ID to bound arguments), `features` (output feature ID to
 producing invocations), `calculated_features`, `entrypoints`, and
 `invocations_by_kind`, and `count_per_kind` (invocation counts keyed and sorted by
 function kind). Output features include dimension outputs; the Spec
 remains the source of feature metadata. Repeated reads reuse the same cached
-views. Each resource view is built independently, so using one does not eagerly
+views. Each derived view is built independently, so using one does not eagerly
 materialize unrelated indexes. Treat the views and their nested containers as
 read-only. For changes, use `copy.replace`; it constructs a new validated plan
 with fresh cached views.
 Indexes do not change the portable JSON format.
 
-Compiler responsibilities are separated by module. Each `compile()` call creates
-a private compilation context that owns its graph, selected features, entrypoints,
-signatures, and cached plan resources. A compiler instance retains no active build
-state, so it can be reused for sequential, nested, or concurrent compilations.
-Graph selection deduplicates identifiers in input order. The context validates
-each enabled function once and parses only selected entrypoints. The
-`compiler.validation` module checks keyword-call compatibility and annotations
-against spec function contracts. Generic loading and signature introspection
-remain in `uptimely.entrypoint`.
+`Compiler.compile()` makes the compilation sequence explicit: validate the
+Spec, construct and select the invocation graph, order it, emit invocations,
+read implementation signatures and package provenance, and construct the
+validated plan. A compiler instance retains no active build state, so it can be
+reused for sequential, nested, or concurrent compilations. Graph selection
+deduplicates identifiers in input order. `compiler.validation` checks
+keyword-call compatibility and annotations against Spec function contracts.
+`Function.read_signature()` and `Module.read_package()` independently inspect
+their respective implementation metadata; plan views only read metadata already
+stored on invocations.
 
 `plan.invocations` retains declaration order. For sequential execution, use
 `plan.execution_invocations`: this cached flat list follows stage order and
