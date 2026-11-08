@@ -3,7 +3,10 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
+import json
 import logging
+import re
 
 import graphable as graphable_
 
@@ -13,6 +16,9 @@ from uptimely.spec import model as spec_model
 from uptimely.spec import row_context
 
 logger = logging.getLogger(__name__)
+
+INVOCATION_LABEL_MAX_LENGTH = 24
+INVOCATION_HASH_LENGTH = 10
 
 type GraphNode = graphable_.graphable.Graphable
 
@@ -36,11 +42,15 @@ class InvocationNode:
 
     @property
     def node_id(self) -> str:
-        """Stable graph identifier for this invocation."""
-        return (
-            f"invocation:{self.function_kind}:{self.function_id}:"
-            f"{self.profile_id}:{self.operator_id}"
+        """Return a bounded operator label and stable declaration fingerprint."""
+        identity = json.dumps(
+            (self.function_id, self.profile_id, self.operator_id),
+            separators=(",", ":"),
         )
+        fingerprint = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:INVOCATION_HASH_LENGTH]
+        label = re.sub(r"[^a-z0-9]+", "-", self.operator_id.lower()).strip("-") or "invocation"
+        label = label[:INVOCATION_LABEL_MAX_LENGTH].rstrip("-")
+        return f"{label}--{fingerprint}"
 
     def __str__(self) -> str:
         return f"{self.function_kind}:{self.function_id}({self.profile_id})"
@@ -75,7 +85,7 @@ class InvocationGraph:
 
     def _create_nodes(self) -> dict[str, GraphNode]:
         """Create compute and optional merge nodes for each operator."""
-        nodes: dict[str, GraphNode] = {}
+        invocations: list[InvocationNode] = []
 
         for key, operator in self.spec.operator_items:
             profile_id = key[0]
@@ -93,7 +103,7 @@ class InvocationGraph:
                 input_features=tuple(operator.input_features),
                 row_context=operator.row_context,
             )
-            nodes[invocation.node_id] = graphable_.graphable.Graphable(invocation)
+            invocations.append(invocation)
             if function_definition.produces_fragment and operator.merge is not None:
                 merge_kind = self.spec.functions[operator.merge.function].kind
                 merge_invocation = InvocationNode(
@@ -103,7 +113,20 @@ class InvocationGraph:
                     function_kind=merge_kind,
                     arguments=operator.merge.args,
                 )
-                nodes[merge_invocation.node_id] = graphable_.graphable.Graphable(merge_invocation)
+                invocations.append(merge_invocation)
+        nodes: dict[str, GraphNode] = {}
+        for invocation in invocations:
+            node_id = invocation.node_id
+            if node_id in nodes:
+                previous = nodes[node_id].reference
+                raise ValueError(
+                    f"Invocation ID collision {node_id!r} between operators "
+                    f"{previous.profile_id!r}/{previous.operator_id!r} "
+                    f"({previous.function_kind}:{previous.function_id}) and "
+                    f"{invocation.profile_id!r}/{invocation.operator_id!r} "
+                    f"({invocation.function_kind}:{invocation.function_id})"
+                )
+            nodes[node_id] = graphable_.graphable.Graphable(invocation)
         return nodes
 
     def _add_edges(

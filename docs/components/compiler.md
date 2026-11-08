@@ -48,9 +48,26 @@ invocations that must finish first. Invocation IDs are opaque references.
 Consumers must not infer operation or identity metadata by parsing their
 spelling.
 
-Version 7 replaces invocation `dataset_id` with `profile_id`, without a
-legacy alias. Datasets are engine-owned runtime accumulators, not invocation
-declaration metadata. Rebuild existing bundles from their source Specs.
+Compiler-generated IDs use `<operator-label>--<fingerprint>`, for example
+`bearing-temperature-delt--<10-hex-digits>`. Labels use lowercase ASCII letters,
+digits, and single dashes, with a maximum of 24 characters.
+Operators without ASCII letters or digits
+use the label `invocation`. The fingerprint is the first 10 hexadecimal
+characters of SHA-256 over the compact JSON array
+`[function_id, profile_id, operator_id]`. The full declaration
+identifiers are hashed before label normalization or truncation.
+
+IDs are at most 36 characters and stay stable across recompilation and feature
+selection when these identity fields are unchanged. Argument or implementation
+changes do not change the ID; it identifies a declared invocation, not a build
+or execution. Function kind is not part of the label or fingerprint. Compute
+and merge invocations use the same operator label and are distinguished by
+their function IDs. Compilation rejects ID collisions rather than overwriting a
+node. Use the invocation's separate metadata fields for full names and meaning.
+Rebuild existing bundles to adopt compact IDs consistently in plans, run logs,
+and Explorer. Version 7 replaces invocation `dataset_id` with `profile_id`,
+without a legacy alias. Datasets are engine-owned runtime accumulators, not
+invocation declaration metadata.
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
