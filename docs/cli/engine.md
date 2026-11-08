@@ -9,7 +9,7 @@ Execute the plan in the project's last successful active build:
 
 ```console
 uptimely run \
-  [PROJECT_ROOT] [--project-root PATH] [--config PATH] \
+  [PROJECT_ROOT] [--project-root PATH] [--build] [--config PATH] \
   [--validate] [--log-level LEVEL] [--preview [ROWS]]
 ```
 
@@ -21,6 +21,7 @@ directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
 | --- | --- | --- | --- |
 | `PROJECT_ROOT` | No | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
+| `--build` | No | Disabled | Build and publish the project before execution, then run the newly published build. |
 | `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine settings and required runtime control parameter values in JSON. |
 | `--validate` | No | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
 | `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
@@ -43,14 +44,16 @@ publication, and display. Console display reuses the saved sample rather than
 executing the lazy query again.
 
 Use `uptimely build` or the grouped `uptimely project build` command to change
-the execution plan or feature scope. Engine executes the saved
-build without compiling or rebuilding it. Saved-build integrity,
+the execution plan or feature scope. By default, Engine executes the saved
+build without compiling or rebuilding it. Add `--build` to rebuild from the
+project's discovered spec source before execution. Saved-build integrity,
 configuration, and backend compatibility are always checked; per-step runtime
 validation is opt-in:
 
 ```console
 uptimely run examples/pump_analytics --validate
 uptimely run examples/pump_analytics --validate --log-level debug
+uptimely run examples/pump_analytics --build
 ```
 
 The log level applies to Uptimely loggers, not third-party dependency loggers.

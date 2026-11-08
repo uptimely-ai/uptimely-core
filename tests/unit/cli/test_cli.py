@@ -490,7 +490,12 @@ def test_cli_does_not_reexport_command_helpers() -> None:
         (
             ["run", "project", "--preview", "3"],
             "run",
-            {"project_root_argument": pathlib.Path("project"), "preview": 3},
+            {"project_root_argument": pathlib.Path("project"), "preview": 3, "build": False},
+        ),
+        (
+            ["run", "project", "--build"],
+            "run",
+            {"project_root_argument": pathlib.Path("project"), "build": True},
         ),
         (
             ["explore", "project", "--host", "0.0.0.0", "--port", "0"],
@@ -505,7 +510,12 @@ def test_cli_does_not_reexport_command_helpers() -> None:
         (
             ["engine", "run", "project"],
             "run",
-            {"project_root_argument": pathlib.Path("project")},
+            {"project_root_argument": pathlib.Path("project"), "build": False},
+        ),
+        (
+            ["engine", "run", "project", "--build"],
+            "run",
+            {"project_root_argument": pathlib.Path("project"), "build": True},
         ),
         (
             ["explorer", "serve", "project"],
