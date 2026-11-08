@@ -21,6 +21,8 @@ At info level, the CLI announces the start of the engine run. With `--build`,
 it also announces the project-bundle build before building it. Successful runs
 log individual processed-profile details first, followed by
 `Engine processed X profiles in Y s.` The engine scope is not logged.
+After a successful run and any requested previews, an info log shows the
+`uptimely explore --project-root PATH` command for opening that project's Explorer.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
