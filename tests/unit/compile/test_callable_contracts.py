@@ -89,7 +89,7 @@ def _function_template(
 
 def _signature(name: str) -> entrypoint.Signature:
     function = entrypoint.Function(entrypoint.Module(__name__), name)
-    return function.signature
+    return function.read_signature()
 
 
 @pytest.mark.parametrize("validate", validation.VALIDATION_DEPENDENCIES, ids=lambda f: f.__name__)

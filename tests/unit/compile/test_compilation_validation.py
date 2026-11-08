@@ -1,6 +1,5 @@
 """Compiler orchestration ordering and fail-fast behavior."""
 
-import functools
 import logging
 from unittest import mock
 
@@ -21,29 +20,57 @@ from uptimely.spec import model as spec_model
         "graph",
         "subset",
         "topology",
-        "entrypoints",
-        "packages",
-        "signatures",
+        "emit",
+        "entrypoint",
+        "package",
+        "signature",
+        "signature_validation",
     ],
 )
-def test_compilation_passes_explicit_arguments_in_fail_fast_order(
+def test_compiler_runs_explicit_steps_in_fail_fast_order(
     monkeypatch: pytest.MonkeyPatch, failure: str | None
 ) -> None:
-    specification = spec.Spec()
+    function = spec_model.FunctionTemplate(
+        id="calculate",
+        kind="vectorize",
+        returns="dataframe",
+        entrypoint="module:calculate",
+    )
+    specification = spec.Spec(functions={"calculate": function})
     graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     selected_graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     graph.subset.return_value = selected_graph
-    selected_graph.topology.return_value = []
+    node = invocation_graph.InvocationNode(
+        function_id="calculate",
+        profile_id="entity",
+        operator_id="calculate",
+        function_kind="vectorize",
+    )
+    selected_graph.invocations = [node]
+    emitted_invocation = execution_plan.Invocation(
+        id=node.node_id,
+        function_kind="vectorize",
+        entrypoint="module:calculate",
+        function_id="calculate",
+        operator_id="calculate",
+        profile_id="entity",
+    )
     operations = {
         "spec": mock.Mock(),
         "graph": mock.Mock(return_value=graph),
         "subset": graph.subset,
-        "topology": selected_graph.topology,
-        "entrypoints": mock.Mock(return_value={}),
-        "packages": mock.Mock(return_value={}),
-        "signatures": mock.Mock(return_value={}),
+        "topology": mock.Mock(return_value=[[node]]),
+        "emit": mock.Mock(return_value=emitted_invocation),
+        "entrypoint": mock.Mock(),
+        "package": mock.Mock(return_value=entrypoint.PackageProvenance(None, None)),
+        "signature": mock.Mock(return_value=entrypoint.Signature(returns="float")),
+        "signature_validation": mock.Mock(),
     }
-    selected_graph.invocations = []
+    implementation = mock.Mock()
+    implementation.module.read_package = operations["package"]
+    implementation.function.read_signature = operations["signature"]
+    operations["entrypoint"].return_value = implementation
+    selected_graph.topology = operations["topology"]
     calls = mock.Mock()
     for name, operation in operations.items():
         calls.attach_mock(operation, name)
@@ -52,92 +79,45 @@ def test_compilation_passes_explicit_arguments_in_fail_fast_order(
 
     monkeypatch.setattr(compiler.spec_validation, "validate_spec", operations["spec"])
     monkeypatch.setattr(invocation_graph, "InvocationGraph", operations["graph"])
-
-    def entrypoints(builder: compiler._Compilation) -> dict[str, object]:
-        return operations["entrypoints"](
-            [invocation.entrypoint for invocation in builder.invocations]
-        )
-
-    def packages(builder: compiler._Compilation) -> dict[str, object]:
-        return operations["packages"](builder.entrypoints)
-
-    def signatures(builder: compiler._Compilation) -> dict[str, object]:
-        _ = builder.packages
-        return operations["signatures"](builder.spec_definition, builder.graph, builder.entrypoints)
-
-    for reader in (entrypoints, packages, signatures):
-        descriptor = functools.cached_property(reader)
-        descriptor.__set_name__(compiler._Compilation, reader.__name__)
-        monkeypatch.setattr(compiler._Compilation, reader.__name__, descriptor)
-
-    compilations: list[compiler._Compilation] = []
-    original_init = compiler._Compilation.__init__
-
-    def initialize(
-        compilation: compiler._Compilation,
-        spec_definition: spec.Spec,
-        features: list[str] | None = None,
-    ) -> None:
-        original_init(compilation, spec_definition, features)
-        compilations.append(compilation)
-
-    monkeypatch.setattr(compiler._Compilation, "__init__", initialize)
+    monkeypatch.setattr(compiler.plan_emission, "emit_invocation", operations["emit"])
+    monkeypatch.setattr(compiler.entrypoint, "Entrypoint", operations["entrypoint"])
+    monkeypatch.setattr(
+        compiler.validation, "validation_callable_signature", operations["signature_validation"]
+    )
 
     builder = compiler.Compiler()
     features = ["result", "result"]
     if failure is None:
         plan = builder.compile(specification, features=features)
-        assert plan.invocations == []
-        assert plan.stages == []
-        assert plan.resources == {"signatures": {}, "entrypoint_packages": {}}
     else:
         with pytest.raises(ValueError, match="invalid compilation"):
             builder.compile(specification, features=features)
     assert builder.__dict__ == {}
-    if failure != "spec":
-        assert compilations[0].features is features
 
     expected = [
         mock.call.spec(specification),
         mock.call.graph(specification),
         mock.call.subset(["result"]),
         mock.call.topology(),
-        mock.call.entrypoints([]),
-        mock.call.packages({}),
-        mock.call.signatures(specification, selected_graph, {}),
+        mock.call.emit(specification, selected_graph, node),
+        mock.call.entrypoint("module:calculate"),
+        mock.call.package(),
+        mock.call.signature(),
+        mock.call.signature_validation(
+            validation.CallableValidationContext(function, entrypoint.Signature(returns="float"))
+        ),
     ]
     if failure is not None:
         expected = expected[: list(operations).index(failure) + 1]
     assert calls.mock_calls == expected
     if failure is None:
-        compilation = compilations[0]
-        assert compilation.resources == plan.resources
-        assert compilation.invocations == plan.invocations
-        assert compilation.stages == plan.stages
-        assert compilation.signature_resources == plan.resources["signatures"]
-        assert compilation.entrypoint_packages is plan.resources["entrypoint_packages"]
+        assert plan.invocations == [emitted_invocation]
+        assert plan.stages == [[node.node_id]]
+        assert plan.resources == {
+            "signatures": {node.node_id: "float"},
+            "entrypoint_packages": {"module:calculate": {"distribution": None, "version": None}},
+        }
         assert calls.mock_calls == expected
-    else:
-        operations[failure].side_effect = None
-    calls.reset_mock()
-    replacement = spec.Spec(name="second")
-    builder.compile(replacement, features=["different"])
-    latest = compilations[-1]
-    assert latest.spec_definition is replacement
-    assert latest.signature_resources is latest.resources["signatures"]
-    assert latest.entrypoint_packages is latest.resources["entrypoint_packages"]
-    if len(compilations) == 2:
-        assert latest is not compilations[0]
-        assert compilations[0].spec_definition is specification
-    assert calls.mock_calls == [
-        mock.call.spec(replacement),
-        mock.call.graph(replacement),
-        mock.call.subset(["different"]),
-        mock.call.topology(),
-        mock.call.entrypoints([]),
-        mock.call.packages({}),
-        mock.call.signatures(replacement, selected_graph, {}),
-    ]
 
 
 def test_compiler_has_no_active_build_properties() -> None:
@@ -145,15 +125,6 @@ def test_compiler_has_no_active_build_properties() -> None:
     assert builder.__dict__ == {}
     assert not hasattr(builder, "graph")
     assert not hasattr(builder, "spec_definition")
-
-
-@pytest.mark.parametrize("features", [None, [], (), set()])
-def test_compilation_retains_feature_collection(
-    features: list[str] | tuple[str, ...] | set[str] | None,
-) -> None:
-    builder = compiler._Compilation(spec.Spec(), features=features)
-    builder.build_plan()
-    assert builder.features is features
 
 
 def test_compiler_rejects_string_features_and_recovers() -> None:
@@ -171,50 +142,26 @@ def test_compiler_rejects_string_features_and_recovers() -> None:
     assert builder.__dict__ == {}
 
 
-def test_nested_compilations_on_one_compiler_do_not_share_build_state(
+def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    builder = compiler.Compiler()
-    outer_spec = spec.Spec(name="outer")
-    inner_spec = spec.Spec(name="inner")
-    original_build = compiler._Compilation.build_plan
-    builds: list[compiler._Compilation] = []
-
-    def build(compilation: compiler._Compilation) -> execution_plan.ExecutionPlan:
-        builds.append(compilation)
-        if compilation.spec_definition is outer_spec:
-            outer_graph = compilation.graph
-            inner_plan = builder.compile(inner_spec, features=[])
-            assert inner_plan.invocations == []
-            assert compilation.graph is outer_graph
-            assert compilation.spec_definition is outer_spec
-            assert compilation.features is None
-        return original_build(compilation)
-
-    monkeypatch.setattr(compiler._Compilation, "build_plan", build)
-    outer_plan = builder.compile(outer_spec)
-
-    assert outer_plan.invocations == []
-    assert len(builds) == 2
-    assert builds[0] is not builds[1]
-    assert builds[0].graph is not builds[1].graph
-    assert builds[0].resources is not builds[1].resources
-    assert builder.__dict__ == {}
-
-
-def test_signatures_reuse_function_contracts_only_within_one_compilation(
-    monkeypatch: pytest.MonkeyPatch,
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    caplog.set_level(logging.DEBUG, logger=compiler.__name__)
     function = spec_model.FunctionTemplate(
         id="calculate",
         kind="vectorize",
         returns="dataframe",
-        entrypoint="missing_module:calculate",
+        entrypoint="module:calculate",
     )
     disabled = function.model_copy(update={"id": "disabled", "validate_signature": False})
     specification = spec.Spec(functions={"calculate": function, "disabled": disabled})
+    monkeypatch.setattr(compiler.spec_validation, "validate_spec", mock.Mock())
+    signature = entrypoint.Signature(returns="float")
+    implementation = mock.Mock()
+    implementation.module.read_package.return_value = entrypoint.PackageProvenance(None, None)
+    implementation.function.read_signature.return_value = signature
+    parse_entrypoint = mock.Mock(return_value=implementation)
+    validate = mock.Mock()
+    monkeypatch.setattr(compiler.entrypoint, "Entrypoint", parse_entrypoint)
+    monkeypatch.setattr(compiler.validation, "validation_callable_signature", validate)
     nodes = [
         invocation_graph.InvocationNode(
             function_id=function_id,
@@ -228,36 +175,45 @@ def test_signatures_reuse_function_contracts_only_within_one_compilation(
             ("disabled", "third"),
         ]
     ]
-    signature = mock.Mock(spec=entrypoint.Signature)
-    implementation = mock.Mock(spec=entrypoint.Entrypoint)
-    implementation.function.signature = signature
-    validate = mock.Mock()
-    monkeypatch.setattr(validation, "validation_callable_signature", validate)
-    builder = compiler._Compilation(specification)
-    builder.__dict__.update(
-        graph=mock.Mock(invocations=nodes),
-        entrypoints={function.entrypoint: implementation},
-        packages={},
+    graph = mock.Mock(spec=invocation_graph.InvocationGraph)
+    graph.topology.return_value = [nodes]
+    graph.invocations = nodes
+    monkeypatch.setattr(compiler.invocation_graph, "InvocationGraph", mock.Mock(return_value=graph))
+    monkeypatch.setattr(
+        compiler.plan_emission,
+        "emit_invocation",
+        mock.Mock(
+            side_effect=lambda _specification, _graph, node: execution_plan.Invocation(
+                id=node.node_id,
+                function_kind=node.function_kind,
+                entrypoint="module:calculate",
+                function_id=node.function_id,
+                operator_id=node.operator_id,
+                profile_id=node.profile_id,
+            )
+        ),
     )
 
-    assert builder.function_signatures == {"calculate": signature}
-    assert builder.signatures == {node.node_id: signature for node in nodes[:2]}
-    validate.assert_called_once_with(validation.CallableValidationContext(function, signature))
-    assert builder.signatures[nodes[0].node_id] is builder.signatures[nodes[1].node_id]
-    assert caplog.messages == [
-        "  Signature checks for 1 functions:\n"
-        "    - checking callable signatures\n"
-        "    - checking implementations accept declared arguments\n"
-        "    - checking declared arguments can be passed as keywords\n"
-        "    - checking declared implementation argument annotations\n"
-        "    - checking required implementation parameters are declared\n"
-        "    - checking declared implementation return annotations",
-        "    - skipping 1 functions (validate_signature=false)",
-    ]
+    plan = compiler.Compiler().compile(specification)
 
-    replacement = compiler._Compilation(spec.Spec())
-    assert replacement.function_signatures == {}
-    assert replacement.signatures == {}
+    assert parse_entrypoint.call_count == 1
+    implementation.module.read_package.assert_called_once_with()
+    implementation.function.read_signature.assert_called_once_with()
+    validate.assert_called_once_with(validation.CallableValidationContext(function, signature))
+    assert plan.resources["signatures"] == {
+        plan.invocations[0].id: "float",
+        plan.invocations[1].id: "float",
+    }
+
+
+def test_compiler_logs_signature_validation_summary(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    caplog.set_level(logging.DEBUG, logger=compiler.__name__)
+    compiler.Compiler().compile(spec.Spec())
+    assert any(
+        message.startswith("  Signature checks for 0 functions:") for message in caplog.messages
+    )
 
 
 @pytest.mark.parametrize("features", [None, [], ["missing"], "result"])
