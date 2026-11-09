@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import typing
 
-from . import binding, functions
+from . import functions
 
 if typing.TYPE_CHECKING:
     from .spec import Spec
@@ -19,14 +19,6 @@ DEFAULT_FUNCTION = functions.FunctionTemplate(
         "target": functions.Argument(id="target", type="dataframe | null"),
         "fragment": functions.Argument(id="fragment", type="dataframe"),
         "target_keys": functions.Argument(id="target_keys", type="array[string]"),
-    },
-)
-DEFAULT_BINDING = binding.Binding(
-    function=DEFAULT_FUNCTION.id,
-    args={
-        "target": "$profiles.@.dataset",
-        "fragment": "$operators.@.fragment",
-        "target_keys": "$profiles.@.grain.ids",
     },
 )
 
