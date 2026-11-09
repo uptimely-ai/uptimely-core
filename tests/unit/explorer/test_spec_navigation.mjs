@@ -48,6 +48,12 @@ test("vectorize uses the table properties icon", () => {
   assert.match(kindIcon("vectorize"), /data-lucide="table-properties"/);
 });
 
+test("function detail grids stack on narrow screens and share space when wide", async () => {
+  const css = await readFile(new URL("../css/spec.css", root), "utf8");
+  assert.match(css, /\.function-origin-grid,\s*\.function-metadata-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*220px\),\s*1fr\)\)/);
+  assert.match(css, /\.function-example\s*\{[^}]*min-width:\s*0/);
+});
+
 test("data type icons normalize common aliases and composed types", () => {
   for (const [type, name] of [
     ["Float64", "hash"], ["uint32", "hash"], ["array[string]", "brackets"],

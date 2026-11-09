@@ -24,9 +24,9 @@ export function initializeCatalog(signal) {
 
   function selectCatalogItem(hash = location.hash) {
     if (!catalogItems.length) return;
-    const link = catalogLinks.find(candidate => candidate.hash === hash) || catalogLinks[0];
-    const target = document.getElementById(decodeURIComponent(link.hash.slice(1)));
-    const selected = catalogItems.find(item => item === target || target.contains(item));
+    const target = document.getElementById(decodeURIComponent(hash.slice(1)));
+    const selected = catalogItems.find(item => item === target || item.contains(target) || target?.contains(item))
+      || document.getElementById(decodeURIComponent(catalogLinks[0].hash.slice(1)));
     const isOverview = selected.id === "overview";
     const dimensionLabel = document.querySelector("[data-dimension-label]");
     if (dimensionLabel) dimensionLabel.hidden = isOverview;
@@ -79,9 +79,13 @@ export function initializeCatalog(signal) {
         candidate.removeAttribute("aria-current");
       }
     });
-    showCatalogTop();
     cancelAnimationFrame(scrollFrame);
-    scrollFrame = requestAnimationFrame(showCatalogTop);
+    if (target && target !== selected && selected.contains(target)) {
+      scrollFrame = requestAnimationFrame(() => target.scrollIntoView({ block: "start" }));
+    } else {
+      showCatalogTop();
+      scrollFrame = requestAnimationFrame(showCatalogTop);
+    }
   }
 
   selectCatalogItem();

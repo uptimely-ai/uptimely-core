@@ -45,7 +45,7 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functions.content, /language-python/);
   assert.match(functions.content, /<span class="ui-badge[^>]*>Python<\/span>/);
   assert.match(functions.content, /<h3 class="function-detail-title"><i class="site-icon icon--functions function-detail-icon" data-lucide="table-properties" title="Function kind: Vectorize"[^>]*><\/i><span>&lt;Calculate&gt;<\/span><\/h3>/);
-  assert.match(functions.content, /<section class="function-kind-graphic min-w-0"[^>]*aria-label="Vectorize function kind diagram">[^]*?<h3 class="ui-section-title">Function kind<\/h3>\s*<p class="function-kind-value"><i class="site-icon icon--functions function-kind-value-icon" data-lucide="table-properties" title="Function kind: Vectorize"[^>]*><\/i><span>Vectorize<\/span><\/p>[^]*?<div class="function-detail-box mt-3 flex min-h-40 flex-col[^]*?<svg viewBox="0 0 150 44"[^]*?<\/svg>/);
+  assert.match(functions.content, /<section class="function-kind-graphic min-w-0"[^>]*aria-label="Vectorize function kind diagram">\s*<h3 class="ui-section-title profile-detail-subheading"><i class="site-icon icon--functions profile-detail-icon" data-lucide="table-properties" title="Function kind: Vectorize"[^>]*><\/i><span>Vectorize kind<\/span><\/h3>\s*<div class="function-detail-box mt-3 flex min-h-40 flex-col[^]*?<svg viewBox="0 0 150 44"[^]*?<\/svg>/);
   assert.doesNotMatch(functions.content, /Operation diagram/);
   assert.match(functions.content, /&lt;script&gt;/);
   assert.match(functions.content, /DataFrame/);
@@ -61,10 +61,10 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Returns">\s*<h4 class="function-metadata-title">[^]*?data-lucide="arrow-right"[^]*?<span>Returns<\/span><\/h4>\s*<div class="function-metadata-card function-detail-box">\s*<p><span class="ui-badge[^>]*>DataFrame<\/span><\/p>[^]*?Calculated &lt;values&gt;\./);
   assert.doesNotMatch(functionArticle.match(/<section class="function-metadata-entry" aria-label="Returns">[^]*?<\/section>/)[0], /data-type-label-icon|data-lucide="table-2"/);
   assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Errors">\s*<h4 class="function-metadata-title">[^]*?data-lucide="info"[^]*?<span>Errors<\/span><\/h4>\s*<div class="function-metadata-card function-detail-box">[^]*?ValueError<\/span> — Invalid &lt;value&gt;\./);
-  assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Source">\s*<h4 class="function-metadata-title">[^]*?data-lucide="braces"[^]*?<span>Source<\/span><\/h4>\s*<div class="function-metadata-card function-detail-box">[^]*?example:calculate/);
+  assert.match(functionArticle, /<section class="function-source" aria-label="Source">[^]*?data-lucide="code-xml"[^]*?<span>Source<\/span>[^]*?<dt>Package<\/dt><dd><code>—<\/code><\/dd>[^]*?<dt>Module<\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>Function<\/dt><dd><code>calculate<\/code>/);
   assert.match(functionArticle, /<pre class="function-detail-box mt-3 min-h-40/);
   assert.match(functionArticle, /<div class="function-detail-box mt-3 flex min-h-40/);
-  assert.match(functionArticle, /aria-label="Function usage"[^]*?<li class="function-usage-item function-detail-box">[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=features#feature-readings-value">&lt;Value&gt;<\/a>/);
+  assert.match(functionArticle, /aria-label="Function usage"[^]*?Used by operators[^]*?<li class="function-usage-item function-detail-box">[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=profiles#operator-readings-calculate">Calculate<\/a>/);
   assert.doesNotMatch(functionArticle, /<h3 class="ui-section-title">Raises<\/h3>/);
   const escapeFunctionData = sampleData();
   escapeFunctionData.catalogs.function_groups.escape = escapeFunctionData.catalogs.function_groups.vectorize;
@@ -72,10 +72,10 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   escapeFunctionData.catalogs.function_groups.escape.calculate.kind = "escape";
   const escapeFunction = renderCatalog(escapeFunctionData, "functions").content;
   assert.match(escapeFunction, /<h3 class="function-detail-title"><i class="site-icon icon--functions function-detail-icon" data-lucide="arrow-up-right" title="Function kind: Escape"[^>]*><\/i><span>&lt;Calculate&gt;<\/span><\/h3>/);
-  assert.match(escapeFunction, /<h3 class="ui-section-title">Function kind<\/h3>\s*<p class="function-kind-value">[^]*?<span>Escape<\/span><\/p>/);
+  assert.match(escapeFunction, /<h3 class="ui-section-title profile-detail-subheading"><i[^>]*data-lucide="arrow-up-right"[^>]*><\/i><span>Escape kind<\/span><\/h3>/);
   assert.doesNotMatch(escapeFunction, /Uncontrolled external effect\. Declared feature dependencies do not materialize outputs; return values are ignored\./);
-  assert.match(escapeFunction, /aria-label="Function usage"[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=features#feature-readings-value">&lt;Value&gt;<\/a>/);
-  assert.doesNotMatch(escapeFunction, /Used by operators|escape-operator-card/);
+  assert.match(escapeFunction, /aria-label="Function usage"[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=profiles#operator-readings-calculate">Calculate<\/a>/);
+  assert.doesNotMatch(escapeFunction, /escape-operator-card/);
   const functionOverview = functions.content.slice(0, functions.content.indexOf('<div class="space-y-8">'));
   assert.doesNotMatch(functionOverview, /data-stat=/);
   assert.doesNotMatch(functionOverview, /<h2[^>]*>Functions overview<\/h2>/);
@@ -154,6 +154,47 @@ test("function examples retain multiline content, order and HTML escaping", asyn
     'frame = make_frame(\n    &quot;&lt;input&gt;&quot;\n)\nresult = calculate(frame)\n[1, 2]',
     'print(&quot;&lt;second&gt;&quot;)',
   ]);
+  const article = html.slice(html.indexOf('<article id="function-calculate"'));
+  assert.equal((article.match(/<section class="function-example">/g) || []).length, 2);
+  assert.ok(article.indexOf("Example 2") < article.indexOf('class="function-origin-grid"'));
+  assert.match(article, /class="function-origin-grid"[^]*?class="function-kind-graphic[^]*?class="function-source"/);
+  assert.ok(article.indexOf("Arguments") < article.indexOf('class="function-metadata-grid"'));
+  assert.doesNotMatch(article, /lg:grid-cols-\[minmax/);
+});
+
+test("function source and operator usage handle qualified, missing and escaped values", async () => {
+  const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
+  const data = sampleData();
+  const fn = data.catalogs.function_groups.vectorize.calculate;
+  fn.entrypoint = "pump.<package>.analytics:Class.method";
+  fn.signature_validation_disabled = true;
+  fn.doc.raises = [{ type: "ValueError", description: "Invalid." }];
+  const assembly = data.catalogs.configuration.profiles.readings.assembly;
+  assembly.calculate.name = "Calculate <values>";
+  assembly.calculate.interface.outputs = [];
+  assembly.merge_values = { compute: { function: "other" }, merge: { function: "calculate" },
+    interface: { inputs: [], outputs: [] } };
+
+  const html = renderCatalog(data, "functions").content;
+  const article = html.slice(html.indexOf('<article id="function-calculate"'));
+  assert.match(article, /<dt>Package<\/dt><dd><code>pump\.&lt;package&gt;<\/code><\/dd>/);
+  assert.match(article, /<dt>Module<\/dt><dd><code>analytics<\/code><\/dd>/);
+  assert.match(article, /<dt>Function<\/dt><dd><code>Class\.method<\/code><\/dd>/);
+  assert.match(article, /Python signature validation disabled/);
+  assert.match(article, /operator-readings-calculate">Calculate &lt;values&gt;<\/a>/);
+  assert.match(article, /operator-readings-merge_values">Merge Values<\/a>/);
+  assert.match(article, /class="function-metadata-grid"[^]*?aria-label="Returns"[^]*?aria-label="Errors"/);
+  assert.ok(article.indexOf('aria-label="Errors"') > article.indexOf("Arguments"));
+
+  delete fn.entrypoint;
+  fn.signature_validation_disabled = false;
+  fn.return_type = null;
+  fn.doc.raises = [];
+  assembly.calculate.compute.function = "other";
+  delete assembly.merge_values.merge;
+  const empty = renderCatalog(data, "functions").content;
+  assert.doesNotMatch(empty, /class="function-source"|class="function-metadata-grid"/);
+  assert.match(empty, /Not used by any operator/);
 });
 
 test("merge phases expose their invocation metadata and owning operator", async () => {
