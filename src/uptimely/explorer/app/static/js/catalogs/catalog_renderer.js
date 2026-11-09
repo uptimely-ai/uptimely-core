@@ -354,17 +354,49 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
     || (Array.isArray(value) && value.some(item => isEngineBound(item, "")))
     || (value !== null && typeof value === "object"
       && Object.values(value).some(item => isEngineBound(item, "")));
-  const resolvedArgumentDetails = (operatorId, title, invocations) => invocations.length
+  const isReference = value => (typeof value === "string" && value.startsWith("$"))
+    || (Array.isArray(value) && value.some(isReference))
+    || (value !== null && typeof value === "object"
+      && Object.values(value).some(isReference));
+  const formatArgumentValue = (value, depth = 0) => {
+    if (typeof value === "string") {
+      return value.startsWith("$") || depth === 0 ? value : JSON.stringify(value);
+    }
+    if (Array.isArray(value)) {
+      if (!value.length) return "[]";
+      const indentation = "  ".repeat(depth + 1);
+      return `[\n${indentation}${value.map(item => formatArgumentValue(item, depth + 1)).join(`,\n${indentation}`)}\n${"  ".repeat(depth)}]`;
+    }
+    if (value !== null && typeof value === "object") {
+      const entries = Object.entries(value);
+      if (!entries.length) return "{}";
+      const indentation = "  ".repeat(depth + 1);
+      return `{\n${indentation}${entries.map(([key, item]) =>
+        `${JSON.stringify(key)}: ${formatArgumentValue(item, depth + 1)}`).join(`,\n${indentation}`)}\n${"  ".repeat(depth)}}`;
+    }
+    return JSON.stringify(value);
+  };
+  const displayArgumentValue = value => escape(formatArgumentValue(value));
+  const resolvedArgumentDetails = (operatorId, operator, title, invocations) => invocations.length
     ? `<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>${title}</summary>
-      ${invocations.map(invocation => `<div class="ui-table-scroll" tabindex="0" role="region" aria-label="Resolved arguments for ${escape(operatorId)}">
-        <table class="ui-table"><caption class="sr-only">Resolved arguments for ${escape(operatorId)}</caption>
-          <thead><tr><th scope="col">Argument</th><th scope="col">Resolved value</th></tr></thead>
+      ${invocations.map(invocation => `<div class="ui-table-scroll" tabindex="0" role="region" aria-label="Arguments for ${escape(operatorId)}">
+        <table class="ui-table"><caption class="sr-only">Arguments for ${escape(operatorId)}</caption>
+          <thead><tr><th scope="col">Argument</th><th scope="col">Spec value</th><th scope="col">Resolved value</th></tr></thead>
           <tbody>${Object.entries(invocation.args || {}).map(([name, argument]) => {
             const type = argument.type.engine || argument.type.function || "";
             const engineBound = isEngineBound(argument.value, type);
-            const resolvedValue = escape(JSON.stringify(argument.value));
+            const bindValue = operator.compute.args?.[name];
+            const serializedBindValue = displayArgumentValue(bindValue);
+            const bindDisplay = bindValue === undefined ? "—" : isReference(bindValue)
+              ? `<span class="ui-badge profile-operator-argument-value"><code class="language-json">${serializedBindValue}</code></span>`
+              : `<code class="language-json">${serializedBindValue}</code>`;
+            const resolvedValue = displayArgumentValue(argument.value);
+            const engineBindIndicator = `<span class="profile-operator-engine-bind" tabindex="0" data-tooltip="This value will be bound only during the engine execution." aria-label="This value will be bound only during the engine execution.">${icon("engine-bind")}</span>`;
             return `<tr><th scope="row">${typedName(name, type || "—")}</th>
-              <td><span class="profile-operator-resolved-value">${engineBound ? `<span class="ui-badge"><code class="language-json">${resolvedValue}</code></span>` : `<code class="language-json">${resolvedValue}</code>`}${engineBound ? `<span class="profile-operator-engine-bind" tabindex="0" data-tooltip="This value will be bound only during the engine execution." aria-label="This value will be bound only during the engine execution.">${icon("engine-bind")}</span>` : ""}</span></td></tr>`;
+              <td>${bindDisplay}</td>
+              <td><span class="profile-operator-resolved-value">${engineBound
+    ? `<span class="ui-badge profile-operator-argument-value">${engineBindIndicator}<code class="language-json">${resolvedValue}</code></span>`
+    : `<code class="language-json">${resolvedValue}</code>`}</span></td></tr>`;
           }).join("")}</tbody>
         </table></div>`).join("")}</details>` : "";
   return `<div class="profile-operator-list">${operators.map(([id, operator]) => {
@@ -395,7 +427,7 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
           ${icon("functions", "profile-operator-function-icon")}
           <a href="${href("functions", `function-${functionId}`)}">${escape(fn.name || functionId)}</a>
         </div>
-        ${resolvedArgumentDetails(id, "Resolved arguments", computeInvocations)}
+        ${resolvedArgumentDetails(id, operator, "Arguments", computeInvocations)}
       </div>
     </article>`;
   }).join("")}</div>`;
