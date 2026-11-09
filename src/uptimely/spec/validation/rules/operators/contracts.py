@@ -4,7 +4,7 @@ import logging
 
 from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
-from uptimely.spec import selectors
+from uptimely.spec import selectors, semantics
 from uptimely.spec.validation import errors
 
 logger = logging.getLogger(__name__)
@@ -280,6 +280,7 @@ def _dataframe_input_violations(
 def validate_dimension_change(spec: spec_model.Spec) -> None:
     """Require profile sources and targets to follow their declared grain policy."""
     logger.debug("Check source and target dimensions follow function-kind policies")
+    spec_semantics = semantics.Semantics(spec)
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
@@ -287,18 +288,17 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
         change = functions.FUNCTION_KINDS[function.kind].dimension_change
         if change == "unrestricted":
             continue
-        target_profile = spec.operator_profile_keys[key]
-        target = spec.profiles_by_key[target_profile].grain_reference_set
         for source_key in spec.dataframe_argument_profiles[key]:
-            source = spec.profiles_by_key[source_key].grain_reference_set
+            relationship = spec_semantics.operator_grain_relationships[key].get(
+                source_key, "not_applicable"
+            )
             valid = (
-                source == target
-                if change == "preserve"
-                else (
-                    spec.grain_refines(source_key, target_profile) and source != target
-                    if change == "add"
-                    else spec.grain_refines(target_profile, source_key) and target != source
-                )
+                relationship
+                == {
+                    "preserve": "same",
+                    "add": "expand",
+                    "remove": "collapse",
+                }[change]
             )
             if valid:
                 continue
