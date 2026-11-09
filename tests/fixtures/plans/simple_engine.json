@@ -1,5 +1,5 @@
 {
-  "plan_version": 11,
+  "plan_version": 12,
   "required_backend": "polars",
   "invocations": [
     {

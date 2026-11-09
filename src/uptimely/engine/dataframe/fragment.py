@@ -86,12 +86,14 @@ class Fragment:
                 f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
             )
         columns = set(backend.column_names(dataframe))
-        dimensions = tuple(invocation.id_columns)
-        keys = dict.fromkeys([*dimensions, *invocation.identifier_columns])
+        dimensions = tuple(invocation.target_grain_keys)
+        keys = dict.fromkeys([*dimensions, *invocation.fragment_identifiers])
         identifiers = tuple(key for key in keys if key in columns)
         if invocation.fragment_dimensions == "subset" and not set(dimensions).issubset(columns):
             dimensions = identifiers
-        outputs = [key for key in invocation.output_features if key not in invocation.id_columns]
+        outputs = [
+            key for key in invocation.output_features if key not in invocation.target_grain_keys
+        ]
         for key in identifiers:
             if key not in dimensions and key not in outputs:
                 outputs.append(key)
@@ -140,7 +142,7 @@ class Fragment:
             else [
                 output
                 for output in invocation.output_features
-                if output not in invocation.id_columns
+                if output not in invocation.target_grain_keys
             ]
         )
         if not validate_content:

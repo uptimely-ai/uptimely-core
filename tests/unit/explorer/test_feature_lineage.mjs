@@ -208,7 +208,7 @@ class Element extends EventTarget {
   querySelector() { return this.children.find(child => child.tagName === "span") || null; }
 }
 
-test("invocation cards draw function-kind icons and only the operator subtitle", t => {
+test("invocation cards draw operator-label icons and only the operator subtitle", t => {
   const originals = new Map(["Path2D", "lucide"].map(name => [name, globalThis[name]]));
   t.after(() => {
     for (const [name, value] of originals) {

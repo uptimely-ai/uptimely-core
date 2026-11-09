@@ -59,15 +59,16 @@ Pydantic reports document-shape errors separately.
 | `rules.operators` | Operator declarations and iteration |
 | `rules.operators.inputs` | Input feature scope, structural references, and source discovery |
 | `rules.operators.outputs` | Output declarations, producers, and coverage warnings |
-| `rules.operators.contracts` | Dataframe references and kind-specific relationships |
+| `rules.operators.contracts` | Dataframe references and operator-specific relationships |
 | `rules.operators.dependencies` | Operator feature dependency cycles |
 | `rules.row_context` | Input ordering and context dimensions |
 | `errors` | Structured validation errors |
 
 Profile identity and ordering checks are implemented in `rules.profile_identity`.
-Operator rules are grouped by the relationship they check, not by function kind.
-Collapse shares input source discovery with every other operator; only invariants
-specific to collapsing are conditional on that kind.
+Operator rules are grouped by the relationship they check, not by callable
+metadata. Collapse shares input source discovery with every other operator;
+only invariants specific to the derived collapse relationship are conditional
+on that operator classification.
 
 Rules access `spec.profile_items` and `spec.operator_items` directly when they need
 ownership or diagnostic paths, and use `spec.profiles` or `spec.operators` otherwise.

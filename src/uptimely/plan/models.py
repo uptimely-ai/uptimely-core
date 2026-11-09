@@ -11,7 +11,7 @@ from uptimely import spec
 from uptimely.spec import operator_kinds
 from uptimely.spec import row_context as uptimely_row_context
 
-PLAN_VERSION = 11
+PLAN_VERSION = 12
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
@@ -47,10 +47,6 @@ class _PlanModel(pydantic.BaseModel):
 
     def __replace__(self, **changes: typing.Any) -> typing.Self:
         """Return a revalidated copy with selected fields replaced."""
-        if "id_columns" in changes:
-            changes["target_grain_keys"] = changes.pop("id_columns")
-        if "identifier_columns" in changes:
-            changes["fragment_identifiers"] = changes.pop("identifier_columns")
         values = {name: getattr(self, name) for name in type(self).model_fields}
         return type(self).model_validate({**values, **changes})
 
@@ -101,14 +97,8 @@ class Invocation(_PlanModel):
     output_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     input_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     row_context: uptimely_row_context.RowContext | None = None
-    target_grain_keys: list[NonEmptyString] = pydantic.Field(
-        default_factory=list,
-        validation_alias=pydantic.AliasChoices("target_grain_keys", "id_columns"),
-    )
-    fragment_identifiers: list[NonEmptyString] = pydantic.Field(
-        default_factory=list,
-        validation_alias=pydantic.AliasChoices("fragment_identifiers", "identifier_columns"),
-    )
+    target_grain_keys: list[NonEmptyString] = pydantic.Field(default_factory=list)
+    fragment_identifiers: list[NonEmptyString] = pydantic.Field(default_factory=list)
     output_types: dict[NonEmptyString, NonEmptyString | None] = pydantic.Field(default_factory=dict)
     column_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     argument_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
@@ -152,7 +142,7 @@ class Invocation(_PlanModel):
                 f"used by operator {node.operator_id}"
             )
         profile_key = spec_definition.profile_keys[node.profile_id]
-        id_columns = spec_definition.grain_keys_by_profile[profile_key]
+        target_grain_keys = spec_definition.grain_keys_by_profile[profile_key]
         operator = spec_definition.profiles[node.profile_id].assembly[node.operator_id]
         arguments = operator.resolve_args(
             role=node.role,
@@ -161,7 +151,7 @@ class Invocation(_PlanModel):
             profile_id=node.profile_id,
             grain_keys_by_profile=spec_definition.grain_keys_by_profile,
             resources=spec_definition.binding_resources,
-            id_columns=id_columns,
+            id_columns=target_grain_keys,
         )
         profile = spec_definition.profiles[node.profile_id]
         column_types = {
@@ -196,7 +186,7 @@ class Invocation(_PlanModel):
             arguments=arguments,
             dependency_ids=dependency_ids,
             row_context=node.row_context,
-            target_grain_keys=list(id_columns),
+            target_grain_keys=list(target_grain_keys),
             fragment_identifiers=list(identifier_types),
             output_types=output_types,
             column_types=column_types,
@@ -233,21 +223,11 @@ class Invocation(_PlanModel):
             raise ValueError("Fragment invocations must declare fragment dimensions")
         return self
 
-    @property
-    def id_columns(self) -> list[str]:
-        """Return target grain keys for existing runtime consumers."""
-        return self.target_grain_keys
-
-    @property
-    def identifier_columns(self) -> list[str]:
-        """Return fragment identifiers for existing runtime consumers."""
-        return self.fragment_identifiers
-
 
 class ExecutionPlan(_PlanModel):
     """Portable invocations and the compiler-selected execution schedule."""
 
-    plan_version: typing.Literal[11]
+    plan_version: typing.Literal[12]
     required_backend: NonEmptyString
     invocations: list[Invocation]
     stages: list[Stage]

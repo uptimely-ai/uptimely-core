@@ -12,6 +12,10 @@ at every step for eager and lazy frames. Lazy value checks may repeatedly execut
 upstream queries. Configuration and saved-build checks are always enabled.
 The engine checks plan/backend compatibility during construction,
 independently of the run's `validate` flag.
+Runtime validation checks the declared contracts for actual values, not the
+business correctness of an analytical result. Keep ordinary pytest assertions
+for expected values; isolate external reads, writes, and other side effects
+with safe fixtures or mocks.
 
 ## Materialized datasets and fragments
 
@@ -47,8 +51,8 @@ column names. Ownership is split explicitly:
 
 The invocation executor checks
 vectorized results against invocation-specific contracts before publication.
-These operations use `invocation.id_columns`, `invocation.identifier_columns`,
-`invocation.column_types`, and the
+These operations use `invocation.target_grain_keys`,
+`invocation.fragment_identifiers`, `invocation.column_types`, and the
 invocation's derived operator policy where needed. The compiler resolves these values from
 declarations. Runtime execution does not receive profile objects or traverse the
 bundled Spec.
@@ -56,7 +60,7 @@ bundled Spec.
 An expansion can return a source-resolution feature and its identifiers without
 performing its own join. Parent-resolution IDs are dimension identifiers, not
 analytical features. The compiler includes every resolution key from each
-dimension used by the target grain in `identifier_columns`. Staging retains
+dimension used by the target grain in `fragment_identifiers`. Staging retains
 these columns when they occur in the data,
 without requiring feature declarations or interface outputs. Other undeclared
 columns are discarded. Their types are validated when runtime validation is enabled.
@@ -66,9 +70,9 @@ already be available on the target; no reader or identifier-producer dependencie
 are inferred. A missing target identifier fails the merge rather than falling
 back to a cross join. Full-grain fragments merge by the declared grain and
 coalesce other shared identifiers. Lower-resolution fragments left-join by their
-carried identifiers without changing the target grain. This metadata is optional
-in saved plans; older plans default to grain keys only. Rebuild after changing
-these declarations.
+carried identifiers without changing the target grain. The current portable
+plan requires this metadata; older plan versions are rejected and must be
+rebuilt from the source Spec. Rebuild after changing these declarations.
 
 `Dataset.merge(fragment)` delegates to `Merge` for automatic assembly and publishes
 only after checks succeed. `Merge.execute(load)` accepts a configured merge

@@ -3,6 +3,7 @@ import copy
 import json
 
 import pytest
+from support import execution as execution_support
 
 from uptimely import plan as uptimely_plan
 
@@ -83,7 +84,7 @@ def test_plan_round_trip_preserves_operator_kind_metadata() -> None:
     assert restored.invocations[0].function_id == "load"
     assert restored.invocations[0].operator_id == "read_pressure"
     assert restored.invocations[0].profile_id == "pump_profile"
-    assert restored.invocations[0].id_columns == ["plant", "pump"]
+    assert restored.invocations[0].target_grain_keys == ["plant", "pump"]
     assert restored.invocations[0].output_types == {"pressure": "float"}
     assert restored.invocations[0].column_types == {
         "plant": "string",
@@ -108,7 +109,7 @@ def test_plan_round_trip_preserves_expansion_identifier_columns() -> None:
     restored = uptimely_plan.from_dict(uptimely_plan.to_dict(plan))
 
     assert restored == plan
-    assert restored.invocations[1].identifier_columns == ["series"]
+    assert restored.invocations[1].fragment_identifiers == ["series"]
 
 
 def test_plan_requires_fragment_identifier_metadata() -> None:
@@ -120,6 +121,36 @@ def test_plan_requires_fragment_identifier_metadata() -> None:
         uptimely_plan.from_dict(payload)
 
 
+@pytest.mark.parametrize(
+    ("legacy_field", "current_field"),
+    [
+        ("id_columns", "target_grain_keys"),
+        ("identifier_columns", "fragment_identifiers"),
+    ],
+)
+def test_plan_rejects_legacy_grain_metadata_fields(legacy_field: str, current_field: str) -> None:
+    payload = uptimely_plan.to_dict(_sample_plan())
+    invocation = payload["invocations"][0]
+    invocation[legacy_field] = invocation[current_field]
+
+    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
+        uptimely_plan.from_dict(payload)
+
+
+def test_test_spec_return_contract_comes_from_invocation_metadata() -> None:
+    invocation = (
+        _sample_plan()
+        .invocations[0]
+        .__replace__(
+            result="none",
+            operator_kind="read",
+            is_sink=False,
+        )
+    )
+
+    assert execution_support._return_contract_from_invocation(invocation) == "any"
+
+
 def test_plan_round_trip_preserves_read_identifier_columns() -> None:
     original = _sample_plan()
     reader = original.invocations[0].__replace__(fragment_identifiers=["series", "category"])
@@ -128,7 +159,7 @@ def test_plan_round_trip_preserves_read_identifier_columns() -> None:
     restored = uptimely_plan.from_dict(uptimely_plan.to_dict(plan))
 
     assert restored == plan
-    assert restored.invocations[0].identifier_columns == ["series", "category"]
+    assert restored.invocations[0].fragment_identifiers == ["series", "category"]
 
 
 @pytest.mark.parametrize("include_profile_id", [False, True])
@@ -208,7 +239,7 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "invocations",
         "stages",
     }
-    assert payload["plan_version"] == 11
+    assert payload["plan_version"] == 12
     assert "phase" not in payload["invocations"][0]
     assert not hasattr(plan.invocations[0], "phase")
     assert {"function_id", "operator_id"} <= set(payload["invocations"][0])
@@ -268,7 +299,7 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["callables"] = payload.pop("invocations")
 
     with pytest.raises(
-        ValueError, match=r"Unsupported plan version: 1\. Supported version is 11\."
+        ValueError, match=r"Unsupported plan version: 1\. Supported version is 12\."
     ):
         uptimely_plan.from_dict(payload)
 

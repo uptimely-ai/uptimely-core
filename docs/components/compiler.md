@@ -26,14 +26,14 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `11`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `12`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Invocation identifiers grouped by dependency order. |
 
 All root fields are required. Unknown fields and unsupported versions are
 rejected. Earlier plan versions are not converted. Rebuild generated bundles
-from their source Specs to create version 11 plans.
+from their source Specs to create version 12 plans.
 
 ## Invocation metadata
 
@@ -51,6 +51,9 @@ The plan also records the runtime contracts needed for execution, including the
 invocation role and result, dataframe input scope, fragment dimensions, and
 preservation relations. The engine dispatches and validates from these
 contracts; `operator_kind` is descriptive metadata, not an execution rule.
+Function categories and derived operator labels do not replace these
+invocation-specific contracts. The same callable may be used in operators with
+different source grains, binding roles, and results.
 
 ## Invocations
 

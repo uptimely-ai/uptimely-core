@@ -15,7 +15,7 @@ The Python modules import authoring classes and helpers directly from
 `uptimely`, for example `from uptimely import Operator, Feature, Profile, ref`.
 Functions use `from uptimely import function` and `@function` for analytical
 contracts. Argument wiring uses `ref.dataset()`, `ref.feature()`, and
-`ref.feature()`. Row-window binding helpers are imported separately from
+`ref.fragment()` for merge inputs. Row-window binding helpers are imported separately from
 `uptimely.spec.python.row_context`.
 
 The telemetry profile binds `polars.LazyFrame.with_columns` directly to copy

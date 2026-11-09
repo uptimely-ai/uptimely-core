@@ -174,7 +174,7 @@ def test_fragment_stage_loads_once_and_returns_merge_ready_data(
     assert staged.invocation is invocation
     assert backend.column_names(staged.dataframe) == ["asset_id", "reading"]
     assert backend.column_names(raw) == ["asset_id", "reading", "extra"]
-    main = dataset_module.Dataset(backend, invocation.id_columns)
+    main = dataset_module.Dataset(backend, invocation.target_grain_keys)
     assert main.merge(staged) is staged
     result = main.dataframe.collect() if lazy else main.dataframe
     assert result.to_dicts() == [{"asset_id": "A", "reading": 2}]
@@ -336,7 +336,7 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
         plan.invocations[0],
         fragment_dimensions="subset",
         output_features=["new"],
-        id_columns=["group", "id"],
+        target_grain_keys=["group", "id"],
         fragment_identifiers=["group"],
     )
     frame = pl.LazyFrame({"group": ["A"], "new": [1]})

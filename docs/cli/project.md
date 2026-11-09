@@ -105,6 +105,9 @@ project sources. A successful full or scoped build replaces the previous
 active bundle. Source edits do not change an existing build; rebuild explicitly
 to publish updated artifacts. If building fails, the last successful bundle
 remains active.
+Rebuilding after changing callable contracts, operator bindings, or descriptive
+function categories regenerates the plan and Explorer snapshot. It does not
+execute analytical functions or sinks.
 
 
 ### Publication and locking

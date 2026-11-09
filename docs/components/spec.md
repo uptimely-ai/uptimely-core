@@ -368,11 +368,15 @@ builtin merge binding:
 ```
 
 The framework derives labels such as `read`, `vectorize`, `conform`, `expand`,
-and `collapse` from a binding's dataframe source and target grain. They are not
-callable classifications: the same function can have different labels in
-different operators. Categories remain descriptive. `returns="any"` explicitly
-ignores a result and allows logical dependencies without materializing outputs.
-`returns="none"` declares no output and cannot declare materialized features.
+and `collapse` from a binding's return contract, dataframe source, and target
+grain. They are not callable classifications: the same function can have
+different labels in different operators. Shared derived Spec views expose the grain relationship,
+execution form (`compute` or `compute + merge`), and binding roles separately;
+the grain relationship does not determine the execution form or runtime result
+contract. Categories remain descriptive and are used only for function
+catalog grouping in Explorer. `returns="any"` explicitly ignores a result and
+allows logical dependencies without materializing outputs. `returns="none"`
+declares no output and cannot declare materialized features.
 
 ### Arguments
 

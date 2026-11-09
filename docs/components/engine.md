@@ -49,6 +49,10 @@ root to resolve function entrypoints. A plan can be compiled for selected
 output features; the compiler includes their prerequisite calculations and
 dependencies, so the engine needs no special subset logic. An exported plan is
 executed as part of its build bundle, without recompilation.
+Dispatch uses the invocation's binding role and result contract. A compute
+binding returns a complete target when it has no merge, or a fragment when it
+has a separately declared merge; function categories and display labels do not
+control execution.
 
 Execution returns profile frames, calculated outputs, per-invocation statuses and
 durations, failures, and the plan version. A failed invocation is reported in

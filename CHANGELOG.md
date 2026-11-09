@@ -11,14 +11,19 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Changed
 
 - **Breaking (Spec, plans, and Python API):** Callable contracts now declare
-  arguments and return roles independently of operator behavior. Removed
-  function `kind` and kind-based catalog grouping; use `returns` metadata or
-  unambiguous dataframe/None annotations, and descriptive categories.
-  Disabling signature inspection requires explicit `args` and `returns`.
-  Compute/merge roles come from binding positions, and default merging must
-  be selected with `default_merge()`. Spec version 8, plan version 9, and Explorer
-  snapshot version 2 replace their previous formats. Migrate source Specs and rebuild bundles
-  and Explorer snapshots; old serialized formats are rejected.
+  arguments and return roles independently of operator behavior. The function
+  `kind` field and authoring argument are removed; callable categories are
+  optional descriptive metadata, used to group functions in Explorer. Operator
+  grain relationships, execution forms, and compute/merge roles are derived
+  from Spec declarations, not function categories. A dataframe result without
+  a merge is a complete target; fragments require an explicit merge such as
+  `default_merge()`. Disabling signature inspection requires explicit `args`
+  and `returns`. Spec version 8, plan version 12, and Explorer snapshot version
+  3 replace their previous formats. Migrate each operator based on its bindings
+  and target behavior, then rebuild bundles and Explorer snapshots; old
+  serialized formats are rejected. Plan version 12 uses only
+  `target_grain_keys` and `fragment_identifiers`, replacing their legacy
+  aliases.
 - **Breaking (spec and Python API):** Spec version 7 renames profile dataset
   argument selectors from `.dataframe` to `.dataset` and renames
   `DATAFRAME_SELECTOR` to `DATASET_SELECTOR`. Function argument types remain

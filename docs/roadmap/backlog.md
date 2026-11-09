@@ -120,7 +120,7 @@ scoped execution. Parallel execution is not required.
 Consolidate and extend runnable analytics examples, not migration work deferred
 from earlier releases.
 
-**Prerequisites:** The function-kind contracts used by each example.
+**Prerequisites:** The callable contracts and operator bindings used by each example.
 
 | title | breaking | description |
 |---|---|---|

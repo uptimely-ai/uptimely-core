@@ -1,4 +1,4 @@
-"""Atomic profile-input and function-kind-specific operator contract checks."""
+"""Atomic profile-input and operator-specific contract checks."""
 
 import logging
 

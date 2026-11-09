@@ -86,7 +86,11 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         and invocation.operator_id == "read_pump_capacity"
         and invocation.operator_kind == "read"
     )
-    assert set(reader.identifier_columns) == {"pump_id", "machine_series_id", "machine_category_id"}
+    assert set(reader.fragment_identifiers) == {
+        "pump_id",
+        "machine_series_id",
+        "machine_category_id",
+    }
     assert reader.output_features == ["pump_id", "pump_max_capacity"]
     series_compute = next(
         invocation
@@ -94,7 +98,7 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         if invocation.operator_id == "expand_series_capacity"
         and invocation.operator_kind == "expand"
     )
-    assert series_compute.identifier_columns == reader.identifier_columns
+    assert series_compute.fragment_identifiers == reader.fragment_identifiers
     assert "pump_assets_source" not in series_compute.arguments
     reader_merge = next(
         invocation

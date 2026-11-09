@@ -48,16 +48,23 @@ retains aliases for validation without introducing additional Operator classes.
 dimensions, which can occur in multiple profiles. ID-keyed views use the last
 declaration when IDs collide; validate a document before relying on unique ownership.
 
-`uptimely.spec.semantics.Semantics(document)` provides derived operator
-relationships without adding semantic fields to the Spec. Its keyed properties
-include execution forms, known source profiles and their resolution status,
-binding roles, selected source and target resolution models, and grain relationships.
-Relationships are `same`, `expand`, `collapse`, `unrelated`, or
-`not_applicable`; unresolved sources use the `None` key. The existing operator
-continues to expose its bindings and output declarations. Grain relationships
-use resolution ancestry rather than dimension counts or function names.
-Create a new `Semantics` instance after rebuilding an edited document; its
-derived properties are cached per instance.
+The Spec exposes shared derived views without adding semantic fields to the
+authoritative document: `operator_grain_relationships`,
+`operator_execution_forms`, `operator_binding_roles`, and `operator_kinds`.
+The grain relationship describes source/target resolution structure
+(`same`, `expand`, `collapse`, `unrelated`, or `not_applicable`); execution
+form says whether the operator declares compute alone or compute plus merge;
+binding roles identify the bindings actually declared. `operator_kinds`
+provides a derived operator label for consumers that need one. None of these
+views classifies a reusable function: the same function can have different
+relationships and roles in different operators. Grain relationships use
+resolution ancestry rather than dimension counts or function names.
+
+`uptimely.spec.semantics.Semantics(document)` backs these shared Spec views and
+also exposes known source profiles and their resolution status, plus selected
+source and target resolution models. Unresolved sources use the `None` key.
+Create a new Spec with `document.rebuild()` after editing declarations; its
+derived properties are cached and are not serialized.
 
 Views use `functools.cached_property`; treat declarations and cached collections
 as read-only once accessed. Loading and compilation validate the document and
@@ -84,11 +91,12 @@ normalize their children:
 
 `FunctionTemplate` declares `args` and `returns` independently of operator
 semantics; it has no `kind` field. Its optional free-form `category` is
-descriptive and does not affect execution or validation. `FunctionTemplate`
-owns reusable contract checks, while binding validation enforces compute and
-merge arity according to their position. Semantic validation runs these checks
-on the function models. Rebuild an edited Spec before validating it again so
-all cached views reflect the edits.
+descriptive and does not affect execution or validation; Explorer uses it to
+group function catalog entries. `FunctionTemplate` owns reusable contract
+checks, while binding validation enforces compute and merge arity according to
+their position. Semantic validation runs these checks on the function models.
+Rebuild an edited Spec before validating it again so all cached views reflect
+the edits.
 
 Raw child dictionaries such as `profile.features`, `profile.assembly`, and
 `function.args` remain available. Bound arguments wrap values; catalog arguments
