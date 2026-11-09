@@ -137,8 +137,12 @@
 .profile-operator-bindings .ui-table-scroll { margin: 0 16px 12px; border: 1px solid #1e293b; border-radius: 6px; }
 .profile-operator-bindings-inline .ui-table-scroll { width: 100%; margin: 8px 0 0; }
 .profile-operator-bindings code.hljs, .profile-operator-bindings code.hljs span { padding: 0; background: transparent; }
+.profile-operator-argument-value { min-width: 0; max-width: 100%; flex-shrink: 1; align-items: flex-start;
+  gap: 5px; white-space: pre-wrap; overflow-wrap: anywhere; }
+.profile-operator-argument-value code { white-space: inherit; overflow-wrap: anywhere; }
 .profile-operator-resolved-value { display: inline-flex; align-items: center; gap: 6px; }
-.profile-operator-engine-bind { position: relative; display: inline-flex; color: #f87171; cursor: help; }
+.profile-operator-engine-bind { position: relative; display: inline-flex; margin-top: 2px;
+  color: #f87171; cursor: help; }
 .profile-operator-engine-bind .site-icon { width: 14px; height: 14px; }
 .feature-meta { display: flex; flex-wrap: wrap; gap: 16px 24px; margin-top: 16px; }
 .feature-meta > div { min-width: 0; max-width: 100%; }

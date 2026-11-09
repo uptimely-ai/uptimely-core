@@ -148,10 +148,10 @@ test("profile details show every declared operator in order including vectorized
   assert.deepEqual([...content.matchAll(/data-profile-operator="([^"]+)"/g)].map(match => match[1]),
     Object.keys(assembly));
   assert.equal((content.match(/data-operator-kind="vectorize"/g) || []).length, 2);
-  assert.match(content, /<summary>Resolved arguments<\/summary>/);
-  assert.match(content, /class="language-json">&quot;resolved_1&quot;<\/code>/);
+  assert.match(content, /<summary>Arguments<\/summary>/);
+  assert.match(content, /<span class="ui-badge profile-operator-argument-value"><code class="language-json">\$outputs\.value_1<\/code><\/span>/);
+  assert.match(content, /class="language-json">resolved_1<\/code>/);
   assert.match(content, /href="\?view=functions#function-vectorize">vectorize function/);
-  assert.doesNotMatch(content, /\$outputs\.value_1/);
 
   configuration.profiles.telemetry.assembly = { calculate: assembly.operator_1 };
   const vectorizedOnly = render();
@@ -191,7 +191,7 @@ test("feature and function type displays use matching data type icons", () => {
         grain: [], features: { temperature: { name: "Temperature", type: "float64" } },
         assembly: { load: {
           name: "Read Telemetry",
-          compute: { function: "load" },
+          compute: { function: "load", args: { source: "telemetry.csv" } },
           merge: { function: "merge" },
           interface: { outputs: ["$features.temperature"] },
         } },
@@ -228,8 +228,8 @@ test("feature and function type displays use matching data type icons", () => {
   const featureOperator = featureCard.match(/<article id="feature-temperature-operator-telemetry-load"[\s\S]*?<\/article>/)[0];
   assert.equal(featureOperator.replace("feature-temperature-operator-telemetry-load", "operator-telemetry-load"),
     profileOperator);
-  assert.match(featureOperator, /Resolved arguments/);
-  assert.match(featureOperator, /telemetry\.csv/);
+  assert.match(featureOperator, /<summary>Arguments<\/summary>/);
+  assert.match(featureOperator, /<td><code class="language-json">telemetry\.csv<\/code><\/td>/);
   assert.match(featureOperator, /<div class="profile-operator-function">\s*<i[^>]*class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
   assert.match(featureOperator, /profile-operator-merge-indicator/);
   assert.match(featureOperator, /Input features[\s\S]*class="profile-operator-flow"[\s\S]*Output features/);
