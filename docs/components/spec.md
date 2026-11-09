@@ -297,6 +297,7 @@ identifiers.
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | Generated from the function identifier | Human-readable display name. |
 | `kind` | string | Yes | N/A | Function kind: `write`, `read`, `escape`, `conform`, `expand`, `collapse`, `vectorize`, or `merge`. |
+| `category` | string or null | No | `null` | Optional free-form function category for descriptive metadata. It does not affect execution or validation. |
 | `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing kinds, `none` for `write`, or `any` for `escape`. |
 | `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |
 | `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check call compatibility and supported annotations. |

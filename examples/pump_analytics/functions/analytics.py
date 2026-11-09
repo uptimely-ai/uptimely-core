@@ -13,7 +13,7 @@ SUPPORTED_AGGREGATIONS = ("max", "min", "mean", "sum")
 EMPTY_COLUMN_RENAMES: collections.abc.Mapping[str, str] = types.MappingProxyType({})
 
 
-@function(kind="expand")
+@function(kind="expand", category="select")
 def select_columns(
     dataset: pl.LazyFrame,
     columns: list[str],
@@ -37,7 +37,7 @@ def select_columns(
     return dataset.select(columns).rename(rename)
 
 
-@function(kind="read")
+@function(kind="read", category="read")
 def read_pump_telemetry(
     source: str,
     pump_assets_source: str,
@@ -119,7 +119,7 @@ def read_pump_telemetry(
     return data_read
 
 
-@function(kind="write")
+@function(kind="write", category="write")
 def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
     """Write calculated telemetry features as JSON to standard output.
 
@@ -141,7 +141,7 @@ def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
     return
 
 
-@function(kind="collapse")
+@function(kind="collapse", category="aggregate")
 def aggregate(
     dataset: pl.LazyFrame,
     feature: str,
@@ -200,7 +200,7 @@ def aggregate(
     return data_collapsed
 
 
-@function(kind="vectorize")
+@function(kind="vectorize", category="calculate")
 def delta(
     dataset: pl.LazyFrame,
     feature: str,
@@ -242,7 +242,7 @@ def delta(
     return data_vectorized
 
 
-@function(kind="vectorize")
+@function(kind="vectorize", category="calculate")
 def ratio(
     dataset: pl.LazyFrame,
     numerator_features: list[str],
@@ -284,7 +284,7 @@ def ratio(
     return data_vectorized
 
 
-@function(kind="expand")
+@function(kind="expand", category="calculate")
 def broadcast_constant(
     constants: pl.LazyFrame,
     feature: str,
@@ -315,7 +315,7 @@ def broadcast_constant(
     return data_expanded
 
 
-@function(kind="vectorize")
+@function(kind="vectorize", category="calculate")
 def subtract(
     dataset: pl.LazyFrame,
     feature: str,
@@ -349,7 +349,7 @@ def subtract(
     return data_vectorized
 
 
-@function(kind="vectorize")
+@function(kind="vectorize", category="select")
 def extract_field(
     dataset: pl.LazyFrame,
     field: str,
@@ -383,7 +383,7 @@ def extract_field(
     return data_vectorized
 
 
-@function(kind="vectorize")
+@function(kind="vectorize", category="calculate")
 def min_max_scale(
     dataset: pl.LazyFrame,
     feature: str,
@@ -433,7 +433,7 @@ def min_max_scale(
     return data_vectorized
 
 
-@function(kind="vectorize")
+@function(kind="vectorize", category="estimate")
 def operation_point_quantum_optimization(
     dataset: pl.LazyFrame, optimization_features: list[str], output: str
 ) -> pl.LazyFrame:
@@ -477,7 +477,7 @@ def operation_point_quantum_optimization(
     return data_vectorized
 
 
-@function(kind="vectorize")
+@function(kind="vectorize", category="calculate")
 def pump_health_score(
     dataset: pl.LazyFrame, health_features: list[str], output: str
 ) -> pl.LazyFrame:

@@ -11,7 +11,7 @@ SOURCE_PATH = EXAMPLE_ROOT / "data" / "pump_external_workflow.csv"
 OUTPUT_PATH = EXAMPLE_ROOT / "_generated" / "pump_external_workflow_results.csv"
 
 
-@function(kind="merge")
+@function(kind="merge", category="merge")
 def merge_pump_inputs(
     target: pl.DataFrame | pl.LazyFrame | None,
     fragment: pl.DataFrame | pl.LazyFrame,
@@ -33,7 +33,7 @@ def merge_pump_inputs(
     )
 
 
-@function(kind="escape")
+@function(kind="escape", category="workflow")
 def process_pump_external_workflow() -> None:
     """Read pump inputs, calculate ratios, and write results internally.
 

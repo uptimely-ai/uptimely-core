@@ -198,6 +198,7 @@ class Binding:
         return spec_model.FunctionTemplate(
             id=reference.name,
             kind=kind,
+            category=reference.category,
             returns=functions.FUNCTION_KINDS[kind].returns,
             entrypoint=reference.entrypoint,
             validate_signature=reference.validate_signature,

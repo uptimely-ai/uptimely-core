@@ -136,8 +136,8 @@ validates feature references and rejects repeated input or output IDs when
 constructed. It checks them again during conversion, so later mutations of its
 collections cannot bypass those checks.
 
-`Binding` owns function metadata (`kind` and `reference`), callable argument
-validation (`bound_arguments()`), and conversion (`to_model()` and
+`Binding` owns function metadata (`kind`, optional `category`, and `reference`),
+callable argument validation (`bound_arguments()`), and conversion (`to_model()` and
 `to_function_template()`). `Interface.to_model(compute=..., merge=...)` accepts
 canonical bindings and builds feature selectors. `Operator` coordinates these
 conversions and validates compute/merge compatibility; its existing metadata
@@ -152,7 +152,9 @@ catalog ID is derived from the referenced function name. Optionally annotate
 callable implementations with `@function(kind=...)`.
 The decorator attaches
 semantic metadata for validation;
-it returns the original function without wrapping or executing it. Alternatively,
+an optional `category="..."` may also be supplied as descriptive Spec metadata.
+The category is unrestricted text and does not affect execution or validation.
+The decorator returns the original function without wrapping or executing it. Alternatively,
 keep implementations undecorated and supply their contract through
 `ref.function(implementation, kind=...)`. Entrypoint strings also use explicit
 function references. Kind belongs to the function, not the operator.
@@ -168,12 +170,13 @@ parameter names and required arguments.
 from uptimely.spec.python import function, ref
 
 
-@function(kind="collapse")
+@function(kind="collapse", category="aggregation")
 def maximum(dataset, feature, dimensions, output): ...
 
 
 decorated = ref.function(maximum)  # Carries the declared collapse contract.
 external = ref.function("third_party.analytics:maximum", kind="collapse")
+categorized = ref.function("third_party.analytics:maximum", kind="collapse", category="aggregation")
 ```
 `read` functions take no dataframe arguments. `conform`, `collapse`, and
 `expand` each take only their foreign/source dataframe; the engine supplies and

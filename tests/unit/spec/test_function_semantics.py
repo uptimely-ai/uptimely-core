@@ -19,6 +19,11 @@ def decorated(value: str) -> str:
     return value
 
 
+@authoring.function(kind="vectorize", category="transform")
+def categorized(value: str) -> str:
+    return value
+
+
 @pytest.mark.parametrize("kind", function_kinds.FUNCTION_KINDS)
 def test_decorator_preserves_callable_identity_and_behavior(
     kind: function_kinds.FunctionKindId,
@@ -84,6 +89,23 @@ def test_decorated_direct_callable_and_reference_have_identical_contracts() -> N
     assert direct.to_model() == referenced.to_model()
     assert direct.function_catalog() == referenced.function_catalog()
     assert ref.function(decorated, kind="vectorize").kind == "vectorize"
+
+
+def test_category_is_preserved_in_function_metadata_and_spec() -> None:
+    reference = ref.function(categorized)
+    operator = authoring.Operator(
+        id="calculate",
+        interface=authoring.Interface(outputs=[]),
+        compute=authoring.Binding(function=reference, arguments={"value": "input"}),
+    )
+
+    assert reference.category == "transform"
+    assert operator.function_catalog()["categorized"].category == "transform"
+
+
+def test_explicit_category_cannot_override_decorated_metadata() -> None:
+    with pytest.raises(ValueError, match="conflicts with decorated category 'transform'"):
+        ref.function(categorized, category="aggregate")
 
 
 def test_explicit_kind_cannot_override_decorated_semantics() -> None:
