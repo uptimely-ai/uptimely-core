@@ -403,10 +403,13 @@ def min_max_scale(
 
 
 @function(kind="vectorize")
-def optimize_pump_operating_point(
+def operation_point_quantum_optimization(
     dataset: pl.LazyFrame, optimization_features: list[str], output: str
 ) -> pl.LazyFrame:
     """Return recommended operating values and convergence as a struct column.
+
+    Mockup to demonstrate that a quantum optimization function could be used
+    to recommend operating points for a pump.
 
     Parameters
     ----------
@@ -428,7 +431,7 @@ def optimize_pump_operating_point(
     ...     {"pressure": [4.0], "flow": [10.0], "power": [5.0], "temp": [80.0], "vib": [3.0]}
     ... )
     >>> features = ["pressure", "flow", "power", "temp", "vib"]
-    >>> result = optimize_pump_operating_point(frame, features, "recommendation")
+    >>> result = operation_point_quantum_optimization(frame, features, "recommendation")
     >>> result.collect()["recommendation"].to_list()[0]["converged"]
     True
     """
