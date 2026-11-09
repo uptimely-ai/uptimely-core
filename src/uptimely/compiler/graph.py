@@ -30,6 +30,13 @@ class InvocationNode:
     operator_kind: operator_kinds.OperatorKindId
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
+    produces_features: bool = False
+    is_sink: bool = False
+    fragment_dimensions: typing.Literal["target", "subset", "not_applicable"] = "not_applicable"
+    row_count_relation: typing.Literal["same", "unrestricted"] = "unrestricted"
+    key_relation: typing.Literal["identical", "unrestricted"] = "unrestricted"
+    row_order_relation: typing.Literal["preserve", "unrestricted"] = "unrestricted"
+    existing_data_relation: typing.Literal["preserve", "unrestricted"] = "unrestricted"
     output_features: tuple[str, ...] = ()
     arguments: dict[str, spec_model.BindingArgument] = dataclasses.field(
         default_factory=dict, compare=False, hash=False

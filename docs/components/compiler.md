@@ -26,14 +26,14 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `9`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `10`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Invocation identifiers grouped by dependency order. |
 
 All root fields are required. Unknown fields and unsupported versions are
 rejected. Earlier plan versions are not converted. Rebuild generated bundles
-from their source Specs to create version 9 plans.
+from their source Specs to create version 10 plans.
 
 ## Invocation metadata
 
@@ -83,7 +83,9 @@ engine-owned runtime accumulators, not invocation declaration metadata.
 | `id` | string | Unique identifier for this invocation. |
 | `role` | string | Binding position: `compute` or `merge`. |
 | `result` | string | Result handling: `none`, complete `target`, or staged `fragment`. |
-| `operator_kind` | string | Derived operator label: `read`, `conform`, `expand`, `collapse`, `vectorize`, `write`, or `escape`. Merge invocations retain their owning operator's label. |
+| `operator_kind` | string | Derived operator label retained for Explorer and diagnostics; execution result handling is declared separately by `role` and `result`. |
+| `produces_features` | boolean | Whether this computation publishes its declared outputs as feature dependencies. |
+| `is_sink` | boolean | Whether the computation is a configured publication sink. |
 | `entrypoint` | string | Implementation location for the function. |
 | `function_id` | string | Function declaration used by the invocation. |
 | `operator_id` | string | Operator declaration used by the invocation. |
@@ -91,7 +93,14 @@ engine-owned runtime accumulators, not invocation declaration metadata.
 | `arguments` | object | Resolved arguments passed to the function. Runtime storage placeholders remain unresolved. |
 | `input_features` | array of strings | Features declared as inputs to the operation. |
 | `output_features` | array of strings | Features produced by the operation. |
-| `id_columns` | array of strings | Target profile grain keys, in declaration order. |
+| `target_grain_keys` | array of strings | Target profile grain keys, in declaration order. |
+| `fragment_identifiers` | array of strings | All profile resolution keys available to identify staged fragment rows. |
+| `output_types` | object | Declared output columns mapped to logical types, or null when no type is declared. |
+| `fragment_dimensions` | string | Whether a fragment must have the target grain, may carry a subset, or is not applicable. |
+| `row_count_relation` | string | Whether result rows must preserve the existing row count or are unrestricted. |
+| `key_relation` | string | Whether result keys must be identical to existing keys or are unrestricted. |
+| `row_order_relation` | string | Whether the result must preserve row order or is unrestricted. |
+| `existing_data_relation` | string | Whether existing data must be preserved or is unrestricted. |
 | `column_types` | object | Logical types for target keys and typed features, used by runtime validation. |
 | `argument_types` | object | Declared argument types used for runtime binding. |
 | `return_type` | string or null | Inspected implementation return annotation, when signature validation is enabled. |
@@ -171,10 +180,11 @@ Use `uptimely.plan` to read and write plans, and use
 `ExecutionPlan.invocations` to access the planned steps. Do not rely on the
 format of their IDs.
 
-Plans earlier than version 9 are not supported.
+Plans earlier than version 10 are not supported.
 Rebuild from the source Spec with `uptimely build PROJECT_ROOT`.
-Plans lacking invocation runtime metadata (`id_columns`, `column_types`, and
-`argument_types`) must likewise be rebuilt.
+Plans lacking invocation runtime metadata (`target_grain_keys`,
+`fragment_identifiers`, `output_types`, preservation policies,
+`column_types`, and `argument_types`) must likewise be rebuilt.
 
 The engine returns results: `result.datasets` contains final profile frames,
 `result.calculated_outputs` contains calculated features, and
