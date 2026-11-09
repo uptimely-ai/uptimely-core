@@ -12,7 +12,6 @@ from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.library.merge import polars as merge_module
-from uptimely.spec import operator_kinds
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -216,17 +215,17 @@ def test_fragment_stage_checks_structure_when_validation_is_disabled(
         )
 
 
-@pytest.mark.parametrize("kind", ["write", "escape"])
-def test_fragment_stage_rejects_non_dataframe_invocations_without_loading(
-    kind: operator_kinds.OperatorKindId,
+@pytest.mark.parametrize("result", ["none", "target"])
+def test_fragment_stage_rejects_non_fragment_invocations_without_loading(
+    result: str,
 ) -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
-    invocation = copy.replace(plan.invocations[0], operator_kind=kind)
+    invocation = copy.replace(plan.invocations[0], result=result)
 
     def load() -> object:
         pytest.fail("A non-dataframe invocation must not be loaded during staging")
 
-    with pytest.raises(ValueError, match="does not produce dataframe fragments"):
+    with pytest.raises(ValueError, match="must declare a fragment-producing compute result"):
         fragment_module.Fragment.stage(
             backend_module.PolarsBackend(),
             invocation,
@@ -335,9 +334,10 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     invocation = copy.replace(
         plan.invocations[0],
-        operator_kind="expand",
+        fragment_dimensions="subset",
         output_features=["new"],
         id_columns=["group", "id"],
+        fragment_identifiers=["group"],
     )
     frame = pl.LazyFrame({"group": ["A"], "new": [1]})
     fragment = fragment_module.Fragment.stage(

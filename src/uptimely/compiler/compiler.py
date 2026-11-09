@@ -293,6 +293,9 @@ class Compiler:
                         result=result,
                         produces_features=definition.produces_features if is_compute else False,
                         is_sink=definition.is_sink if is_compute else False,
+                        dataframe_input_scope=(
+                            definition.dataframe_input_scope if is_compute else "unrestricted"
+                        ),
                         fragment_dimensions=(
                             definition.fragment_dimensions if is_compute else "not_applicable"
                         ),

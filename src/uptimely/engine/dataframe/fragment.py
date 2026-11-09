@@ -7,7 +7,6 @@ import logging
 from collections import abc
 
 from uptimely import plan as plan_module
-from uptimely.spec import operator_kinds
 
 from . import backend as backend_module
 
@@ -70,15 +69,16 @@ class Fragment:
             A fragment containing only carried keys and declared output columns.
 
         Raises:
-            ValueError: The function kind cannot produce a dataframe fragment or
+            ValueError: The invocation does not declare a fragment result or
                 validation rejects the invocation result.
         """
-        definition = operator_kinds.OPERATOR_KINDS.get(invocation.operator_kind)
-        if definition is None:
-            raise ValueError(f"Unknown function kind: {invocation.operator_kind}")
-        if not definition.produces_fragment:
+        if invocation.role != "compute" or invocation.result != "fragment":
             raise ValueError(
-                f"Function kind {invocation.operator_kind} does not produce dataframe fragments"
+                f"Invocation {invocation.id} must declare a fragment-producing compute result"
+            )
+        if invocation.fragment_dimensions == "not_applicable":
+            raise ValueError(
+                f"Fragment invocation {invocation.id} must declare fragment dimensions"
             )
         dataframe = load()
         if not backend.is_frame(dataframe):
@@ -89,7 +89,7 @@ class Fragment:
         dimensions = tuple(invocation.id_columns)
         keys = dict.fromkeys([*dimensions, *invocation.identifier_columns])
         identifiers = tuple(key for key in keys if key in columns)
-        if definition.fragment_dimensions == "subset" and not set(dimensions).issubset(columns):
+        if invocation.fragment_dimensions == "subset" and not set(dimensions).issubset(columns):
             dimensions = identifiers
         outputs = [key for key in invocation.output_features if key not in invocation.id_columns]
         for key in identifiers:
@@ -148,17 +148,13 @@ class Fragment:
             return
 
         self._validate_dimensionless_row_count(backend, invocation)
-        definition = operator_kinds.OPERATOR_KINDS.get(invocation.operator_kind)
-        if definition is None:
-            raise ValueError(f"Unknown function kind: {invocation.operator_kind}")
-        if definition.row_count_relation == "same":
+        if invocation.row_count_relation == "same":
             _log_validation(invocation, "Check fragment row-count preservation")
             if comparison_frame is None or backend.row_count(comparison_frame) != backend.row_count(
                 self.dataframe
             ):
                 raise ValueError(
-                    f"{invocation.operator_kind.capitalize()} operator "
-                    f"{invocation.operator_id} "
+                    f"Operator {invocation.operator_id} "
                     "must preserve the accumulated profile row count"
                 )
         else:
@@ -172,7 +168,7 @@ class Fragment:
             invocation,
             [*self.dimensions, *expected_outputs],
         )
-        if definition.key_relation == "identical":
+        if invocation.key_relation == "identical":
             _log_validation(
                 invocation,
                 "Check fragment dimension-key preservation for columns %s",
@@ -182,9 +178,7 @@ class Fragment:
                 comparison_frame, self.dataframe, self.dimensions
             ):
                 raise ValueError(
-                    f"{invocation.operator_kind.capitalize()} operator "
-                    f"{invocation.operator_id} "
-                    "must preserve the profile grain keys"
+                    f"Operator {invocation.operator_id} must preserve the profile grain keys"
                 )
         else:
             _log_validation(

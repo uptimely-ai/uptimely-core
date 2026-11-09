@@ -11,7 +11,7 @@ from uptimely import spec
 from uptimely.spec import operator_kinds
 from uptimely.spec import row_context as uptimely_row_context
 
-PLAN_VERSION = 10
+PLAN_VERSION = 11
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
@@ -26,6 +26,7 @@ class _InvocationNode(typing.Protocol):
     operator_kind: operator_kinds.OperatorKindId
     produces_features: bool
     is_sink: bool
+    dataframe_input_scope: operator_kinds.DataFrameInputScope
     fragment_dimensions: operator_kinds.FragmentDimensions
     row_count_relation: operator_kinds.RowCountRelation
     key_relation: operator_kinds.KeyRelation
@@ -85,6 +86,7 @@ class Invocation(_PlanModel):
     operator_kind: operator_kinds.OperatorKindId
     produces_features: bool = False
     is_sink: bool = False
+    dataframe_input_scope: operator_kinds.DataFrameInputScope = "unrestricted"
     fragment_dimensions: operator_kinds.FragmentDimensions = "not_applicable"
     row_count_relation: operator_kinds.RowCountRelation = "unrestricted"
     key_relation: operator_kinds.KeyRelation = "unrestricted"
@@ -179,6 +181,7 @@ class Invocation(_PlanModel):
             operator_kind=node.operator_kind,
             produces_features=node.produces_features,
             is_sink=node.is_sink,
+            dataframe_input_scope=node.dataframe_input_scope,
             fragment_dimensions=node.fragment_dimensions,
             row_count_relation=node.row_count_relation,
             key_relation=node.key_relation,
@@ -226,6 +229,8 @@ class Invocation(_PlanModel):
             raise ValueError("Merge invocations must have result='target'")
         if self.result == "fragment" and self.role != "compute":
             raise ValueError("Only compute invocations may have result='fragment'")
+        if self.result == "fragment" and self.fragment_dimensions == "not_applicable":
+            raise ValueError("Fragment invocations must declare fragment dimensions")
         return self
 
     @property
@@ -242,7 +247,7 @@ class Invocation(_PlanModel):
 class ExecutionPlan(_PlanModel):
     """Portable invocations and the compiler-selected execution schedule."""
 
-    plan_version: typing.Literal[10]
+    plan_version: typing.Literal[11]
     required_backend: NonEmptyString
     invocations: list[Invocation]
     stages: list[Stage]

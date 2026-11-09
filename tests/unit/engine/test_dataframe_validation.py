@@ -26,6 +26,12 @@ def _invocation(
         role="compute",
         result="target" if kind == "vectorize" else "fragment",
         operator_kind=kind,
+        dataframe_input_scope=operator_kinds_module.OPERATOR_KINDS[kind].dataframe_input_scope,
+        fragment_dimensions=operator_kinds_module.OPERATOR_KINDS[kind].fragment_dimensions,
+        row_count_relation=operator_kinds_module.OPERATOR_KINDS[kind].row_count_relation,
+        key_relation=operator_kinds_module.OPERATOR_KINDS[kind].key_relation,
+        row_order_relation=operator_kinds_module.OPERATOR_KINDS[kind].row_order_relation,
+        existing_data_relation=operator_kinds_module.OPERATOR_KINDS[kind].existing_data_relation,
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -363,7 +369,7 @@ def test_executor_checks_vectorized_contract_and_preservation(
         preserve_data=True,
     ) == ["new"]
     context = (
-        "vectorize result from operator calculate, function calculate, "
+        "target transform result from operator calculate, function calculate, "
         "invocation invocation, profile dataset"
     )
     assert all(context in message for message in caplog.messages)
