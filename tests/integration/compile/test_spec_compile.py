@@ -173,13 +173,21 @@ def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> No
     ]
 
     assert {feature for invocation in invocations for feature in invocation.output_features} == {
-        "recommended_flow_rate",
         "recommended_discharge_pressure",
         "energy_cost_score",
         "converged",
     }
-    assert len(invocations) == 4
-    assert len({invocation.id for invocation in invocations}) == 4
+    assert len(invocations) == 3
+    assert len({invocation.id for invocation in invocations}) == 3
+    direct_invocations = [
+        invocation
+        for invocation in plan.invocations
+        if invocation.function_id == "LazyFrame.with_columns"
+    ]
+    assert len(direct_invocations) == 1
+    assert direct_invocations[0].operator_id == "recommended_flow_rate"
+    assert direct_invocations[0].output_features == ["recommended_flow_rate"]
+    assert direct_invocations[0].arguments["recommended_flow_rate"] == "flow_rate"
 
 
 def test_compact_invocation_ids_are_stable_across_recompilation_and_selection() -> None:

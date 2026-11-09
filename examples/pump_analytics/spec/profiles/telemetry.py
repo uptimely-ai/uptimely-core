@@ -1,5 +1,6 @@
 """Minute-level pump profile and declarative dataframe transformations."""
 
+import polars as pl
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
@@ -153,13 +154,16 @@ class Telemetry(Profile):
                 interface=Interface(
                     outputs=[features.recommended_flow_rate],
                 ),
+                # A shortcut to bind a 3rd party function directly
                 compute=Binding(
-                    function=analytics.extract_field,
+                    function=ref.function(
+                        pl.LazyFrame.with_columns,
+                        kind="vectorize",
+                        validate_signature=False,
+                    ),
                     arguments=dict(
-                        dataset=ref.dataset(),
-                        column=features.operating_point_recommendation,
-                        field="recommended_flow_rate",
-                        output=features.recommended_flow_rate,
+                        self=ref.dataset(),
+                        recommended_flow_rate=features.flow_rate,
                     ),
                 ),
             ),

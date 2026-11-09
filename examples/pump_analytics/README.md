@@ -18,6 +18,16 @@ contracts. Argument wiring uses `ref.dataset()`, `ref.feature()`, and
 `ref.feature()`. Row-window binding helpers are imported separately from
 `uptimely.spec.python.row_context`.
 
+The telemetry profile binds `polars.LazyFrame.with_columns` directly to copy
+`flow_rate` into `recommended_flow_rate`. Keyword argument names provide column
+aliases, and feature references identify the source columns. `with_columns`
+preserves all existing columns, as required by the `vectorize` contract.
+This binding sets `validate_signature=False` because Polars uses annotation
+names that are unavailable at runtime. Other functions retain signature
+validation. The remaining recommendation fields use the struct-extraction
+wrapper; the direct binding copies measured flow rather than extracting it
+from the recommendation struct.
+
 ## Running the example
 
 For environment setup, commands to run each workflow, generated outputs, and

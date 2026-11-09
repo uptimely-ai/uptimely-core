@@ -96,6 +96,7 @@ def test_system_graph_connects_operator_to_feature_outputs() -> None:
     assert "aggregate" in operator_function_ids
     assert "min_max_scale" in operator_function_ids
     assert "extract_field" in operator_function_ids
+    assert "LazyFrame.with_columns" in operator_function_ids
     assert "extract_converged_flag" not in operator_function_ids
     assert "extract_convergence_flag" not in operator_function_ids
     recommendation_nodes = [
@@ -111,7 +112,6 @@ def test_system_graph_connects_operator_to_feature_outputs() -> None:
         if isinstance(neighbor.reference, models.FeatureNode)
     }
     assert recommendation_outputs == {
-        "recommended_flow_rate",
         "recommended_discharge_pressure",
         "energy_cost_score",
         "converged",

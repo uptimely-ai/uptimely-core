@@ -93,6 +93,18 @@ def test_function_catalog_functions_declare_kinds() -> None:
     assert "vectorize" in function_kinds
 
 
+def test_recommended_flow_rate_binds_polars_with_columns() -> None:
+    spec_definition = spec.load_spec(SPEC_PATH)
+    operator = spec_definition.profiles["pump_telemetry"].assembly["recommended_flow_rate"]
+    template = spec_definition.functions.root[operator.compute.function]
+
+    assert template.entrypoint == "polars.lazyframe.frame:LazyFrame.with_columns"
+    assert template.kind == "vectorize"
+    assert template.validate_signature is False
+    assert operator.compute.inferred_feature_inputs == ("flow_rate",)
+    assert operator.output_features == ["recommended_flow_rate"]
+
+
 def test_example_manifest_parses_complete_spec() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_from_directory = spec.load_spec(SPEC_PATH.parent)
@@ -131,7 +143,7 @@ def test_example_manifest_parses_complete_spec() -> None:
         "merge",
     }
     assert "aggregate" not in spec_definition.functions.by_kind("vectorize")
-    assert len(spec_definition.functions.by_kind("vectorize")) == 7
+    assert len(spec_definition.functions.by_kind("vectorize")) == 8
 
     pump_profile = spec_definition.profiles["pump_profile"]
     collapse = pump_profile.assembly["bearing_temperature_by_pump"]
