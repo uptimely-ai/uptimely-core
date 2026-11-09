@@ -45,6 +45,8 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functions.content, /language-python/);
   assert.match(functions.content, /<span class="ui-badge[^>]*>Python<\/span>/);
   assert.match(functions.content, /<h3 class="function-detail-title"><i class="site-icon icon--functions function-detail-icon" data-lucide="table-properties" title="Function kind: Vectorize"[^>]*><\/i><span>&lt;Calculate&gt;<\/span><\/h3>/);
+  assert.match(functions.content, /<p data-function-description[^>]*>Calculate &lt;values&gt;<\/p>/);
+  assert.doesNotMatch(functions.content, /class="function-description"/);
   assert.match(functions.content, /<section class="function-kind-graphic min-w-0"[^>]*aria-label="Vectorize function kind diagram">\s*<h3 class="ui-section-title profile-detail-subheading"><i class="site-icon icon--functions profile-detail-icon" data-lucide="table-properties" title="Function kind: Vectorize"[^>]*><\/i><span>Vectorize kind<\/span><\/h3>\s*<div class="function-detail-box mt-3 flex min-h-40 flex-col[^]*?<svg viewBox="0 0 150 44"[^]*?<\/svg>/);
   assert.doesNotMatch(functions.content, /Operation diagram/);
   assert.match(functions.content, /&lt;script&gt;/);
@@ -52,6 +54,7 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functions.content, /<h3 class="function-detail-title">[^]*?<span>&lt;Calculate&gt;<\/span><\/h3>/);
   assert.doesNotMatch(functions.content, /<p class="mt-1 font-mono text-xs text-slate-500">calculate<\/p>/);
   const functionMetadataData = sampleData();
+  functionMetadataData.catalogs.function_groups.vectorize.calculate.doc.body = "Equal key sets use a full join, preserving either observation scope. A\nstrict subset uses a left join.\n\nMore <details>.";
   functionMetadataData.catalogs.function_groups.vectorize.calculate.doc.returns = "Calculated <values>.";
   functionMetadataData.catalogs.function_groups.vectorize.calculate.doc.raises = [
     { type: "ValueError", description: "Invalid <value>." },
@@ -59,6 +62,10 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   ];
   const functionMetadata = renderCatalog(functionMetadataData, "functions").content;
   const functionArticle = functionMetadata.slice(functionMetadata.indexOf('<article id="function-calculate"'));
+  assert.match(functionArticle, /<p data-function-description[^>]*>Calculate &lt;values&gt;<\/p>\s*<div class="function-description"><p>Equal key sets use a full join, preserving either observation scope\. A\nstrict subset uses a left join\.<\/p><p>More &lt;details&gt;\.<\/p><\/div>/);
+  const emptyDescriptionData = sampleData();
+  emptyDescriptionData.catalogs.function_groups.vectorize.calculate.doc.body = " \n ";
+  assert.doesNotMatch(renderCatalog(emptyDescriptionData, "functions").content, /class="function-description"/);
   assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Returns">\s*<h3 class="ui-section-title profile-detail-subheading">[^]*?data-lucide="arrow-right"[^]*?<span>Returns<\/span><\/h3>\s*<div class="function-metadata-card function-detail-box">\s*<p class="function-return-type">DataFrame<\/p>\s*<p class="function-metadata-description">Calculated &lt;values&gt;\.<\/p>/);
   assert.doesNotMatch(functionArticle.match(/<section class="function-metadata-entry" aria-label="Returns">[^]*?<\/section>/)[0], /data-type-label-icon|data-lucide="table-2"/);
   functionMetadataData.catalogs.function_groups.vectorize.calculate.return_type = "list<value>";
