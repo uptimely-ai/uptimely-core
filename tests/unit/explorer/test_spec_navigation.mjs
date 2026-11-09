@@ -56,6 +56,10 @@ test("function detail grids stack on narrow screens and share space when wide", 
   assert.match(css, /\.function-kind-graphic:only-child\s*\{\s*grid-column:\s*2/);
   assert.match(css, /\.function-metadata-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*220px\),\s*1fr\)\)/);
   assert.match(css, /\.function-example\s*\{[^}]*min-width:\s*0/);
+  assert.match(css, /\.function-description\s*\{[^}]*border-left:\s*3px solid/);
+  assert.doesNotMatch(css.match(/\.function-description\s*\{[^}]*\}/)[0], /max-width/);
+  assert.doesNotMatch(css.match(/\.function-description p\s*\{[^}]*\}/)[0], /white-space:\s*pre/);
+  assert.match(css, /\.function-description p \+ p\s*\{[^}]*margin-top:\s*12px/);
   assert.match(css, /\.function-metadata-card p,\s*\.function-metadata-card li\s*\{[^}]*margin:\s*0/);
   assert.match(css, /\.function-metadata-card ul\s*\{[^}]*margin:\s*0/);
   assert.match(css, /\.function-error-type\s*\{[^}]*color:\s*#fca5a5/);

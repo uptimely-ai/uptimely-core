@@ -539,8 +539,8 @@ function functionCards(data) {
     `<div id="functions-${escape(kind)}" data-function-group="${escape(kind)}" class="mb-20 scroll-mt-24"><div class="space-y-10">
       ${Object.entries(items).map(([id, fn]) => `<article id="function-${escape(id)}" data-context-item class="function-detail">
         <h3 class="function-detail-title">${kindIcon(kind, "function-detail-icon")}<span>${escape(label(id, fn))}</span></h3>
-        <p data-function-description class="mt-4 max-w-3xl text-base leading-7 text-slate-300">${escape(fn.description || "No description provided.")}</p>
-        ${fn.doc?.body ? `<p class="mt-3 max-w-3xl whitespace-pre-line text-sm leading-7 text-slate-400">${escape(fn.doc.body)}</p>` : ""}
+        <p data-function-description class="mt-4 text-base leading-7 text-slate-300">${escape(fn.description || "No description provided.")}</p>
+        ${fn.doc?.body?.trim() ? `<div class="function-description">${fn.doc.body.trim().split(/\r?\n[ \t]*\r?\n/).map(paragraph => `<p>${escape(paragraph)}</p>`).join("")}</div>` : ""}
         ${(fn.doc?.examples || []).map((example, index) => `<section class="function-example">${subheading(index ? `Example ${index + 1}` : "Example")}
           <div class="mt-3">${badge("Python")}</div>
           <pre class="function-detail-box mt-3 min-h-40 overflow-x-auto p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(example)}</code></pre></section>`).join("")}

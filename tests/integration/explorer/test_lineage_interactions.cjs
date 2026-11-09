@@ -77,6 +77,7 @@ for (const withSectionCount of [false, true]) {
 			if (count) assert.equal(count.hidden, item !== overview);
 			assert.equal(description.textContent, item === overview
 				? 'Browse the function catalog.' : item.description.textContent);
+			assert.equal(description.hidden, false);
 			if (item !== overview) assert.equal(item.description.hidden, true);
 		};
 		assertSelected(second, 'function-second');
@@ -85,6 +86,10 @@ for (const withSectionCount of [false, true]) {
 		assertSelected(first, 'function-first');
 		click(links[1]);
 		assertSelected(first, 'function-first');
+		click(links[0]);
+		assertSelected(overview, 'Functions');
+		click(links[3]);
+		assertSelected(second, 'function-second');
 		click(links[0]);
 		assertSelected(overview, 'Functions');
 		assert.equal(document.title, 'Spec functions');
