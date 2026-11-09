@@ -116,19 +116,21 @@ _DOCTEST_PROMPT = re.compile(r"^(?:>>>|\.\.\.) ?", flags=re.MULTILINE)
 _DOCTEST_DIRECTIVE = re.compile(r"[ \t]*#[ \t]*doctest:.*$", flags=re.MULTILINE)
 
 
-def _format_example(example: docstring_parser.DocstringExample) -> str:
-    """Render a parsed docstring example as plain Python code with output.
+def _format_examples(examples: typing.Iterable[docstring_parser.DocstringExample]) -> str:
+    """Render parsed example fragments as plain Python code with output.
 
     Doctest prompts and doctest directive comments are removed so the
     example reads as an ordinary snippet.
 
     Args:
-        example: Parsed docstring example with an optional snippet and output.
+        examples: Parsed docstring examples with optional snippets and output.
 
     Returns:
         The cleaned example text.
     """
-    text = "\n".join(part for part in (example.snippet, example.description) if part)
+    text = "\n".join(
+        part for example in examples for part in (example.snippet, example.description) if part
+    )
     text = _DOCTEST_PROMPT.sub("", text)
     return _DOCTEST_DIRECTIVE.sub("", text).strip()
 
@@ -151,6 +153,12 @@ def _parse_docstring(docstring: str) -> dict[str, typing.Any] | None:
     except docstring_parser.ParseError:
         return None
     returns = parsed.returns
+    if parsed.style == docstring_parser.DocstringStyle.NUMPYDOC:
+        # NumPy's Examples section is one continuous narrative; the parser
+        # splits it whenever a new prompt follows output or a continuation.
+        examples = [_format_examples(parsed.examples)] if parsed.examples else []
+    else:
+        examples = [_format_examples([example]) for example in parsed.examples]
     return {
         "summary": parsed.short_description,
         "body": parsed.long_description,
@@ -159,7 +167,7 @@ def _parse_docstring(docstring: str) -> dict[str, typing.Any] | None:
         "raises": [
             {"type": error.type_name, "description": error.description} for error in parsed.raises
         ],
-        "examples": [_format_example(example) for example in parsed.examples],
+        "examples": examples,
     }
 
 

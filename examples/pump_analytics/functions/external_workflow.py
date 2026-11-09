@@ -15,11 +15,11 @@ OUTPUT_PATH = EXAMPLE_ROOT / "_generated" / "pump_external_workflow_results.csv"
 def read_pump_external_inputs() -> pl.DataFrame:
     """Load the dataframe inputs declared by the external workflow operator.
 
-    Returns:
+    Returns
     -------
     Observations read from the external workflow source CSV.
 
-    Examples:
+    Examples
     --------
     >>> observations = read_pump_external_inputs()  # doctest: +SKIP
     """
@@ -52,11 +52,11 @@ def merge_pump_inputs(
 def process_pump_external_workflow() -> None:
     """Read pump inputs, calculate ratios, and write results internally.
 
-    Returns:
+    Returns
     -------
     Results are written to the generated output CSV as a side effect.
 
-    Examples:
+    Examples
     --------
     >>> process_pump_external_workflow()  # doctest: +SKIP
     """

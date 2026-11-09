@@ -32,16 +32,16 @@ def read_pump_telemetry(
         Target environment name; one of ``"development"``, ``"qa"``, or
         ``"production"``. Defaults to ``"development"``.
 
-    Returns:
+    Returns
     -------
     Telemetry joined with pump assets and an ``operation_mode`` column.
 
-    Raises:
+    Raises
     ------
     ValueError
         If ``environment`` is not a supported environment name.
 
-    Examples:
+    Examples
     --------
     >>> telemetry = read_pump_telemetry(
     ...     "data/pump_telemetry.json",
@@ -91,11 +91,11 @@ def read_constants(source: str) -> pl.LazyFrame:
     source
         Path to the JSON file containing the constants.
 
-    Returns:
+    Returns
     -------
     Constants as a single-row lazy frame.
 
-    Examples:
+    Examples
     --------
     >>> constants = read_constants("data/constants.json")  # doctest: +SKIP
     """
@@ -113,11 +113,11 @@ def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
     features
         Names of the feature columns to write.
 
-    Returns:
+    Returns
     -------
     This mock sink discards the dataset.
 
-    Examples:
+    Examples
     --------
     >>> write_pump_telemetry(pl.LazyFrame({"efficiency": [0.5]}), ["efficiency"])
     """
@@ -145,16 +145,16 @@ def aggregate(
     output
         Name of the resulting aggregate column.
 
-    Returns:
+    Returns
     -------
     Aggregated fragment keyed by the requested dimensions.
 
-    Raises:
+    Raises
     ------
     ValueError
         If ``method`` is not a supported aggregation method.
 
-    Examples:
+    Examples
     --------
     >>> frame = pl.LazyFrame({"pump": ["p1", "p1"], "flow": [1.0, 3.0]})
     >>> aggregate(frame, "flow", "max", [], "max_flow").collect().to_dicts()
@@ -195,11 +195,11 @@ def delta(
     output
         Name of the resulting difference column.
 
-    Returns:
+    Returns
     -------
     DataFrame with the ordered difference appended.
 
-    Examples:
+    Examples
     --------
     >>> frame = pl.LazyFrame({"pump_id": ["p1", "p1"], "ts": [1, 2], "temp": [60.0, 61.5]})
     >>> delta(frame, "temp", ["pump_id"], "ts", 1, "temp_delta").collect()["temp_delta"].to_list()
@@ -235,11 +235,11 @@ def ratio(
         Constant factor applied to the ratio, for example a unit
         conversion. Defaults to ``1.0``.
 
-    Returns:
+    Returns
     -------
     DataFrame with the scaled ratio appended.
 
-    Examples:
+    Examples
     --------
     >>> frame = pl.LazyFrame({"hydraulic": [5.0], "electrical": [10.0]})
     >>> ratio(frame, ["hydraulic"], ["electrical"], "efficiency").collect()[
@@ -270,11 +270,11 @@ def broadcast_constant(
     output
         Name of the resulting broadcast column.
 
-    Returns:
+    Returns
     -------
     One-row fragment that the engine broadcasts to every target observation.
 
-    Examples:
+    Examples
     --------
     >>> constants = pl.LazyFrame({"ambient": [20.0]})
     >>> broadcast_constant(constants, "ambient", "ambient_reference").collect().to_dicts()
@@ -304,11 +304,11 @@ def subtract(
     output
         Name of the resulting difference column.
 
-    Returns:
+    Returns
     -------
     DataFrame with the difference appended.
 
-    Examples:
+    Examples
     --------
     >>> frame = pl.LazyFrame({"temperature": [25.0], "ambient": [20.0]})
     >>> subtract(frame, "temperature", "ambient", "rise").collect()["rise"].to_list()
@@ -338,11 +338,11 @@ def extract_field(
     output
         Name of the resulting extracted column.
 
-    Returns:
+    Returns
     -------
     DataFrame with the extracted field appended.
 
-    Examples:
+    Examples
     --------
     >>> frame = pl.LazyFrame({"recommendation": [{"converged": True}]})
     >>> extract_field(frame, "converged", "recommendation", "ok").collect()["ok"].to_list()
@@ -379,11 +379,11 @@ def min_max_scale(
     output
         Name of the resulting scaled column.
 
-    Returns:
+    Returns
     -------
     DataFrame with the scaled column appended.
 
-    Examples:
+    Examples
     --------
     >>> frame = pl.LazyFrame({"score": [0.0, 5.0, 10.0]})
     >>> min_max_scale(frame, "score", 0.0, 1.0, [], "scaled").collect()["scaled"].to_list()
@@ -421,11 +421,11 @@ def operation_point_quantum_optimization(
     output
         Name of the resulting struct column.
 
-    Returns:
+    Returns
     -------
     DataFrame with the recommendation struct appended.
 
-    Examples:
+    Examples
     --------
     >>> frame = pl.LazyFrame(
     ...     {"pressure": [4.0], "flow": [10.0], "power": [5.0], "temp": [80.0], "vib": [3.0]}
@@ -462,11 +462,11 @@ def pump_health_score(
     output
         Name of the resulting health-score column.
 
-    Returns:
+    Returns
     -------
     DataFrame with the health score appended.
 
-    Examples:
+    Examples
     --------
     >>> frame = pl.LazyFrame({"temp_delta": [5.0], "vib_delta": [0.5], "efficiency": [1.0]})
     >>> pump_health_score(frame, ["temp_delta", "vib_delta", "efficiency"], "health").collect()[
