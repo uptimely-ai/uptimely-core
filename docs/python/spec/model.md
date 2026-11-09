@@ -48,6 +48,17 @@ retains aliases for validation without introducing additional Operator classes.
 dimensions, which can occur in multiple profiles. ID-keyed views use the last
 declaration when IDs collide; validate a document before relying on unique ownership.
 
+`uptimely.spec.semantics.Semantics(document)` provides derived operator
+relationships without adding semantic fields to the Spec. Its keyed properties
+include execution forms, known source profiles and their resolution status,
+binding roles, selected source and target resolution models, and grain relationships.
+Relationships are `same`, `expand`, `collapse`, `unrelated`, or
+`not_applicable`; unresolved sources use the `None` key. The existing operator
+continues to expose its bindings and output declarations. Grain relationships
+use resolution ancestry rather than dimension counts or function names.
+Create a new `Semantics` instance after rebuilding an edited document; its
+derived properties are cached per instance.
+
 Views use `functools.cached_property`; treat declarations and cached collections
 as read-only once accessed. Loading and compilation validate the document and
 can warm these caches. After editing declarations, use `document.rebuild()` and
