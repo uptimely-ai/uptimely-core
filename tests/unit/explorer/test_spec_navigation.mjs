@@ -29,7 +29,7 @@ test("Plan Overview uses the dashboard grid icon in navigation and title", () =>
   const markup = shell({ project: {}, scope: {} }, "plan", "", "");
   assert.match(markup, /href="\?view=plan"[^>]*>[\s\S]*?data-lucide="layout-grid"[\s\S]*?Overview/);
   const content = planOverview({
-    plan: { function_kind_counts: [], invocation_count: 0, stage_count: 0 },
+    plan: { operator_kind_counts: [], invocation_count: 0, stage_count: 0 },
     stages: [],
   });
   assert.match(content, /<h1[^>]*>[\s\S]*?data-lucide="layout-grid"[\s\S]*?<span>Overview<\/span><\/h1>/);
@@ -51,12 +51,11 @@ test("vectorize uses the table properties icon", () => {
   assert.match(kindIcon("vectorize"), /data-lucide="table-properties"/);
 });
 
-test("function detail grids stack on narrow screens and share space when wide", async () => {
+test("function details keep source full-width and metadata responsive", async () => {
   const css = await readFile(new URL("../css/spec.css", root), "utf8");
   assert.match(css, /\.function-detail\s*\{[^}]*container-type:\s*inline-size/);
   assert.match(css, /\.function-origin-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
-  assert.match(css, /@container\s*\(min-width:\s*660px\)\s*\{\s*\.function-origin-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*2fr\)\s+minmax\(0,\s*1fr\)/);
-  assert.match(css, /\.function-kind-graphic:only-child\s*\{\s*grid-column:\s*2/);
+  assert.doesNotMatch(css, /function-kind-graphic/);
   assert.match(css, /\.function-metadata-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*220px\),\s*1fr\)\)/);
   assert.match(css, /\.function-example\s*\{[^}]*min-width:\s*0/);
   assert.match(css, /\.function-description\s*\{[^}]*border-left:\s*3px solid/);
@@ -88,18 +87,18 @@ test("typed names put the icon before the name without visible type text", () =>
   assert.match(typedName("unknown", null), /data-lucide="braces"/);
 });
 
-test("function context uses shared category labels and kind-specific icon links", () => {
+test("function context uses declared categories and neutral callable icons", () => {
   const context = catalogContext({ catalogs: { function_groups: {
-    read: { load: { name: "Load data" }, fetch: { name: "Fetch data" } },
-    vectorize: { score: { name: "Score" } },
-    write: {},
+    "Data loading": { load: { name: "Load data" }, fetch: { name: "Fetch data" } },
+    Uncategorized: { score: { name: "Score" } },
+    Empty: {},
   } } }, "functions");
-  assert.match(context, /context-group-label"><span>Read<\/span><span class="context-link-count">2<\/span>/);
-  assert.match(context, /context-group-label"><span>Vectorize<\/span><span class="context-link-count">1<\/span>/);
-  assert.match(context, /href="#function-load"[\s\S]*?data-lucide="database" title="Function kind: Read"/);
-  assert.match(context, /href="#function-fetch"[\s\S]*?data-lucide="database" title="Function kind: Read"/);
-  assert.match(context, /href="#function-score"[\s\S]*?data-lucide="table-properties" title="Function kind: Vectorize"/);
-  assert.doesNotMatch(context, /context-sublinks|href="#functions-|>Write<\/span>/);
+  assert.match(context, /context-group-label"><span>Data loading<\/span><span class="context-link-count">2<\/span>/);
+  assert.match(context, /context-group-label"><span>Uncategorized<\/span><span class="context-link-count">1<\/span>/);
+  for (const id of ["load", "fetch", "score"]) {
+    assert.match(context, new RegExp(`href="#function-${id}"[\\s\\S]*?data-lucide="square-function"`));
+  }
+  assert.doesNotMatch(context, /Function kind:|context-sublinks|href="#functions-|>Empty<\/span>/);
 });
 
 test("produced schema is a table listing declared columns vertically with their metadata", () => {
@@ -130,15 +129,15 @@ test("produced schema is a table listing declared columns vertically with their 
 test("schema columns include every producing operator including grain and vectorized features", () => {
   const config = {
     dimensions: { machine: { resolutions: { unit: { key: "machine_id" } } } },
-    functions: { read: { kind: "read" }, compute: { kind: "vectorize" } },
+    functions: { read: { returns: "dataframe" }, compute: { returns: "dataframe" } },
   };
   const profile = {
     grain: [{ dimension: "machine", resolution: "unit" }],
     features: { machine_id: {}, temperature: {}, score: {}, orphan: {} },
     assembly: {
-      load: { compute: { function: "read" }, interface: { outputs: ["$features.machine_id", "$features.temperature"] } },
-      calculate: { compute: { function: "compute" }, interface: { outputs: ["$features.score", "$features.score"] } },
-      revise: { compute: { function: "compute" }, interface: { outputs: ["$features.score"] } },
+      load: { kind: "read", compute: { function: "read" }, interface: { outputs: ["$features.machine_id", "$features.temperature"] } },
+      calculate: { kind: "vectorize", compute: { function: "compute" }, interface: { outputs: ["$features.score", "$features.score"] } },
+      revise: { kind: "vectorize", compute: { function: "compute" }, interface: { outputs: ["$features.score"] } },
     },
   };
   const columns = schemaColumns(config, profile);
@@ -151,12 +150,13 @@ test("schema columns include every producing operator including grain and vector
 test("profile details show every declared operator in order including vectorized operator", () => {
   const kinds = ["read", "vectorize", "expand", "vectorize", "collapse", "escape", "write"];
   const assembly = Object.fromEntries(kinds.map((kind, index) => [`operator_${index}`, {
+    kind,
     compute: { function: kind, args: { output: `$outputs.value_${index}` } },
     interface: { inputs: [], outputs: [] },
   }]));
   const configuration = {
     dimensions: {},
-    functions: Object.fromEntries(kinds.map(kind => [kind, { name: `${kind} function`, kind }])),
+    functions: Object.fromEntries(kinds.map(kind => [kind, { name: `${kind} function`, returns: "dataframe" }])),
     profiles: { telemetry: { grain: [], features: {}, assembly } },
   };
   const stages = [{ steps: Object.keys(assembly).map((operator_id, index) => ({
@@ -223,10 +223,11 @@ test("feature and function type displays use matching data type icons", () => {
     },
     configuration: {
       dimensions: {},
-      functions: { load: { kind: "read", name: "Load", description: "Read <telemetry> & timestamps." } },
+      functions: { load: { returns: "dataframe", name: "Load", description: "Read <telemetry> & timestamps." } },
       profiles: { telemetry: {
         grain: [], features: { temperature: { name: "Temperature", type: "float64" } },
         assembly: { load: {
+          kind: "read",
           name: "Read Telemetry",
           compute: { function: "load", args: { source: "telemetry.csv" } },
           merge: { function: "merge" },
@@ -234,8 +235,8 @@ test("feature and function type displays use matching data type icons", () => {
         } },
       } },
     },
-    function_groups: { read: { load: {
-      name: "Load", kind: "read", args: {
+    function_groups: { Uncategorized: { load: {
+      name: "Load", returns: "dataframe", args: {
         source: { type: "dataframe" }, path: { type: "string" },
       },
       doc: { params: { source: "Input table", path: "Source location" } },
@@ -294,8 +295,8 @@ test("feature details show metadata and direct used-by badges below the operator
   }, configuration: {
     dimensions: {},
     functions: {
-      read: { kind: "read" },
-      vectorize: { kind: "vectorize" },
+      read: { returns: "dataframe" },
+      vectorize: { returns: "dataframe" },
     },
     profiles: { telemetry: {
       grain: [],
@@ -306,13 +307,13 @@ test("feature details show metadata and direct used-by badges below the operator
         alarm: { name: "High temperature alarm", type: "boolean" },
       },
       assembly: {
-        load: { compute: { function: "read" }, interface: {
+        load: { kind: "read", compute: { function: "read" }, interface: {
           inputs: [], outputs: ["$features.raw"],
         } },
-        normalize: { compute: { function: "vectorize" }, interface: {
+        normalize: { kind: "vectorize", compute: { function: "vectorize" }, interface: {
           inputs: ["$features.raw"], outputs: ["$features.adjusted", "$features.offset"],
         } },
-        flag: { compute: { function: "vectorize" }, interface: {
+        flag: { kind: "vectorize", compute: { function: "vectorize" }, interface: {
           inputs: ["$features.adjusted"], outputs: ["$features.alarm"],
         } },
       },
@@ -517,7 +518,7 @@ test("Stages overview shows only the invocations-by-stage chart", () => {
     catalogs: { summary: {}, configuration: {} },
     plan: {
       stage_count: 1, invocation_count: 2, max_parallel_invocations: 2,
-      dependency_count: 1, function_kind_counts: [["read", 2]],
+      dependency_count: 1, operator_kind_counts: [["read", 2]],
     },
     stages: [{ stage: 1, steps: [] }],
   }, "stages");
@@ -527,7 +528,7 @@ test("Stages overview shows only the invocations-by-stage chart", () => {
   assert.match(overview, /data-category="Stage 1" data-count="0"/);
   assert.equal((overview.match(/class="ui-panel ui-chart"/g) || []).length, 1);
   assert.doesNotMatch(overview, /<h2[^>]*>Stages overview<\/h2>/);
-  assert.doesNotMatch(overview, /data-stat=|Invocations by function kind/);
+  assert.doesNotMatch(overview, /data-stat=|Invocations by operator kind/);
 });
 
 test("Features overview shows role and data type charts without summary cards", () => {
@@ -584,11 +585,11 @@ test("catalog overview navigation uses the appropriate label and profile cards s
           transform: { compute: { function: "calculate" }, interface: { inputs: [], outputs: [] } },
           write: { compute: { function: "calculate" }, interface: { inputs: [], outputs: [] } },
         } },
-      }, dimensions: { time: { name: "Time", resolutions: { day: { id: "day" } } } }, functions: { calculate: { name: "Calculate", kind: "read" } } },
+      }, dimensions: { time: { name: "Time", resolutions: { day: { id: "day" } } } }, functions: { calculate: { name: "Calculate", returns: "dataframe" } } },
       summary: { feature_buckets: {}, feature_count: 0 },
       function_groups: {},
     },
-    plan: { function_kind_counts: [] },
+    plan: { operator_kind_counts: [] },
     stages: [],
   };
   const { content, context } = renderCatalog(data, "profiles");
@@ -619,7 +620,7 @@ test("catalog overviews use the shared dashboard icon and summary panels", () =>
       summary: { feature_buckets: {}, feature_count: 0 },
       function_groups: {},
     },
-    plan: { function_kind_counts: [] },
+    plan: { operator_kind_counts: [] },
     stages: [],
   };
   for (const view of ["features", "functions", "dimensions", "stages"]) {
@@ -822,7 +823,7 @@ test("lineage groups have additional horizontal spacing without changing spacing
 
 test("stage argument bindings prefix names with type icons and preserve typed values", () => {
   const content = stageCards({ stages: [{ stage: 1, steps: [{
-    title: "Binding", function_kind: "vectorize", function_label: "Calculate",
+    title: "Binding", operator_kind: "vectorize", function_label: "Calculate",
     feature: "score", returns: { type: { engine: "float" } },
     depends_on_invocations: [], row_context: null,
     args: { input: { value: "<unsafe>", type: {

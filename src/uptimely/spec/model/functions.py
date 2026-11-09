@@ -8,8 +8,7 @@ import typing
 
 import pydantic
 
-from uptimely.spec import arg_types
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import arg_types, function_contracts
 
 from . import base
 
@@ -29,9 +28,8 @@ class FunctionTemplate(base.StrictModel):
 
     id: str = pydantic.Field(exclude=True)
     name: str | None = None
-    kind: functions.FunctionKindId
     category: str | None = None
-    returns: functions.ReturnKind
+    returns: function_contracts.ReturnRole
     entrypoint: str
     validate_signature: bool = pydantic.Field(
         default=True,
@@ -41,46 +39,26 @@ class FunctionTemplate(base.StrictModel):
     description: str | None = None
 
     def check_return_contract(self) -> None:
-        """Require the return kind defined by the function kind."""
+        """Require a supported independent return contract."""
         logger.debug("Check function return contract: %s", self.id)
-        expected = functions.FUNCTION_KINDS[self.kind].returns
-        if self.returns != expected:
-            dataframe_inputs = sum(
-                arg_types.is_dataframe(argument.type) for argument in self.args.values()
-            )
-            raise ValueError(
-                f"Kind {self.kind} must declare returns={expected}."
-                + functions.kind_hint(self.returns, dataframe_inputs)
-            )
+        if self.returns not in function_contracts.RETURN_ROLES:
+            raise ValueError(f"Unsupported return contract: {self.returns}")
 
     def check_dataframe_input_contract(self) -> None:
-        """Require the dataframe argument count defined by the function kind."""
+        """Require a reusable contract to fit a compute or merge binding."""
         logger.debug("Check function dataframe argument count: %s", self.id)
-        expected = functions.FUNCTION_KINDS[self.kind].dataframe_inputs
         dataframe_inputs = sum(
             arg_types.is_dataframe(argument.type) for argument in self.args.values()
         )
-        if expected is not None and dataframe_inputs != expected:
-            raise ValueError(
-                f"Kind {self.kind} requires {expected} dataframe argument(s), "
-                f"got {dataframe_inputs}." + functions.kind_hint(self.returns, dataframe_inputs)
-            )
+        if dataframe_inputs > 2:
+            raise ValueError("Callable contracts support at most two dataframe argument slots")
 
     def check_argument_contracts(self) -> None:
         """Validate argument rules that depend only on this function declaration."""
         logger.debug("Check function argument contracts: %s", self.id)
-        if self.kind != functions.MERGE and any(
-            argument.type == arg_types.OPTIONAL_DATAFRAME for argument in self.args.values()
-        ):
-            raise ValueError("Nullable dataframe arguments are reserved for merge functions")
-        if self.kind != functions.MERGE:
-            return
-        target = self.args.get("target")
-        if target is None or target.type != arg_types.OPTIONAL_DATAFRAME:
-            raise ValueError("Merge functions must declare target as 'dataframe | null'")
-        fragment = self.args.get("fragment")
-        if fragment is None or fragment.type != arg_types.DATAFRAME:
-            raise ValueError("Merge functions must declare fragment as 'dataframe'")
+        for name in self.args:
+            if not name or not name.isidentifier():
+                raise ValueError(f"Invalid argument name: {name!r}")
 
     @pydantic.model_validator(mode="after")
     def generate_name(self) -> typing.Self:
@@ -129,10 +107,6 @@ class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
                     raise ValueError(f"Conflicting function definition for '{function_id}'")
         return cls(root=definitions)
 
-    def by_kind(self, kind: functions.FunctionKindId) -> dict[str, FunctionTemplate]:
-        """Return function definitions for one kind."""
-        return self.functions_by_kind.get(kind, {})
-
     def iter_functions(self) -> typing.Iterator[tuple[str, FunctionTemplate, int]]:
         """Yield each function with its number of dataframe arguments."""
         for function_id, function in self.root.items():
@@ -141,14 +115,6 @@ class FunctionCatalog(pydantic.RootModel[dict[str, FunctionTemplate]]):
                 function,
                 len(function.arguments_by_type.get(arg_types.DATAFRAME, {})),
             )
-
-    @functools.cached_property
-    def functions_by_kind(self) -> dict[functions.FunctionKindId, dict[str, FunctionTemplate]]:
-        """Return function groups without repeatedly filtering the catalog."""
-        grouped: dict[functions.FunctionKindId, dict[str, FunctionTemplate]] = {}
-        for function_id, function in self.root.items():
-            grouped.setdefault(function.kind, {})[function_id] = function
-        return grouped
 
     @functools.cached_property
     def arguments(self) -> dict[tuple[str, str], Argument]:

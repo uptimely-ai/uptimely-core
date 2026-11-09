@@ -2,7 +2,7 @@
 
 from examples.pump_analytics.functions import source
 
-from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, ref
+from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, default_merge, ref
 
 
 class ConstantsFeatures(FeatureSet):
@@ -48,5 +48,6 @@ class Constants(Profile):
                     },
                 ),
             ),
+            merge=default_merge(),
         )
     ]

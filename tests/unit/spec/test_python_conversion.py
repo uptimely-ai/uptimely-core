@@ -18,7 +18,7 @@ def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
                     function=ref.FunctionReference(
                         module=__name__ if not conflicting else f"{__name__}.alternate",
                         name="source",
-                        kind="read",
+                        returns="dataframe",
                     ),
                     arguments={"path": "readings.json", "columns": [ref.feature("temperature")]},
                 ),
@@ -41,7 +41,6 @@ def test_auto_catalog_converts_profile_sequences_and_mappings(keyed: bool) -> No
         "name": "Source",
         "description": None,
         "category": None,
-        "kind": "read",
         "returns": "dataframe",
         "entrypoint": f"{__name__}:source",
         "validate_signature": True,
@@ -50,21 +49,7 @@ def test_auto_catalog_converts_profile_sequences_and_mappings(keyed: bool) -> No
             "columns": {"type": "array[string]", "comment": None},
         },
     }
-    default_merge = spec_model.merge.DEFAULT_FUNCTION
-    assert payload["functions"][default_merge.id] == {
-        "name": "Automatic merge by grain",
-        "description": None,
-        "category": None,
-        "kind": "merge",
-        "returns": "dataframe",
-        "entrypoint": default_merge.entrypoint,
-        "validate_signature": True,
-        "args": {
-            "target": {"type": "dataframe | null", "comment": None},
-            "fragment": {"type": "dataframe", "comment": None},
-            "target_keys": {"type": "array[string]", "comment": None},
-        },
-    }
+    assert set(payload["functions"]) == {"source"}
 
 
 def test_conversion_rejects_duplicate_and_invalid_profiles() -> None:
@@ -92,7 +77,6 @@ def test_explicit_catalog_preserves_argument_metadata(
         root={
             "source": spec_model.FunctionTemplate(
                 id="source",
-                kind="read",
                 returns="dataframe",
                 entrypoint="custom.reader:load",
                 validate_signature=False,
@@ -118,7 +102,6 @@ def test_explicit_catalog_preserves_argument_metadata(
         "name": "Source",
         "description": None,
         "category": None,
-        "kind": "read",
         "returns": "dataframe",
         "entrypoint": "custom.reader:load",
         "validate_signature": False,
@@ -138,7 +121,6 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
         profiles=[_profile("readings").to_model()],
         functions={
             "configured": {
-                "kind": "read",
                 "returns": "dataframe",
                 "entrypoint": "reader:load",
                 "args": {"value": {"type": "object", "comment": None}},
@@ -150,7 +132,6 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
         "name": "Configured",
         "description": None,
         "category": None,
-        "kind": "read",
         "returns": "dataframe",
         "entrypoint": "reader:load",
         "validate_signature": True,

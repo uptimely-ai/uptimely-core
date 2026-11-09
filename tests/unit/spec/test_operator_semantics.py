@@ -52,7 +52,6 @@ def _make_spec(
             },
             "functions": {
                 "transform": {
-                    "kind": "vectorize",
                     "returns": "dataframe",
                     "entrypoint": "example:transform",
                     "args": ({"data": {"type": "dataframe"}} if source_grain is not None else {}),

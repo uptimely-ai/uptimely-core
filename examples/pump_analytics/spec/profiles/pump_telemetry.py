@@ -12,6 +12,7 @@ from uptimely import (
     Operator,
     Order,
     Profile,
+    default_merge,
     ref,
 )
 from uptimely.spec.row_context import RowContext
@@ -170,6 +171,7 @@ class PumpTelemetry(Profile):
                         environment="development",
                     ),
                 ),
+                merge=default_merge(),
             ),
         ],
         calculations=[
@@ -182,7 +184,8 @@ class PumpTelemetry(Profile):
                 compute=Binding(
                     function=ref.function(
                         pl.LazyFrame.with_columns,
-                        kind="vectorize",
+                        returns="dataframe",
+                        args={"self": "dataframe", "recommended_flow_rate": "string"},
                         validate_signature=False,
                     ),
                     arguments=dict(
@@ -268,6 +271,7 @@ class PumpTelemetry(Profile):
                         output=features.room_temperature_reference,
                     ),
                 ),
+                merge=default_merge(),
             ),
             Operator(
                 id="bearing_temperature_rise",

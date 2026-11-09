@@ -4,393 +4,130 @@ import typing
 import pydantic
 import pytest
 
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.validation.rules import bindings
-from uptimely.spec.validation.rules import functions as validation_functions
+from uptimely.spec import operator_kinds
 
 
-def test_named_function_kinds_match_the_public_contract() -> None:
-    expected_ids = (
-        functions.WRITE,
-        functions.READ,
-        functions.ESCAPE,
-        functions.CONFORM,
-        functions.EXPAND,
-        functions.COLLAPSE,
-        functions.VECTORIZE,
-        functions.MERGE,
+def _shared_callable_spec() -> spec_model.Spec:
+    return spec_model.Spec.model_validate(
+        {
+            "functions": {
+                "shared": {
+                    "returns": "dataframe",
+                    "entrypoint": "example:transform",
+                    "args": {"dataset": {"type": "dataframe"}},
+                }
+            },
+            "profiles": {
+                "local": {
+                    "assembly": {
+                        "self_transform": {
+                            "compute": {
+                                "function": "shared",
+                                "args": {"dataset": "$profiles.@.dataset"},
+                            },
+                            "interface": {"inputs": [], "outputs": []},
+                        }
+                    }
+                },
+                "remote": {
+                    "assembly": {
+                        "foreign_transform": {
+                            "compute": {
+                                "function": "shared",
+                                "args": {"dataset": "$profiles.local.dataset"},
+                            },
+                            "interface": {"inputs": [], "outputs": []},
+                        }
+                    }
+                },
+            },
+        }
     )
-    assert tuple(functions.FUNCTION_KINDS) == expected_ids
-    assert typing.get_args(functions.FunctionKindId) == expected_ids
-    assert "unknown" not in functions.FUNCTION_KINDS
-    assert all(kind.id == identifier for identifier, kind in functions.FUNCTION_KINDS.items())
 
 
-def test_function_kind_definitions_and_registry_are_immutable() -> None:
-    definition = functions.FUNCTION_KINDS[functions.READ]
+def test_named_operator_kinds_match_the_public_contract() -> None:
+    expected_ids = (
+        operator_kinds.WRITE,
+        operator_kinds.READ,
+        operator_kinds.ESCAPE,
+        operator_kinds.CONFORM,
+        operator_kinds.EXPAND,
+        operator_kinds.COLLAPSE,
+        operator_kinds.VECTORIZE,
+        operator_kinds.MERGE,
+    )
+    assert tuple(operator_kinds.OPERATOR_KINDS) == expected_ids
+    assert typing.get_args(operator_kinds.OperatorKindId) == expected_ids
+    assert "unknown" not in operator_kinds.OPERATOR_KINDS
+    assert all(kind.id == identifier for identifier, kind in operator_kinds.OPERATOR_KINDS.items())
 
+
+def test_operator_kind_definitions_and_registry_are_immutable() -> None:
+    definition = operator_kinds.OPERATOR_KINDS[operator_kinds.READ]
     with pytest.raises(dataclasses.FrozenInstanceError):
-        definition.id = functions.WRITE
+        definition.id = operator_kinds.WRITE
     with pytest.raises(TypeError):
-        functions.FUNCTION_KINDS[functions.WRITE] = definition
+        operator_kinds.OPERATOR_KINDS[operator_kinds.WRITE] = definition
 
 
 @pytest.mark.parametrize(
-    (
-        "kind",
-        "produces_fragment",
-        "dimension_change",
-        "fragment_dimensions",
-        "row_count_relation",
-        "key_relation",
-        "row_order_relation",
-        "existing_data_relation",
-    ),
+    ("kind", "produces_fragment", "dimension_change", "fragment_dimensions"),
     [
-        (
-            "read",
-            True,
-            "unrestricted",
-            "target",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-        ),
-        (
-            "write",
-            False,
-            "unrestricted",
-            "not_applicable",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-        ),
-        (
-            "escape",
-            False,
-            "unrestricted",
-            "not_applicable",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-        ),
-        (
-            "conform",
-            True,
-            "preserve",
-            "target",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-        ),
-        (
-            "expand",
-            True,
-            "add",
-            "subset",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-        ),
-        (
-            "collapse",
-            True,
-            "remove",
-            "target",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-            "unrestricted",
-        ),
-        (
-            "vectorize",
-            False,
-            "preserve",
-            "not_applicable",
-            "same",
-            "identical",
-            "preserve",
-            "preserve",
-        ),
+        ("read", True, "unrestricted", "target"),
+        ("write", False, "unrestricted", "not_applicable"),
+        ("escape", False, "unrestricted", "not_applicable"),
+        ("conform", True, "preserve", "target"),
+        ("expand", True, "add", "subset"),
+        ("collapse", True, "remove", "target"),
+        ("vectorize", False, "preserve", "not_applicable"),
     ],
 )
-def test_builtin_structural_contract_matrix(
-    kind: functions.FunctionKindId,
+def test_operator_policies_remain_independent_of_callable_contracts(
+    kind: operator_kinds.OperatorKindId,
     produces_fragment: bool,
-    dimension_change: functions.DimensionChange,
-    fragment_dimensions: functions.FragmentDimensions,
-    row_count_relation: functions.RowCountRelation,
-    key_relation: functions.KeyRelation,
-    row_order_relation: functions.RowOrderRelation,
-    existing_data_relation: functions.ExistingDataRelation,
+    dimension_change: operator_kinds.DimensionChange,
+    fragment_dimensions: operator_kinds.FragmentDimensions,
 ) -> None:
-    definition = functions.FUNCTION_KINDS[kind]
-
+    definition = operator_kinds.OPERATOR_KINDS[kind]
     assert definition.produces_fragment is produces_fragment
     assert definition.dimension_change == dimension_change
     assert definition.fragment_dimensions == fragment_dimensions
-    assert definition.row_count_relation == row_count_relation
-    assert definition.key_relation == key_relation
-    assert definition.row_order_relation == row_order_relation
-    assert definition.existing_data_relation == existing_data_relation
 
 
-def test_function_kind_ids_remain_the_serialized_values() -> None:
-    for kind in functions.FUNCTION_KINDS:
-        dataframe_inputs = functions.FUNCTION_KINDS[kind].dataframe_inputs or 0
-        model = spec_model.Spec.model_validate(
-            {
-                "functions": {
-                    kind: {
-                        "kind": kind,
-                        "returns": functions.FUNCTION_KINDS[kind].returns,
-                        "entrypoint": f"example:{kind}",
-                        "args": {
-                            f"dataframe_{index}": {"type": "dataframe"}
-                            for index in range(dataframe_inputs)
-                        },
-                    }
-                }
-            }
-        )
+def test_function_template_contract_has_roles_but_no_operator_kind() -> None:
+    fields = spec_model.FunctionTemplate.model_fields
+    assert "kind" not in fields
+    assert fields["returns"].is_required()
 
-        assert model.model_dump(mode="json")["functions"][kind]["kind"] == kind
-
-
-@pytest.mark.parametrize(
-    ("kind", "dataframe_input_count", "return_kind"),
-    [
-        ("read", 0, "dataframe"),
-        ("write", 1, "none"),
-        ("escape", None, "any"),
-        ("vectorize", 1, "dataframe"),
-        ("collapse", 1, "dataframe"),
-        ("expand", 1, "dataframe"),
-        ("conform", 1, "dataframe"),
-    ],
-)
-def test_function_kind_contracts_validate_every_kind(
-    kind: functions.FunctionKindId,
-    dataframe_input_count: int | None,
-    return_kind: functions.ReturnKind,
-) -> None:
-    definition = functions.FUNCTION_KINDS[kind]
-    assert definition.dataframe_inputs == dataframe_input_count
-    assert definition.returns == return_kind
-
-    model = spec_model.Spec.model_validate(
-        {
-            "functions": {
-                kind: {
-                    "kind": kind,
-                    "returns": return_kind,
-                    "entrypoint": f"example:{kind}",
-                    "args": {
-                        f"dataframe_{index}": {"type": "dataframe"}
-                        for index in range(dataframe_input_count or 0)
-                    },
-                }
-            }
-        }
+    template = spec_model.FunctionTemplate.model_validate(
+        {"id": "calculate", "returns": "any", "entrypoint": "example:calculate"}
     )
-    assert validation_functions.validate_function_contracts(model) is None
+    assert template.returns == "any"
+    assert not hasattr(template, "kind")
 
-
-@pytest.mark.parametrize("dataframe_input_count", [0, 1, 3])
-def test_escape_contract_accepts_any_number_of_dataframe_arguments(
-    dataframe_input_count: int,
-) -> None:
-    function_args = {
-        f"dataframe_{index}": {"type": "dataframe"} for index in range(dataframe_input_count)
-    }
-    model = spec_model.Spec.model_validate(
-        {
-            "functions": {
-                "escape": {
-                    "kind": "escape",
-                    "returns": "any",
-                    "entrypoint": "example:escape",
-                    "args": function_args,
-                }
-            }
-        }
-    )
-
-    assert validation_functions.validate_function_contracts(model) is None
-
-
-@pytest.mark.parametrize("argument_type", ["array[dataframe]", "object{str: array[dataframe]}"])
-def test_escape_contract_allows_nested_dataframe_arguments(argument_type: str) -> None:
-    model = spec_model.Spec.model_validate(
-        {
-            "functions": {
-                "escape": {
-                    "kind": "escape",
-                    "returns": "any",
-                    "entrypoint": "example:escape",
-                    "args": {"frames": {"type": argument_type}},
-                }
-            }
-        }
-    )
-
-    assert validation_functions.validate_function_contracts(model) is None
-
-
-def test_escape_contract_accepts_no_dataframe_arguments() -> None:
-    model = spec_model.Spec.model_validate(
-        {
-            "functions": {
-                "escape": {
-                    "kind": "escape",
-                    "returns": "any",
-                    "entrypoint": "example:escape",
-                    "args": {"path": {"type": "string"}},
-                }
-            }
-        }
-    )
-
-    assert validation_functions.validate_function_contracts(model) is None
-
-
-def test_escape_binding_validation_accepts_scalar_and_zero_arguments() -> None:
-    model = spec_model.Spec.model_validate(
-        {
-            "functions": {
-                "zero_argument": {
-                    "kind": "escape",
-                    "returns": "any",
-                    "entrypoint": "example:zero_argument",
-                },
-                "scalar_argument": {
-                    "kind": "escape",
-                    "returns": "any",
-                    "entrypoint": "example:scalar_argument",
-                    "args": {"value": {"type": "float"}},
-                },
-            },
-            "profiles": {
-                "dataset": {
-                    "assembly": {
-                        "zero_argument": {"compute": {"function": "zero_argument", "args": {}}},
-                        "scalar_argument": {
-                            "compute": {
-                                "function": "scalar_argument",
-                                "args": {"value": 1.5},
-                            }
-                        },
-                    }
-                }
-            },
-        }
-    )
-
-    assert bindings.validate_arguments(model) is None
-    assert bindings.validate_selector_type(model) is None
-    assert validation_functions.validate_function_contracts(model) is None
-
-
-@pytest.mark.parametrize(
-    ("function", "expected_error"),
-    [
-        (
-            {
-                "kind": "vectorize",
-                "returns": "any",
-                "entrypoint": "example:calculate",
-                "args": {"dataframe": {"type": "dataframe"}},
-            },
-            "must declare returns=dataframe",
-        ),
-        (
-            {
-                "kind": "write",
-                "returns": "none",
-                "entrypoint": "example:write",
-                "args": {},
-            },
-            "requires 1 dataframe argument",
-        ),
-        (
-            {
-                "kind": "read",
-                "returns": "dataframe",
-                "entrypoint": "example:read",
-                "args": {"dataset": {"type": "dataframe"}},
-            },
-            "requires 0 dataframe argument",
-        ),
-        (
-            {
-                "kind": "conform",
-                "returns": "dataframe",
-                "entrypoint": "example:conform",
-                "args": {
-                    "source": {"type": "dataframe"},
-                    "target": {"type": "dataframe"},
-                },
-            },
-            "requires 1 dataframe argument",
-        ),
-    ],
-)
-def test_fixed_function_kind_contracts_remain_enforced(
-    function: dict[str, object], expected_error: str
-) -> None:
-    model = spec_model.Spec.model_validate({"functions": {"function": function}})
-
-    with pytest.raises(ValueError, match=expected_error):
-        validation_functions.validate_function_contracts(model)
-        validation_functions.validate_function_contracts(model)
-
-
-def test_function_model_uses_the_shared_kind_contract() -> None:
-    assert spec_model.FunctionTemplate.model_fields["kind"].annotation is functions.FunctionKindId
-    assert spec_model.FunctionTemplate.model_fields["returns"].annotation is functions.ReturnKind
-
-
-def test_function_capabilities_retain_the_current_execution_groups() -> None:
-    assert all(
-        definition.produces_features == (kind not in {functions.WRITE, functions.MERGE})
-        for kind, definition in functions.FUNCTION_KINDS.items()
-    )
-    assert {
-        kind
-        for kind, definition in functions.FUNCTION_KINDS.items()
-        if definition.requires_feature_outputs
-    } == {"read", "conform", "expand", "collapse", "vectorize"}
-    assert {
-        kind for kind, definition in functions.FUNCTION_KINDS.items() if definition.is_source
-    } == {"read", "conform", "expand", "collapse"}
-    assert functions.FUNCTION_KINDS["vectorize"].is_transformer
-    assert functions.FUNCTION_KINDS["write"].is_sink
-    assert functions.FUNCTION_KINDS["escape"].is_effect
-
-
-def test_function_kind_capabilities_can_overlap() -> None:
-    source_transformer = dataclasses.replace(
-        functions.FUNCTION_KINDS[functions.READ], is_transformer=True
-    )
-
-    assert source_transformer.is_source
-    assert source_transformer.is_transformer
-
-
-@pytest.mark.parametrize("kind", ["python_one_liner", "sql_select", "unknown", ""])
-def test_function_templates_reject_unsupported_kinds(kind: str) -> None:
-    with pytest.raises(pydantic.ValidationError, match="kind"):
+    with pytest.raises(pydantic.ValidationError, match="returns"):
         spec_model.FunctionTemplate.model_validate(
-            {
-                "id": "calculate",
-                "kind": kind,
-                "returns": "dataframe",
-                "entrypoint": "example:calculate",
-            }
+            {"id": "calculate", "entrypoint": "example:calculate"}
         )
+
+
+def test_one_callable_can_have_different_usage_derived_operator_labels() -> None:
+    spec = _shared_callable_spec()
+
+    assert spec.operator_kinds == {
+        ("local", "self_transform"): "vectorize",
+        ("remote", "foreign_transform"): "conform",
+    }
+    assert spec.functions["shared"].returns == "dataframe"
+    assert not hasattr(spec.functions["shared"], "kind")
+
+
+def test_function_contract_round_trips_without_kind_metadata() -> None:
+    spec = _shared_callable_spec()
+    payload = spec.model_dump(mode="json")
+
+    assert payload["spec_version"] == 8
+    assert "kind" not in payload["functions"]["shared"]
+    reloaded = spec_model.Spec.model_validate(payload)
+    assert reloaded.model_dump(mode="json") == payload

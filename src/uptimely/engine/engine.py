@@ -143,7 +143,7 @@ class Engine:
                     "Executing operator %s, function %s (%s)",
                     invocation.operator_id,
                     invocation.function_id,
-                    invocation.function_kind,
+                    invocation.operator_kind,
                     extra={"invocation_id": invocation.id, "profile_id": invocation.profile_id},
                 )
                 invocation_executor.execute(invocation)

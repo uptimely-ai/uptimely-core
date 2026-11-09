@@ -5,7 +5,6 @@ import typing
 
 import pytest
 
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec import python as authoring
 from uptimely.spec.python import conversion, dimension, ref, row_context
@@ -13,12 +12,12 @@ from uptimely.spec.validation import errors as validation_errors
 from uptimely.spec.validation import validate_spec
 
 
-@authoring.function(kind="vectorize")
-def must_not_execute(values: list[str], output: str) -> None:
+@authoring.function(returns="dataframe")
+def must_not_execute(values: list[str], output: str) -> object:
     raise AssertionError("Assembly executed the implementation")
 
 
-@authoring.function(kind="vectorize")
+@authoring.function(returns="any")
 def calculate(value: str) -> str:
     return value
 
@@ -58,7 +57,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
                     ],
                 ),
                 compute=authoring.Binding(
-                    function=ref.function("reader:read", kind="read"),
+                    function=ref.function("reader:read", returns="dataframe"),
                     arguments={},
                 ),
             )
@@ -96,7 +95,7 @@ def test_mapping_rejects_duplicate_output_ids() -> None:
                 ],
             ),
             compute=authoring.Binding(
-                function=ref.function("reader:read", kind="read"),
+                function=ref.function("reader:read", returns="dataframe"),
                 arguments={},
             ),
         )
@@ -146,7 +145,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
     ],
 )
 def test_assembly_reports_invalid_arguments(arguments: dict[str, object], message: str) -> None:
-    @authoring.function(kind="write")
+    @authoring.function(returns="none")
     def implementation(feature: str) -> None:
         pass
 
@@ -182,7 +181,7 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
                 ),
                 compute=authoring.Binding(
                     function=ref.function(
-                        "test_declarative_authoring:implementation", kind="vectorize"
+                        "test_declarative_authoring:implementation", returns="dataframe"
                     ),
                     arguments={"output": ref.feature(identifier).id},
                 ),
@@ -201,7 +200,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
             outputs=[authoring.Feature(id="value", type="float")],
         ),
         compute=authoring.Binding(
-            function=ref.function("reader:read", kind="read"),
+            function=ref.function("reader:read", returns="dataframe"),
             arguments={},
         ),
     )
@@ -211,7 +210,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
             outputs=[authoring.Feature(id="value", type="integer")],
         ),
         compute=authoring.Binding(
-            function=ref.function("reader:replacement", kind="read"),
+            function=ref.function("reader:replacement", returns="dataframe"),
             arguments={},
         ),
     )
@@ -221,7 +220,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
             outputs=[],
         ),
         compute=authoring.Binding(
-            function=ref.function("writer:write", kind="write"),
+            function=ref.function("writer:write", returns="none"),
             arguments={"column": ref.feature("value")},
         ),
     )
@@ -288,7 +287,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
                     outputs=[authoring.Feature(id="value", type="float")],
                 ),
                 compute=authoring.Binding(
-                    function=ref.function("reader:values", kind="read"),
+                    function=ref.function("reader:values", returns="dataframe"),
                     arguments={},
                 ),
             )
@@ -308,7 +307,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
             outputs=[authoring.Feature(id="result", type="float")],
         ),
         compute=authoring.Binding(
-            function=ref.function("calculation:calculate", kind="vectorize"),
+            function=ref.function("calculation:calculate", returns="dataframe"),
             arguments={
                 "configuration": {
                     "columns": [
@@ -341,7 +340,7 @@ def test_programmatic_dataset_uses_function_name_for_catalog_id() -> None:
             outputs=[authoring.Feature(id="result", type="float")],
         ),
         compute=authoring.Binding(
-            function=ref.function("calculation:calculate", kind="vectorize"),
+            function=ref.function("calculation:calculate", returns="dataframe"),
             arguments={"column": ref.feature("inferred")},
         ),
     )
@@ -363,7 +362,7 @@ def test_operator_interface_inputs_accept_feature_declarations() -> None:
             outputs=[authoring.Feature(id="result")],
         ),
         compute=authoring.Binding(
-            function=ref.function("calculation:calculate", kind="vectorize"),
+            function=ref.function("calculation:calculate", returns="dataframe"),
             arguments={"value": ref.feature("inferred")},
         ),
     )
@@ -387,7 +386,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
                     outputs=[authoring.Feature(id="value", type="float")],
                 ),
                 compute=authoring.Binding(
-                    function=ref.function("reader:read", kind="read"),
+                    function=ref.function("reader:read", returns="dataframe"),
                     arguments={
                         "keys": ref.profile().grain.ids,
                         "source_keys": ref.profile("source").grain.ids,
@@ -417,7 +416,7 @@ def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
     arguments = {
         "id": "read",
         "interface": authoring.Interface(outputs=[]),
-        "compute": authoring.Binding(function=ref.function("reader:read", kind="read")),
+        "compute": authoring.Binding(function=ref.function("reader:read", returns="dataframe")),
     }
     del arguments[required]
     with pytest.raises(TypeError, match=required):
@@ -430,26 +429,27 @@ def test_operator_rejects_flat_declaration_fields(legacy: str) -> None:
         authoring.Operator(
             id="read",
             interface=authoring.Interface(outputs=[]),
-            compute=authoring.Binding(function=ref.function("reader:read", kind="read")),
+            compute=authoring.Binding(function=ref.function("reader:read", returns="dataframe")),
             **{legacy: None},
         )
 
 
-def test_mapping_requires_function_kind_metadata() -> None:
-    with pytest.raises(ValueError, match="Function kind is required"):
-        authoring.Operator(
-            id="operator",
-            interface=authoring.Interface(
-                outputs=[],
-            ),
-            compute=authoring.Binding(
-                function="reader:read",
-                arguments={},
-            ),
-        )
+def test_mapping_requires_explicit_function_return_contract() -> None:
+    operator = authoring.Operator(
+        id="operator",
+        interface=authoring.Interface(
+            outputs=[],
+        ),
+        compute=authoring.Binding(
+            function="reader:read",
+            arguments={},
+        ),
+    )
+    with pytest.raises(ValueError, match="Explicit returns metadata is required"):
+        operator.function_catalog()
 
 
-def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
+def test_explicit_return_contract_is_preserved_without_wrapping_function() -> None:
     declaration = authoring.Operator(
         id="declaration",
         interface=authoring.Interface(
@@ -462,8 +462,7 @@ def test_kind_annotation_is_inferred_without_wrapping_function() -> None:
     )
 
     assert declaration.compute.function is calculate
-    assert declaration.kind == "vectorize"
-    assert declaration.function_catalog()["calculate"].kind == "vectorize"
+    assert declaration.function_catalog()["calculate"].returns == "any"
 
 
 def test_operator_export_uses_its_identifier() -> None:
@@ -473,7 +472,7 @@ def test_operator_export_uses_its_identifier() -> None:
             outputs=[],
         ),
         compute=authoring.Binding(
-            function=ref.function("reader:read", kind="read"),
+            function=ref.function("reader:read", returns="dataframe"),
             arguments={},
         ),
     )
@@ -489,38 +488,36 @@ def test_operator_rejects_invalid_identifiers(identifier: typing.Any) -> None:
                 outputs=[],
             ),
             compute=authoring.Binding(
-                function=ref.function("reader:read", kind="read"),
+                function=ref.function("reader:read", returns="dataframe"),
                 arguments={},
             ),
         )
 
 
-@pytest.mark.parametrize(
-    "kind", [kind for kind in functions.FUNCTION_KINDS if kind != functions.MERGE]
-)
-def test_operator_accept_every_declared_function_kind(kind: functions.FunctionKindId) -> None:
+@pytest.mark.parametrize("returns", ["dataframe", "none", "any"])
+def test_function_catalog_records_independent_return_contract(returns: str) -> None:
     operator = authoring.Operator(
         id="work",
         interface=authoring.Interface(
             outputs=[],
         ),
         compute=authoring.Binding(
-            function=ref.function("implementation:work", kind=kind),
+            function=ref.function("implementation:work", returns=returns),
             arguments={},
         ),
     )
     declaration = authoring.Profile(id="example", assembly=[operator])
     assert declaration.to_model().assembly["work"] == operator.to_model()
-    assert declaration.function_catalog()[operator.catalog_id].kind == kind
+    assert declaration.function_catalog()[operator.catalog_id].returns == returns
 
 
-@authoring.function(kind="merge")
+@authoring.function(returns="dataframe")
 def merge_frames(target: object | None, fragment: object) -> object:
     """Return the merged dataframe."""
     return target if target is not None else fragment
 
 
-@authoring.function(kind="read")
+@authoring.function(returns="dataframe")
 def read_frames() -> object:
     """Return source observations."""
     return object()
@@ -544,13 +541,13 @@ def test_python_spec_merge_binding_export() -> None:
     validate_spec(spec_definition)
     model_operator = spec_definition.profiles["example"].assembly["read"]
 
-    assert spec_definition.spec_version == 7
+    assert spec_definition.spec_version == 8
     assert model_operator.merge is not None
     assert model_operator.merge.model_dump()["args"] == {
         "target": "$profiles.@.dataset",
         "fragment": "$operators.@.fragment",
     }
-    assert spec_definition.functions["merge_frames"].kind == functions.MERGE
+    assert not hasattr(spec_definition.functions["merge_frames"], "kind")
     assert spec_definition.functions["merge_frames"].args["target"].type == "dataframe | null"
     assert spec_definition.functions["merge_frames"].args["fragment"].type == "dataframe"
     assert "options" not in spec_definition.model_dump()
@@ -589,7 +586,7 @@ def test_operator_groups_flatten_in_mapping_order() -> None:
             outputs=[],
         ),
         compute=authoring.Binding(
-            function=ref.function("reader:read", kind="read"),
+            function=ref.function("reader:read", returns="dataframe"),
             arguments={},
         ),
     )
@@ -598,7 +595,7 @@ def test_operator_groups_flatten_in_mapping_order() -> None:
         id="write",
         compute=dataclasses.replace(
             first.compute,
-            function=ref.function("writer:write", kind="write"),
+            function=ref.function("writer:write", returns="none"),
         ),
     )
     declaration = authoring.Profile(
@@ -611,15 +608,15 @@ def test_operator_groups_flatten_in_mapping_order() -> None:
     assert authoring.Profile(id="empty_grouped", assembly={}).assembly == []
 
 
-@pytest.mark.parametrize("second_kind", ["read", "write", "escape"])
-def test_operator_ids_are_unique_across_groups(second_kind: functions.FunctionKindId) -> None:
+@pytest.mark.parametrize("returns", ["dataframe", "none", "any"])
+def test_operator_ids_are_unique_across_groups(returns: str) -> None:
     first = authoring.Operator(
         id="duplicate",
         interface=authoring.Interface(
             outputs=[],
         ),
         compute=authoring.Binding(
-            function=ref.function("reader:read", kind="read"),
+            function=ref.function("reader:read", returns="dataframe"),
             arguments={},
         ),
     )
@@ -627,7 +624,7 @@ def test_operator_ids_are_unique_across_groups(second_kind: functions.FunctionKi
         first,
         compute=dataclasses.replace(
             first.compute,
-            function=ref.function("implementation:work", kind=second_kind),
+            function=ref.function("implementation:work", returns=returns),
         ),
     )
     with pytest.raises(ValueError, match="Profile 'example' has duplicate operator ID 'duplicate'"):
@@ -644,7 +641,7 @@ def test_operator_defaults_and_inherited_lists_are_not_shared_between_instances(
             outputs=[],
         ),
         compute=authoring.Binding(
-            function=ref.function("reader:read", kind="read"),
+            function=ref.function("reader:read", returns="dataframe"),
             arguments={},
         ),
     )
@@ -673,7 +670,7 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_operator() -> None:
             outputs=[],
         ),
         compute=authoring.Binding(
-            function=ref.function("reader:read", kind="read"),
+            function=ref.function("reader:read", returns="dataframe"),
             arguments={},
         ),
     )
@@ -702,7 +699,7 @@ def test_conversion_revalidates_modified_operator() -> None:
                 outputs=[],
             ),
             compute=authoring.Binding(
-                function=ref.function("writer:write", kind="write"),
+                function=ref.function("writer:write", returns="none"),
                 arguments={},
             ),
         )
@@ -714,9 +711,9 @@ def test_conversion_revalidates_modified_operator() -> None:
             outputs=[authoring.Feature(id="value")],
         ),
     )
-    with pytest.raises(ValueError, match="Write operator cannot produce features"):
+    with pytest.raises(ValueError, match="No-result operator cannot produce features"):
         declaration.to_model()
-    with pytest.raises(ValueError, match="Write operator cannot produce features"):
+    with pytest.raises(ValueError, match="No-result operator cannot produce features"):
         declaration.function_catalog()
 
 
@@ -731,7 +728,7 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
                         outputs=[authoring.Feature(id="result")],
                     ),
                     compute=authoring.Binding(
-                        function=ref.function("implementation:calculate", kind="vectorize"),
+                        function=ref.function("implementation:calculate", returns="dataframe"),
                         arguments={"column": ref.feature("pipeline_result")},
                     ),
                 )
@@ -743,7 +740,7 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
                         outputs=[],
                     ),
                     compute=authoring.Binding(
-                        function=ref.function("implementation:publish", kind="write"),
+                        function=ref.function("implementation:publish", returns="none"),
                         arguments={"column": ref.feature("result")},
                     ),
                 )
@@ -756,7 +753,7 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
                         outputs=[],
                     ),
                     compute=authoring.Binding(
-                        function=ref.function("implementation:custom_work", kind="escape"),
+                        function=ref.function("implementation:custom_work", returns="any"),
                         arguments={},
                     ),
                 )

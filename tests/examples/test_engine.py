@@ -443,7 +443,7 @@ def test_engine_validates_required_fragment_columns_and_types(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.profile_id == "pump" and item.function_kind == "collapse"
+        if item.profile_id == "pump" and item.operator_kind == "collapse"
     )
     grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.profile_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
@@ -484,7 +484,7 @@ def test_engine_assembly_rejects_feature_collisions(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.profile_id == "pump" and item.function_kind == "collapse"
+        if item.profile_id == "pump" and item.operator_kind == "collapse"
     )
     grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.profile_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
@@ -605,16 +605,15 @@ def test_engine_executes_requested_feature_and_its_dependencies(
         feature
         for stage in engine.plan.execution_stages
         for operation in stage
-        if operation.function_kind == "vectorize"
+        if operation.operator_kind == "vectorize"
         for feature in operation.output_features
     ] == [
         "health_signal_normalized",
     ]
     assert {
-        operation.function_kind for stage in engine.plan.execution_stages for operation in stage
+        operation.operator_kind for stage in engine.plan.execution_stages for operation in stage
     } == {
         "read",
-        "merge",
         "collapse",
         "vectorize",
     }

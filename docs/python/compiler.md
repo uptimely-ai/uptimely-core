@@ -23,7 +23,7 @@ source Spec after upgrading Uptimely.
 Today, each Spec operator's compute binding becomes one plan invocation;
 fragment-producing operators may also have a separate merge invocation.
 Invocations retain the associated operator ID, and compute and merge are
-distinguished by their function kinds. Consumers depend on publication after
+distinguished by their binding roles. Consumers depend on publication after
 merge, and only the compute invocation owns the operator's logical output
 features. This is the current compiler strategy, not a guaranteed one-to-one
 relationship: future optimization strategies may split, combine, or otherwise
@@ -34,10 +34,12 @@ The compiler resolves `$features.@` from an unambiguous declared output when
 emitting binding arguments.
 Dependencies come from declared interface inputs and outputs, plus the edge
 from a fragment-producing compute invocation to its merge invocation.
-One shared feature index uses the function kind's `produces_features` contract
+One shared feature index uses the declared outputs and derived operator policy
 and resolves each output to its merge invocation when present, otherwise compute.
 
-Each invocation carries the runtime contract needed without consulting the Spec:
+Each invocation carries its binding `role` and `result` handling (`none`,
+`target`, or `fragment`) independently of its callable. It also carries
+the runtime metadata needed without consulting the Spec:
 `id_columns` lists target keys, `column_types` maps typed target columns to logical
 types, and `argument_types` maps declared argument names to their types. The
 compiler takes key types from canonical dimension declarations, ahead of any
@@ -58,7 +60,7 @@ and `execution_stages`, along with derived views: `function_ids`, `profile_ids`,
 `arguments` (invocation ID to bound arguments), `features` (output feature ID to
 producing invocations), `calculated_features`, `entrypoints`, and
 `invocations_by_kind`, and `count_per_kind` (invocation counts keyed and sorted by
-function kind). Output features include dimension outputs; the Spec
+derived operator label). Output features include dimension outputs; the Spec
 remains the source of feature metadata. Repeated reads reuse the same cached
 views. Each derived view is built independently, so using one does not eagerly
 materialize unrelated indexes. Treat the views and their nested containers as

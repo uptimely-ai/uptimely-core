@@ -1,6 +1,6 @@
 import dataclasses
 
-from uptimely.spec import model
+from uptimely.spec import model, operator_kinds
 
 
 @dataclasses.dataclass(frozen=True)
@@ -11,6 +11,7 @@ class OperatorNode:
     features: tuple[str, ...]
     profile_id: str
     function: model.FunctionTemplate = dataclasses.field(compare=False, hash=False)
+    operator_kind: operator_kinds.OperatorKindId
     profile_name: str | None = None
     operator: model.Operator | None = dataclasses.field(default=None, compare=False, hash=False)
 

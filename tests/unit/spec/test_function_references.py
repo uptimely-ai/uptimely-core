@@ -7,7 +7,6 @@ from collections import abc
 
 import pytest
 
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import assembly, bind, binding_conversion, conversion, profile, ref
 
@@ -15,15 +14,6 @@ MODULE_LOCATIONS = [
     "math",
     "unavailable_package.functions",
 ]
-MAPPING_KINDS: tuple[functions.FunctionKindId, ...] = (
-    "read",
-    "write",
-    "escape",
-    "vectorize",
-    "collapse",
-    "expand",
-    "conform",
-)
 
 
 def _dataset(operator: assembly.Operator) -> profile.Profile:
@@ -57,7 +47,8 @@ def test_function_reference_accepts_qualified_names() -> None:
 def test_category_survives_conversion_to_spec_document() -> None:
     reference = ref.function(
         "unavailable_package.functions:calculate",
-        kind="vectorize",
+        returns="dataframe",
+        args={},
         category="user-defined / free-form",
         validate_signature=False,
     )
@@ -82,7 +73,9 @@ def test_omitted_category_is_serialized_as_null_in_spec_json() -> None:
             id="calculate",
             interface=assembly.Interface(outputs=[]),
             compute=assembly.Binding(
-                function=ref.function("unavailable_package.functions:calculate", kind="vectorize"),
+                function=ref.function(
+                    "unavailable_package.functions:calculate", returns="dataframe"
+                ),
                 arguments={},
             ),
         ),
@@ -98,15 +91,13 @@ def test_function_reference_rejects_non_string_category() -> None:
         ref.function("math:ceil", category=typing.cast(str, 1))
 
 
-def test_function_reference_rejects_unsupported_operation() -> None:
-    with pytest.raises(ValueError, match="Unsupported function kind"):
-        ref.function("math:ceil", kind=typing.cast(functions.FunctionKindId, "unknown"))
+def test_function_reference_rejects_unsupported_return_role() -> None:
+    with pytest.raises(ValueError, match="Unsupported return contract"):
+        ref.function("math:ceil", returns=typing.cast(typing.Any, "unknown"))
 
 
-@pytest.mark.parametrize("kind", MAPPING_KINDS)
 @pytest.mark.parametrize("validate_signature", [False, True])
 def test_signature_validation_setting_survives_conversion_without_importing(
-    kind: functions.FunctionKindId,
     validate_signature: bool,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -116,7 +107,8 @@ def test_signature_validation_setting_survives_conversion_without_importing(
     monkeypatch.setattr(importlib, "import_module", unexpected_import)
     reference = ref.function(
         "unavailable_package.functions:calculate",
-        kind=kind,
+        returns="dataframe",
+        args={} if not validate_signature else None,
         validate_signature=validate_signature,
     )
     declaration = _dataset(
@@ -140,7 +132,7 @@ def test_signature_validation_setting_survives_conversion_without_importing(
     assert reloaded.functions["calculate"].validate_signature is validate_signature
 
 
-@pytest.mark.parametrize("validate_signature", [None, "false", 0, 1])
+@pytest.mark.parametrize("validate_signature", ["false", 0, 1])
 def test_function_reference_rejects_non_boolean_signature_validation(
     validate_signature: typing.Any,
 ) -> None:
@@ -161,13 +153,13 @@ def _documented(dataset: object) -> object:
 
 
 def test_callable_reference_captures_docstring_summary() -> None:
-    reference = ref.function(_documented, kind="vectorize")
+    reference = ref.function(_documented, returns="any")
 
     assert reference.description == "Summary line spanning two lines."
 
 
 def test_explicit_description_overrides_docstring_summary() -> None:
-    reference = ref.function(_documented, kind="vectorize", description="Custom text.")
+    reference = ref.function(_documented, returns="any", description="Custom text.")
 
     assert reference.description == "Custom text."
 
@@ -177,12 +169,12 @@ def _undocumented(dataset: object) -> object:
 
 
 def test_undocumented_callable_and_string_references_have_no_description() -> None:
-    assert ref.function(_undocumented, kind="vectorize").description is None
+    assert ref.function(_undocumented, returns="any").description is None
     assert ref.function("math:ceil").description is None
 
 
 def test_description_survives_conversion_to_exported_document() -> None:
-    reference = ref.function(_documented, kind="vectorize")
+    reference = ref.function(_documented, returns="any")
     declaration = _dataset(
         assembly.Operator(
             id="calculate",
@@ -191,7 +183,7 @@ def test_description_survives_conversion_to_exported_document() -> None:
             ),
             compute=assembly.Binding(
                 function=reference,
-                arguments={},
+                arguments={"dataset": ref.dataset()},
             ),
         ),
     )
@@ -213,7 +205,6 @@ def test_function_reference_rejects_non_string_description() -> None:
 def test_function_model_defaults_signature_validation_and_exposes_schema() -> None:
     function = spec_model.FunctionTemplate(
         id="calculate",
-        kind="vectorize",
         returns="dataframe",
         entrypoint="unavailable_package:calculate",
     )
@@ -233,7 +224,6 @@ def test_function_model_preserves_explicit_name() -> None:
     function = spec_model.FunctionTemplate(
         id="calculate_sum",
         name="Total Calculator",
-        kind="vectorize",
         returns="dataframe",
         entrypoint="unavailable_package:calculate",
     )
@@ -254,7 +244,10 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
                     ),
                     compute=assembly.Binding(
                         function=ref.function(
-                            "math:ceil", kind="vectorize", validate_signature=validate_signature
+                            "math:ceil",
+                            returns="dataframe",
+                            args={},
+                            validate_signature=validate_signature,
                         ),
                         arguments={},
                     ),
@@ -276,7 +269,7 @@ def test_string_locations_are_preserved_without_importing(
         pytest.fail("Creating or exporting a function reference must not import its module")
 
     monkeypatch.setattr(importlib, "import_module", unexpected_import)
-    reference = ref.function(f"{location}:ceil", kind="vectorize")
+    reference = ref.function(f"{location}:ceil", returns="dataframe")
     declaration = profile.Profile(
         id="observations",
         assembly=[
@@ -302,9 +295,9 @@ def test_string_locations_are_preserved_without_importing(
     }
 
 
-@pytest.mark.parametrize("kind", MAPPING_KINDS)
-def test_generic_mapping_exports_function_kind_without_importing(
-    kind: functions.FunctionKindId, monkeypatch: pytest.MonkeyPatch
+@pytest.mark.parametrize("returns", ["dataframe", "none", "any"])
+def test_generic_mapping_exports_return_contract_without_importing(
+    returns: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def unexpected_import(*_args: object, **_kwargs: object) -> typing.NoReturn:
         pytest.fail(f"Unexpected function import during authoring: {_args!r} {_kwargs!r}")
@@ -318,7 +311,7 @@ def test_generic_mapping_exports_function_kind_without_importing(
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=ref.function("unavailable_package.functions:calculate", kind=kind),
+                function=ref.function("unavailable_package.functions:calculate", returns=returns),
                 arguments={"dataset": ref.profile().dataset},
             ),
         ),
@@ -326,28 +319,24 @@ def test_generic_mapping_exports_function_kind_without_importing(
 
     catalog = declaration.function_catalog()
 
-    assert catalog["calculate"].kind == kind
-    expected_returns = {
-        "write": "none",
-        "escape": "any",
-    }.get(kind, "dataframe")
-    assert catalog["calculate"].returns == expected_returns
+    assert catalog["calculate"].returns == returns
     assert catalog["calculate"].entrypoint == "unavailable_package.functions:calculate"
 
 
-def test_generic_mapping_requires_operation_metadata() -> None:
-    with pytest.raises(ValueError, match="kind"):
-        assembly.Operator(
-            id="operator",
-            interface=assembly.Interface(
-                inputs=[],
-                outputs=[],
-            ),
-            compute=assembly.Binding(
-                function=ref.function("math:ceil"),
-                arguments={"x": 1.2},
-            ),
-        )
+def test_generic_mapping_requires_return_metadata() -> None:
+    operator = assembly.Operator(
+        id="operator",
+        interface=assembly.Interface(
+            inputs=[],
+            outputs=[],
+        ),
+        compute=assembly.Binding(
+            function=ref.function("math:ceil"),
+            arguments={"x": 1.2},
+        ),
+    )
+    with pytest.raises(ValueError, match="Explicit returns metadata is required"):
+        operator.function_catalog()
 
 
 def test_escape_catalog_metadata_survives_json_round_trip() -> None:
@@ -361,7 +350,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function("math:ceil", kind="escape"),
+                    function=ref.function("math:ceil", returns="any"),
                     arguments={},
                 ),
             )
@@ -371,47 +360,27 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
     payload = conversion.to_dict(profiles=[declaration])
     reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
 
-    assert payload["functions"]["ceil"]["kind"] == "escape"
+    assert "kind" not in payload["functions"]["ceil"]
     assert payload["functions"]["ceil"]["returns"] == "any"
-    assert reloaded.functions["ceil"].kind == "escape"
     assert reloaded.functions["ceil"].returns == "any"
 
 
-@pytest.mark.parametrize("kind", MAPPING_KINDS)
-def test_generic_mapping_accepts_function_kind_metadata(
-    kind: functions.FunctionKindId,
-) -> None:
-    declaration = assembly.Operator(
-        id="declaration",
-        interface=assembly.Interface(
-            inputs=[],
-            outputs=[],
-        ),
-        compute=assembly.Binding(
-            function=ref.function("math:ceil", kind=kind),
-            arguments={"x": 1.2},
-        ),
-    )
-
-    assert declaration.kind == kind
-
-
-@pytest.mark.parametrize("kind", MAPPING_KINDS)
-def test_references_supply_function_names_as_catalog_ids(kind: functions.FunctionKindId) -> None:
+@pytest.mark.parametrize("returns", ["dataframe", "none", "any"])
+def test_references_supply_function_names_as_catalog_ids(returns: str) -> None:
     declaration = assembly.Operator(
         id="declaration",
         interface=assembly.Interface(
             outputs=[],
         ),
         compute=assembly.Binding(
-            function=ref.function("math:ceil", kind=kind),
+            function=ref.function("math:ceil", returns=returns),
             arguments={"x": 1.2},
         ),
     )
     catalog = _dataset(declaration).function_catalog()
     identifier = "ceil"
 
-    assert catalog[identifier].kind == kind
+    assert catalog[identifier].returns == returns
     assert catalog[identifier].entrypoint == "math:ceil"
     assert catalog[identifier].args["x"].type == "float"
     model = declaration.to_model()

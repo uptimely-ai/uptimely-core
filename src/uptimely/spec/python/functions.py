@@ -1,81 +1,83 @@
-"""Optional semantic contracts for Python function implementations."""
+"""Reusable Python function metadata without operator classifications."""
 
 from __future__ import annotations
 
+import dataclasses
 import typing
 from collections import abc
 
-from uptimely.spec import function_kinds
+from uptimely.spec import function_contracts
 
 __all__ = ["function"]
-
-_KIND_ATTRIBUTE = "__uptimely_kind__"
-_CATEGORY_ATTRIBUTE = "__uptimely_category__"
+_METADATA_ATTRIBUTE = "__uptimely_contract__"
 _Parameters = typing.ParamSpec("_Parameters")
 _Result = typing.TypeVar("_Result")
 
 
+@dataclasses.dataclass(frozen=True)
+class Metadata:
+    """Explicit reusable contracts and descriptive metadata for a callable."""
+
+    returns: function_contracts.ReturnRole | None = None
+    args: dict[str, str] | None = None
+    category: str | None = None
+    validate_signature: bool = True
+
+
+def declared_metadata(implementation: abc.Callable[..., object]) -> Metadata:
+    """Read callable metadata without interpreting operator behavior."""
+    value = getattr(implementation, _METADATA_ATTRIBUTE, None)
+    if value is None:
+        return Metadata()
+    if not isinstance(value, Metadata):
+        raise TypeError("Invalid function contract metadata")
+    return value
+
+
 def function(
     *,
-    kind: function_kinds.FunctionKindId,
+    returns: function_contracts.ReturnRole | None = None,
+    args: dict[str, str] | None = None,
     category: str | None = None,
+    validate_signature: bool = True,
 ) -> abc.Callable[
     [abc.Callable[_Parameters, _Result]],
     abc.Callable[_Parameters, _Result],
 ]:
-    """Declare function metadata without wrapping the implementation.
+    """Declare reusable contracts without wrapping the callable.
 
     Args:
-        kind: Execution contract used to validate uses of this function.
-        category: Optional free-form category stored with the function in the Spec.
+        returns: Independent return role; otherwise inferred from an unambiguous
+            dataframe or None return annotation when the function is referenced.
+        args: Explicit argument types, required when signature inspection is disabled.
+        category: Optional descriptive grouping label, never an execution policy.
+        validate_signature: Whether authoring and compilation inspect the signature.
 
     Returns:
-        A decorator that attaches metadata and returns the original callable.
+        A decorator returning the original callable unchanged.
 
     Raises:
-        TypeError: If category is not a string.
-        ValueError: If the kind is unsupported or metadata conflicts with existing values.
+        TypeError: Metadata has an invalid type.
+        ValueError: Contracts are missing or conflict with existing metadata.
     """
-    if kind not in function_kinds.FUNCTION_KINDS:
-        raise ValueError(f"Unsupported function kind: {kind}")
+    function_contracts.validate_metadata(returns, args)
     if category is not None and not isinstance(category, str):
         raise TypeError("Function category must be a string")
+    if not isinstance(validate_signature, bool):
+        raise TypeError("validate_signature must be a boolean")
+    if not validate_signature and (returns is None or args is None):
+        raise ValueError("Disabling signature inspection requires explicit args and returns")
+    metadata = Metadata(
+        returns, args.copy() if args is not None else None, category, validate_signature
+    )
 
     def decorate(
         implementation: abc.Callable[_Parameters, _Result],
     ) -> abc.Callable[_Parameters, _Result]:
-        existing = declared_kind(implementation)
-        if existing is not None and existing != kind:
-            raise ValueError(f"Function kind '{kind}' conflicts with decorated kind '{existing}'")
-        existing_category = declared_category(implementation)
-        if existing_category is not None and category is not None and existing_category != category:
-            raise ValueError(
-                f"Function category '{category}' conflicts with decorated category "
-                f"'{existing_category}'"
-            )
-        setattr(implementation, _KIND_ATTRIBUTE, kind)
-        if category is not None:
-            setattr(implementation, _CATEGORY_ATTRIBUTE, category)
+        existing = getattr(implementation, _METADATA_ATTRIBUTE, None)
+        if existing is not None and existing != metadata:
+            raise ValueError("Function contract conflicts with decorated metadata")
+        setattr(implementation, _METADATA_ATTRIBUTE, metadata)
         return implementation
 
     return decorate
-
-
-def declared_kind(
-    implementation: abc.Callable[..., object],
-) -> function_kinds.FunctionKindId | None:
-    """Read declared semantics without inferring them from a signature."""
-    value = getattr(implementation, _KIND_ATTRIBUTE, None)
-    if value is None:
-        return None
-    if value not in function_kinds.FUNCTION_KINDS:
-        raise ValueError(f"Unsupported function kind: {value}")
-    return typing.cast(function_kinds.FunctionKindId, value)
-
-
-def declared_category(implementation: abc.Callable[..., object]) -> str | None:
-    """Return the optional category declared on a callable."""
-    value = getattr(implementation, _CATEGORY_ATTRIBUTE, None)
-    if value is not None and not isinstance(value, str):
-        raise ValueError(f"Unsupported function category: {value!r}")
-    return value

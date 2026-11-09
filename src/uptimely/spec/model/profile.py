@@ -7,7 +7,7 @@ import typing
 
 import pydantic
 
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec import row_context as uptimely_row_context
 from uptimely.spec import selectors
 
@@ -102,27 +102,29 @@ class Operator(base.StrictModel):
     def resolve_args(
         self,
         function_id: str,
-        function_kind: functions.FunctionKindId,
+        operator_kind: functions.OperatorKindId,
         profile_id: str,
         grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]],
         resources: binding_argument.BindingResources,
         id_columns: typing.Sequence[str],
+        *,
+        role: typing.Literal["compute", "merge"] = "compute",
     ) -> dict[str, object]:
-        """Resolve the matching binding's arguments in this operator's context."""
-        if function_id == self.compute.function:
+        """Resolve arguments from the binding selected by its execution role."""
+        if role == "compute":
             selected_binding = self.compute
-            kind = functions.FUNCTION_KINDS[function_kind]
+            kind = functions.OPERATOR_KINDS[operator_kind]
             output_features = [
                 feature
                 for feature in self.output_features
                 if kind.dimension_change != "remove" or feature not in id_columns
             ]
             feature_id = output_features[0] if len(output_features) == 1 else None
-        elif self.merge is not None and function_id == self.merge.function:
+        elif role == "merge" and self.merge is not None:
             selected_binding = self.merge
             feature_id = None
         else:
-            raise ValueError(f"Function {function_id} is not bound by operator {self.id}")
+            raise ValueError(f"Operator {self.id} has no {role} binding")
         return selected_binding.resolve_args(
             profile_id,
             feature_id,

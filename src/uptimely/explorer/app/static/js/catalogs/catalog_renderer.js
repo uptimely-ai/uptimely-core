@@ -1,4 +1,4 @@
-import { badge, contextGroup as group, contextHeader, contextLink, dataTypeLabel, display, distribution, escape, heading, href, icon, kindIcon, miniGraphic, page, statistic, typedName } from "../rendering/shared_markup.js";
+import { badge, contextGroup as group, contextHeader, contextLink, dataTypeLabel, display, distribution, escape, heading, href, icon, kindIcon, page, statistic, typedName } from "../rendering/shared_markup.js";
 
 export function profiles(configuration) {
   return Object.entries(configuration.profiles).map(([id, profile]) => ({
@@ -100,9 +100,9 @@ const contextLinks = {
   },
   functions(data) {
     return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length)
-      .map(([kind, items]) => group(kind[0].toUpperCase() + kind.slice(1),
+      .map(([category, items]) => group(category,
         Object.entries(items).map(([id, item]) =>
-          contextLink(`function-${id}`, label(id, item), "functions", null, kind)))).join("");
+          contextLink(`function-${id}`, label(id, item), "functions")))).join("");
   },
   stages(data) {
     return data.stages.map(stage =>
@@ -233,23 +233,22 @@ function functionOverview(data) {
   const groups = Object.entries(data.catalogs.function_groups);
   const returnTypeCounts = new Map();
   groups.flatMap(([, items]) => Object.values(items)).forEach(item => {
-    const type = item.return_type || "unspecified";
+    const type = item.return_type || item.returns || "unspecified";
     returnTypeCounts.set(type, (returnTypeCounts.get(type) || 0) + 1);
   });
   return `<section id="overview" data-context-item aria-label="Functions overview" class="mb-12">
-    <div class="catalog-charts lg:grid-cols-2">${distribution("Functions by kind", groups.map(([kind, items]) => {
+    <div class="catalog-charts lg:grid-cols-2">${distribution("Functions by category", groups.map(([category, items]) => {
       const count = Object.keys(items).length;
-      return [kind, count, count ? `#functions-${encodeURIComponent(kind)}` : null];
-    }), { total: data.catalogs.summary.function_count, kindLabels: true })}
+      return [category, count, count ? `#functions-${encodeURIComponent(category)}` : null];
+    }), { total: data.catalogs.summary.function_count })}
       ${distribution("Functions by return type", [...returnTypeCounts], { typeLabels: true, returnTypeLabels: true })}</div></section>`;
 }
 
 function featureCards(config, invocations) {
   return features(config).map(item => {
-    const fn = config.functions[item.operator.compute.function] || {};
-    const role = SOURCE_FEATURE_KINDS.has(fn.kind) ? "Input"
+    const role = SOURCE_FEATURE_KINDS.has(item.operator.kind) ? "Input"
       : Object.values(item.profile.assembly).some(operator =>
-        config.functions[operator.compute.function]?.kind === "vectorize"
+        operator.kind === "vectorize"
         && operatorInputs(operator).some(reference =>
           featureReferenceId(reference) === item.featureId))
         ? "Intermediate" : "Output";
@@ -278,7 +277,7 @@ function featureCards(config, invocations) {
         <div><dt>Profile</dt><dd><a class="feature-meta-profile" href="${href("profiles", `profile-${item.id}`)}">${icon("profiles", "feature-detail-icon")}<span>${escape(label(item.id, item.profile))}</span></a></dd></div>
       </dl>
       <p data-feature-description class="mt-4 text-sm leading-6 text-slate-400">${escape(item.feature.description || "No description provided.")}</p>
-      ${fn.kind === "escape" ? '<p class="mt-6 text-sm leading-6 text-violet-300">Declared logical output only; escape outputs are not materialized as dataframe columns.</p>' : ""}
+      ${item.operator.kind === "escape" ? '<p class="mt-6 text-sm leading-6 text-violet-300">Declared logical output only; escape outputs are not materialized as dataframe columns.</p>' : ""}
       <section class="mt-6" aria-label="Producing operator">
         ${subheading("Produced by operator", "assembly")}
         ${profileOperatorCards(config, item.id, item.profile, [[item.operatorId, item.operator]], invocations, `feature-${item.featureId}-operator`)}
@@ -384,7 +383,7 @@ export function schemaColumns(config, profile) {
   const producers = new Map();
   const producingOperators = new Map();
   for (const [operatorId, operator] of Object.entries(profile.assembly)) {
-    const kind = config.functions[operator.compute.function]?.kind;
+    const kind = operator.kind;
     for (const ref of operator.interface.outputs) {
       const id = ref.replace(/^\$features\./, "");
       if (!producers.has(id)) producers.set(id, kind === "escape" ? "escape" : ["vectorize", "collapse"].includes(kind) ? "amber" : "teal");
@@ -466,7 +465,7 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       && Object.keys(invocation.args).length);
     const hasMerge = Boolean(operator.merge);
     const operatorName = operatorLabel(id, operator);
-    return `<article id="${escape(idPrefix)}-${escape(profileId)}-${escape(id)}" class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(fn.kind)}">
+    return `<article id="${escape(idPrefix)}-${escape(profileId)}-${escape(id)}" class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(operator.kind)}">
       <header class="profile-operator-header">
         <div class="profile-operator-identity"><h4>${escape(operatorName)}</h4></div>
         ${hasMerge ? `<span class="profile-operator-merge-indicator" title="The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset." aria-label="The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset.">${kindIcon("merge", "profile-operator-icon")}</span>` : ""}
@@ -474,7 +473,7 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       <dl class="profile-operator-contract">
         <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${featureList(operatorInputs(operator))}</dd></div>
       </dl>
-      ${fn.kind === "escape" ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</div>' : ""}
+      ${operator.kind === "escape" ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</div>' : ""}
       <div class="profile-operator-compute">
         <div class="profile-operator-function">
           ${icon("functions", "profile-operator-function-icon")}
@@ -483,7 +482,7 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
         ${resolvedArgumentDetails(id, operator, "Arguments", computeInvocations)}
       </div>
       <dl class="profile-operator-contract profile-operator-output">
-        <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
+        <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${operator.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
       </dl>
     </article>`;
   }).join("")}</div>`;
@@ -531,7 +530,7 @@ function profileCards(config, invocations) {
 }
 
 function functionMetadata(fn) {
-  const returns = fn.return_type || fn.doc?.returns;
+  const returns = fn.return_type || fn.returns || fn.doc?.returns;
   const errors = fn.doc?.raises || [];
   if (!returns && !errors.length) return "";
 
@@ -539,7 +538,7 @@ function functionMetadata(fn) {
     ${returns ? `<section class="function-metadata-entry" aria-label="Returns">
       ${subheading("Returns", "return-arrow")}
       <div class="function-metadata-card function-detail-box">
-        ${fn.return_type ? `<p class="function-return-type">${escape(fn.return_type)}</p>` : ""}
+        ${fn.return_type || fn.returns ? `<p class="function-return-type">${escape(fn.return_type || fn.returns)}</p>` : ""}
         ${fn.doc?.returns ? `<p class="function-metadata-description">${escape(fn.doc.returns)}</p>` : ""}
       </div>
     </section>` : ""}
@@ -593,10 +592,10 @@ function functionUsage(functionId, config) {
 }
 
 function functionCards(data) {
-  return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length).map(([kind, items]) =>
-    `<div id="functions-${escape(kind)}" data-function-group="${escape(kind)}" class="mb-20 scroll-mt-24"><div class="space-y-10">
+  return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length).map(([category, items]) =>
+    `<div id="functions-${escape(category)}" data-function-group="${escape(category)}" class="mb-20 scroll-mt-24"><div class="space-y-10">
       ${Object.entries(items).map(([id, fn]) => `<article id="function-${escape(id)}" data-context-item class="function-detail">
-        <h3 class="function-detail-title">${kindIcon(kind, "function-detail-icon")}<span>${escape(label(id, fn))}</span></h3>
+        <h3 class="function-detail-title">${icon("functions", "function-detail-icon")}<span>${escape(label(id, fn))}</span></h3>
         <p data-function-description class="mt-4 text-base leading-7 text-slate-300">${escape(fn.description || "No description provided.")}</p>
         ${fn.doc?.body?.trim() ? `<div class="function-description">${fn.doc.body.trim().split(/\r?\n[ \t]*\r?\n/).map(paragraph => `<p>${escape(paragraph)}</p>`).join("")}</div>` : ""}
         ${(fn.doc?.examples || []).map((example, index) => `<section class="function-example">${subheading(index ? `Example ${index + 1}` : "Example")}
@@ -604,12 +603,6 @@ function functionCards(data) {
           <pre class="function-detail-box mt-3 min-h-40 overflow-x-auto p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(example)}</code></pre></section>`).join("")}
         <div class="function-origin-grid">
           ${functionSource(fn)}
-          <section class="function-kind-graphic min-w-0" aria-label="${escape(kind[0].toUpperCase() + kind.slice(1))} function kind diagram">
-            <h3 class="ui-section-title profile-detail-subheading">${kindIcon(kind, "profile-detail-icon")}<span>${escape(kind[0].toUpperCase() + kind.slice(1))} kind</span></h3>
-            <div class="function-detail-box mt-3 flex min-h-40 flex-col items-center justify-center gap-3 overflow-x-auto p-5">
-              ${miniGraphic(kind)}
-            </div>
-          </section>
         </div>
         ${functionUsage(id, data.catalogs.configuration)}
         ${Object.keys(fn.args || {}).length ? `<div class="mt-10">${subheading("Arguments")}
@@ -636,7 +629,7 @@ export function stageCards(data) {
         <div class="mb-3 flex flex-wrap items-center gap-2">${badge(step.phase === "merge" ? "Merge phase" : "Compute phase", step.phase === "merge" ? "amber" : "neutral")}
           <span class="font-mono text-xs text-slate-500">Operator: ${escape(step.operator_id)}</span></div>
         <dl class="grid overflow-hidden rounded-lg border border-slate-800 bg-slate-950/55 font-mono text-xs md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]">
-          ${[["Function kind", step.function_kind, "text-amber-200"], ["Function", step.function_label, "text-white"],
+          ${[["Operator kind", step.operator_kind, "text-amber-200"], ["Function", step.function_label, "text-white"],
             [step.uncontrolled ? "Declared logical outputs" : "Profile feature output", step.feature || "None", "text-cyan-200"],
             [step.uncontrolled ? "Python return (ignored)" : "Returns", step.returns.type.engine || "—", "text-lime-300"]].map(([title, value, color]) => `<div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
               <dt class="mb-1 uppercase tracking-wider text-slate-500">${title}</dt><dd class="break-all ${color}">${title.toLowerCase().includes("return") ? dataTypeLabel(value) : escape(value)}</dd></div>`).join("")}

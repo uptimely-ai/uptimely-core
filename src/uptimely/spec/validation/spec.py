@@ -44,8 +44,7 @@ REFERENCE_CHECKS: tuple[Validator, ...] = (
     operator_inputs.validate_profile_reference,
     profiles.validate_grain_resolutions,
     profiles.validate_unique_grain_keys,
-    operator_outputs.validate_compute_function_kind,
-    operator_outputs.validate_merge_function_kind,
+    bindings.validate_binding_contracts,
 )
 
 DECLARATION_CHECKS: tuple[Validator, ...] = (
@@ -59,7 +58,6 @@ DECLARATION_CHECKS: tuple[Validator, ...] = (
     operator_contracts.validate_input_feature_source_count,
     operator_contracts.validate_feature_input_scope,
     bindings.validate_arguments,
-    bindings.validate_merge_operator_kind,
     profile_identity.validate_order_dimension,
     operator_outputs.validate_collapse_output,
     operator_outputs.validate_output_feature,

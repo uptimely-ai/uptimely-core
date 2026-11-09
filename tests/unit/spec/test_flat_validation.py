@@ -15,7 +15,7 @@ import pytest
 
 from uptimely import row_context as row_context_model
 from uptimely.spec import api, model
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec.python import assembly
 from uptimely.spec.python import feature as python_feature
 from uptimely.spec.python import profile as python_profile
@@ -38,7 +38,7 @@ from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 type Mutation = collections.abc.Callable[[model.Spec], object]
 
 
-def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
+def make_spec(kind: functions.OperatorKindId = "vectorize") -> model.Spec:
     """Build a valid document without invoking semantic validation."""
     source_grain = (
         [{"dimension": "machine", "resolution": "machine"}]
@@ -75,13 +75,17 @@ def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
         },
         "functions": {
             "read": {
-                "kind": "read",
                 "returns": "dataframe",
                 "entrypoint": "not_imported:read",
             },
             "compute": {
-                "kind": kind,
-                "returns": functions.FUNCTION_KINDS[kind].returns,
+                "returns": (
+                    "none"
+                    if kind == functions.WRITE
+                    else "any"
+                    if kind == functions.ESCAPE
+                    else "dataframe"
+                ),
                 "entrypoint": "not_imported:compute",
                 "args": args,
             },
@@ -164,11 +168,11 @@ def test_dimension_change_uses_dimension_identities_not_cardinality(
     with pytest.raises(ValueError, match="preserve target dimensionality"):
         operator_contracts.validate_dimension_change(spec)
 
-    definitions = dict(functions.FUNCTION_KINDS)
+    definitions = dict(functions.OPERATOR_KINDS)
     definitions[functions.CONFORM] = dataclasses.replace(
         definitions[functions.CONFORM], dimension_change="unrestricted"
     )
-    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(functions, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     assert operator_contracts.validate_dimension_change(spec) is None
 
@@ -192,16 +196,16 @@ def test_atomic_rules_accept_spec_and_do_not_mutate(
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
-def test_full_validation_preserves_valid_function_kinds(kind: functions.FunctionKindId) -> None:
+@pytest.mark.parametrize("kind", [kind for kind in functions.OPERATOR_KINDS if kind != "merge"])
+def test_full_validation_preserves_valid_operator_kinds(kind: functions.OperatorKindId) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
     assert validation.validate_spec(spec) is None
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
-def test_source_discovery_visits_every_operator_kind(kind: functions.FunctionKindId) -> None:
+@pytest.mark.parametrize("kind", [kind for kind in functions.OPERATOR_KINDS if kind != "merge"])
+def test_source_discovery_visits_every_operator_kind(kind: functions.OperatorKindId) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
     sources = spec.input_sources
@@ -218,13 +222,13 @@ def test_source_discovery_visits_every_operator_kind(kind: functions.FunctionKin
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
+@pytest.mark.parametrize("kind", [kind for kind in functions.OPERATOR_KINDS if kind != "merge"])
 @pytest.mark.parametrize(
     "inputs",
     [[], ["machine"], ["missing"], ["s", "x"], ["s", "missing"]],
 )
 def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
-    kind: functions.FunctionKindId, inputs: list[str]
+    kind: functions.OperatorKindId, inputs: list[str]
 ) -> None:
     spec = make_spec(kind)
     compute(spec).interface.inputs = [f"$features.{feature}" for feature in inputs]
@@ -237,9 +241,9 @@ def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
+@pytest.mark.parametrize("kind", [kind for kind in functions.OPERATOR_KINDS if kind != "merge"])
 def test_source_discovery_does_not_choose_an_ambiguous_owner(
-    kind: functions.FunctionKindId,
+    kind: functions.OperatorKindId,
 ) -> None:
     spec = make_spec(kind)
     source = spec.profiles["source"]
@@ -372,14 +376,19 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
         (
             function_rules.validate_function_contracts,
             "vectorize",
-            lambda s: setattr(s.functions["compute"], "returns", "none"),
-            "must declare returns",
+            lambda s: setattr(s.functions["compute"], "returns", "invalid"),
+            "Unsupported return contract",
         ),
         (
             function_rules.validate_function_contracts,
             "vectorize",
-            lambda s: s.functions["compute"].args.clear(),
-            "requires 1 dataframe",
+            lambda s: s.functions["compute"].args.update(
+                {
+                    "second": model.Argument(id="second", type="dataframe"),
+                    "third": model.Argument(id="third", type="dataframe"),
+                }
+            ),
+            "at most two dataframe argument slots",
         ),
         (
             operator_outputs.validate_compute_function_exists,
@@ -631,14 +640,6 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "consume its target",
         ),
         (
-            operator_contracts.validate_target_profile_only,
-            "write",
-            lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.source.dataset")}
-            ),
-            "publish a foreign",
-        ),
-        (
             operator_contracts.validate_dimension_source,
             "collapse",
             lambda s: compute(s).compute.args.update(
@@ -687,12 +688,15 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
 )
 def test_atomic_rules_reject_their_own_invariant(
     validate: validation.Validator,
-    kind: functions.FunctionKindId,
+    kind: functions.OperatorKindId,
     mutate: Mutation,
     message: str,
 ) -> None:
     spec = make_spec(kind)
+    # Isolate each policy rule from classification changes caused by its mutation.
     mutate(spec)
+    if compute(spec).compute.function in spec.functions:
+        spec.operator_kinds[("target", "compute")] = kind
     before = spec.model_dump()
     with pytest.raises(ValueError, match=message):
         validate(spec)
@@ -816,7 +820,7 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
                     outputs=[python_feature.Feature(id="result")],
                 ),
                 compute=assembly.Binding(
-                    function=python_ref.function("external:compute", kind="vectorize"),
+                    function=python_ref.function("external:compute", returns="dataframe"),
                     arguments={"data": python_ref.profile().dataset},
                 ),
             )

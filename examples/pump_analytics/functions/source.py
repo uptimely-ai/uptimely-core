@@ -17,7 +17,7 @@ COLUMN_TYPES = {
 }
 
 
-@function(kind="read", category="read")
+@function(category="read")
 def read_file(
     source: str,
     columns: list[str] | None = None,

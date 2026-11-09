@@ -262,7 +262,6 @@ def _collapse_spec(target_resolution: str) -> model.Spec:
             },
             "functions": {
                 "collapse": {
-                    "kind": "collapse",
                     "returns": "dataframe",
                     "entrypoint": "example:collapse",
                     "args": {"data": {"type": "dataframe"}},
@@ -305,7 +304,7 @@ def test_collapse_rejects_an_unrelated_target_resolution() -> None:
     document = _collapse_spec("line")
 
     assert not document.grain_refines("target", "source")
-    with pytest.raises(ValueError, match="strictly higher dimensionality"):
+    with pytest.raises(ValueError, match="must preserve target dimensionality"):
         contracts.validate_dimension_change(document)
 
 
@@ -382,10 +381,10 @@ def test_row_context_uses_the_selected_resolution_type(
     }
     document["functions"] = {
         "contextual": {
-            "kind": "vectorize",
             "returns": "dataframe",
             "entrypoint": "unused:callable",
             "validate_signature": False,
+            "args": {},
         }
     }
     parsed = model.Spec.model_validate(document)

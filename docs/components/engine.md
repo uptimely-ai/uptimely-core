@@ -43,7 +43,7 @@ Spec document.
 ## Executing a build bundle
 
 The engine accepts a validated build bundle and executes its compiled portable
-plan. It reads ID columns, column types, argument types, and function kinds from
+plan. It reads ID columns, column types, argument types, and binding roles from
 plan invocations, not from Spec models, and uses the project
 root to resolve function entrypoints. A plan can be compiled for selected
 output features; the compiler includes their prerequisite calculations and
@@ -130,8 +130,9 @@ The compiled plan records its required backend. Runtime configuration cannot
 reinterpret a plan for another backend: an incompatible backend setting fails
 explicitly. Changing an operator binding, including a merge binding, or profile
 grain changes the build-time workflow and requires rebuilding the project.
-Fragment-producing operators without a custom merge binding use the builtin
-merge-by-grain binding; an explicit binding overrides it.
+Fragment-producing operators explicitly select either the builtin
+merge-by-grain binding or a custom merge. An omitted merge publishes a complete
+target rather than selecting a default.
 
 ## Fragments
 

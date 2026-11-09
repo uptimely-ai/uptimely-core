@@ -80,6 +80,7 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
         document = spec.Spec.model_validate_json(path.read_text(encoding="utf-8"))
     else:
         document = spec.Spec.model_validate(configuration)
+    document.operator_kinds[("pump", "bearing_temperature_by_pump")] = "collapse"
     with pytest.raises(ValueError, match=message):
         operator_inputs.validate_source_feature(document)
         operator_inputs.validate_feature_owner(document)
@@ -97,6 +98,7 @@ def test_independent_rules_report_grouping_and_dimension_reference_faults() -> N
     operator = configuration["profiles"]["pump"]["assembly"]["bearing_temperature_by_pump"]
     operator["compute"]["args"]["unexpected"] = "$dimensions.missing"
     document = spec.Spec.model_validate(configuration)
+    document.operator_kinds[("pump", "bearing_temperature_by_pump")] = "collapse"
     with pytest.raises(ValueError, match="grouping keys must exist in source"):
         operator_inputs.validate_grouping_dimensions(document)
     with pytest.raises(validation.SpecError, match="unknown dimension: missing"):
@@ -120,6 +122,7 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
         function = document.functions[operator.compute.function]
         argument = next(name for name, arg in function.args.items() if arg.type == "dataframe")
         operator.compute.args[argument] = spec.model.BindingArgument("$profiles.pump.dataset")
+        document.operator_kinds[(dataset.id, "alias")] = "vectorize"
         expected_id = "alias"
         expected_code = "invalid_mapping_dataframe_input"
         validate = contracts_validation.validate_target_profile_input
@@ -207,12 +210,8 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
     with pytest.raises(validation.SpecError) as error:
         validation.validate_spec(model)
 
-    assert str(error.value) == (
-        "profiles.pump_telemetry.assembly."
-        "pressure_flow_efficiency.compute.args: Reference $profiles.@.dataset "
-        "requires argument type dataframe, got string"
-    )
-    assert error.value.code == "invalid_binding_reference_type"
+    assert "nested dataframe reference" in str(error.value)
+    assert error.value.code == "invalid_binding_arity"
     assert error.value.path == (
         "profiles",
         "pump_telemetry",
@@ -220,7 +219,8 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
         "pressure_flow_efficiency",
         "compute",
         "args",
-    )
+        "numerator_features",
+    ) + ((1,) if isinstance(argument_value, list) else ("nested", 1))
 
 
 def test_binding_argument_name_contract_keeps_structured_error() -> None:

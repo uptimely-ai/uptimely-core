@@ -84,7 +84,7 @@ def test_structure_summary_counts_profiles_and_operator_once(
     caplog: pytest.LogCaptureFixture, level: int
 ) -> None:
     configuration = {
-        "spec_version": 7,
+        "spec_version": 8,
         "profiles": {
             "profile_1": {
                 "name": "First",
@@ -406,7 +406,7 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    assert len(spec_definition.functions.by_kind("vectorize")) == 9
+    assert sum(kind == "vectorize" for kind in spec_definition.operator_kinds.values()) == 12
     collapse = spec_definition.profiles["pump"].assembly["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.compute.function == "aggregate"

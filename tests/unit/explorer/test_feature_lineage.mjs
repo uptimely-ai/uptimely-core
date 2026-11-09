@@ -187,7 +187,7 @@ test("profile legend does not assign merges a separate color", t => {
     createElement: () => ({ style: { setProperty() {} } }),
   };
   const entries = [];
-  const data = { nodes: [{ id: "join", function_kind: "merge", profile_id: "pump" }] };
+  const data = { nodes: [{ id: "join", operator_kind: "merge", profile_id: "pump" }] };
   ExplorerLineage.prepareDatasetColors(data, { append: item => entries.push(item) },
     { function_color: "#b9c9d8" });
   assert.deepEqual(entries.map(item => item.textContent), ["pump"]);

@@ -2,13 +2,14 @@
 
 import typing
 
+import polars as pl
 import pytest
 
 from uptimely.spec import arg_types
 from uptimely.spec.python import assembly, feature, functions, ref, row_context
 
 
-@functions.function(kind="vectorize")
+@functions.function(returns="any")
 def calculate(value: str) -> str:
     """Calculate a value."""
     return value
@@ -18,7 +19,6 @@ def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
     binding = assembly.Binding(function=calculate, arguments={"value": ref.feature("source")})
     operator = assembly.Operator(id="calculate", interface=assembly.Interface(), compute=binding)
 
-    assert binding.kind == operator.kind == "vectorize"
     assert binding.reference == operator.reference == ref.function(calculate)
     assert operator.catalog_id == binding.reference.name
     assert binding.bound_arguments() == operator.bound_arguments() == binding.arguments
@@ -44,13 +44,13 @@ def test_binding_validates_direct_callable_arguments(
 def test_deferred_binding_preserves_metadata_without_importing_entrypoint() -> None:
     reference = ref.function(
         "unavailable_assembly_test_package:calculate",
-        kind="vectorize",
+        returns="dataframe",
+        args={"value": "string"},
         validate_signature=False,
         description="Deferred calculation.",
     )
     binding = assembly.Binding(function=reference, arguments={"value": 1})
     assert binding.reference is reference
-    assert binding.kind == "vectorize"
     assert binding.bound_arguments() == {"value": 1}
     assert binding.to_model().args["value"].root == 1
     template = binding.to_function_template()
@@ -62,21 +62,31 @@ def test_deferred_binding_preserves_metadata_without_importing_entrypoint() -> N
 def test_plain_string_binding_conversion_does_not_require_function_semantics() -> None:
     binding = assembly.Binding(function="unavailable_assembly_test_package:calculate")
     assert binding.to_model().function == "calculate"
-    with pytest.raises(ValueError, match="Function kind is required"):
-        _ = binding.kind
-    with pytest.raises(ValueError, match="Function kind is required"):
+    assert not hasattr(binding, "kind")
+    with pytest.raises(ValueError, match="Explicit returns metadata is required"):
         binding.to_function_template()
 
 
+def combine_optional(target: pl.DataFrame | None) -> pl.DataFrame:
+    return target if target is not None else pl.DataFrame()
+
+
+def combine_required(target: pl.DataFrame) -> pl.DataFrame:
+    return target
+
+
 @pytest.mark.parametrize(
-    ("kind", "expected"),
-    [("merge", arg_types.OPTIONAL_DATAFRAME), ("collapse", arg_types.DATAFRAME)],
+    ("implementation", "expected"),
+    [
+        (combine_optional, arg_types.OPTIONAL_DATAFRAME),
+        (combine_required, arg_types.DATAFRAME),
+    ],
 )
-def test_binding_target_optionality_depends_on_function_kind(
-    kind: typing.Any, expected: str
+def test_binding_dataframe_optionality_follows_annotation(
+    implementation: typing.Callable[..., object], expected: str
 ) -> None:
     binding = assembly.Binding(
-        function=ref.function("unavailable_assembly_test_package:combine", kind=kind),
+        function=implementation,
         arguments={"target": ref.dataset()},
     )
     assert binding.to_function_template().args["target"].type == expected
@@ -166,12 +176,19 @@ def test_interface_validates_outputs_at_construction(
 
 def test_operator_combines_binding_contracts_but_only_compute_row_context() -> None:
     compute = assembly.Binding(
-        function=ref.function("unavailable_assembly_test_package:calculate", kind="collapse"),
+        function=ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
         arguments={"value": row_context.rows(ref.feature("source"), before=2)},
     )
     merge = assembly.Binding(
-        function=ref.function("unavailable_assembly_test_package:combine", kind="merge"),
-        arguments={"target": row_context.rows(ref.dataset(), before=9)},
+        function=ref.function(
+            "unavailable_assembly_test_package:combine",
+            returns="dataframe",
+            args={"target": "dataframe", "fragment": "dataframe"},
+        ),
+        arguments={
+            "target": row_context.rows(ref.dataset(), before=9),
+            "fragment": ref.fragment(),
+        },
     )
     operator = assembly.Operator(
         id="calculate",
@@ -188,21 +205,23 @@ def test_operator_combines_binding_contracts_but_only_compute_row_context() -> N
     assert operator.function_catalog()["combine"] == merge.to_function_template()
 
 
-@pytest.mark.parametrize(
-    "function",
-    ["unavailable_assembly_test_package:combine", ref.function(calculate)],
-)
-def test_operator_preserves_invalid_merge_contract_error(
-    function: str | ref.FunctionReference,
-) -> None:
-    with pytest.raises(ValueError, match="merge binding must reference a function of kind 'merge'"):
-        assembly.Operator(
-            id="calculate",
-            interface=assembly.Interface(),
-            compute=assembly.Binding(
-                function=ref.function(
-                    "unavailable_assembly_test_package:calculate", kind="collapse"
-                )
+def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
+    operator = assembly.Operator(
+        id="calculate",
+        interface=assembly.Interface(),
+        compute=assembly.Binding(
+            function=ref.function(
+                "unavailable_assembly_test_package:calculate", returns="dataframe"
+            )
+        ),
+        merge=assembly.Binding(
+            function=ref.function(
+                "unavailable_assembly_test_package:combine",
+                returns="dataframe",
+                args={"target": "dataframe"},
             ),
-            merge=assembly.Binding(function=function),
-        )
+            arguments={"target": ref.dataset()},
+        ),
+    )
+    with pytest.raises(ValueError, match="invalid dataframe arity: 1"):
+        operator.function_catalog()

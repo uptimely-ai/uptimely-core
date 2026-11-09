@@ -14,7 +14,7 @@ from uptimely import compiler, row_context, spec
 from uptimely import plan as uptimely_plan
 from uptimely.explorer import presentation
 from uptimely.spec import arg_types
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec.python import (
     assembly,
     binding_conversion,
@@ -74,7 +74,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                             ],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(read_observations, kind="read"),
+                            function=ref.function(read_observations),
                             arguments={},
                         ),
                     ),
@@ -85,7 +85,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                             outputs=[feature.Feature(id="result", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(calculate, kind="vectorize"),
+                            function=ref.function(calculate),
                             arguments={
                                 "dataset": ref.profile().dataset,
                                 "column": ref.feature("temperature").id,
@@ -137,7 +137,7 @@ def test_row_context_references_resolve_scalar_extents(
         interface=assembly.Interface(),
         row_context=context,
         compute=assembly.Binding(
-            function=ref.function("external:calculate", kind="vectorize"),
+            function=ref.function("external:calculate", returns="dataframe"),
             arguments={attribute: ref.row_context(attribute)},
         ),
     )
@@ -146,7 +146,7 @@ def test_row_context_references_resolve_scalar_extents(
     assert declaration.function_catalog()["calculate"].args[attribute].type == expected_type
     assert model.resolve_args(
         function_id=model.compute.function,
-        function_kind="vectorize",
+        operator_kind="vectorize",
         profile_id="observations",
         grain_keys_by_profile={},
         resources={},
@@ -168,7 +168,7 @@ def test_row_context_reference_is_validated_and_resolved_during_compilation() ->
 
     declaration = spec.Spec.model_validate(configuration)
     plan = compiler.Compiler().compile(declaration)
-    invocation = next(item for item in plan.invocations if item.function_kind == "vectorize")
+    invocation = next(item for item in plan.invocations if item.operator_kind == "vectorize")
 
     assert invocation.arguments["configuration"] == {"windows": [2]}
 
@@ -230,7 +230,7 @@ def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
             outputs=[],
         ),
         compute=assembly.Binding(
-            function=ref.function(f"{__name__}:calculate", kind="vectorize"),
+            function=ref.function(f"{__name__}:calculate", returns="dataframe"),
             arguments={
                 "configuration": {
                     "windows": [
@@ -268,7 +268,7 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=ref.function(calculate, kind="vectorize"),
+                function=ref.function(calculate),
                 arguments={"configuration": [first, second]},
             ),
         )
@@ -280,7 +280,7 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=ref.function(calculate, kind="vectorize"),
+                function=ref.function(calculate),
                 arguments={"configuration": [first, authoring.rows(8, before=7)]},
             ),
         )
@@ -320,7 +320,7 @@ def test_unknown_current_and_all_rows_context_are_distinct():
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=ref.function(calculate, kind="vectorize"),
+                function=ref.function(calculate),
                 arguments={},
             ),
         ).row_context
@@ -385,10 +385,10 @@ def test_directional_context_requires_dataset_order():
     _spec(authoring.all_rows(), ordered=False)
 
 
-@pytest.mark.parametrize("kind", [kind for kind in functions.FUNCTION_KINDS if kind != "merge"])
+@pytest.mark.parametrize("kind", [kind for kind in functions.OPERATOR_KINDS if kind != "merge"])
 @pytest.mark.parametrize("dimension_change", ["preserve", "remove"])
 def test_row_context_dataset_selection_follows_dimension_contract(
-    kind: functions.FunctionKindId,
+    kind: functions.OperatorKindId,
     dimension_change: functions.DimensionChange,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -405,11 +405,11 @@ def test_row_context_dataset_selection_follows_dimension_contract(
         "features": {"result": output},
         "assembly": {"result": operator},
     }
-    configuration["functions"]["calculate"]["kind"] = kind
     document = spec.Spec.model_validate(configuration)
-    definitions = dict(functions.FUNCTION_KINDS)
+    document.operator_kinds[("summary", "result")] = kind
+    definitions = dict(functions.OPERATOR_KINDS)
     definitions[kind] = dataclasses.replace(definitions[kind], dimension_change=dimension_change)
-    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(functions, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     key = ("summary", "result")
     expected_source = "observations" if dimension_change == "remove" else "summary"
@@ -433,12 +433,12 @@ def test_row_context_dataset_selection_follows_dimension_contract(
 
 def test_row_context_accessors_preserve_unresolved_sources() -> None:
     configuration = _spec(authoring.current()).model_dump()
-    configuration["functions"]["calculate"]["kind"] = "collapse"
     configuration["profiles"]["observations"]["assembly"]["result"]["interface"]["inputs"] = [
         "$features.missing"
     ]
     document = spec.Spec.model_validate(configuration)
     key = ("observations", "result")
+    document.operator_kinds[key] = "collapse"
 
     assert document.get_row_context_profile(key) is None
     assert document.get_row_context_dimensions(key) is None
@@ -459,7 +459,7 @@ def test_spec_plan_execution_and_presentation_preserve_context(
     assert authored_dataset["assembly"]["result"]["row_context"] == context.to_dict()
     restored = spec.load_spec(path)
     compiled = compiler.Compiler().compile(restored)
-    operation = next(item for item in compiled.invocations if item.function_kind == "vectorize")
+    operation = next(item for item in compiled.invocations if item.operator_kind == "vectorize")
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
     portable = uptimely_plan.from_dict(uptimely_plan.to_dict(compiled))
@@ -477,8 +477,7 @@ def test_spec_plan_execution_and_presentation_preserve_context(
     assert rendered_operation["row_context"] == context.to_dict()
 
 
-@pytest.mark.parametrize("operation", ["read", "expand", "collapse", "vectorize"])
-def test_all_data_mappings_preserve_annotated_context(operation):
+def test_data_mapping_preserves_annotated_context():
     declaration = assembly.Operator(
         id="declaration",
         interface=assembly.Interface(
@@ -486,7 +485,7 @@ def test_all_data_mappings_preserve_annotated_context(operation):
             outputs=[],
         ),
         compute=assembly.Binding(
-            function=ref.function(f"{__name__}:calculate", kind=operation),
+            function=ref.function(f"{__name__}:calculate", returns="dataframe"),
             arguments={"configuration": {"windows": [authoring.rows(8, before=7)]}},
         ),
     )
@@ -524,10 +523,10 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     assert spec_definition.functions["calculate"].args["column"].type == "string"
 
     plan = compiler.Compiler().compile(restored_spec)
-    operation = next(item for item in plan.invocations if item.function_kind == "vectorize")
+    operation = next(item for item in plan.invocations if item.operator_kind == "vectorize")
     assert operation.row_context == context
     assert all(
-        item.row_context is None for item in plan.invocations if item.function_kind != "vectorize"
+        item.row_context is None for item in plan.invocations if item.operator_kind != "vectorize"
     )
     assert operation.arguments == {
         "dataset": "observations",
@@ -582,7 +581,7 @@ def test_collapse_functions_execute_without_row_context(
                     ],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(read_observations, kind="read"),
+                    function=ref.function(read_observations),
                     arguments={},
                 ),
             )
@@ -598,7 +597,7 @@ def test_collapse_functions_execute_without_row_context(
                     outputs=[feature.Feature(id="temperature_max", type="integer")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(maximum, kind="collapse"),
+                    function=ref.function(maximum),
                     arguments={
                         "dataset": ref.profile("observations").dataset,
                         "column": ref.feature("temperature").id,
@@ -626,7 +625,7 @@ def test_collapse_functions_execute_without_row_context(
         ]
     )
     plan = compiler.Compiler().compile(spec_definition)
-    operation = next(item for item in plan.invocations if item.function_kind == "collapse")
+    operation = next(item for item in plan.invocations if item.operator_kind == "collapse")
     assert operation.row_context is None
     assert operation.entrypoint.endswith(":maximum")
     assert operation.arguments == {

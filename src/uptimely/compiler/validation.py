@@ -11,7 +11,6 @@ import typing
 
 from uptimely import entrypoint
 from uptimely.spec import arg_types
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
@@ -64,7 +63,13 @@ def validation_keyword_arguments(context: CallableValidationContext) -> None:
     """Require declared arguments to be passable as keywords."""
     for argument_name in context.function.args:
         parameter = context.signature.parameters.get(argument_name)
-        if parameter is not None and parameter.kind is inspect.Parameter.POSITIONAL_ONLY:
+        if parameter is not None and (
+            parameter.kind is inspect.Parameter.POSITIONAL_ONLY
+            or (
+                parameter.kind is inspect.Parameter.VAR_POSITIONAL
+                and not context.signature.accepts_kwargs
+            )
+        ):
             raise errors.SpecError(
                 f"Implementation parameter {argument_name!r} is positional-only and "
                 "cannot be passed as a keyword",
@@ -107,7 +112,7 @@ def validation_return_annotation(context: CallableValidationContext) -> None:
     """Reject known Python return annotations that contradict the function contract."""
     function = context.function
     annotation = context.signature.return_annotation
-    returns = functions.FUNCTION_KINDS[function.kind].returns
+    returns = function.returns
     if returns == "any":
         return
     if annotation is inspect.Signature.empty:

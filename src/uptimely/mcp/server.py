@@ -22,8 +22,8 @@ from uptimely import engine as uptimely_engine
 from uptimely import entrypoint, spec
 from uptimely.project import build as project_build
 from uptimely.project import paths
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
+from uptimely.spec import operator_kinds as functions
 
 logger = logging.getLogger(__name__)
 
@@ -105,14 +105,14 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
 
     @mcp.tool()
     def list_functions() -> str:
-        """List every function id, kind, and declared return contract."""
+        """List every function id, category, and declared return contract."""
         catalog = state.load_snapshot().spec.functions
         return _to_json(
             [
                 {
                     "id": function_id,
-                    "kind": function.kind,
-                    "returns": functions.FUNCTION_KINDS[function.kind].returns,
+                    "category": function.category,
+                    "returns": function.returns,
                 }
                 for function_id, function in sorted(catalog.root.items())
             ]
@@ -137,26 +137,28 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             if template.validate_signature
             else None
         )
+        escape_operators = [
+            {
+                "profile": key[0],
+                "operator": key[1],
+                "inputs": snapshot.spec.operators_by_key[key].input_features,
+                "outputs": snapshot.spec.operators_by_key[key].output_features,
+            }
+            for key in snapshot.spec.operators_by_function.get(function_id, [])
+            if snapshot.spec.operators_by_key[key].compute.function == function_id
+            and snapshot.spec.operator_kinds[key] == functions.ESCAPE
+        ]
         return _to_json(
             {
                 "id": function_id,
-                "kind": template.kind,
-                "declared_returns": functions.FUNCTION_KINDS[template.kind].returns,
-                "escape_operators": [
-                    {
-                        "profile": key[0],
-                        "operator": key[1],
-                        "inputs": snapshot.spec.operators_by_key[key].input_features,
-                        "outputs": snapshot.spec.operators_by_key[key].output_features,
-                    }
-                    for key in snapshot.spec.operators_by_function.get(function_id, [])
-                    if template.kind == functions.ESCAPE
-                ],
+                "category": template.category,
+                "declared_returns": template.returns,
+                "escape_operators": escape_operators,
                 "execution_semantics": (
                     "Uncontrolled external operation; declared feature inputs and outputs express "
                     "logical dependencies only. Dataframes are passed only through explicitly "
                     "bound dataframe arguments; the return value is ignored."
-                    if template.kind == functions.ESCAPE
+                    if escape_operators
                     else None
                 ),
                 "entrypoint": template.entrypoint,
@@ -187,11 +189,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 feature_id
                 for feature_id, producers in spec_definition.feature_producers.items()
                 if any(
-                    spec_definition.functions[
-                        spec_definition.operators_by_key[key].compute.function
-                    ].kind
-                    == functions.VECTORIZE
-                    for key in producers
+                    spec_definition.operator_kinds[key] == functions.VECTORIZE for key in producers
                 )
             }
         )
@@ -214,10 +212,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             feature: (key[0], spec_definition.operators_by_key[key])
             for feature, producers in spec_definition.feature_producers.items()
             for key in producers
-            if spec_definition.functions[
-                spec_definition.operators_by_key[key].compute.function
-            ].kind
-            == functions.VECTORIZE
+            if spec_definition.operator_kinds[key] == functions.VECTORIZE
         }
         producer = by_feature.get(feature_id)
         if producer is None:
@@ -280,7 +275,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         expected_outputs = {
             (invocation.profile_id, feature)
             for invocation in plan.invocations
-            if invocation.function_kind == functions.VECTORIZE
+            if invocation.operator_kind == functions.VECTORIZE
             for feature in invocation.output_features
         }
         actual_outputs = set(result.calculated_outputs)
@@ -337,11 +332,16 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 "spec": str(snapshot.bundle.spec_path),
                 "profiles": sorted(spec_definition.profiles),
                 "functions": {
-                    kind: sum(
-                        function.kind == kind
+                    category: sum(
+                        (function.category or "Uncategorized") == category
                         for function in spec_definition.functions.root.values()
                     )
-                    for kind in functions.FUNCTION_KINDS
+                    for category in sorted(
+                        {
+                            function.category or "Uncategorized"
+                            for function in spec_definition.functions.root.values()
+                        }
+                    )
                 },
             }
         )

@@ -5,8 +5,8 @@ import dataclasses
 import graphable as graphable_
 from graphable import views
 
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec import validation
 
 from . import models
@@ -148,8 +148,7 @@ class FeatureGraph(FeatureGraphBase):
         for key, operator in self.spec.operator_items:
             profile = self.spec.operator_profiles[key]
             profile_id = self.spec.operator_profile_keys[key]
-            function = self.spec.functions[operator.compute.function]
-            kind = functions.FUNCTION_KINDS[function.kind]
+            kind = functions.OPERATOR_KINDS[self.spec.operator_kinds[key]]
             is_source_input = kind.is_source and kind.dimension_change != "remove"
             for name in operator.output_features:
                 feature = profile.all_features[name]
@@ -241,6 +240,7 @@ class FeatureGraph(FeatureGraphBase):
                 profile_name=profile.name,
                 operator=operator,
                 function=self.spec.functions[operator.compute.function],
+                operator_kind=self.spec.operator_kinds[key],
             )
             operator_node = node(operator_metadata)
             for output in outputs:

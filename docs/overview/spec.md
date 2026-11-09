@@ -154,9 +154,10 @@ the profile legend above, including on both sides of each transformation.
 
 <p class="cv-function-subtitle">Move from a source profile to a coarser target grain</p>
 
-`collapse` is the function kind that groups source observations and returns a
-profile at the target grain. The engine runs the grouping; `collapse`
-analytical functions calculate output features within each group.
+`collapse` describes an operator whose source grain is finer than its target
+grain. Its compute implementation performs grouping and returns results at the
+target grain; this label is derived from the declarations, not attached to
+the callable.
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -188,9 +189,9 @@ analytical functions calculate output features within each group.
 
 <p class="cv-function-subtitle">Run one opaque external workflow</p>
 
-Use `escape` only when an external workflow does not fit the standard
-function kinds. Prefer `read`, `vectorize`, `collapse`, and `write` when their
-explicit dataflow and runtime checks fit the work.
+Use `returns="any"` when an external workflow's result must be ignored. This
+derives an `escape` operator label. Prefer explicit dataframe dataflow and
+runtime checks when they fit the work.
 
 <div class="concepts-visual">
   <div class="cv-operation">

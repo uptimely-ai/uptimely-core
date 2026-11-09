@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import merge
 from uptimely.spec.validation import errors
@@ -50,28 +50,60 @@ def validate_arguments(spec: spec_model.Spec) -> None:
                 )
 
 
-def validate_merge_operator_kind(spec: spec_model.Spec) -> None:
-    """Require merge bindings to belong to fragment-producing operators."""
-    logger.debug("Check merge bindings belong to fragment-producing operators")
+def validate_binding_contracts(spec: spec_model.Spec) -> None:
+    """Validate arity and return contracts from binding positions, not callable kinds."""
+    logger.debug("Check compute and merge binding contracts")
     for key, operator in spec.operator_items:
-        if operator.merge is None:
-            continue
-        compute_function = spec.functions.root.get(operator.compute.function)
-        if compute_function is not None:
-            compute_kind = functions.FUNCTION_KINDS[compute_function.kind]
-            if compute_function.kind == functions.VECTORIZE:
+        for role, binding in operator.bindings.items():
+            function = spec.functions.get(binding.function)
+            if function is None:
+                continue
+            dataframe_count = sum(
+                arg_types.is_dataframe(argument.type) for argument in function.args.values()
+            )
+            for value, path in binding.references_with_paths:
+                if value.is_profile_dataframe_reference and len(path) != 1:
+                    raise errors.SpecError(
+                        f"Operator {key[1]} {role} has a nested dataframe reference; "
+                        "bind dataframes as top-level arguments",
+                        code="invalid_binding_arity",
+                        path=(*spec.declaration_paths[key], role, "args", *path),
+                    )
+            if (role == "compute" and dataframe_count > 1) or (
+                role == "merge" and dataframe_count != 2
+            ):
                 raise errors.SpecError(
-                    "Vectorize operators cannot declare a merge binding",
-                    code="invalid_merge_binding",
-                    path=(*spec.declaration_paths[key], "merge"),
+                    f"Operator {key[1]} {role} binding has invalid dataframe arity: "
+                    f"{dataframe_count}; expected {'zero or one' if role == 'compute' else 'two'}",
+                    code="invalid_binding_arity",
+                    path=(*spec.declaration_paths[key], role, "args"),
                 )
-            if not compute_kind.produces_fragment:
+            if (role == "merge" or operator.merge is not None) and function.returns != "dataframe":
                 raise errors.SpecError(
-                    f"{compute_function.kind.capitalize()} operators cannot declare a "
-                    "merge binding",
+                    f"Operator {key[1]} {role} binding must return a dataframe when merging",
                     code="invalid_merge_binding",
-                    path=(*spec.declaration_paths[key], "merge"),
+                    path=(*spec.declaration_paths[key], role, "function"),
                 )
+            for name, argument in function.args.items():
+                if (
+                    role == "merge"
+                    and name in {"target", "fragment"}
+                    and (
+                        not arg_types.is_dataframe(argument.type)
+                        or (name == "fragment" and argument.type != arg_types.DATAFRAME)
+                    )
+                ):
+                    raise errors.SpecError(
+                        f"Merge {name} must declare a dataframe argument",
+                        code="invalid_merge_binding",
+                        path=(*spec.declaration_paths[key], role, "args", name),
+                    )
+                if not arg_types.is_dataframe(argument.type) and "dataframe" in argument.type:
+                    raise errors.SpecError(
+                        "Nested dataframe arguments are unsupported; bind a top-level dataframe",
+                        code="invalid_binding_arity",
+                        path=(*spec.declaration_paths[key], role, "args", name),
+                    )
 
 
 def validate_merge_target(spec: spec_model.Spec) -> None:

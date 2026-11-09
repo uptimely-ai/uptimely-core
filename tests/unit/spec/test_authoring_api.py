@@ -8,12 +8,12 @@ import uptimely as up
 from uptimely.spec.python import bind, binding_conversion, ref, row_context
 
 
-@up.function(kind="read")
+@up.function(returns="dataframe")
 def read_values() -> pl.DataFrame:
     return pl.DataFrame({"id": [1, 2], "value": [10, 20]})
 
 
-@up.function(kind="vectorize")
+@up.function(returns="dataframe")
 def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
@@ -144,7 +144,7 @@ def test_feature_roles_follow_interface_in_nested_arguments(shape: str, declared
                 outputs=[up.Feature(id="result")] if declared else [],
             ),
             compute=up.Binding(
-                function=ref.function("external:calculate", kind="vectorize"),
+                function=ref.function("external:calculate", returns="dataframe"),
                 arguments={"output": shapes[shape]},
             ),
         )
@@ -161,7 +161,7 @@ def test_mutated_interface_updates_inferred_input_roles() -> None:
             outputs=[up.Feature(id="result")],
         ),
         compute=up.Binding(
-            function=ref.function("external:calculate", kind="vectorize"),
+            function=ref.function("external:calculate", returns="dataframe"),
             arguments={"output": up.ref.feature("result")},
         ),
     )

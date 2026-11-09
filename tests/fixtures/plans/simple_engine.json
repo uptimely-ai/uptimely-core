@@ -1,17 +1,23 @@
 {
-  "plan_version": 8,
+  "plan_version": 9,
   "required_backend": "polars",
   "invocations": [
     {
       "id": "invocation:read:load:telemetry:reading",
-      "function_kind": "read",
+      "operator_kind": "read",
       "entrypoint": "test:read",
       "function_id": "load",
       "operator_id": "reading",
       "profile_id": "telemetry",
-      "id_columns": ["asset_id"],
-      "column_types": {"asset_id": "string"},
-      "argument_types": {"source": "string"},
+      "id_columns": [
+        "asset_id"
+      ],
+      "column_types": {
+        "asset_id": "string"
+      },
+      "argument_types": {
+        "source": "string"
+      },
       "return_type": null,
       "package": null,
       "output_features": [
@@ -20,18 +26,27 @@
       "arguments": {
         "source": "$params.source"
       },
-      "dependency_ids": []
+      "dependency_ids": [],
+      "role": "compute",
+      "result": "fragment"
     },
     {
       "id": "invocation:vectorize:double:telemetry:doubled",
-      "function_kind": "vectorize",
+      "operator_kind": "vectorize",
       "entrypoint": "test:double",
       "function_id": "double",
       "operator_id": "doubled",
       "profile_id": "telemetry",
-      "id_columns": ["asset_id"],
-      "column_types": {"asset_id": "string"},
-      "argument_types": {"column": "string", "dataset": "dataframe"},
+      "id_columns": [
+        "asset_id"
+      ],
+      "column_types": {
+        "asset_id": "string"
+      },
+      "argument_types": {
+        "column": "string",
+        "dataset": "dataframe"
+      },
       "return_type": null,
       "package": null,
       "input_features": [
@@ -45,18 +60,24 @@
         "dataset": "telemetry"
       },
       "dependency_ids": [
-        "invocation:merge:__uptimely_merge_by_grain:telemetry:reading"
-      ]
+        "invocation:merge:merge_by_grain:telemetry:reading"
+      ],
+      "role": "compute",
+      "result": "target"
     },
     {
-      "id": "invocation:merge:__uptimely_merge_by_grain:telemetry:reading",
-      "function_kind": "merge",
+      "id": "invocation:merge:merge_by_grain:telemetry:reading",
+      "operator_kind": "read",
       "entrypoint": "uptimely.library.merge.polars:merge_by_grain",
-      "function_id": "__uptimely_merge_by_grain",
+      "function_id": "merge_by_grain",
       "operator_id": "reading",
       "profile_id": "telemetry",
-      "id_columns": ["asset_id"],
-      "column_types": {"asset_id": "string"},
+      "id_columns": [
+        "asset_id"
+      ],
+      "column_types": {
+        "asset_id": "string"
+      },
       "argument_types": {
         "target": "dataframe | null",
         "fragment": "dataframe",
@@ -67,22 +88,33 @@
       "arguments": {
         "target": "telemetry",
         "fragment": "$operators.@.fragment",
-        "target_keys": ["asset_id"]
+        "target_keys": [
+          "asset_id"
+        ]
       },
       "dependency_ids": [
         "invocation:read:load:telemetry:reading"
-      ]
+      ],
+      "role": "merge",
+      "result": "target"
     },
     {
       "id": "invocation:write:save:telemetry:doubled",
-      "function_kind": "write",
+      "operator_kind": "write",
       "entrypoint": "test:write",
       "function_id": "save",
       "operator_id": "save_doubled",
       "profile_id": "telemetry",
-      "id_columns": ["asset_id"],
-      "column_types": {"asset_id": "string"},
-      "argument_types": {"dataset": "dataframe", "features": "array[string]"},
+      "id_columns": [
+        "asset_id"
+      ],
+      "column_types": {
+        "asset_id": "string"
+      },
+      "argument_types": {
+        "dataset": "dataframe",
+        "features": "array[string]"
+      },
       "return_type": null,
       "package": null,
       "arguments": {
@@ -93,7 +125,9 @@
       },
       "dependency_ids": [
         "invocation:vectorize:double:telemetry:doubled"
-      ]
+      ],
+      "role": "compute",
+      "result": "none"
     }
   ],
   "stages": [
@@ -101,7 +135,7 @@
       "invocation:read:load:telemetry:reading"
     ],
     [
-      "invocation:merge:__uptimely_merge_by_grain:telemetry:reading"
+      "invocation:merge:merge_by_grain:telemetry:reading"
     ],
     [
       "invocation:vectorize:double:telemetry:doubled"

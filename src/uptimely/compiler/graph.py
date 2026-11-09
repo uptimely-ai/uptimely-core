@@ -6,12 +6,13 @@ import dataclasses
 import hashlib
 import json
 import re
+import typing
 from collections.abc import Collection
 
 import graphable as graphable_
 
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec import row_context
 
 INVOCATION_LABEL_MAX_LENGTH = 24
@@ -27,7 +28,9 @@ class InvocationNode:
     function_id: str
     profile_id: str
     operator_id: str
-    function_kind: functions.FunctionKindId
+    operator_kind: functions.OperatorKindId
+    role: typing.Literal["compute", "merge"]
+    result: typing.Literal["none", "target", "fragment"]
     output_features: tuple[str, ...] = ()
     arguments: dict[str, spec_model.BindingArgument] = dataclasses.field(
         default_factory=dict, compare=False, hash=False
@@ -41,7 +44,7 @@ class InvocationNode:
     def node_id(self) -> str:
         """Return a bounded operator label and stable declaration fingerprint."""
         identity = json.dumps(
-            (self.function_id, self.profile_id, self.operator_id),
+            (self.function_id, self.profile_id, self.operator_id, self.role),
             separators=(",", ":"),
         )
         fingerprint = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:INVOCATION_HASH_LENGTH]
@@ -50,10 +53,10 @@ class InvocationNode:
         return f"{label}--{fingerprint}"
 
     def __str__(self) -> str:
-        return f"{self.function_kind}:{self.function_id}({self.profile_id})"
+        return f"{self.operator_kind}:{self.role}:{self.function_id}({self.profile_id})"
 
     def __repr__(self) -> str:
-        return f"{self.function_kind}:{self.function_id}({self.profile_id})"
+        return f"{self.operator_kind}:{self.role}:{self.function_id}({self.profile_id})"
 
 
 class InvocationGraph:

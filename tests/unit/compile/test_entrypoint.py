@@ -99,12 +99,12 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     compute_by_operator = {
         (invocation.profile_id, invocation.operator_id): invocation
         for invocation in compiled.invocations
-        if invocation.function_kind != "merge"
+        if invocation.role == "compute"
     }
     merges_by_operator = {
         (invocation.profile_id, invocation.operator_id): invocation
         for invocation in compiled.invocations
-        if invocation.function_kind == "merge"
+        if invocation.role == "merge"
     }
 
     assert merges_by_operator
@@ -115,8 +115,10 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     for operator_key, merge in merges_by_operator.items():
         compute = compute_by_operator[operator_key]
         assert compute.id in merge.dependency_ids
-        assert merge.function_kind == "merge"
+        assert merge.result == "target"
+        assert merge.role == "merge"
         assert merge.output_features == []
+        assert compute.result == "fragment"
         assert compute.output_features
     assert all(
         len({(producer.profile_id, producer.operator_id) for producer in producers})
@@ -127,11 +129,11 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     feature_producers = {
         feature: invocation
         for invocation in compiled.invocations
-        if invocation.function_kind != "merge"
+        if invocation.role == "compute"
         for feature in invocation.output_features
     }
     for invocation in compiled.invocations:
-        if invocation.function_kind == "merge":
+        if invocation.role == "merge":
             continue
         for feature in invocation.input_features:
             producer = feature_producers.get(feature)

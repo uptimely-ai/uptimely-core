@@ -14,7 +14,9 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
         invocations=[
             uptimely_plan.Invocation(
                 id="opaque-read",
-                function_kind="read",
+                role="compute",
+                result="target",
+                operator_kind="read",
                 entrypoint="example.functions:load",
                 function_id="load",
                 operator_id="read_pressure",
@@ -29,7 +31,9 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
             ),
             uptimely_plan.Invocation(
                 id="opaque-collapse",
-                function_kind="collapse",
+                role="compute",
+                result="target",
+                operator_kind="collapse",
                 entrypoint="example.functions:maximum",
                 function_id="maximum",
                 operator_id="pressure_by_pump",
@@ -40,7 +44,9 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
             ),
             uptimely_plan.Invocation(
                 id="opaque-write",
-                function_kind="write",
+                role="compute",
+                result="none",
+                operator_kind="write",
                 entrypoint="example.functions:save",
                 function_id="save",
                 operator_id="save_pressure_by_pump",
@@ -57,7 +63,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
     )
 
 
-def test_plan_round_trip_preserves_function_kind_metadata() -> None:
+def test_plan_round_trip_preserves_operator_kind_metadata() -> None:
     plan = _sample_plan()
 
     payload = uptimely_plan.to_dict(plan)
@@ -88,7 +94,7 @@ def test_plan_round_trip_preserves_function_kind_metadata() -> None:
 def test_plan_round_trip_preserves_expansion_identifier_columns() -> None:
     original = _sample_plan()
     invocation = original.invocations[1].__replace__(
-        function_kind="expand", identifier_columns=["series"]
+        operator_kind="expand", identifier_columns=["series"]
     )
     plan = original.__replace__(
         invocations=[original.invocations[0], invocation, original.invocations[2]]
@@ -182,11 +188,13 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "invocations",
         "stages",
     }
-    assert payload["plan_version"] == 8
+    assert payload["plan_version"] == 9
     assert "phase" not in payload["invocations"][0]
     assert not hasattr(plan.invocations[0], "phase")
     assert {"function_id", "operator_id"} <= set(payload["invocations"][0])
-    assert "function_kind" in payload["invocations"][0]
+    assert "operator_kind" in payload["invocations"][0]
+    assert payload["invocations"][0]["role"] == "compute"
+    assert payload["invocations"][0]["result"] == "target"
     assert "operation" not in payload["invocations"][0]
     assert "output" not in payload["invocations"][0]
     assert payload["invocations"][0]["return_type"] == "DataFrame"
@@ -204,7 +212,7 @@ def test_plan_json_helpers_round_trip(tmp_path) -> None:
     payload = json.loads(destination.read_text(encoding="utf-8"))
     recreated = uptimely_plan.from_json(destination)
 
-    assert payload["invocations"][0]["function_kind"] == "read"
+    assert payload["invocations"][0]["operator_kind"] == "read"
     assert recreated == plan
     assert recreated.invocations[0].id == "opaque-read"
 
@@ -239,11 +247,11 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["plan_version"] = 1
     payload["callables"] = payload.pop("invocations")
 
-    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 8\."):
+    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 9\."):
         uptimely_plan.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, 7, 9, "8", "unsupported", None, True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, 7, 8, "9", "unsupported", None, True])
 def test_plan_rejects_unsupported_versions(version: object) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = version
@@ -254,7 +262,7 @@ def test_plan_rejects_unsupported_versions(version: object) -> None:
         copy.replace(_sample_plan(), plan_version=version)
 
 
-def test_version_six_plan_with_dataset_ids_requires_rebuilding() -> None:
+def test_version_six_plan_requires_rebuilding() -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = 6
     for invocation in payload["invocations"]:
@@ -453,9 +461,9 @@ def test_plan_replacement_does_not_retain_stale_indexes() -> None:
     assert copied.invocations_by_id == plan.invocations_by_id
 
 
-def test_plan_rejects_unsupported_function_kind() -> None:
+def test_plan_rejects_unsupported_operator_kind() -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
-    payload["invocations"][0]["function_kind"] = "unsupported"
+    payload["invocations"][0]["operator_kind"] = "unsupported"
     with pytest.raises(ValueError):
         uptimely_plan.from_dict(payload)
 
@@ -492,7 +500,7 @@ def test_execution_invocations_follow_stages_not_declaration_order() -> None:
 def test_count_per_kind_rebuilt_on_plan_replacement() -> None:
     plan = _sample_plan()
     previous = plan.count_per_kind
-    plan.invocations[0] = copy.replace(plan.invocations[0], function_kind="write")
+    plan.invocations[0] = copy.replace(plan.invocations[0], operator_kind="write")
     assert plan.count_per_kind is previous
     plan = copy.replace(plan)
     assert plan.count_per_kind == {"collapse": 1, "write": 2}

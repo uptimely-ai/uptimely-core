@@ -33,7 +33,7 @@ ORDER = [
 
 def _configuration() -> dict[str, typing.Any]:
     return {
-        "spec_version": 7,
+        "spec_version": 8,
         "dimensions": {
             "machine": {"resolutions": {"machine": {"key": "machine_id", "type": "string"}}},
             "timestamp": {"resolutions": {"timestamp": {"key": "timestamp", "type": "datetime"}}},
@@ -245,7 +245,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                     ],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(_read_order_data, kind="read"),
+                    function=python_spec.ref.function(_read_order_data),
                     arguments={},
                 ),
             ),
@@ -256,7 +256,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                     outputs=[python_spec.feature.Feature(id="sum")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(_sum_order_features, kind="vectorize"),
+                    function=python_spec.ref.function(_sum_order_features),
                     arguments={
                         "left_feature": python_spec.ref.feature("input_1"),
                         "right_feature": python_spec.ref.feature("input_2"),

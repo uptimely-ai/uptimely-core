@@ -202,7 +202,7 @@ def test_operator_resolves_compute_arguments_using_its_output_context() -> None:
 
     assert operator.resolve_args(
         function_id="calculate",
-        function_kind="vectorize",
+        operator_kind="vectorize",
         profile_id="telemetry",
         grain_keys_by_profile=grain_keys_by_profile,
         resources=resources,
@@ -290,7 +290,6 @@ def test_reference_predicates(
 def test_binding_contract_comparison_and_typed_reference_views() -> None:
     function = model.FunctionTemplate(
         id="calculate",
-        kind="vectorize",
         returns="dataframe",
         entrypoint="example:calculate",
         args={
@@ -326,7 +325,7 @@ def test_binding_contract_comparison_and_typed_reference_views() -> None:
 
 def test_python_inference_uses_argument_facts_and_keeps_explicit_inputs_authoritative() -> None:
     binding = assembly.Binding(
-        function=ref.function("calculation:calculate", kind="vectorize"),
+        function=ref.function("calculation:calculate", returns="dataframe"),
         arguments={
             "config": [
                 ref.feature("pressure"),

@@ -26,14 +26,14 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `8`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `9`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Invocation identifiers grouped by dependency order. |
 
 All root fields are required. Unknown fields and unsupported versions are
 rejected. Earlier plan versions are not converted. Rebuild generated bundles
-from their source Specs to create version 8 plans.
+from their source Specs to create version 9 plans.
 
 ## Invocation metadata
 
@@ -68,7 +68,7 @@ identifiers are hashed before label normalization or truncation.
 IDs are at most 36 characters and stay stable across recompilation and feature
 selection when these identity fields are unchanged. Argument or implementation
 changes do not change the ID; it identifies a declared invocation, not a build
-or execution. Function kind is not part of the label or fingerprint. Compute
+or execution. Operator kind is not part of the label or fingerprint. Compute
 and merge invocations use the same operator label and are distinguished by
 their function IDs. Compilation rejects ID collisions rather than overwriting a
 node. Use the invocation's separate metadata fields for full names and meaning.
@@ -81,7 +81,9 @@ engine-owned runtime accumulators, not invocation declaration metadata.
 | Field | JSON type | Meaning |
 | --- | --- | --- |
 | `id` | string | Unique identifier for this invocation. |
-| `function_kind` | string | Function category: `read`, `conform`, `expand`, `collapse`, `vectorize`, `merge`, `write`, or `escape`. |
+| `role` | string | Binding position: `compute` or `merge`. |
+| `result` | string | Result handling: `none`, complete `target`, or staged `fragment`. |
+| `operator_kind` | string | Derived operator label: `read`, `conform`, `expand`, `collapse`, `vectorize`, `write`, or `escape`. Merge invocations retain their owning operator's label. |
 | `entrypoint` | string | Implementation location for the function. |
 | `function_id` | string | Function declaration used by the invocation. |
 | `operator_id` | string | Operator declaration used by the invocation. |
@@ -169,7 +171,7 @@ Use `uptimely.plan` to read and write plans, and use
 `ExecutionPlan.invocations` to access the planned steps. Do not rely on the
 format of their IDs.
 
-Plans earlier than version 8, including version 7 plans, are not supported.
+Plans earlier than version 9 are not supported.
 Rebuild from the source Spec with `uptimely build PROJECT_ROOT`.
 Plans lacking invocation runtime metadata (`id_columns`, `column_types`, and
 `argument_types`) must likewise be rebuilt.

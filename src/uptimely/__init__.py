@@ -21,6 +21,7 @@ from .spec.python import (
     Resolution,
     Spec,
     function,
+    default_merge,
     ref,
 )
 from .compiler import Compiler, InvocationGraph, InvocationNode
@@ -38,6 +39,7 @@ __all__ = [
     "FeatureSet",
     "Order",
     "function",
+    "default_merge",
     "ref",
     "Compiler",
     "Dimension",

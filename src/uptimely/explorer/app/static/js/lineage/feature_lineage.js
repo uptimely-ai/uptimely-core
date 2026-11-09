@@ -30,7 +30,7 @@ export function initializeFeatureLineage(signal) {
 			const functionRows = [
 				['Function', node.function_name || node.function_id || 'n/a'],
 				['Function ID', node.function_id || 'n/a'],
-				['Function kind', KINDS[node.function_kind]?.label || node.function_kind || 'n/a'],
+				['Operator kind', KINDS[node.operator_kind]?.label || node.operator_kind || 'n/a'],
 			];
 			if (entrypoint) functionRows.push(['Entrypoint', entrypoint]);
 			ExplorerLineage.showDetails(nodeDetails, label, [
@@ -45,7 +45,7 @@ export function initializeFeatureLineage(signal) {
 				node.is_effect
 					? 'Declared feature dependencies only; outputs are not materialized as dataframe columns.'
 					: '', {
-					kind: 'Operator', icon: KINDS[node.function_kind]?.icon || 'square-function',
+					kind: 'Operator', icon: KINDS[node.operator_kind]?.icon || 'square-function',
 				});
 			return;
 		}

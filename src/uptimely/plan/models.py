@@ -8,10 +8,10 @@ import typing
 import pydantic
 
 from uptimely import spec
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec import row_context as uptimely_row_context
 
-PLAN_VERSION = 8
+PLAN_VERSION = 9
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
@@ -21,6 +21,9 @@ class _InvocationNode(typing.Protocol):
     function_id: str
     profile_id: str
     operator_id: str
+    role: typing.Literal["compute", "merge"]
+    result: typing.Literal["none", "target", "fragment"]
+    operator_kind: functions.OperatorKindId
     output_features: tuple[str, ...]
     input_features: tuple[str, ...]
     row_context: uptimely_row_context.RowContext | None
@@ -66,7 +69,9 @@ class Invocation(_PlanModel):
     """Portable representation of one compiler-created executable invocation."""
 
     id: NonEmptyString
-    function_kind: functions.FunctionKindId
+    role: typing.Literal["compute", "merge"]
+    result: typing.Literal["none", "target", "fragment"]
+    operator_kind: functions.OperatorKindId
     entrypoint: NonEmptyString
     function_id: NonEmptyString
     operator_id: NonEmptyString
@@ -123,8 +128,9 @@ class Invocation(_PlanModel):
         id_columns = spec_definition.grain_keys_by_profile[profile_key]
         operator = spec_definition.profiles[node.profile_id].assembly[node.operator_id]
         arguments = operator.resolve_args(
+            role=node.role,
             function_id=node.function_id,
-            function_kind=function.kind,
+            operator_kind=node.operator_kind,
             profile_id=node.profile_id,
             grain_keys_by_profile=spec_definition.grain_keys_by_profile,
             resources=spec_definition.binding_resources,
@@ -140,7 +146,9 @@ class Invocation(_PlanModel):
         column_types |= identifier_types
         return cls(
             id=node.node_id,
-            function_kind=function.kind,
+            role=node.role,
+            result=node.result,
+            operator_kind=node.operator_kind,
             entrypoint=function.entrypoint,
             function_id=node.function_id,
             operator_id=node.operator_id,
@@ -173,12 +181,20 @@ class Invocation(_PlanModel):
 
     @pydantic.model_validator(mode="after")
     def validate_output_features(self) -> typing.Self:
-        """Require distinct outputs and outputs for collapse invocations."""
+        """Require valid role/result combinations and distinct invocation outputs."""
         if len(set(self.output_features)) != len(self.output_features):
             raise ValueError("Invocation output_features must be unique")
         if len(set(self.identifier_columns)) != len(self.identifier_columns):
             raise ValueError("Invocation identifier_columns must be unique")
-        if self.function_kind == functions.COLLAPSE and not self.output_features:
+        if self.role == "merge" and self.result != "target":
+            raise ValueError("Merge invocations must have result='target'")
+        if self.result == "fragment" and self.role != "compute":
+            raise ValueError("Only compute invocations may have result='fragment'")
+        if (
+            self.role == "compute"
+            and self.operator_kind == functions.COLLAPSE
+            and not self.output_features
+        ):
             raise ValueError("Collapse must declare output_features")
         return self
 
@@ -186,7 +202,7 @@ class Invocation(_PlanModel):
 class ExecutionPlan(_PlanModel):
     """Portable invocations and the compiler-selected execution schedule."""
 
-    plan_version: typing.Literal[8]
+    plan_version: typing.Literal[9]
     required_backend: NonEmptyString
     invocations: list[Invocation]
     stages: list[Stage]
@@ -202,12 +218,43 @@ class ExecutionPlan(_PlanModel):
     @pydantic.model_validator(mode="after")
     def validate_plan_contracts(self) -> typing.Self:
         """Validate invocation consistency and the compiler-selected schedule."""
+        invocations_by_id = {invocation.id: invocation for invocation in self.invocations}
         invocation_ids = {invocation.id for invocation in self.invocations}
         if len(invocation_ids) != len(self.invocations):
             raise ValueError("Plan contains duplicate invocation ids")
+        self._validate_invocation_roles(invocations_by_id)
         self._validate_invocation_metadata()
         self._validate_execution_order(invocation_ids)
         return self
+
+    def _validate_invocation_roles(self, invocations_by_id: dict[str, Invocation]) -> None:
+        """Require every staged fragment to be consumed by one merge invocation."""
+        merge_dependencies: dict[str, list[str]] = {}
+        for invocation in self.invocations:
+            if invocation.role != "merge":
+                continue
+            fragment_dependencies = [
+                dependency_id
+                for dependency_id in invocation.dependency_ids
+                if dependency_id in invocations_by_id
+                and invocations_by_id[dependency_id].role == "compute"
+                and invocations_by_id[dependency_id].result == "fragment"
+            ]
+            if len(fragment_dependencies) != 1:
+                raise ValueError(
+                    f"Merge invocation {invocation.id} must depend on exactly one "
+                    "fragment-producing compute invocation"
+                )
+            merge_dependencies.setdefault(fragment_dependencies[0], []).append(invocation.id)
+
+        for invocation in self.invocations:
+            if (
+                invocation.result == "fragment"
+                and len(merge_dependencies.get(invocation.id, [])) != 1
+            ):
+                raise ValueError(
+                    f"Fragment invocation {invocation.id} must have exactly one merge consumer"
+                )
 
     def _validate_invocation_metadata(self) -> None:
         """Require consistent entrypoints, return types, and packages."""
@@ -307,11 +354,11 @@ class ExecutionPlan(_PlanModel):
         return features
 
     @functools.cached_property
-    def invocations_by_kind(self) -> dict[functions.FunctionKindId, list[Invocation]]:
-        """Return invocations grouped by function kind in declaration order."""
-        grouped: dict[functions.FunctionKindId, list[Invocation]] = {}
+    def invocations_by_kind(self) -> dict[functions.OperatorKindId, list[Invocation]]:
+        """Return invocations grouped by derived operator label in declaration order."""
+        grouped: dict[functions.OperatorKindId, list[Invocation]] = {}
         for invocation in self.invocations:
-            grouped.setdefault(invocation.function_kind, []).append(invocation)
+            grouped.setdefault(invocation.operator_kind, []).append(invocation)
         return grouped
 
     @functools.cached_property
@@ -320,7 +367,7 @@ class ExecutionPlan(_PlanModel):
         return {
             feature
             for kind, invocations in self.invocations_by_kind.items()
-            if functions.FUNCTION_KINDS[kind].is_transformer
+            if functions.OPERATOR_KINDS[kind].is_transformer
             for invocation in invocations
             for feature in invocation.output_features
         }
@@ -331,8 +378,8 @@ class ExecutionPlan(_PlanModel):
         return dict.fromkeys(invocation.entrypoint for invocation in self.invocations)
 
     @functools.cached_property
-    def count_per_kind(self) -> dict[functions.FunctionKindId, int]:
-        """Return invocation counts keyed by function kind, sorted by kind."""
+    def count_per_kind(self) -> dict[functions.OperatorKindId, int]:
+        """Return invocation counts keyed by derived operator label, sorted by label."""
         return {
             kind: len(invocations) for kind, invocations in sorted(self.invocations_by_kind.items())
         }

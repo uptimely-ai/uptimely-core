@@ -13,7 +13,6 @@ def _sample_spec() -> model.Spec:
             "dimensions": {"key": {"resolutions": {"key": {"key": "key", "type": "integer"}}}},
             "functions": {
                 name: {
-                    "kind": "read",
                     "returns": "dataframe",
                     "entrypoint": f"example:{name}",
                     "args": {"path": {"type": "str"}},
@@ -127,9 +126,6 @@ def test_cached_views_build_only_the_views_they_need() -> None:
     assert list(document.arguments) == [
         ("load", "path"),
         ("other", "path"),
-        (model.merge.DEFAULT_FUNCTION.id, "target"),
-        (model.merge.DEFAULT_FUNCTION.id, "fragment"),
-        (model.merge.DEFAULT_FUNCTION.id, "target_keys"),
     ]
     assert document.grain_keys_by_profile == {"first": ["key"], "second": ["key"]}
     assert len(document.operators) == 2
@@ -210,7 +206,6 @@ def test_operator_bindings_preserve_identity_aliases_order_and_unresolved_functi
     assert document.functions.root.get(operator.merge.function) is None
     assert document.profiles["second"].assembly["read"].bindings == {
         "compute": document.profiles["second"].assembly["read"].compute,
-        "merge": document.profiles["second"].assembly["read"].merge,
     }
     assert document.model_dump() == original
     assert document.binding_selectors_with_paths == tuple(
@@ -220,9 +215,6 @@ def test_operator_bindings_preserve_identity_aliases_order_and_unresolved_functi
         ("profiles", "first", "assembly", "read", "compute", "args"),
         ("profiles", "first", "assembly", "alias", "compute", "args"),
         ("profiles", "second", "assembly", "read", "compute", "args"),
-        ("profiles", "second", "assembly", "read", "merge", "args"),
-        ("profiles", "second", "assembly", "read", "merge", "args"),
-        ("profiles", "second", "assembly", "read", "merge", "args"),
     ]
     assert document.binding_arguments_with_paths is document.binding_arguments_with_paths
 

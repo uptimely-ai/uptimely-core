@@ -12,18 +12,20 @@ from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import merge as merge_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.spec import function_kinds as function_kinds_module
+from uptimely.spec import operator_kinds as operator_kinds_module
 
 
 def _invocation(
-    kind: function_kinds_module.FunctionKindId = "read",
+    kind: operator_kinds_module.OperatorKindId = "read",
     *,
     output_features: list[str] | None = None,
     column_types: dict[str, str] | None = None,
 ) -> plan_module.Invocation:
     return plan_module.Invocation(
         id="invocation",
-        function_kind=kind,
+        role="compute",
+        result="target" if kind == "vectorize" else "fragment",
+        operator_kind=kind,
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",

@@ -2,9 +2,11 @@
 
 `uptimely.spec.validation` provides semantic validation and the structured
 `SpecError` exception. Pydantic checks document shape and field types; semantic
-validators check relationships between declarations. Function return kinds and
-dataframe argument counts and argument contracts are checked by their owning
-`FunctionTemplate` models. Neither imports executable function implementations
+validators check relationships between declarations. Independent return and
+argument contracts are checked by their owning `FunctionTemplate` models;
+binding positions require zero or one compute dataframe argument or exactly
+two merge dataframe arguments. Slots are counted even when they reference the
+same profile. Neither imports executable function implementations
 or constructs compiler invocations.
 
 The public [load_spec and from_python](api.md) helpers still validate

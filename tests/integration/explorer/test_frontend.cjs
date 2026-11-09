@@ -41,22 +41,22 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
     assert.ok(!content.includes("<input>"));
   }
   const functions = renderCatalog(sampleData(), "functions");
-  assert.match(functions.content, /data-function-group="vectorize"/);
+  assert.match(functions.content, /data-function-group="Uncategorized"/);
   assert.match(functions.content, /language-python/);
   assert.match(functions.content, /<span class="ui-badge[^>]*>Python<\/span>/);
-  assert.match(functions.content, /<h3 class="function-detail-title"><i class="site-icon icon--functions function-detail-icon" data-lucide="table-properties" title="Function kind: Vectorize"[^>]*><\/i><span>&lt;Calculate&gt;<\/span><\/h3>/);
+  assert.match(functions.content, /<h3 class="function-detail-title"><i class="site-icon icon--functions function-detail-icon" data-lucide="square-function"[^>]*><\/i><span>&lt;Calculate&gt;<\/span><\/h3>/);
   assert.match(functions.content, /<p data-function-description[^>]*>Calculate &lt;values&gt;<\/p>/);
   assert.doesNotMatch(functions.content, /class="function-description"/);
-  assert.match(functions.content, /<section class="function-kind-graphic min-w-0"[^>]*aria-label="Vectorize function kind diagram">\s*<h3 class="ui-section-title profile-detail-subheading"><i class="site-icon icon--functions profile-detail-icon" data-lucide="table-properties" title="Function kind: Vectorize"[^>]*><\/i><span>Vectorize kind<\/span><\/h3>\s*<div class="function-detail-box mt-3 flex min-h-40 flex-col[^]*?<svg viewBox="0 0 150 44"[^]*?<\/svg>/);
+  assert.doesNotMatch(functions.content, /function-kind-graphic|Function kind:/);
   assert.doesNotMatch(functions.content, /Operation diagram/);
   assert.match(functions.content, /&lt;script&gt;/);
   assert.match(functions.content, /DataFrame/);
   assert.match(functions.content, /<h3 class="function-detail-title">[^]*?<span>&lt;Calculate&gt;<\/span><\/h3>/);
   assert.doesNotMatch(functions.content, /<p class="mt-1 font-mono text-xs text-slate-500">calculate<\/p>/);
   const functionMetadataData = sampleData();
-  functionMetadataData.catalogs.function_groups.vectorize.calculate.doc.body = "Equal key sets use a full join, preserving either observation scope. A\nstrict subset uses a left join.\n\nMore <details>.";
-  functionMetadataData.catalogs.function_groups.vectorize.calculate.doc.returns = "Calculated <values>.";
-  functionMetadataData.catalogs.function_groups.vectorize.calculate.doc.raises = [
+  functionMetadataData.catalogs.function_groups.Uncategorized.calculate.doc.body = "Equal key sets use a full join, preserving either observation scope. A\nstrict subset uses a left join.\n\nMore <details>.";
+  functionMetadataData.catalogs.function_groups.Uncategorized.calculate.doc.returns = "Calculated <values>.";
+  functionMetadataData.catalogs.function_groups.Uncategorized.calculate.doc.raises = [
     { type: "ValueError", description: "Invalid <value>." },
     { type: "RuntimeError", description: null },
   ];
@@ -64,48 +64,45 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   const functionArticle = functionMetadata.slice(functionMetadata.indexOf('<article id="function-calculate"'));
   assert.match(functionArticle, /<p data-function-description[^>]*>Calculate &lt;values&gt;<\/p>\s*<div class="function-description"><p>Equal key sets use a full join, preserving either observation scope\. A\nstrict subset uses a left join\.<\/p><p>More &lt;details&gt;\.<\/p><\/div>/);
   const emptyDescriptionData = sampleData();
-  emptyDescriptionData.catalogs.function_groups.vectorize.calculate.doc.body = " \n ";
+  emptyDescriptionData.catalogs.function_groups.Uncategorized.calculate.doc.body = " \n ";
   assert.doesNotMatch(renderCatalog(emptyDescriptionData, "functions").content, /class="function-description"/);
   assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Returns">\s*<h3 class="ui-section-title profile-detail-subheading">[^]*?data-lucide="arrow-right"[^]*?<span>Returns<\/span><\/h3>\s*<div class="function-metadata-card function-detail-box">\s*<p class="function-return-type">DataFrame<\/p>\s*<p class="function-metadata-description">Calculated &lt;values&gt;\.<\/p>/);
   assert.doesNotMatch(functionArticle.match(/<section class="function-metadata-entry" aria-label="Returns">[^]*?<\/section>/)[0], /data-type-label-icon|data-lucide="table-2"/);
-  functionMetadataData.catalogs.function_groups.vectorize.calculate.return_type = "list<value>";
+  functionMetadataData.catalogs.function_groups.Uncategorized.calculate.return_type = "list<value>";
   assert.match(renderCatalog(functionMetadataData, "functions").content, /<p class="function-return-type">list&lt;value&gt;<\/p>/);
   assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Error handling">\s*<h3 class="ui-section-title profile-detail-subheading">[^]*?data-lucide="triangle-alert"[^]*?<span>Error handling<\/span><\/h3>\s*<div class="function-metadata-card function-detail-box">[^]*?<span class="function-error-type">ValueError<\/span><p class="function-metadata-description">Invalid &lt;value&gt;\.<\/p>/);
   assert.match(functionArticle, /<li><span class="function-error-type">RuntimeError<\/span><\/li>/);
   assert.match(functionArticle, /<section class="function-source" aria-label="Source">[^]*?data-lucide="code-xml"[^]*?<span>Source<\/span>[^]*?<dt>[^]*?data-lucide="package"[^]*?<span>Package<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="file-code-2"[^]*?<span>Module<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="square-function"[^]*?<span>Function<\/span><\/dt><dd><code>calculate<\/code>/);
   assert.match(functionArticle, /<dt>[^]*?data-lucide="map-pin"[^]*?<span>Origin<\/span><\/dt><dd><code>Unknown<\/code><\/dd>/);
   assert.match(functionArticle, /<pre class="function-detail-box mt-3 min-h-40/);
-  assert.match(functionArticle, /<div class="function-detail-box mt-3 flex min-h-40/);
   assert.match(functionArticle, /aria-label="Function usage"[^]*?Used by operators[^]*?<li class="function-usage-item function-detail-box">[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=profiles#operator-readings-calculate">Calculate<\/a>/);
   assert.doesNotMatch(functionArticle, /<h3 class="ui-section-title">Raises<\/h3>/);
   const escapeFunctionData = sampleData();
-  escapeFunctionData.catalogs.function_groups.escape = escapeFunctionData.catalogs.function_groups.vectorize;
-  delete escapeFunctionData.catalogs.function_groups.vectorize;
-  escapeFunctionData.catalogs.function_groups.escape.calculate.kind = "escape";
+  escapeFunctionData.catalogs.configuration.profiles.readings.assembly.calculate.kind = "escape";
   const escapeFunction = renderCatalog(escapeFunctionData, "functions").content;
-  assert.match(escapeFunction, /<h3 class="function-detail-title"><i class="site-icon icon--functions function-detail-icon" data-lucide="arrow-up-right" title="Function kind: Escape"[^>]*><\/i><span>&lt;Calculate&gt;<\/span><\/h3>/);
-  assert.match(escapeFunction, /<h3 class="ui-section-title profile-detail-subheading"><i[^>]*data-lucide="arrow-up-right"[^>]*><\/i><span>Escape kind<\/span><\/h3>/);
+  assert.match(escapeFunction, /data-lucide="square-function"[^>]*><\/i><span>&lt;Calculate&gt;<\/span>/);
+  assert.doesNotMatch(escapeFunction, /Function kind:|Escape kind|function-kind-graphic/);
   assert.doesNotMatch(escapeFunction, /Uncontrolled external effect\. Declared feature dependencies do not materialize outputs; return values are ignored\./);
   assert.match(escapeFunction, /aria-label="Function usage"[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=profiles#operator-readings-calculate">Calculate<\/a>/);
   assert.doesNotMatch(escapeFunction, /escape-operator-card/);
   const functionOverview = functions.content.slice(0, functions.content.indexOf('<div class="space-y-8">'));
   assert.doesNotMatch(functionOverview, /data-stat=/);
   assert.doesNotMatch(functionOverview, /<h2[^>]*>Functions overview<\/h2>/);
-  assert.match(functionOverview, /Functions by kind/);
-  assert.match(functionOverview, /data-category="vectorize"[^]*?data-lucide="table-properties" title="Function kind: Vectorize"/);
+  assert.match(functionOverview, /Functions by category/);
+  assert.match(functionOverview, /data-category="Uncategorized"/);
   assert.match(functionOverview, /Functions by return type/);
   assert.match(functionOverview, /data-category="DataFrame" data-count="1"[^]*?icon--return-arrow[^>]*data-lucide="arrow-right"[^]*?class="data-type-label-text">DataFrame/);
   const returnTypeChart = functionOverview.slice(functionOverview.indexOf("Functions by return type"));
   assert.doesNotMatch(returnTypeChart, /data-lucide="table-2"/);
   const returnTypeData = sampleData();
-  returnTypeData.catalogs.function_groups.vectorize.numeric = { return_type: "float" };
-  returnTypeData.catalogs.function_groups.merge = { unknown: {} };
+  returnTypeData.catalogs.function_groups.Uncategorized.numeric = { return_type: "float" };
+  returnTypeData.catalogs.function_groups.Other = { unknown: {} };
   const returnTypeOverview = renderCatalog(returnTypeData, "functions").content;
   const typedReturnOverview = returnTypeOverview.slice(0, returnTypeOverview.indexOf('<div class="space-y-8">'));
   assert.match(typedReturnOverview, /data-category="float" data-count="1"[^]*?data-lucide="arrow-right"[^]*?class="data-type-label-text">float/);
   assert.match(returnTypeOverview, /data-category="unspecified" data-count="1"/);
   assert.doesNotMatch(typedReturnOverview.slice(typedReturnOverview.indexOf("Functions by return type")), /data-lucide="(?:hash|table-2)"/);
-  assert.match(functions.context, /href="#function-calculate"[^]*?data-lucide="table-properties" title="Function kind: Vectorize"/);
+  assert.match(functions.context, /href="#function-calculate"[^]*?data-lucide="square-function"/);
   assert.match(functions.context, /href="#function-calculate"/);
   const profileData = sampleData();
   profileData.catalogs.configuration.profiles.readings.description = "Pump readings per machine.";
@@ -155,7 +152,7 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
 test("function examples retain multiline content, order and HTML escaping", async () => {
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const data = sampleData();
-  data.catalogs.function_groups.vectorize.calculate.doc.examples = [
+  data.catalogs.function_groups.Uncategorized.calculate.doc.examples = [
     'frame = make_frame(\n    "<input>"\n)\nresult = calculate(frame)\n[1, 2]',
     'print("<second>")',
   ];
@@ -170,7 +167,8 @@ test("function examples retain multiline content, order and HTML escaping", asyn
   const article = html.slice(html.indexOf('<article id="function-calculate"'));
   assert.equal((article.match(/<section class="function-example">/g) || []).length, 2);
   assert.ok(article.indexOf("Example 2") < article.indexOf('class="function-origin-grid"'));
-  assert.match(article, /class="function-origin-grid"[^]*?class="function-source"[^]*?class="function-kind-graphic/);
+  assert.match(article, /class="function-origin-grid"[^]*?class="function-source"/);
+  assert.doesNotMatch(article, /class="function-kind-graphic/);
   assert.ok(article.indexOf("Arguments") < article.indexOf('class="function-metadata-grid"'));
   assert.doesNotMatch(article, /lg:grid-cols-\[minmax/);
 });
@@ -178,7 +176,7 @@ test("function examples retain multiline content, order and HTML escaping", asyn
 test("function source and operator usage handle qualified, missing and escaped values", async () => {
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const data = sampleData();
-  const fn = data.catalogs.function_groups.vectorize.calculate;
+  const fn = data.catalogs.function_groups.Uncategorized.calculate;
   fn.entrypoint = "pump.<package>.analytics:Class.method";
   fn.source_origin = "third_party";
   fn.source_distribution = "library <unsafe>";
@@ -212,7 +210,8 @@ test("function source and operator usage handle qualified, missing and escaped v
   assembly.calculate.compute.function = "other";
   delete assembly.merge_values.merge;
   const empty = renderCatalog(data, "functions").content;
-  assert.doesNotMatch(empty, /class="function-source"|class="function-metadata-grid"/);
+  assert.doesNotMatch(empty, /class="function-source"/);
+  assert.match(empty, /class="function-return-type">dataframe<\/p>/);
   assert.match(empty, /Not used by any operator/);
 });
 
@@ -225,7 +224,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
     operator_id: "calculate",
     phase: "merge",
     function: "join",
-    function_kind: "merge",
+    operator_kind: "merge",
     title: "Join results",
     function_label: "Join results",
     merge_target: "readings",
@@ -253,7 +252,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
     nodes: [{
       id: merge.invocation_id,
       phase: "merge",
-      function_kind: "merge",
+      operator_kind: "merge",
       function_name: merge.function_label,
       operator_id: merge.operator_id,
       profile_id: "readings",
@@ -270,8 +269,8 @@ test("merge phases expose their invocation metadata and owning operator", async 
     function: "join",
     args: { target: "$profiles.@.dataset", fragment: "$operators.@.fragment", target_keys: ["id"] },
   };
-  data.catalogs.configuration.functions.join = { name: "Join results", kind: "merge" };
-  data.catalogs.function_groups.merge = { join: data.catalogs.configuration.functions.join };
+  data.catalogs.configuration.functions.join = { name: "Join results", returns: "dataframe", category: "Joining" };
+  data.catalogs.function_groups.Joining = { join: data.catalogs.configuration.functions.join };
 
   const stages = renderCatalog(data, "stages").content;
   const profiles = renderCatalog(data, "profiles").content;
@@ -370,9 +369,10 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const data = sampleData();
   const config = data.catalogs.configuration;
-  config.functions.aggregate = { name: "Maximum <reading>", kind: "collapse" };
-  config.functions.external = { kind: "escape" };
+  config.functions.aggregate = { name: "Maximum <reading>", returns: "dataframe" };
+  config.functions.external = { returns: "any" };
   config.profiles.readings.assembly.aggregate = {
+    kind: "collapse",
     compute: { function: "aggregate", args: {
       dataset: "$profiles.source.dataset",
       options: { method: "<max>" },
@@ -381,6 +381,7 @@ test("profile operator expose engineering contracts and inspectable bindings", a
     interface: { inputs: ["$features.raw"], outputs: ["$features.value"] },
   };
   config.profiles.readings.assembly.external = {
+    kind: "escape",
     compute: { function: "external", args: {} },
     interface: { inputs: [], outputs: ["$features.<logical>"] },
   };
@@ -493,7 +494,7 @@ test("dashboard, Features charts and plan show visual components and counts", as
   assert.doesNotMatch(features, /<h2[^>]*>Features overview<\/h2>|data-stat=/);
   assert.match(features, /data-category="output" data-count="1"/);
   const plan = planOverview(data);
-  assert.match(plan, /Invocations by function kind/);
+  assert.match(plan, /Invocations by operator kind/);
   assert.match(plan, /Invocations by stage/);
   assert.doesNotMatch(plan, /Max parallel invocations|data-stat=/);
 });
@@ -518,9 +519,9 @@ test("lineage views expose original canvases, controls and script-safe graph dat
   assert.match(lineage(sampleData(), true).context, /id="invocation-node-details"/);
   const topologyData = sampleData();
   topologyData.graphs.invocation_lineage.nodes = [
-    { id: "first", profile_id: "readings", function_kind: "merge" },
-    { id: "second", profile_id: "readings", function_kind: "merge" },
-    { id: "third", function_kind: "<custom>" },
+    { id: "first", profile_id: "readings", operator_kind: "merge" },
+    { id: "second", profile_id: "readings", operator_kind: "merge" },
+    { id: "third", operator_kind: "<custom>" },
   ];
   const topology = lineage(topologyData, true).context;
   assert.match(topology, /2 profiles<\/span>/);

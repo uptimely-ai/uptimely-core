@@ -7,7 +7,7 @@ import logging
 from collections import abc
 
 from uptimely import plan as plan_module
-from uptimely.spec import function_kinds
+from uptimely.spec import operator_kinds
 
 from . import backend as backend_module
 
@@ -73,12 +73,12 @@ class Fragment:
             ValueError: The function kind cannot produce a dataframe fragment or
                 validation rejects the invocation result.
         """
-        definition = function_kinds.FUNCTION_KINDS.get(invocation.function_kind)
+        definition = operator_kinds.OPERATOR_KINDS.get(invocation.operator_kind)
         if definition is None:
-            raise ValueError(f"Unknown function kind: {invocation.function_kind}")
+            raise ValueError(f"Unknown function kind: {invocation.operator_kind}")
         if not definition.produces_fragment:
             raise ValueError(
-                f"Function kind {invocation.function_kind} does not produce dataframe fragments"
+                f"Function kind {invocation.operator_kind} does not produce dataframe fragments"
             )
         dataframe = load()
         if not backend.is_frame(dataframe):
@@ -148,16 +148,16 @@ class Fragment:
             return
 
         self._validate_dimensionless_row_count(backend, invocation)
-        definition = function_kinds.FUNCTION_KINDS.get(invocation.function_kind)
+        definition = operator_kinds.OPERATOR_KINDS.get(invocation.operator_kind)
         if definition is None:
-            raise ValueError(f"Unknown function kind: {invocation.function_kind}")
+            raise ValueError(f"Unknown function kind: {invocation.operator_kind}")
         if definition.row_count_relation == "same":
             _log_validation(invocation, "Check fragment row-count preservation")
             if comparison_frame is None or backend.row_count(comparison_frame) != backend.row_count(
                 self.dataframe
             ):
                 raise ValueError(
-                    f"{invocation.function_kind.capitalize()} operator "
+                    f"{invocation.operator_kind.capitalize()} operator "
                     f"{invocation.operator_id} "
                     "must preserve the accumulated profile row count"
                 )
@@ -182,7 +182,7 @@ class Fragment:
                 comparison_frame, self.dataframe, self.dimensions
             ):
                 raise ValueError(
-                    f"{invocation.function_kind.capitalize()} operator "
+                    f"{invocation.operator_kind.capitalize()} operator "
                     f"{invocation.operator_id} "
                     "must preserve the profile grain keys"
                 )

@@ -44,7 +44,7 @@ def test_keyed_profiles_round_trip_without_repeating_ids(tmp_path: pathlib.Path)
     assert payload["profiles"]["first"]["category"] == "telemetry"
     assert payload["profiles"]["first"]["scope"] == "One row per machine"
     assert payload == model.model_dump(exclude_none=False)
-    assert payload["spec_version"] == 7
+    assert payload["spec_version"] == 8
     assert "assembly" in payload["profiles"]["first"]
     assert "mappings" not in payload["profiles"]["first"]
 

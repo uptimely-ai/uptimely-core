@@ -17,13 +17,15 @@ def _node(operator_id: str = "bearing_temperature_delta") -> graph.InvocationNod
         function_id="delta",
         profile_id="pump_telemetry",
         operator_id=operator_id,
-        function_kind="vectorize",
+        operator_kind="vectorize",
+        role="compute",
+        result="target",
     )
 
 
 def test_invocation_id_uses_operator_label_and_canonical_fingerprint() -> None:
     node = _node()
-    identity = b'["delta","pump_telemetry","bearing_temperature_delta"]'
+    identity = b'["delta","pump_telemetry","bearing_temperature_delta","compute"]'
     fingerprint = hashlib.sha256(identity).hexdigest()[:10]
 
     assert node.node_id == f"bearing-temperature-delt--{fingerprint}"
@@ -51,11 +53,9 @@ def test_invocation_labels_are_bounded_ascii_with_single_dashes(
     assert re.fullmatch(r"[a-z0-9]+(?:-[a-z0-9]+)*--[0-9a-f]{10}", identifier)
 
 
-def test_compute_and_merge_share_label_but_have_distinct_function_fingerprints() -> None:
+def test_compute_and_merge_roles_have_distinct_invocation_ids() -> None:
     compute = _node()
-    merge = dataclasses.replace(
-        compute, function_kind="merge", function_id="__uptimely_merge_by_grain"
-    )
+    merge = dataclasses.replace(compute, role="merge", result="target")
 
     assert merge.node_id.split("--")[0] == compute.node_id.split("--")[0]
     assert len(merge.node_id) <= 36
@@ -97,11 +97,11 @@ def test_invocation_id_does_not_depend_on_runtime_metadata() -> None:
     assert changed.node_id == node.node_id
 
 
-@pytest.mark.parametrize("kind", ["read", "vectorize", "merge", "escape"])
-def test_invocation_id_does_not_depend_on_function_kind(kind: str) -> None:
+@pytest.mark.parametrize("kind", ["read", "vectorize", "escape"])
+def test_invocation_id_does_not_depend_on_operator_kind(kind: str) -> None:
     node = _node()
 
-    assert dataclasses.replace(node, function_kind=kind).node_id == node.node_id
+    assert dataclasses.replace(node, operator_kind=kind).node_id == node.node_id
 
 
 def test_graph_rejects_id_collisions_before_overwriting_nodes(
@@ -111,7 +111,6 @@ def test_graph_rejects_id_collisions_before_overwriting_nodes(
         functions={
             "delta": spec_model.FunctionTemplate(
                 id="delta",
-                kind="vectorize",
                 returns="dataframe",
                 entrypoint="support.functions:vectorize",
             )

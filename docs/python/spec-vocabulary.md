@@ -1,17 +1,22 @@
 # Spec vocabulary
 
-These modules define the spec's shared function-kind, argument-type, and reference
+These modules define shared callable contracts, operator policies, argument types, and reference
 vocabulary. Components that author, validate, compile, or execute specs use the
 same definitions.
 
 <div class="api-reference" markdown="1">
 
-## Function kinds
+## Callable contracts and operator policies
 
-`uptimely.spec.function_kinds` defines immutable function-kind contracts and their
-string identifiers. `FUNCTION_KINDS` is a read-only mapping from each supported
-identifier to its contract. `produces_fragment` distinguishes assembled
-contributions from `vectorize`, which returns a complete enriched target frame.
+`uptimely.spec.function_contracts` defines independent return roles: `dataframe`,
+`none`, and `any` for an explicitly ignored result. Callable definitions have no
+operator classification. Compute and merge roles come from binding positions,
+and shared Spec views derive source-to-target relationships for each operator.
+
+`uptimely.spec.operator_kinds` contains the derived operator labels and their
+structural policies. Labels are resolved per usage; the same callable can be
+used by operators with different source/target relationships. They are not a
+replacement metadata field on functions.
 
 The built-in structural policies are independent. `dimension_change` compares
 the bound source profile's selected dimensional identities with the target
@@ -47,19 +52,19 @@ assume their foreign source has the target's rows. Feature dependencies and
 explicit dataframe arguments remain distinct: a logical output does not
 materialize an ignored return value.
 
-::: uptimely.spec.function_kinds
+::: uptimely.spec.operator_kinds
     options:
       heading_level: 3
       show_root_heading: false
       members:
-        - FunctionKind
-        - FunctionKindId
+        - OperatorKind
+        - OperatorKindId
         - ReturnKind
         - DimensionChange
         - FragmentDimensions
         - RowCountRelation
         - KeyRelation
-        - FUNCTION_KINDS
+        - OPERATOR_KINDS
         - WRITE
         - READ
         - ESCAPE

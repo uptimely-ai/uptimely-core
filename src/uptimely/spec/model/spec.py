@@ -8,8 +8,8 @@ import typing
 
 import pydantic
 
-from uptimely.spec import arg_types, selectors
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import arg_types, selectors, semantics
+from uptimely.spec import operator_kinds as functions
 
 from . import base, binding_argument, merge
 from . import dimension as dimension_module
@@ -18,7 +18,7 @@ from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
 
-SPEC_VERSION = 7
+SPEC_VERSION = 8
 type ProfileKey = str
 type OperatorKey = tuple[ProfileKey, str]
 type SpecPath = tuple[str | int, ...]
@@ -36,7 +36,7 @@ class Spec(base.StrictModel):
     """The complete JSON document with cached views of its declarations."""
 
     name: str | None = None
-    spec_version: typing.Literal[7] = SPEC_VERSION
+    spec_version: typing.Literal[8] = SPEC_VERSION
     source: SpecSource = pydantic.Field(
         default_factory=lambda: SpecSource(name="manual", generated=False)
     )
@@ -47,8 +47,24 @@ class Spec(base.StrictModel):
     profiles: dict[str, profile_module.Profile] = pydantic.Field(default_factory=dict)
 
     def model_post_init(self, context: typing.Any, /) -> None:
-        """Run Spec post-initialization hooks."""
-        merge.bind_default_merges(self)
+        """Collect declarations for explicitly selected builtin merge bindings."""
+        merge.collect_default_merge(self)
+
+    @pydantic.model_validator(mode="before")
+    @classmethod
+    def validate_supported_version(cls, value: object) -> object:
+        """Reject obsolete documents with actionable rebuild guidance."""
+        if isinstance(value, dict) and value.get("spec_version", SPEC_VERSION) != SPEC_VERSION:
+            version = value["spec_version"]
+            if not isinstance(version, int) or isinstance(version, bool):
+                raise ValueError("spec_version must be an integer")
+            raise ValueError("Unsupported spec_version; rebuild or migrate to Spec version 8")
+        return value
+
+    @functools.cached_property
+    def operator_kinds(self) -> dict[OperatorKey, functions.OperatorKindId]:
+        """Derive per-operator policy labels from bindings and profile grain."""
+        return semantics.Semantics(self).operator_kinds
 
     def rebuild(self) -> typing.Self:
         """Return a fresh Spec after declarations have been edited.
@@ -113,9 +129,7 @@ class Spec(base.StrictModel):
 
     def _row_context_profile_key(self, key: OperatorKey) -> ProfileKey | None:
         """Resolve the profile whose observations an operator's context describes."""
-        operator = self.operators_by_key[key]
-        function = self.functions[operator.compute.function]
-        definition = functions.FUNCTION_KINDS[function.kind]
+        definition = functions.OPERATOR_KINDS[self.operator_kinds[key]]
         return (
             self.input_sources[key]
             if definition.dimension_change == "remove"

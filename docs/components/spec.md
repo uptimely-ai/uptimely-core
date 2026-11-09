@@ -1,6 +1,6 @@
 # Spec
 
-**Current spec version: 7**
+**Current spec version: 8**
 
 The spec definition is a single JSON document describing profiles, feature
 dependencies, and function bindings. JSON is the shared format used by
@@ -58,7 +58,7 @@ For example, dimensions and profiles use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `7` | Spec format version; only `7` is supported. |
+| `spec_version` | integer | No | `8` | Spec format version; only `8` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
@@ -284,7 +284,7 @@ execution engine guide.
 ## Functions
 
 A function is a logical analytical function definition bound to an implementation. Each
-function declares a kind and implementation entrypoint, plus the schema
+function declares an independent return contract and implementation entrypoint, plus the schema
 for its arguments. An operator binds a function to concrete arguments and feature
 inputs and outputs. When you build the project, each operator becomes a step in
 the execution plan. The engine runs those steps using the Python
@@ -296,9 +296,8 @@ identifiers.
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | Generated from the function identifier | Human-readable display name. |
-| `kind` | string | Yes | N/A | Function kind: `write`, `read`, `escape`, `conform`, `expand`, `collapse`, `vectorize`, or `merge`. |
 | `category` | string or null | No | `null` | Optional free-form function category for descriptive metadata. It does not affect execution or validation. |
-| `returns` | string | Yes | N/A | Return contract: `dataframe` for data-producing kinds, `none` for `write`, or `any` for `escape`. |
+| `returns` | string | Yes | N/A | Independent return contract: `dataframe`, `none`, or `any` for an explicitly ignored result. |
 | `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |
 | `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check call compatibility and supported annotations. |
 | `args` | object | No | `{}` | Argument definitions keyed by argument name. |
@@ -323,7 +322,6 @@ imports the module and resolves the callable's qualified name.
 
 ```json
 "sum_features": {
-  "kind": "vectorize",
   "returns": "dataframe",
   "entrypoint": "spec:sum_features",
   "validate_signature": false,
@@ -340,69 +338,48 @@ Python spec declarations execute during source loading. If an analytical
 implementation is unavailable in that environment, declare its entrypoint as a
 string and do not import the implementation from the spec declaration itself.
 
-Use kind-oriented function names. Operator identifiers and feature names
-can differ from the function identifier. Each operator binds one function, whose
-declared kind determines its analytical role.
+Operator identifiers and feature names can differ from the function identifier.
+Function definitions have no `kind` field. A callable's argument and return
+contract must agree across all its bindings; its role and operator relationships
+are established at each usage.
 
-### Function kinds
+### Binding roles and derived operator labels
 
-Each function is labeled with exactly one kind. The function's dataframe
-arguments determine which profiles it consumes. The table defines the dataframe
-argument and feature-output counts for each kind:
+Compute bindings accept zero or one dataframe argument and declare an independent
+return contract. Merge bindings accept exactly two dataframe arguments and return
+a dataframe. A merge consumes its current target and its operator's staged
+fragment. The target may be nullable for initialization. Binding arity counts
+argument slots, not distinct referenced profiles, even when inspection is disabled.
 
-| Kind | Dataframes in | Results out | Analytical | Dimension change | Purpose |
-| --- | ---: | ---: | --- | --- | --- |
-| `read` | 0 | 1 | No |  | Read external observations into a profile. |
-| `collapse` | 1 | 1 | Yes | Down | Calculate features from a higher-dimensional source profile. |
-| `conform` | 1 | 1 | No | Same | Adapt a same-dimension source profile to the target profile's rows. |
-| `expand` | 1 | 1 | No | Up | Transfer observations from a lower-dimensional source profile. |
-| `vectorize` | 1 | 1 | Yes | | Calculate features while preserving observation keys. |
-| `merge` | 2 | 1 | No | Same | Combine the nullable current target and one staged fragment into a complete target dataframe. |
-| `write` | 1 | 0 | No |  | Persist or evaluate selected data. |
-| `escape` | Any explicit arguments | 0 | No |  | Perform uncontrolled work outside the declared feature workflow with logical feature dependencies. |
+With a merge, compute returns a fragment. Without one, a dataframe result is
+the complete target; omission never selects a default merge. Python authors
+can explicitly choose `merge=up.default_merge()`. JSON authors select the
+builtin merge binding:
 
-Data-producing functions return tabular results. Their implementations follow
-the kind contract; analytical functions perform their calculations and
-grouping but should not perform external I/O.
-`read` takes no dataframe argument. Each of `conform`, `collapse`, and
-`expand` takes exactly one dataframe argument: its foreign/source dataset. The
-target dataset is engine-owned and is not passed to these functions.
-`conform` requires the source and target to declare the same dimensions, but
-they may belong to different profiles. `collapse` requires the source
-dimensions to be a strict superset of the target dimensions; `expand` requires
-them to be a strict subset. These kinds return fragments for their
-declaring (target) dataset; the engine does not pass its accumulated target
-frame to the function.
-Escape operators may declare feature inputs, outputs, both, or neither. These
-declarations define logical feature dependencies and invocation ordering; they
-do not themselves transfer dataframes to or from the escape function. An
-escape function may receive dataframes through explicitly declared dataframe
-arguments, subject to the normal argument-binding rules; feature declarations
-do not implicitly bind a dataframe. Its return value is ignored, so declared
-outputs are not materialized as dataset columns. A downstream dataframe operator
-that needs an escape output will fail at runtime unless that feature is
-independently available in its dataframe.
-Merge functions take exactly two dataframe arguments: `target` and `fragment`.
-The target argument has type `dataframe | null`; it is bound to the current
-profile dataframe and is null when no target has yet been initialized. The
-fragment argument is bound to the staged fragment for its own operator. A
-merge function returns the complete accumulated target dataframe and does not
-declare feature outputs.
+```json
+"merge": {
+  "function": "merge_by_grain",
+  "args": {
+    "target": "$profiles.@.dataset",
+    "fragment": "$operators.@.fragment",
+    "target_keys": "$profiles.@.grain.ids"
+  }
+}
+```
 
-`vectorize` is not fragment-producing: it receives the accumulated target
-dataframe and returns the complete enriched dataframe. It must preserve every
-existing column and value, the row count, key identities, and row order; it may
-add only its declared output columns. It does not stage a fragment or support a
-merge binding. The complete result schema is always checked; runtime validation
-also checks preservation of existing values and row order.
+The framework derives labels such as `read`, `vectorize`, `conform`, `expand`,
+and `collapse` from a binding's dataframe source and target grain. They are not
+callable classifications: the same function can have different labels in
+different operators. Categories remain descriptive. `returns="any"` explicitly
+ignores a result and allows logical dependencies without materializing outputs.
+`returns="none"` declares no output and cannot declare materialized features.
 
 ### Arguments
 
-The `args` schema must declare the number of `dataframe` arguments required by
-the function's kind. `vectorize` and `write` receive their target dataset as
-their dataframe argument. A dataframe argument represents a dataset input;
+The `args` schema declares reusable argument types. A dataframe argument
+represents a dataset input;
 other arguments may carry identifiers, features, or external resource
-settings. `escape` may declare any number of dataframe arguments. Each must be
+settings. Each dataframe argument must be
 explicitly bound to a dataset; the engine does not implicitly pass the
 operator's accumulated dataframe.
 
@@ -487,7 +464,7 @@ An operator separates analytical requirements from its computation:
 | `compute.function` | string | Yes | N/A | Function-catalog key identifying the definition to invoke; use the bare function ID, not a `$functions` selector. |
 | `compute.args` | object | No | `{}` | Concrete arguments matching the template schema. |
 | `merge` | object or null | No | `null` | Optional merge function invocation for a staged fragment. |
-| `merge.function` | string | Yes when `merge` is set | N/A | Function-catalog key for a function of kind `merge`. |
+| `merge.function` | string | Yes when `merge` is set | N/A | Function-catalog key; its binding position establishes the merge role. |
 | `merge.args` | object | No | `{}` | Arguments including the current target and this operator's staged fragment. |
 
 Input and output lists contain distinct `$features.<id>` references, without
@@ -519,9 +496,8 @@ details.
 
 ### Merge bindings
 
-Fragment-producing operators without a declared merge binding receive the
-builtin merge-by-grain binding during Spec construction. Declare `merge` to
-override this default. The resolved binding is part of the build-time Spec and
+Declare `merge` explicitly to stage and assemble a fragment. Without a merge,
+a dataframe compute result publishes the complete target. The binding is part of the build-time Spec and
 plan; changing it requires rebuilding. Runtime configuration does not select or
 change the merge function.
 
@@ -642,13 +618,11 @@ Declarations must describe actual reach, not merely the window parameter.
 Document-model validation checks the Spec version, field types, required
 values, and rejects unknown fields. Semantic Spec validation checks that
 declarations fit together: references and feature dependencies are valid and
-unambiguous, function bindings match their argument contracts, kinds obey
-their input/output contracts, feature producers are unique, row-context
+unambiguous, function bindings match their argument and return contracts,
+binding roles obey dataframe arity, feature producers are unique, row-context
 requirements match their dimensions and ordering, and feature dependencies
-are acyclic. When a function's declared return kind and dataframe arguments
-conflict with its kind, validation suggests a matching kind where
-possible. It never changes the kind automatically; `escape` must be
-declared explicitly for intentional uncontrolled work. Spec validation does
+are acyclic. `returns="any"` must be declared explicitly when a callable's
+result is intentionally ignored. Spec validation does
 not require escape inputs to be produced by a `read` operator. Escape outputs
 count as logical feature producers for dependency validation, but are not
 materialized by the engine. A declared feature without a producing operator

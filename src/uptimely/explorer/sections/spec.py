@@ -12,8 +12,8 @@ from importlib import util
 import docstring_parser
 
 from uptimely import entrypoint as entrypoint_module
-from uptimely.spec import function_kinds, selectors
 from uptimely.spec import model as spec_model
+from uptimely.spec import operator_kinds, selectors
 
 __all__ = [
     "ExplorerContext",
@@ -61,14 +61,10 @@ def build_context(
         Spec metadata and function groups for the catalog views.
     """
     data = dataclasses.asdict(context)
-    data["function_groups"] = {
-        kind: {
-            function_id: function
-            for function_id, function in context.configuration["functions"].items()
-            if function.get("kind") == kind
-        }
-        for kind in function_kinds.FUNCTION_KINDS
-    }
+    groups: dict[str, dict[str, typing.Any]] = {}
+    for function_id, function in context.configuration["functions"].items():
+        groups.setdefault(function.get("category") or "Uncategorized", {})[function_id] = function
+    data["function_groups"] = groups
     return data
 
 
@@ -81,15 +77,14 @@ def _feature_data(
     seen_inputs: set[tuple[str, str]] = set()
     for key, operator in spec_definition.operator_items:
         dataset = spec_definition.profiles_by_key[key[0]]
-        function = spec_definition.functions.root.get(operator.compute.function)
-        kind = function_kinds.FUNCTION_KINDS[function.kind] if function is not None else None
+        kind = operator_kinds.OPERATOR_KINDS[spec_definition.operator_kinds[key]]
         for feature_id in operator.output_features:
             metadata = dataset.features.get(feature_id)
             feature = (
                 metadata.model_dump(mode="json", exclude_none=True) if metadata is not None else {}
             )
             feature["id"] = feature_id
-            if kind is not None and kind.is_transformer:
+            if kind.is_transformer:
                 calculated_features.append(
                     {
                         **feature,
@@ -184,16 +179,20 @@ def _build_context(
     for function_id, function in function_definitions.items():
         if not isinstance(function, dict):
             continue
-        kind = function.get("kind")
-        if isinstance(kind, str):
-            function_groups.setdefault(kind, {})[function_id] = function
-            function["declared_returns"] = function_kinds.FUNCTION_KINDS[kind].returns
-            function["escape_operators"] = []
-            function["operator_usage_count"] = 0
+        category = function.get("category") or "Uncategorized"
+        function_groups.setdefault(category, {})[function_id] = function
+        function["declared_returns"] = function["returns"]
+        function["escape_operators"] = []
+        function["operator_usage_count"] = 0
     for key, operator in spec_definition.operator_items:
+        kind_id = spec_definition.operator_kinds[key]
+        configuration["profiles"][key[0]]["assembly"][key[1]]["kind"] = kind_id
         function = function_definitions[operator.compute.function]
         function["operator_usage_count"] = function.get("operator_usage_count", 0) + 1
-        if function_kinds.FUNCTION_KINDS[function["kind"]].is_effect:
+        if operator.merge is not None:
+            merge_function = function_definitions[operator.merge.function]
+            merge_function["operator_usage_count"] += 1
+        if operator_kinds.OPERATOR_KINDS[kind_id].is_effect:
             function["escape_operators"].append(
                 {
                     "profile": key[0],
@@ -253,16 +252,12 @@ def _build_context(
             calculation["id"] not in referenced_features for calculation in calculated_features
         ),
     }
-    function_buckets = {
-        kind: len(function_groups.get(kind, {})) for kind in function_kinds.FUNCTION_KINDS
-    }
+    function_buckets = {category: len(group) for category, group in function_groups.items()}
     profile_count = len(spec_definition.profiles)
     operator_count = sum(
         1
-        for operator in spec_definition.operators
-        if function_kinds.FUNCTION_KINDS[
-            spec_definition.functions[operator.compute.function].kind
-        ].is_source
+        for key, _ in spec_definition.operator_items
+        if operator_kinds.OPERATOR_KINDS[spec_definition.operator_kinds[key]].is_source
     )
     summary = ExplorerSummary(
         profile_count=profile_count,
@@ -280,13 +275,12 @@ def _build_context(
     dependencies = [
         {
             "function": operator.compute.function,
-            "kind": spec_definition.functions[operator.compute.function].kind,
+            "kind": spec_definition.operator_kinds[key],
             "feature": feature,
             "dependencies": operator.input_features,
         }
-        for operator in spec_definition.operators
-        if spec_definition.functions[operator.compute.function].kind
-        in {function_kinds.ESCAPE, function_kinds.VECTORIZE}
+        for key, operator in spec_definition.operator_items
+        if spec_definition.operator_kinds[key] in {operator_kinds.ESCAPE, operator_kinds.VECTORIZE}
         for feature in operator.output_features
     ]
     generated_at = (

@@ -104,12 +104,12 @@ def test_latest_run_completely_replaces_previous_profiles(
 def test_invocation_failure_persists_partial_results(
     runtime: engine.Engine, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    read_id = next(item.id for item in runtime.plan.invocations if item.function_kind == "read")
-    merge_id = next(item.id for item in runtime.plan.invocations if item.function_kind == "merge")
+    read_id = next(item.id for item in runtime.plan.invocations if item.operator_kind == "read")
+    merge_id = next(item.id for item in runtime.plan.invocations if item.role == "merge")
     failed_id = next(
-        item.id for item in runtime.plan.invocations if item.function_kind == "vectorize"
+        item.id for item in runtime.plan.invocations if item.operator_kind == "vectorize"
     )
-    skipped_id = next(item.id for item in runtime.plan.invocations if item.function_kind == "write")
+    skipped_id = next(item.id for item in runtime.plan.invocations if item.operator_kind == "write")
     result = copy.replace(
         _result(pl.DataFrame({"reading": [1]})),
         invocation_statuses={

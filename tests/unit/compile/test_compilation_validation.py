@@ -33,7 +33,6 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
 ) -> None:
     function = spec_model.FunctionTemplate(
         id="calculate",
-        kind="vectorize",
         returns="dataframe",
         entrypoint="module:calculate",
     )
@@ -44,13 +43,17 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         function_id="calculate",
         profile_id="entity",
         operator_id="calculate",
-        function_kind="vectorize",
+        operator_kind="vectorize",
+        role="compute",
+        result="target",
     )
     selected_graph.invocations = [node]
     selected_graph.dependencies.return_value = []
     emitted_invocation = execution_plan.Invocation(
         id=node.node_id,
-        function_kind="vectorize",
+        role="compute",
+        result="target",
+        operator_kind="vectorize",
         entrypoint="module:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -162,7 +165,6 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
 ) -> None:
     function = spec_model.FunctionTemplate(
         id="calculate",
-        kind="vectorize",
         returns="dataframe",
         entrypoint="module:calculate",
     )
@@ -182,7 +184,9 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
             function_id=function_id,
             profile_id="entity",
             operator_id=operator,
-            function_kind=specification.functions[function_id].kind,
+            operator_kind="vectorize",
+            role="compute",
+            result="target",
         )
         for function_id, operator in [
             ("calculate", "first"),
@@ -211,7 +215,9 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     ) -> execution_plan.Invocation:
         return execution_plan.Invocation(
             id=node.node_id,
-            function_kind=node.function_kind,
+            role=node.role,
+            result=node.result,
+            operator_kind=node.operator_kind,
             entrypoint="module:calculate",
             function_id=node.function_id,
             operator_id=node.operator_id,

@@ -49,7 +49,7 @@ The invocation executor checks
 vectorized results against invocation-specific contracts before publication.
 These operations use `invocation.id_columns`, `invocation.identifier_columns`,
 `invocation.column_types`, and the
-invocation's function kind where needed. The compiler resolves these values from
+invocation's derived operator policy where needed. The compiler resolves these values from
 declarations. Runtime execution does not receive profile objects or traverse the
 bundled Spec.
 
