@@ -129,7 +129,7 @@ def test_project_build_examples(
     assert bundle.execution_plan.invocations
     assert set(bundle_files(root)) == {"build.json", "execution_plan.json", "spec.json"}
     explorer_data = json.loads((root / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
-    assert explorer_data["format_version"] == 1
+    assert explorer_data["format_version"] == 2
 
 
 def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None:
@@ -213,11 +213,10 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     source.write_text(
         json.dumps(
             {
-                "spec_version": 7,
+                "spec_version": 8,
                 "name": "Build-only test",
                 "functions": {
                     "read": {
-                        "kind": "read",
                         "entrypoint": "build_functions:read",
                         "returns": "dataframe",
                     }
@@ -248,7 +247,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "        id='read',\n"
             "        interface=Interface(outputs=[Feature(id='value')]),\n"
             "        compute=Binding(\n"
-            "            function=api.ref.function(build_functions.read, kind='read'),\n"
+            "            function=api.ref.function(build_functions.read, returns='dataframe'),\n"
             "        ),\n"
             "    )]\n"
             "definition = api.Spec(profiles=[Values])\n",
@@ -273,7 +272,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             if line.startswith("|")
         ]
         assert ["Spec", "Spec source file", str(source_file)] in rows
-        assert ["Spec", "Number of functions", "2"] in rows
+        assert ["Spec", "Number of functions", "1"] in rows
         assert ["Spec", "Number of profiles", "1"] in rows
         assert ["Spec", "Number of features", "1"] in rows
     else:
@@ -411,7 +410,7 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
 
     assert bundle.manifest.features == ["pump_health_score"]
     plan_invocations = bundle.execution_plan.invocations
-    sinks = [invocation for invocation in plan_invocations if invocation.function_kind == "write"]
+    sinks = [invocation for invocation in plan_invocations if invocation.operator_kind == "write"]
     assert sinks
     plan_ids = {invocation.id for invocation in plan_invocations}
     produced_features = {

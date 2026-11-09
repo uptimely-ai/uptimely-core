@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, ref
+from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, default_merge, ref
 
 
 class PumpTelemetryByMinuteFeatures(FeatureSet):
@@ -51,5 +51,6 @@ class PumpTelemetryByMinute(Profile):
                     filter_value="",
                 ),
             ),
+            merge=default_merge(),
         )
     ]

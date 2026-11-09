@@ -10,8 +10,9 @@ from uptimely import spec
 from uptimely.explorer import common
 from uptimely.explorer.sections import data_lineage, feature_lineage, invocation_lineage
 from uptimely.explorer.sections import plan as plan_render
-from uptimely.spec import function_kinds as functions
+from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec import model
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec.feature_graph import feature_graph, models
 
 
@@ -32,7 +33,6 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
         {
             "functions": {
                 "calculate": {
-                    "kind": "vectorize",
                     "returns": "dataframe",
                     "entrypoint": "example:calculate",
                     "args": {name: {"type": value} for name, value in argument_types.items()},
@@ -42,8 +42,10 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
         }
     )
     invocation = execution_plan.Invocation(
+        role="compute",
+        result="target",
         id="calculate",
-        function_kind="vectorize",
+        operator_kind="vectorize",
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -71,12 +73,10 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         {
             "functions": {
                 "read": {
-                    "kind": "read",
                     "returns": "dataframe",
                     "entrypoint": "example:read",
                 },
                 "join": {
-                    "kind": "merge",
                     "returns": "dataframe",
                     "entrypoint": "example:join",
                     "args": {
@@ -92,8 +92,10 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
     read_id = "invocation:read:read:data:source"
     merge_id = "invocation:merge:join:data:source"
     read = execution_plan.Invocation(
+        role="compute",
+        result="fragment",
         id=read_id,
-        function_kind="read",
+        operator_kind="read",
         entrypoint="example:read",
         function_id="read",
         operator_id="source",
@@ -101,8 +103,10 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         output_features=["value"],
     )
     merge = execution_plan.Invocation(
+        result="target",
         id=merge_id,
-        function_kind="merge",
+        operator_kind="merge",
+        role="merge",
         entrypoint="example:join",
         function_id="join",
         operator_id="source",
@@ -192,9 +196,9 @@ def test_lineage_preserves_declared_feature_types_for_all_producers(kind: str) -
         {
             "functions": {
                 "calculate": {
-                    "kind": kind,
                     "returns": "dataframe",
                     "entrypoint": "example:calculate",
+                    "args": {"dataset": {"type": "dataframe"}} if kind == "vectorize" else {},
                 }
             },
             "profiles": {
@@ -202,7 +206,12 @@ def test_lineage_preserves_declared_feature_types_for_all_producers(kind: str) -
                     "features": {"reading": {"type": "float"}},
                     "assembly": {
                         "calculate": {
-                            "compute": {"function": "calculate"},
+                            "compute": {
+                                "function": "calculate",
+                                "args": {"dataset": "$profiles.data.dataset"}
+                                if kind == "vectorize"
+                                else {},
+                            },
                             "interface": {"outputs": ["$features.reading"]},
                         }
                     },
@@ -215,12 +224,79 @@ def test_lineage_preserves_declared_feature_types_for_all_producers(kind: str) -
         nodes, _ = feature_lineage.feature_lineage_payload(selected)
         reading = next(node for node in nodes if node["id"] == "reading")
         assert reading["data_type"] == "float"
+        operator_node = next(node for node in nodes if node.get("is_operator"))
+        assert operator_node["operator_kind"] == kind
+
+
+def test_catalog_groups_callables_by_category_and_labels_each_operator_usage() -> None:
+    definition = spec.Spec.model_validate(
+        {
+            "functions": {
+                "calculate": {
+                    "returns": "dataframe",
+                    "category": "Analysis",
+                    "entrypoint": "unavailable_example:calculate",
+                    "validate_signature": False,
+                    "args": {"dataset": {"type": "dataframe"}},
+                },
+                "unused": {
+                    "returns": "any",
+                    "entrypoint": "unavailable_example:unused",
+                    "validate_signature": False,
+                },
+            },
+            "profiles": {
+                "local": {
+                    "features": {"value": {}},
+                    "assembly": {
+                        "calculate": {
+                            "compute": {
+                                "function": "calculate",
+                                "args": {"dataset": "$profiles.local.dataset"},
+                            },
+                            "interface": {"outputs": ["$features.value"]},
+                        }
+                    },
+                },
+                "foreign": {
+                    "features": {"copied": {}},
+                    "assembly": {
+                        "copy": {
+                            "compute": {
+                                "function": "calculate",
+                                "args": {"dataset": "$profiles.local.dataset"},
+                            },
+                            "interface": {
+                                "inputs": ["$features.value"],
+                                "outputs": ["$features.copied"],
+                            },
+                        }
+                    },
+                },
+            },
+        }
+    )
+
+    context = spec_render.build_context(spec_render._build_context(definition, False))
+    configuration = context["configuration"]
+
+    assert set(context["function_groups"]) == {"Analysis", "Uncategorized"}
+    assert context["summary"]["function_buckets"] == {"Analysis": 1, "Uncategorized": 1}
+    assert configuration["functions"]["calculate"]["operator_usage_count"] == 2
+    assert configuration["functions"]["calculate"]["declared_returns"] == "dataframe"
+    assert all("kind" not in function for function in configuration["functions"].values())
+    assert configuration["profiles"]["local"]["assembly"]["calculate"]["kind"] == "vectorize"
+    assert configuration["profiles"]["foreign"]["assembly"]["copy"]["kind"] == "conform"
+    assert context["summary"]["feature_buckets"] == {
+        "input": 1,
+        "intermediate": 0,
+        "output": 1,
+    }
 
 
 def test_operator_data_includes_declared_function_metadata() -> None:
     function = model.FunctionTemplate(
         id="double",
-        kind="vectorize",
         returns="dataframe",
         description="Double a reading",
         entrypoint="example:double",
@@ -230,6 +306,7 @@ def test_operator_data_includes_declared_function_metadata() -> None:
         features=("doubled",),
         profile_id="telemetry",
         function=function,
+        operator_kind="vectorize",
     )
 
     assert feature_lineage._node_data(node) == {
@@ -242,7 +319,7 @@ def test_operator_data_includes_declared_function_metadata() -> None:
         "profile_id": "telemetry",
         "function_id": "double",
         "function_name": "Double",
-        "function_kind": "vectorize",
+        "operator_kind": "vectorize",
         "is_effect": False,
         "type": "python_function",
         "entrypoint": "example:double",
@@ -284,8 +361,10 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
     )
     builder = data_lineage._DataLineageBuilder(spec.Spec(), empty_plan)
     invocation = execution_plan.Invocation(
+        role="compute",
+        result="target",
         id="calculate",
-        function_kind="vectorize",
+        operator_kind="vectorize",
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -302,7 +381,7 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
         a,
         c,
     ]
-    escape = copy.replace(invocation, function_kind="escape")
+    escape = copy.replace(invocation, operator_kind="escape")
     assert builder._main_columns(escape, [b]) == [
         copy.replace(a, role="Input"),
         copy.replace(b, role="Existing"),
@@ -323,7 +402,7 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
     ],
 )
 def test_kind_capabilities_preserve_presentation_contracts(
-    kind_id: functions.FunctionKindId,
+    kind_id: functions.OperatorKindId,
     card_feature: str | None,
     topology_feature: str | None,
     effect: bool,
@@ -334,8 +413,7 @@ def test_kind_capabilities_preserve_presentation_contracts(
         {
             "functions": {
                 "calculate": {
-                    "kind": kind_id,
-                    "returns": functions.FUNCTION_KINDS[kind_id].returns,
+                    "returns": functions.OPERATOR_KINDS[kind_id].returns,
                     "entrypoint": "example:calculate",
                 }
             },
@@ -346,8 +424,10 @@ def test_kind_capabilities_preserve_presentation_contracts(
         }
     )
     invocation = execution_plan.Invocation(
+        role="compute",
+        result="target",
         id="calculate",
-        function_kind=kind_id,
+        operator_kind=kind_id,
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -388,7 +468,6 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
         {
             "functions": {
                 "calculate": {
-                    "kind": "read",
                     "returns": "dataframe",
                     "entrypoint": "example:calculate",
                 }
@@ -399,8 +478,10 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
         }
     )
     invocation = execution_plan.Invocation(
+        role="compute",
+        result="target",
         id="calculate",
-        function_kind="read",
+        operator_kind="read",
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -413,11 +494,11 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
         invocations=[invocation],
         stages=[["calculate"]],
     )
-    catalog = dict(functions.FUNCTION_KINDS)
+    catalog = dict(functions.OPERATOR_KINDS)
     catalog["read"] = copy.replace(
         catalog["read"], is_effect=True, is_transformer=True, dimension_change="remove"
     )
-    monkeypatch.setattr(functions, "FUNCTION_KINDS", catalog)
+    monkeypatch.setattr(functions, "OPERATOR_KINDS", catalog)
 
     context = plan_render.build_context(compiled, definition)
     card = context["stages"][0]["steps"][0]

@@ -7,7 +7,7 @@ from support import examples as example_support
 
 from uptimely import project, spec
 from uptimely.cli import cli
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -18,14 +18,14 @@ def test_graph_metadata_follows_function_capabilities(
 ) -> None:
     graph = spec.FeatureGraph(pump_bundle.spec_definition)
     original = graph._declared_features()
-    catalog = dict(functions.FUNCTION_KINDS)
+    catalog = dict(functions.OPERATOR_KINDS)
     catalog["read"] = dataclasses.replace(catalog["read"], is_source=False, is_transformer=True)
     catalog["collapse"] = dataclasses.replace(catalog["collapse"], dimension_change="preserve")
-    monkeypatch.setattr(functions, "FUNCTION_KINDS", catalog)
+    monkeypatch.setattr(functions, "OPERATOR_KINDS", catalog)
     changed = graph._declared_features()
     checked = set()
-    for operator in graph.operators:
-        kind = graph.spec.functions[operator.compute.function].kind
+    for key, operator in graph.spec.operator_items:
+        kind = graph.spec.operator_kinds[key]
         if kind not in {"read", "collapse"}:
             continue
         checked.add(kind)
@@ -35,11 +35,11 @@ def test_graph_metadata_follows_function_capabilities(
             assert changed[name].is_source_input is not original[name].is_source_input
     assert checked == {"read", "collapse"}
     graph.spec = spec.Spec.model_validate(graph.spec.model_dump())
-    for profile in graph.spec.profiles.values():
+    for profile_id, profile in graph.spec.profiles.items():
         profile.assembly = {
             key: operator
             for key, operator in profile.assembly.items()
-            if graph.spec.functions[operator.compute.function].kind == "read"
+            if graph.spec.operator_kinds[(profile_id, key)] == "read"
         }
     graph.operators = graph.spec.operators
     rebuilt_features = [

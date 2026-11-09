@@ -8,10 +8,6 @@
 .function-origin-grid, .function-metadata-grid { display: grid; gap: 12px; margin-top: 40px; }
 .function-origin-grid { grid-template-columns: minmax(0, 1fr); }
 .function-metadata-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
-@container (min-width: 660px) {
-  .function-origin-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
-  .function-kind-graphic:only-child { grid-column: 2; }
-}
 .function-example { min-width: 0; margin-top: 40px; }
 .function-source { min-width: 0; }
 .function-source-card { min-height: 160px; margin-top: 12px; padding: 20px; }

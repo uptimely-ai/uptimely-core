@@ -99,7 +99,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     ]
     assert executions == [
         f"Executing operator {invocation.operator_id}, "
-        f"function {invocation.function_id} ({invocation.function_kind})"
+        f"function {invocation.function_id} ({invocation.operator_kind})"
         for invocation in engine.plan.execution_invocations
     ]
     assert caplog.messages.count("Merging into profile telemetry") == 1
@@ -155,7 +155,9 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
     reads = [
         uptimely_plan.Invocation(
             id=read_first_id,
-            function_kind="read",
+            role="compute",
+            result="fragment",
+            operator_kind="read",
             entrypoint="test:read_first",
             function_id="read_first",
             operator_id="first",
@@ -165,7 +167,9 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
         ),
         uptimely_plan.Invocation(
             id=read_second_id,
-            function_kind="read",
+            role="compute",
+            result="fragment",
+            operator_kind="read",
             entrypoint="test:read_second",
             function_id="read_second",
             operator_id="second",
@@ -180,7 +184,9 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
     ) -> uptimely_plan.Invocation:
         return uptimely_plan.Invocation(
             id=invocation_id,
-            function_kind="merge",
+            role="merge",
+            result="target",
+            operator_kind="read",
             entrypoint="test:custom_merge",
             function_id="custom_merge",
             operator_id=operator_id,
@@ -203,7 +209,9 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
     second_merge = merge_invocation(merge_second_id, "second", read_second_id, [merge_first_id])
     writer = uptimely_plan.Invocation(
         id=write_id,
-        function_kind="write",
+        role="compute",
+        result="none",
+        operator_kind="write",
         entrypoint="test:write",
         function_id="write",
         operator_id="write",
@@ -294,7 +302,7 @@ def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
                         id_columns=[],
                         arguments=(
                             invocation.arguments | {"target_keys": []}
-                            if invocation.function_kind == "merge"
+                            if invocation.role == "merge"
                             else invocation.arguments
                         ),
                     )
@@ -361,7 +369,7 @@ def test_unsupported_feature_type_is_reported_in_warning(
 ) -> None:
     caplog.set_level(logging.WARNING, logger="uptimely.engine")
     plan = _plan()
-    read = next(item for item in plan.invocations if item.function_kind == "read")
+    read = next(item for item in plan.invocations if item.operator_kind == "read")
     read.column_types["reading"] = "floatti"
     _patch_callables(
         monkeypatch,
@@ -492,9 +500,9 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
         state,
         validate=validate,
     )
-    read = next(item for item in engine.plan.invocations if item.function_kind == "read")
-    merge = next(item for item in engine.plan.invocations if item.function_kind == "merge")
-    calculate = next(item for item in engine.plan.invocations if item.function_kind == "vectorize")
+    read = next(item for item in engine.plan.invocations if item.operator_kind == "read")
+    merge = next(item for item in engine.plan.invocations if item.role == "merge")
+    calculate = next(item for item in engine.plan.invocations if item.operator_kind == "vectorize")
 
     executor.execute(read)
     assert state.datasets == {}
@@ -605,7 +613,9 @@ def test_executor_validates_inputs_against_current_runtime_state(
     )
     invocation = uptimely_plan.Invocation(
         id="invocation",
-        function_kind="vectorize",
+        role="compute",
+        result="target",
+        operator_kind="vectorize",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -737,7 +747,9 @@ def test_escape_ignores_any_return_without_materializing_features(
     invocation_id = "invocation:escape:external_operator:asset:external:operator"
     escape = uptimely_plan.Invocation(
         id=invocation_id,
-        function_kind="escape",
+        role="compute",
+        result="none",
+        operator_kind="escape",
         entrypoint="test:escape",
         function_id="external_operator",
         operator_id="operator",
@@ -779,7 +791,9 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
 
     first_invocation = uptimely_plan.Invocation(
         id=first_id,
-        function_kind="escape",
+        role="compute",
+        result="none",
+        operator_kind="escape",
         entrypoint="test:first",
         function_id="first",
         operator_id="first",
@@ -789,7 +803,9 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
     )
     second_invocation = uptimely_plan.Invocation(
         id=second_id,
-        function_kind="escape",
+        role="compute",
+        result="none",
+        operator_kind="escape",
         entrypoint="test:second",
         function_id="second",
         operator_id="second",
@@ -821,7 +837,9 @@ def test_escape_resolves_literal_and_runtime_arguments(
     invocation_id = "invocation:escape:external_operator:asset:external:operator"
     escape = uptimely_plan.Invocation(
         id=invocation_id,
-        function_kind="escape",
+        role="compute",
+        result="none",
+        operator_kind="escape",
         entrypoint="test:escape",
         function_id="external_operator",
         operator_id="operator",
@@ -857,7 +875,9 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
     second_id = "invocation:escape:second:asset:external:second"
     first_invocation = uptimely_plan.Invocation(
         id=first_id,
-        function_kind="escape",
+        role="compute",
+        result="none",
+        operator_kind="escape",
         entrypoint="test:first",
         function_id="first",
         operator_id="first",
@@ -911,7 +931,9 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
 
     read_invocation = uptimely_plan.Invocation(
         id=read_id,
-        function_kind="read",
+        role="compute",
+        result="fragment",
+        operator_kind="read",
         entrypoint="test:read",
         function_id="load",
         operator_id="load",
@@ -920,7 +942,9 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
     )
     merge_invocation = uptimely_plan.Invocation(
         id=merge_id,
-        function_kind="merge",
+        role="merge",
+        result="target",
+        operator_kind="read",
         entrypoint="test:merge",
         function_id="combine",
         operator_id="load",
@@ -940,7 +964,9 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
     )
     escape_invocation = uptimely_plan.Invocation(
         id=escape_id,
-        function_kind="escape",
+        role="compute",
+        result="none",
+        operator_kind="escape",
         entrypoint="test:escape",
         function_id="external_operator",
         operator_id="external_result",
@@ -953,7 +979,9 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
     )
     vectorize_invocation = uptimely_plan.Invocation(
         id=vectorize_id,
-        function_kind="vectorize",
+        role="compute",
+        result="target",
+        operator_kind="vectorize",
         entrypoint="test:consume",
         function_id="consume",
         operator_id="consume",
@@ -1002,7 +1030,9 @@ def test_escape_exception_fails_and_skips_downstream(
     second_id = "invocation:escape:second:asset:external:second"
     first_invocation = uptimely_plan.Invocation(
         id=first_id,
-        function_kind="escape",
+        role="compute",
+        result="none",
+        operator_kind="escape",
         entrypoint="test:first",
         function_id="first",
         operator_id="first",
@@ -1077,7 +1107,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
                 ),
                 compute=assembly.Binding(
                     function=ref.function(
-                        f"{package_name}.external_operator:process", kind="escape"
+                        f"{package_name}.external_operator:process", returns="any"
                     ),
                     arguments={},
                 ),
@@ -1206,13 +1236,13 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
     )
     for profile_id in ("first", "second"):
         read = copy.replace(
-            next(item for item in engine.plan.invocations if item.function_kind == "read"),
+            next(item for item in engine.plan.invocations if item.operator_kind == "read"),
             profile_id=profile_id,
             operator_id="shared",
         )
         merge = copy.replace(
-            next(item for item in engine.plan.invocations if item.function_kind == "merge"),
-            id=f"invocation:merge:__uptimely_merge_by_grain:{profile_id}:shared",
+            next(item for item in engine.plan.invocations if item.role == "merge"),
+            id=f"invocation:merge:merge_by_grain:{profile_id}:shared",
             profile_id=profile_id,
             operator_id="shared",
             arguments={
@@ -1220,7 +1250,7 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
                 **{
                     key: value
                     for key, value in next(
-                        item for item in engine.plan.invocations if item.function_kind == "merge"
+                        item for item in engine.plan.invocations if item.role == "merge"
                     ).arguments.items()
                     if key != "target"
                 },
@@ -1291,7 +1321,7 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
     caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
     invocation = copy.replace(
         _plan().invocations[1],
-        function_kind="expand",
+        operator_kind="expand",
         argument_types={"source": "dataframe"},
         arguments={"source": "source"},
         input_features=["reading"],
@@ -1378,7 +1408,9 @@ def test_vectorize_requires_an_accumulated_target() -> None:
     )
     invocation = uptimely_plan.Invocation(
         id="vectorize",
-        function_kind="vectorize",
+        role="compute",
+        result="target",
+        operator_kind="vectorize",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -1399,7 +1431,9 @@ def test_column_projection_failure_preserves_published_state(
     executor = execution_module.InvocationExecutor(adapter, {}, {}, state)
     invocation = uptimely_plan.Invocation(
         id="vectorize",
-        function_kind="vectorize",
+        role="compute",
+        result="target",
+        operator_kind="vectorize",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -1468,7 +1502,9 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
     _patch_callables(monkeypatch, {"test:calculate": calculate})
     invocation = uptimely_plan.Invocation(
         id="vectorize",
-        function_kind="vectorize",
+        role="compute",
+        result="target",
+        operator_kind="vectorize",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -1534,7 +1570,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
     merge_by_grain = merge_module.merge_by_grain
 
     def stage_spy(backend: object, invocation: object, load: object, **kwargs: object) -> object:
-        staged_kinds.append(invocation.function_kind)
+        staged_kinds.append(invocation.operator_kind)
         return stage_fragment(backend, invocation, load, **kwargs)
 
     def merge_spy(*args: object, **kwargs: object) -> object:
@@ -1544,7 +1580,9 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
 
     read_invocation = uptimely_plan.Invocation(
         id="invocation:read:load:asset:telemetry:load",
-        function_kind="read",
+        role="compute",
+        result="fragment",
+        operator_kind="read",
         entrypoint="test:read",
         function_id="load",
         operator_id="load",
@@ -1553,7 +1591,9 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
     )
     merge_invocation = uptimely_plan.Invocation(
         id="invocation:merge:merge_by_grain:asset:telemetry:load",
-        function_kind="merge",
+        role="merge",
+        result="target",
+        operator_kind="read",
         entrypoint="uptimely.library.merge.polars:merge_by_grain",
         function_id="merge_by_grain",
         operator_id="load",
@@ -1576,7 +1616,9 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
     )
     vectorize_invocation = uptimely_plan.Invocation(
         id="invocation:vectorize:calculate:asset:telemetry:reading_plus_one",
-        function_kind="vectorize",
+        role="compute",
+        result="target",
+        operator_kind="vectorize",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="reading_plus_one",

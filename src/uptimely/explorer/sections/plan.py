@@ -9,7 +9,7 @@ from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.explorer import common
 from uptimely.explorer import graph_style as graph_style_module
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import operator_kinds as functions
 
 from . import invocation_lineage
 
@@ -36,20 +36,22 @@ def _build_step(
     dataset = spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
     input_labels = [feature_labels.get(name, name) for name in invocation.input_features]
     output_labels = [feature_labels.get(name, name) for name in invocation.output_features]
-    kind = functions.FUNCTION_KINDS[invocation.function_kind]
+    kind = functions.OPERATOR_KINDS[invocation.operator_kind]
     displayed_feature = (
         ", ".join(output_labels)
         if kind.is_effect or kind.is_transformer or kind.dimension_change == "remove"
         else None
     )
-    is_merge = invocation.function_kind == functions.MERGE
+    is_merge = invocation.role == "merge"
     return {
         "position": position,
         "invocation_id": invocation.id,
         "operator_id": invocation.operator_id,
-        "phase": "merge" if is_merge else "compute",
+        "phase": invocation.role,
+        "role": invocation.role,
+        "result": invocation.result,
         "function": invocation.function_id,
-        "function_kind": invocation.function_kind,
+        "operator_kind": invocation.operator_kind,
         "title": function_name,
         "function_label": function_name,
         "entrypoint": invocation.entrypoint,
@@ -78,12 +80,8 @@ def _build_step(
                 )
                 or invocations_by_id[dependency_id].function_id,
                 "operator_id": invocations_by_id[dependency_id].operator_id,
-                "function_kind": invocations_by_id[dependency_id].function_kind,
-                "phase": (
-                    "merge"
-                    if invocations_by_id[dependency_id].function_kind == functions.MERGE
-                    else "compute"
-                ),
+                "operator_kind": invocations_by_id[dependency_id].operator_kind,
+                "phase": invocations_by_id[dependency_id].role,
             }
             for dependency_id in invocation.dependency_ids
         ],
@@ -171,7 +169,7 @@ def build_context(
         "stage_count": len(stages),
         "dependency_count": len(invocation_links),
         "max_parallel_invocations": max((len(stage["steps"]) for stage in stages), default=0),
-        "function_kind_counts": list(plan.count_per_kind.items()),
+        "operator_kind_counts": list(plan.count_per_kind.items()),
         "stages": stages,
         "invocation_lineage_data": invocation_lineage_data,
         "graph_style": graph_style,

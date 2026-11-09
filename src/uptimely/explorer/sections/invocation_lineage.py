@@ -5,7 +5,7 @@ import typing
 from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.explorer import common
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec.model import base
 
 
@@ -37,8 +37,8 @@ def invocation_lineage_payload(
     invocations_by_id = plan.invocations_by_id
     for invocation in sorted(plan.invocations, key=lambda item: item.id):
         function = spec_definition.functions[invocation.function_id]
-        kind = functions.FUNCTION_KINDS[invocation.function_kind]
-        is_merge = invocation.function_kind == functions.MERGE
+        kind = functions.OPERATOR_KINDS[invocation.operator_kind]
+        is_merge = invocation.role == "merge"
         profile = (
             spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
         )
@@ -48,8 +48,10 @@ def invocation_lineage_payload(
             {
                 "id": invocation.id,
                 "node_type": "invocation",
-                "function_kind": invocation.function_kind,
-                "phase": "merge" if is_merge else "compute",
+                "operator_kind": invocation.operator_kind,
+                "phase": invocation.role,
+                "role": invocation.role,
+                "result": invocation.result,
                 "is_effect": kind.is_effect,
                 "stage": stage_by_invocation[invocation.id],
                 "label": function_name,
@@ -84,7 +86,7 @@ def invocation_lineage_payload(
             dependency = invocations_by_id[dependency_id]
             dependency_type = (
                 "fragment"
-                if invocation.function_kind == functions.MERGE
+                if invocation.role == "merge"
                 and dependency.operator_id == invocation.operator_id
                 and dependency.profile_id == invocation.profile_id
                 else "feature"

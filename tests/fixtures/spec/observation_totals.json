@@ -1,40 +1,62 @@
 {
   "name": "Observation totals",
-  "spec_version": 7,
+  "spec_version": 8,
   "dimensions": {
     "id": {
       "resolutions": {
-        "id": {"key": "id", "type": "integer"}
+        "id": {
+          "key": "id",
+          "type": "integer"
+        }
       }
     }
   },
   "functions": {
     "read_observations": {
-      "kind": "read",
       "returns": "dataframe",
       "entrypoint": "support.functions:read_observation_totals"
     },
     "sum_features": {
-      "kind": "vectorize",
       "returns": "dataframe",
       "entrypoint": "support.functions:sum_observation_features",
       "args": {
-        "left_feature": {"type": "string"},
-        "right_feature": {"type": "string"},
-        "output": {"type": "string"},
-        "dataset": {"type": "dataframe"}
+        "left_feature": {
+          "type": "string"
+        },
+        "right_feature": {
+          "type": "string"
+        },
+        "output": {
+          "type": "string"
+        },
+        "dataset": {
+          "type": "dataframe"
+        }
       }
     }
   },
   "profiles": {
     "observations": {
       "name": "Observations",
-      "grain": [{"dimension": "id", "resolution": "id"}],
+      "grain": [
+        {
+          "dimension": "id",
+          "resolution": "id"
+        }
+      ],
       "features": {
-        "id": {"type": "integer"},
-        "input_1": {"type": "integer"},
-        "input_2": {"type": "integer"},
-        "total": {"type": "integer"}
+        "id": {
+          "type": "integer"
+        },
+        "input_1": {
+          "type": "integer"
+        },
+        "input_2": {
+          "type": "integer"
+        },
+        "total": {
+          "type": "integer"
+        }
       },
       "assembly": {
         "read_observations": {
@@ -47,6 +69,14 @@
               "$features.input_1",
               "$features.input_2"
             ]
+          },
+          "merge": {
+            "function": "merge_by_grain",
+            "args": {
+              "target": "$profiles.@.dataset",
+              "fragment": "$operators.@.fragment",
+              "target_keys": "$profiles.@.grain.ids"
+            }
           }
         },
         "calculate_total": {
@@ -60,8 +90,13 @@
             }
           },
           "interface": {
-            "inputs": ["$features.input_1", "$features.input_2"],
-            "outputs": ["$features.total"]
+            "inputs": [
+              "$features.input_1",
+              "$features.input_2"
+            ],
+            "outputs": [
+              "$features.total"
+            ]
           }
         }
       }

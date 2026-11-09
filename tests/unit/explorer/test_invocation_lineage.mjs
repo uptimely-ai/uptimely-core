@@ -16,7 +16,7 @@ const { invocationRole, invocationColor, invocationContribution, invocationFlowD
 
 function node(id, stage, kind, profile = "pump") {
   return {
-    id, stage, function_kind: kind, function_name: id,
+    id, stage, operator_kind: kind, function_name: id,
     phase: kind === "merge" ? "merge" : "compute",
     is_effect: ["write", "escape"].includes(kind),
     operator_id: id.replace("-merge", ""),
@@ -45,7 +45,7 @@ function fixture() {
 
 test("invocation roles distinguish publication, enrichment and effects", () => {
   assert.equal(invocationRole(node("merge", 1, "merge")), "merge");
-  assert.equal(invocationRole({ function_kind: "merge" }), "merge");
+  assert.equal(invocationRole({ operator_kind: "merge" }), "merge");
   assert.equal(invocationRole(node("vector", 1, "vectorize")), "enrich");
   assert.equal(invocationRole(node("write", 1, "write")), "effect");
   assert.equal(invocationRole(node("read", 1, "read")), "compute");
@@ -67,7 +67,7 @@ test("publishers use the spine color and off-spine invocations use neutral gray"
 
 test("default merges use the callable name and an explicit automatic badge predicate", () => {
   const automatic = {
-    function_id: "__uptimely_merge_by_grain", function_kind: "merge",
+    function_id: "merge_by_grain", operator_kind: "merge",
     function_name: "Automatic merge by grain",
   };
   assert.equal(invocationLabel(automatic), "Merge by grain");
@@ -75,7 +75,7 @@ test("default merges use the callable name and an explicit automatic badge predi
   const custom = { ...automatic, function_id: "custom_join", function_name: "Join inputs" };
   assert.equal(invocationLabel(custom), "Join inputs");
   assert.equal(isDefaultMerge(custom), false);
-  assert.equal(isDefaultMerge({ ...automatic, function_kind: "read" }), false);
+  assert.equal(isDefaultMerge({ ...automatic, operator_kind: "read" }), false);
   assert.equal(invocationLabel({ ...custom, function_name: "merge_pump_inputs" }), "Merge pump inputs");
 });
 
@@ -374,7 +374,7 @@ test("empty, single-publisher and effect-only graphs keep finite bounds", () => 
     const layout = prepareInvocationLayout(data);
     assert.ok(Object.values(layout.bounds).every(Number.isFinite));
     assert.ok(layout.bounds.width > 0 && layout.bounds.height > 0);
-    if (nodes[0]?.function_kind === "merge") {
+    if (nodes[0]?.operator_kind === "merge") {
       assert.equal(nodes[0].y, layout.lanes[0].spineY);
     }
   }

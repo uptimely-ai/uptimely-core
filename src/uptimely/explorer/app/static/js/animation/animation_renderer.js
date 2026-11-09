@@ -53,7 +53,7 @@ function animationStep(step, stage) {
     sources = inputs.length || keys.length ? "" : '<div class="data-lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>';
   }
   return `<article class="data-lineage-step" id="step-${step.number}" data-invocation-id="${escape(step.invocation_id)}"
-    data-dependencies="${escape(step.dependencies.join(","))}" data-function-kind="${escape(step.kind.id)}" data-stage="${stage}" aria-labelledby="step-${step.number}-title">
+    data-dependencies="${escape(step.dependencies.join(","))}" data-operator-kind="${escape(step.kind.id)}" data-stage="${stage}" aria-labelledby="step-${step.number}-title">
     <header class="data-lineage-step-header"><h3 id="step-${step.number}-title">${escape(step.operator)}</h3>
       <p class="data-lineage-step-dataset">Profile: ${escape(profile)}</p></header>
     <div class="data-lineage-scene"><div class="data-lineage-panel data-lineage-panel-output">

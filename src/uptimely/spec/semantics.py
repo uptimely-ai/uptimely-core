@@ -5,8 +5,11 @@ from __future__ import annotations
 import functools
 import typing
 
-from .model.dimension import Resolution
-from .model.spec import OperatorKey, ProfileKey, Spec
+from . import operator_kinds as kinds
+
+if typing.TYPE_CHECKING:
+    from .model.dimension import Resolution
+    from .model.spec import OperatorKey, ProfileKey, Spec
 
 type OperatorExecutionForm = typing.Literal["compute", "compute + merge"]
 type BindingRole = typing.Literal["compute", "merge"]
@@ -20,6 +23,37 @@ class Semantics:
     def __init__(self, spec: Spec) -> None:
         """Create a semantic view over a structurally parsed Spec."""
         self.spec = spec
+
+    @functools.cached_property
+    def operator_kinds(self) -> dict[OperatorKey, kinds.OperatorKindId]:
+        """Derive operator labels per usage, never from callable metadata."""
+        labels: dict[OperatorKey, kinds.OperatorKindId] = {}
+        for key, operator in self.spec.operator_items:
+            function = self.spec.functions.get(operator.compute.function)
+            if function is None:
+                raise ValueError(f"Unknown compute function for operator {key}")
+            if function.returns == "any":
+                labels[key] = kinds.ESCAPE
+            elif function.returns == "none":
+                labels[key] = kinds.WRITE
+            else:
+                sources = self.spec.operator_dataframe_arguments[key]
+                if not sources:
+                    labels[key] = kinds.READ
+                elif len(sources) == 1 and sources[0][2] == key[0]:
+                    labels[key] = kinds.VECTORIZE
+                else:
+                    relationship = self.operator_grain_relationships[key]
+                    source = sources[0][2]
+                    relation = relationship.get(source)
+                    labels[key] = (
+                        kinds.COLLAPSE
+                        if relation == "collapse"
+                        else kinds.EXPAND
+                        if relation == "expand"
+                        else kinds.CONFORM
+                    )
+        return labels
 
     @functools.cached_property
     def operator_execution_forms(self) -> dict[OperatorKey, OperatorExecutionForm]:

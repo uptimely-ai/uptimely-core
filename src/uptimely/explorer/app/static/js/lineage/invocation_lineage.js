@@ -29,7 +29,7 @@ export function initializeInvocationLineage(signal) {
 			['Invocation ID', node.id],
 			['Phase', invocationRole(node) === 'merge' ? 'merge' : 'compute'],
 			['Stage', node.stage],
-			['Function kind', KINDS[node.function_kind]?.label || node.function_kind || 'n/a'],
+			['Operator kind', KINDS[node.operator_kind]?.label || node.operator_kind || 'n/a'],
 			['Function ID', node.function_id || 'n/a'],
 		];
 		if (node.operator_id && node.profile_id) {
@@ -70,7 +70,7 @@ export function initializeInvocationLineage(signal) {
 			] },
 		],
 			invocationFlowDetails(node, scoped), {
-				kind: 'Invocation', icon: KINDS[node.function_kind]?.icon || 'square-function',
+				kind: 'Invocation', icon: KINDS[node.operator_kind]?.icon || 'square-function',
 				color: invocationColor(node),
 			});
 	}
@@ -134,7 +134,7 @@ export function initializeInvocationLineage(signal) {
 				}));
 				return ExplorerLineage.labeledMesh(mesh, invocationLabel(node), style,
 					ExplorerLineage.NODE_STYLE_3D.labelOffset, null,
-					KINDS[node.function_kind]?.icon || 'square-function',
+					KINDS[node.operator_kind]?.icon || 'square-function',
 					isDefaultMerge(node) ? 'sparkles' : null);
 			},
 		});
@@ -155,7 +155,7 @@ export function initializeInvocationLineage(signal) {
 					node, ctx, invocationLabel(node),
 					invocationColor(node), highlight, false,
 					{
-						iconName: KINDS[node.function_kind]?.icon || 'square-function',
+						iconName: KINDS[node.operator_kind]?.icon || 'square-function',
 						badgeIconName: isDefaultMerge(node) ? 'sparkles' : null,
 					}),
 			onSelect: updateSelection,

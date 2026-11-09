@@ -75,7 +75,7 @@ def test_output_reference_logging_is_one_counted_summary(
                         outputs=[feature.Feature(id=f"value_{operator}")],
                     ),
                     compute=assembly.Binding(
-                        function=ref.function("reader:read", kind="read"),
+                        function=ref.function("reader:read", returns="dataframe"),
                         arguments={"column": ref.feature(f"value_{operator}")},
                     ),
                 )
@@ -97,7 +97,7 @@ def _source(
     path: str | int | None = None,
     dataset: object = None,
     other_dataset: object = None,
-) -> None:
+) -> object:
     pass
 
 
@@ -106,7 +106,7 @@ def _other_source(
     path: str | int | None = None,
     dataset: object = None,
     other_dataset: object = None,
-) -> None:
+) -> object:
     pass
 
 
@@ -127,7 +127,7 @@ def _declaration(
                 function=ref.FunctionReference(
                     module=module,
                     name=f"{category}_shared",
-                    kind=category,
+                    returns="none" if category == "write" else "dataframe",
                 ),
                 arguments={
                     **(
@@ -170,7 +170,7 @@ def _mapping_source() -> profile.Profile:
                     outputs=[feature.Feature(id="temperature")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_other_source, kind="read"),
+                    function=ref.function(_other_source, returns="dataframe"),
                     arguments={},
                 ),
             )
@@ -189,7 +189,7 @@ def _conform_source(identifier: str) -> profile.Profile:
                     outputs=[feature.Feature(id="temperature")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_other_source, kind="read"),
+                    function=ref.function(_other_source, returns="dataframe"),
                     arguments={},
                 ),
             )
@@ -360,7 +360,7 @@ def test_python_spec_infers_dimensions_in_profile_grain_order() -> None:
     assert list(definition.to_model().dimensions) == ["timestamp", "machine"]
 
 
-def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
+def test_function_catalog_keeps_distinct_contracts_without_operator_kinds() -> None:
     additional = profile.Profile(
         id="additional",
         assembly=[
@@ -371,7 +371,7 @@ def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_other_source, kind="read"),
+                    function=ref.function(_other_source, returns="dataframe"),
                     arguments={},
                 ),
             )
@@ -387,16 +387,16 @@ def test_function_catalog_keeps_distinct_functions_and_kinds() -> None:
 
     catalog = spec_definition.function_catalog()
 
-    assert set(catalog.by_kind("read")) == {"read_shared", "_other_source"}
+    assert set(catalog) == {"read_shared", "_other_source", "vectorize_shared"}
     assert catalog["_other_source"].entrypoint == f"{__name__}:_other_source"
-    assert set(catalog.by_kind("vectorize")) == {"vectorize_shared"}
-    assert all(not catalog.by_kind(kind) for kind in ("write", "collapse", "expand", "conform"))
+    assert catalog["read_shared"].returns == "dataframe"
+    assert catalog["vectorize_shared"].returns == "dataframe"
 
 
 @pytest.mark.parametrize(
     "category", ["read", "write", "vectorize", "collapse", "expand", "conform"]
 )
-def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> None:
+def test_function_catalog_merges_and_deduplicates_contracts(category: str) -> None:
     first = _declaration("first", category)
     second = _declaration("second", category)
     profiles = [first, second]
@@ -429,7 +429,6 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
         "name": category.title() + " Shared",
         "description": None,
         "category": None,
-        "kind": category,
         "returns": "none" if category == "write" else "dataframe",
         "entrypoint": f"{__name__}:{function_id}",
         "validate_signature": True,
@@ -489,7 +488,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_source, kind="read"),
+                    function=ref.function(_source, returns="dataframe"),
                     arguments={"path": "readings.json"},
                 ),
             )
@@ -505,7 +504,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_source, kind="read"),
+                    function=ref.function(_source, returns="dataframe"),
                     arguments={"path": 42},
                 ),
             )
@@ -561,7 +560,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
     )
     assert pump.to_model().name == "Machine"
     assert payload["name"] == "Pump analytics"
-    assert payload["spec_version"] == 7
+    assert payload["spec_version"] == 8
     assert "options" not in payload
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {

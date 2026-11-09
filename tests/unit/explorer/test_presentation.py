@@ -29,6 +29,15 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert data["scope"]["features"] == ["health_signal_normalized"]
     assert data["scope"]["is_scoped"]
     assert data["catalogs"]["configuration"]
+    assert all(
+        "kind" not in function
+        for function in data["catalogs"]["configuration"]["functions"].values()
+    )
+    assert all(
+        operator["kind"] == bundle.spec_definition.operator_kinds[(profile_id, operator_id)]
+        for profile_id, profile in data["catalogs"]["configuration"]["profiles"].items()
+        for operator_id, operator in profile["assembly"].items()
+    )
     assert data["catalogs"]["configuration"]["profiles"]["pump"]["scope"] == (
         "Pump-level telemetry and external workflow inputs"
     )
@@ -45,9 +54,12 @@ def test_build_presentation_data_returns_versioned_json_structures(
     ]
     assert merge_steps
     assert merge_nodes
-    assert dict(data["plan"]["function_kind_counts"])["merge"] == len(merge_steps)
+    assert len(merge_steps) == sum(
+        invocation.role == "merge" for invocation in bundle.execution_plan.invocations
+    )
     assert all(step["merge_target"] and step["fragment_source"] for step in merge_steps)
     assert all(node["merge_keys"] is not None for node in merge_nodes)
+    assert all(step["role"] == "merge" and step["result"] == "target" for step in merge_steps)
     assert any(
         link["dependency_type"] == "fragment"
         for link in data["graphs"]["invocation_lineage"]["links"]
@@ -73,9 +85,9 @@ def test_build_snapshot_preserves_complete_function_example(
     assert '\n)\nfeatures = ["pressure", "flow", "power", "temp", "vib"]\n' in examples[0]
     assert examples[0].endswith('["converged"]\nTrue')
     assert (
-        snapshot["catalogs"]["function_groups"]["vectorize"][
-            "operation_point_quantum_optimization"
-        ]["doc"]["examples"]
+        snapshot["catalogs"]["function_groups"]["estimate"]["operation_point_quantum_optimization"][
+            "doc"
+        ]["examples"]
         == examples
     )
 
@@ -91,7 +103,7 @@ def test_presentation_captures_project_source_in_catalog_and_snapshot(
     serialized = json.loads(presentation.serialize_presentation_data(data))
     function = serialized["catalogs"]["configuration"]["functions"]["ratio"]
     assert function["source_origin"] == "project"
-    assert serialized["catalogs"]["function_groups"]["vectorize"]["ratio"]["source_origin"] == (
+    assert serialized["catalogs"]["function_groups"]["calculate"]["ratio"]["source_origin"] == (
         "project"
     )
 
@@ -108,7 +120,7 @@ def test_presentation_captures_installed_distribution_origin(
     function = serialized["catalogs"]["configuration"]["functions"]["ratio"]
     assert function["source_origin"] == "third_party"
     assert function["source_distribution"] == "polars"
-    assert serialized["catalogs"]["function_groups"]["vectorize"]["ratio"]["source_origin"] == (
+    assert serialized["catalogs"]["function_groups"]["calculate"]["ratio"]["source_origin"] == (
         "third_party"
     )
 
@@ -153,6 +165,6 @@ def test_project_build_persists_source_origin(
 
     snapshot = json.loads((tmp_path / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert snapshot["catalogs"]["configuration"]["functions"]["ratio"]["source_origin"] == "project"
-    assert snapshot["catalogs"]["function_groups"]["vectorize"]["ratio"]["source_origin"] == (
+    assert snapshot["catalogs"]["function_groups"]["calculate"]["ratio"]["source_origin"] == (
         "project"
     )

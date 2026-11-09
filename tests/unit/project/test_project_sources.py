@@ -136,7 +136,7 @@ def test_build_defers_source_semantic_validation_to_compiler(
     )
     monkeypatch.syspath_prepend(str(tmp_path))
     json_path = tmp_path / "spec.json"
-    json_path.write_text('{"spec_version": 7}', encoding="utf-8")
+    json_path.write_text('{"spec_version": 8}', encoding="utf-8")
     python_spec = f"{module_name}:python_spec" if source_kind == "python" else None
     json_spec = json_path if source_kind == "json" else None
 
@@ -166,7 +166,7 @@ def test_complete_build_validates_spec_semantics_once(
     tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
 ) -> None:
     path = tmp_path / "source.json"
-    path.write_text('{"spec_version": 7}', encoding="utf-8")
+    path.write_text('{"spec_version": 8}', encoding="utf-8")
     caplog.set_level(logging.DEBUG, logger="uptimely")
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:

@@ -86,7 +86,7 @@ export function icon(key, className = "nav-icon") {
 
 export function kindIcon(kind, className = "nav-icon") {
   const label = KINDS[kind]?.label || kind || "Unspecified";
-  return `<i class="site-icon icon--functions ${className}" data-lucide="${KINDS[kind]?.icon || "braces"}" title="Function kind: ${escape(label)}" aria-hidden="true"></i>`;
+  return `<i class="site-icon icon--functions ${className}" data-lucide="${KINDS[kind]?.icon || "braces"}" title="Operator kind: ${escape(label)}" aria-hidden="true"></i>`;
 }
 
 export function href(view, target = "") {

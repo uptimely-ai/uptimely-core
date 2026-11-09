@@ -13,9 +13,9 @@ from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
-from uptimely.spec.python import assembly, dimension, feature, profile, ref
+from uptimely.spec import operator_kinds as functions
+from uptimely.spec.python import assembly, default_merge, dimension, feature, profile, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -157,9 +157,10 @@ def _spec(*, lazy=False, empty=False):
                     outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(read_values, kind="read"),
+                    function=ref.function(read_values),
                     arguments={"lazy": lazy, "empty": empty},
                 ),
+                merge=default_merge(),
             ),
             assembly.Operator(
                 id="double",
@@ -168,7 +169,7 @@ def _spec(*, lazy=False, empty=False):
                     outputs=[feature.Feature(id="doubled")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(double, kind="vectorize"),
+                    function=ref.function(double),
                     arguments={
                         "dataset": ref.profile().dataset,
                         "column": ref.feature("value").id,
@@ -183,7 +184,7 @@ def _spec(*, lazy=False, empty=False):
                     outputs=[feature.Feature(id="unneeded")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(double, kind="vectorize"),
+                    function=ref.function(double),
                     arguments={
                         "dataset": ref.profile().dataset,
                         "column": ref.feature("value").id,
@@ -204,13 +205,14 @@ def _spec(*, lazy=False, empty=False):
                     outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(summarize, kind="collapse"),
+                    function=ref.function(summarize),
                     arguments={
                         "dataset": ref.profile("observations").dataset,
                         "column": ref.feature("value").id,
                         "calculated": ref.feature("doubled").id,
                     },
                 ),
+                merge=default_merge(),
             )
         ],
     )
@@ -224,9 +226,10 @@ def _spec(*, lazy=False, empty=False):
                     outputs=[feature.Feature(id="total")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(total, kind="collapse"),
+                    function=ref.function(total),
                     arguments={"dataset": ref.profile("summary").dataset},
                 ),
+                merge=default_merge(),
             ),
             assembly.Operator(
                 id="global_maximum",
@@ -235,9 +238,10 @@ def _spec(*, lazy=False, empty=False):
                     outputs=[feature.Feature(id="global_max")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(maximum, kind="collapse"),
+                    function=ref.function(maximum),
                     arguments={"dataset": ref.profile("summary").dataset},
                 ),
+                merge=default_merge(),
             ),
         ],
     )
@@ -253,7 +257,7 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(
     spec_definition = _spec(lazy=lazy)
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
     assert not any("unneeded" in item.output_features for item in plan.invocations)
-    collapse = next(item for item in plan.invocations if item.function_kind == "collapse")
+    collapse = next(item for item in plan.invocations if item.operator_kind == "collapse")
     assert collapse.input_features == ["value", "doubled"]
     assert len(collapse.dependency_ids) == 2
     result = engine_for_plan(plan, spec_definition=spec_definition).run()
@@ -285,9 +289,10 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                     outputs=[feature.Feature(id="base_value")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(read_conform_target, kind="read"),
+                    function=ref.function(read_conform_target),
                     arguments={},
                 ),
+                merge=default_merge(),
             ),
             assembly.Operator(
                 id="conform_source",
@@ -296,7 +301,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                     outputs=[feature.Feature(id="conformed_value")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(conform_source, kind="conform"),
+                    function=ref.function(conform_source),
                     arguments={
                         "source": ref.profile("foreign").dataset,
                         "matching_keys": ref.profile().grain.ids,
@@ -316,9 +321,10 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                     outputs=[feature.Feature(id="source_value")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(read_conform_source, kind="read"),
+                    function=ref.function(read_conform_source),
                     arguments={},
                 ),
+                merge=default_merge(),
             )
         ],
     )
@@ -326,12 +332,12 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     plan = compiler.Compiler().compile(spec_definition, features=["conformed_value"])
     portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
     conform_invocation = next(
-        item for item in portable.invocations if item.function_kind == "conform"
+        item for item in portable.invocations if item.operator_kind == "conform"
     )
     source_merge = next(
         item
         for item in portable.invocations
-        if item.operator_id == "read_source" and item.function_kind == "merge"
+        if item.operator_id == "read_source" and item.role == "merge"
     )
     assert all(item.operator_id != "read_target" for item in portable.invocations)
 
@@ -360,7 +366,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
 def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> None:
     spec_definition = _spec()
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
-    invocation = next(item for item in plan.invocations if item.function_kind == "collapse")
+    invocation = next(item for item in plan.invocations if item.operator_kind == "collapse")
     invocation = copy.replace(invocation, input_features=["maximum"])
     state = state_module.RuntimeState(
         datasets={
@@ -418,6 +424,7 @@ def test_collapse_consumes_expanded_features(
                 id="read_expansion",
                 compute=spec_model.Binding(function="read_expansion_input", args={"lazy": lazy}),
                 interface=spec_model.Interface(outputs=["$features.expansion_value"]),
+                merge=default_merge().to_model(),
             )
         },
     )
@@ -425,7 +432,6 @@ def test_collapse_consumes_expanded_features(
     spec_definition.profiles[auxiliary.id] = auxiliary
     spec_definition.functions.root["read_expansion_input"] = spec_model.FunctionTemplate(
         id="read_expansion_input",
-        kind="read",
         returns="dataframe",
         entrypoint=f"{__name__}:read_expansion_input",
         args={"lazy": spec_model.Argument(id="lazy", type="boolean")},
@@ -443,10 +449,10 @@ def test_collapse_consumes_expanded_features(
             inputs=["$features.expansion_value"],
             outputs=["$features.expanded"],
         ),
+        merge=default_merge().to_model(),
     )
     spec_definition.functions.root["expanded_values"] = spec_model.FunctionTemplate(
         id="expanded_values",
-        kind="expand",
         returns="dataframe",
         entrypoint=f"{__name__}:expanded_values",
         args={
@@ -472,11 +478,11 @@ def test_collapse_consumes_expanded_features(
                 inputs=["$features.value", "$features.expanded"],
                 outputs=["$features.combined_maximum"],
             ),
+            merge=default_merge().to_model(),
         )
     }
     spec_definition.functions.root["nested_maximum"] = spec_model.FunctionTemplate(
         id="nested_maximum",
-        kind="collapse",
         returns="dataframe",
         entrypoint=f"{__name__}:nested_maximum",
         args={
@@ -616,9 +622,10 @@ def _broadcast_spec(
                     outputs=[feature.Feature(id="value")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(read_values, kind="read"),
+                    function=ref.function(read_values),
                     arguments={"lazy": lazy},
                 ),
+                merge=default_merge(),
             ),
             assembly.Operator(
                 id="reference",
@@ -627,13 +634,14 @@ def _broadcast_spec(
                     outputs=[feature.Feature(id="reference")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(expand_function, kind="expand"),
+                    function=ref.function(expand_function),
                     arguments={
                         "source": ref.profile("reference_source").dataset,
                         "feature": ref.feature("source_value").id,
                         "output": ref.feature("reference").id,
                     },
                 ),
+                merge=default_merge(),
             ),
         ],
     )
@@ -648,9 +656,10 @@ def _broadcast_spec(
                     outputs=[feature.Feature(id="source_value")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(reader, kind="read"),
+                    function=ref.function(reader),
                     arguments={"lazy": lazy},
                 ),
+                merge=default_merge(),
             )
         ],
     )
@@ -703,11 +712,11 @@ def test_fragment_dimension_policy_is_independent_of_expand_id(
 ) -> None:
     spec_definition = _broadcast_spec(read_group_limits, broadcast_group_limit, ["group"], False)
     plan = compiler.Compiler().compile(spec_definition)
-    definitions = dict(functions.FUNCTION_KINDS)
+    definitions = dict(functions.OPERATOR_KINDS)
     definitions[functions.EXPAND] = copy.replace(
         definitions[functions.EXPAND], fragment_dimensions="target"
     )
-    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(functions, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     result = engine_for_plan(plan, spec_definition=spec_definition).run(validate=True)
 

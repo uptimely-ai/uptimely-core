@@ -34,7 +34,9 @@ def test_canonical_models_do_not_import_outer_layers() -> None:
                 elif node.module == "uptimely.spec":
                     allowed_imports = {
                         "arg_types",
-                        "function_kinds",
+                        "function_contracts",
+                        "semantics",
+                        "operator_kinds",
                         "row_context",
                         "selectors",
                     }
@@ -110,7 +112,7 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
     "module",
     [
         "uptimely.spec.model.spec",
-        "uptimely.spec.function_kinds",
+        "uptimely.spec.operator_kinds",
         "uptimely.spec.validation",
         "uptimely.spec.validation.rules.operators.outputs",
         "uptimely.spec.validation.rules.operators.inputs",
@@ -194,7 +196,6 @@ def test_serialization_preserves_function_descriptions_and_profile_ids() -> None
         {
             "functions": {
                 "collapse": {
-                    "kind": "collapse",
                     "returns": "dataframe",
                     "entrypoint": "not_installed:collapse",
                     "args": {"dataset": {"type": "dataframe"}},

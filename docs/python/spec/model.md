@@ -80,13 +80,13 @@ normalize their children:
 | `Binding` | `values_with_paths`, `references_by_prefix`, `metadata_references_with_paths`, `grain_references_with_paths`, `feature_references`, `uses_current_feature`, `profile_dataframe_references` |
 | `BindingArgument` | `root`, `children`, `leaves_with_paths`, `references_with_paths`, `prefix`, `identifier`, `selector`, `selector_value_type`, `is_current_profile_dataframe`, `is_current_fragment`, `is_current_feature_reference`, `is_grain_reference`, `profile_dataframe_references`, `inferred_feature_inputs` |
 | `FunctionTemplate` | `arguments_by_type` |
-| `FunctionCatalog` | `arguments`, `functions_by_kind`, `by_kind(kind)` |
+| `FunctionCatalog` | `arguments`, `iter_functions()` |
 
-`FunctionTemplate` includes an optional free-form `category` in addition to
-its execution `kind`. The category is stored in the Spec and does not affect
-execution or validation. When omitted, it is omitted from serialized function
-definitions. `FunctionTemplate` owns checks for its return kind, dataframe
-argument count, and argument contracts. Semantic validation runs these checks
+`FunctionTemplate` declares `args` and `returns` independently of operator
+semantics; it has no `kind` field. Its optional free-form `category` is
+descriptive and does not affect execution or validation. `FunctionTemplate`
+owns reusable contract checks, while binding validation enforces compute and
+merge arity according to their position. Semantic validation runs these checks
 on the function models. Rebuild an edited Spec before validating it again so
 all cached views reflect the edits.
 
@@ -256,7 +256,7 @@ function catalog.
       show_root_heading: false
       members: [Argument, FunctionTemplate, FunctionCatalog]
 
-For supported function kinds and values, see the
+For callable return roles, derived operator policies, and values, see the
 [spec vocabulary](../spec-vocabulary.md).
 
 </div>

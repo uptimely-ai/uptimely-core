@@ -1,6 +1,8 @@
 # Analytical functions
 
-The framework creates many safeguards for what can go into the analytical functions, and what comes out. For example dataset, feature and dimension data types, structural validation, and function kinds.
+The framework checks callable argument and return contracts, dataframe schemas,
+feature dependencies, and declared source/target relationships. These checks do
+not classify a callable's business meaning.
 
 However, what happens inside the analytical functions written by user is developer's responsibility. It is possible to even produce structurally correct results with methods that are against the spec definition.
 
@@ -26,7 +28,9 @@ for t in timesteps:
     ...
 ```
 
-For tabular data, prefer vectorized functions and SQL window capabilities where they fit the problem. In Spec, this feature category is named `vectorize`; each vectorize function should transform its declared feature inputs into one output feature without performing I/O.
+For tabular data, prefer vectorized functions and SQL window capabilities where
+they fit the problem. A computation bound to its own target dataframe derives
+the `vectorize` operator label; it should calculate declared outputs without I/O.
 
 ## Keep analytical windows manageable
 
@@ -43,9 +47,9 @@ declared inputs and return the result. They should not perform I/O, log,
 mutate their input data or shared state, or do unrelated work. This keeps
 calculations predictable and makes them easier to test and reuse.
 
-Keep source and sink communication in `read` and `write` functions. Use an
-explicitly declared `escape` function when work requires side effects outside
-those kinds, and leave execution concerns to the engine. Escape operators may
+Keep source and sink communication separate from calculations. Use an explicit
+`returns="any"` contract when an external workflow's result must be ignored;
+leave execution concerns to the engine. These operators may
 declare feature inputs and outputs to define logical dependencies and
 scheduling. The engine does not implicitly hand off dataframes based on feature
 declarations. An escape function may receive explicitly bound dataframe

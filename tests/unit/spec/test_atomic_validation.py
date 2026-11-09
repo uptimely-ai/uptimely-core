@@ -10,10 +10,10 @@ import pytest
 from support import examples as example_support
 
 from uptimely import spec
-from uptimely.spec import function_kinds
+from uptimely.spec import operator_kinds
 from uptimely.spec.validation import errors
 from uptimely.spec.validation import spec as spec_validation
-from uptimely.spec.validation.rules import bindings, dimensions, functions, profiles
+from uptimely.spec.validation.rules import bindings, dimensions, profiles
 from uptimely.spec.validation.rules.operators import contracts as operator_contracts
 from uptimely.spec.validation.rules.operators import inputs as operator_inputs
 from uptimely.spec.validation.rules.operators import outputs as operator_outputs
@@ -221,30 +221,10 @@ def test_unknown_merge_function_error_uses_declaration_path(document: spec.Spec)
     assert "missing_merge" in str(error.value)
 
 
-def test_compute_function_kind_is_validated_independently(document: spec.Spec) -> None:
-    key, operator = document.operator_items[0]
-    document.functions.root[operator.compute.function].kind = function_kinds.MERGE
-
-    with pytest.raises(errors.SpecError, match="must be declared in Operator.merge") as error:
-        operator_outputs.validate_compute_function_kind(document)
-
-    assert error.value.code == "invalid_merge_binding"
-    assert error.value.path == (*document.declaration_paths[key], "compute", "function")
-
-
-def test_merge_binding_rejects_non_merge_function(document: spec.Spec) -> None:
-    _, item = document.operator_items[0]
-    item.merge = spec.model.Binding(function=item.compute.function)
-
-    with pytest.raises(errors.SpecError, match="function of kind 'merge'"):
-        operator_outputs.validate_merge_function_kind(document)
-
-
 def _add_merge_binding(document: spec.Spec) -> spec.model.Operator:
     _, operator = document.operator_items[0]
     document.functions.root["merge"] = spec.model.FunctionTemplate(
         id="merge",
-        kind="merge",
         returns="dataframe",
         entrypoint="merge",
         validate_signature=False,
@@ -263,14 +243,14 @@ def _add_merge_binding(document: spec.Spec) -> spec.model.Operator:
     return operator
 
 
-def test_merge_operator_kind_is_validated_independently(document: spec.Spec) -> None:
-    operator = _add_merge_binding(document)
-    document.functions.root[operator.compute.function].kind = "vectorize"
+def test_merge_binding_requires_two_dataframe_argument_slots(document: spec.Spec) -> None:
+    _add_merge_binding(document)
+    document.functions["merge"].args.pop("fragment")
 
-    with pytest.raises(errors.SpecError, match="Vectorize operators cannot declare") as error:
-        bindings.validate_merge_operator_kind(document)
+    with pytest.raises(errors.SpecError, match="invalid dataframe arity: 1") as error:
+        bindings.validate_binding_contracts(document)
 
-    assert error.value.code == "invalid_merge_binding"
+    assert error.value.code == "invalid_binding_arity"
 
 
 def test_merge_target_is_validated_independently(document: spec.Spec) -> None:
@@ -326,76 +306,48 @@ def test_selector_metadata_is_validated_independently(document: spec.Spec) -> No
     )
 
 
-def _add_merge_function(document: spec.Spec) -> spec.model.FunctionTemplate:
-    function = spec.model.FunctionTemplate(
-        id="merge",
-        kind="merge",
-        returns="dataframe",
-        entrypoint="merge",
-        validate_signature=False,
-        args={
-            "target": spec.model.Argument(id="target", type="dataframe | null"),
-            "fragment": spec.model.Argument(id="fragment", type="dataframe"),
-        },
-    )
-    document.functions.root[function.id] = function
-    return function
-
-
-def test_nullable_dataframe_argument_is_rejected_for_non_merge_function(
-    document: spec.Spec,
-) -> None:
-    function = next(
-        function
-        for function in document.functions.root.values()
-        if function.kind != function_kinds.MERGE
-    )
+def test_optional_dataframe_arguments_are_not_tied_to_merge_kind(document: spec.Spec) -> None:
+    function = next(iter(document.functions.root.values()))
     function.args["nullable"] = spec.model.Argument(id="nullable", type="dataframe | null")
 
-    with pytest.raises(ValueError, match="reserved for merge functions"):
-        function.check_argument_contracts()
+    assert function.check_dataframe_input_contract() is None
 
 
-def test_merge_target_argument_is_validated_independently(document: spec.Spec) -> None:
-    function = _add_merge_function(document)
-    function.args["target"].type = "dataframe"
-
-    with pytest.raises(ValueError, match="target as 'dataframe \\| null'"):
-        function.check_argument_contracts()
-
-
-def test_merge_fragment_argument_is_validated_independently(document: spec.Spec) -> None:
-    function = _add_merge_function(document)
-    function.args["fragment"].type = "string"
-
-    with pytest.raises(ValueError, match="fragment as 'dataframe'"):
-        function.check_argument_contracts()
-
-
-def test_function_rules_raise_independently(document: spec.Spec) -> None:
-    function = next(f for f in document.functions.root.values() if f.kind == "vectorize")
-    function.returns = "none"
-    with pytest.raises(ValueError) as error:
+def test_function_contract_rules_are_role_and_arity_based(document: spec.Spec) -> None:
+    function = next(iter(document.functions.root.values()))
+    function.returns = "invalid"
+    with pytest.raises(ValueError, match="Unsupported return contract"):
         function.check_return_contract()
-    assert "fit kind(s): write" in str(error.value)
 
     function.returns = "dataframe"
     function.args.clear()
-    function.check_return_contract()
-    with pytest.raises(ValueError) as error:
+    function.args.update(
+        {
+            f"frame_{index}": spec.model.Argument(id=f"frame_{index}", type="dataframe")
+            for index in range(3)
+        }
+    )
+    with pytest.raises(ValueError, match="at most two dataframe argument slots"):
         function.check_dataframe_input_contract()
-    assert "requires 1 dataframe argument" in str(error.value)
 
 
-@pytest.mark.parametrize("kind", ["conform", "collapse", "expand"])
+def test_zero_dataframe_no_result_compute_contract_is_valid(document: spec.Spec) -> None:
+    _, operator = next((key, item) for key, item in document.operator_items if item.merge is None)
+    function = document.functions[operator.compute.function]
+    function.returns = "none"
+    function.args.clear()
+    operator.compute.args.clear()
+
+    assert bindings.validate_binding_contracts(document) is None
+
+
 def test_mapping_rules_use_shared_operation_dataframe_counts(
-    document: spec.Spec, monkeypatch: pytest.MonkeyPatch, kind: function_kinds.FunctionKindId
+    document: spec.Spec, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    function = next(f for f in document.functions.root.values() if f.kind == "collapse")
-    function.kind = kind
-    definitions = dict(function_kinds.FUNCTION_KINDS)
+    kind = "collapse"
+    definitions = dict(operator_kinds.OPERATOR_KINDS)
     definitions[kind] = dataclasses.replace(definitions[kind], dataframe_inputs=2)
-    monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match=r"exactly 2 foreign profile\(s\)") as error:
         operator_contracts.validate_dataframe_argument_count(document)
@@ -406,31 +358,29 @@ def test_mapping_rules_use_shared_operation_dataframe_counts(
 def test_local_and_foreign_input_validation_uses_kind_attributes(
     document: spec.Spec, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    vectorize = next(
-        item
-        for item in document.operators
-        if document.functions[item.compute.function].kind == "vectorize"
+    vectorize_key = next(
+        key for key, label in document.operator_kinds.items() if label == "vectorize"
     )
-    definitions = dict(function_kinds.FUNCTION_KINDS)
+    definitions = dict(operator_kinds.OPERATOR_KINDS)
     definitions["vectorize"] = dataclasses.replace(
         definitions["vectorize"], dataframe_input_scope="foreign"
     )
-    monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="must reference a foreign source profile"):
         operator_contracts.validate_foreign_profile_argument(document)
 
-    assert document.functions[vectorize.compute.function].kind == "vectorize"
+    assert document.operator_kinds[vectorize_key] == "vectorize"
 
 
 def test_target_dataset_validation_uses_kind_attribute(
     document: spec.Spec, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    definitions = dict(function_kinds.FUNCTION_KINDS)
+    definitions = dict(operator_kinds.OPERATOR_KINDS)
     definitions["collapse"] = dataclasses.replace(
         definitions["collapse"], dataframe_input_scope="target"
     )
-    monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="must consume its target profile"):
         operator_contracts.validate_target_profile_input(document)
@@ -439,23 +389,16 @@ def test_target_dataset_validation_uses_kind_attribute(
 def test_feature_input_validation_uses_kind_attribute(
     document: spec.Spec, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    definitions = dict(function_kinds.FUNCTION_KINDS)
+    definitions = dict(operator_kinds.OPERATOR_KINDS)
     definitions["vectorize"] = dataclasses.replace(
         definitions["vectorize"], feature_input_scope="none"
     )
-    monkeypatch.setattr(function_kinds, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     with pytest.raises(errors.SpecError, match="Kind vectorize cannot declare feature inputs"):
         operator_contracts.validate_feature_input_scope(document)
 
 
-def test_none_dataframe_input_count_is_unrestricted(document: spec.Spec) -> None:
-    escape = next(
-        function for function in document.functions.root.values() if function.kind == "escape"
-    )
-    escape.args = {
-        "first": spec.Argument(id="first", type="dataframe"),
-        "second": spec.Argument(id="second", type="dataframe"),
-    }
-
-    assert functions.validate_function_contracts(document) is None
+def test_escape_operator_policy_is_derived_from_any_return_role(document: spec.Spec) -> None:
+    key = next(key for key, label in document.operator_kinds.items() if label == "escape")
+    assert document.functions[document.operators_by_key[key].compute.function].returns == "any"

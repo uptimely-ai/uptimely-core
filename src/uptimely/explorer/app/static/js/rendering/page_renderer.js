@@ -56,7 +56,7 @@ export function planOverview(data) {
   return page(`<p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Execution plan</p>
     ${heading("Overview", "Plan compiled from the spec, ordered by dependency resolution.", "overview")}
     <section id="plan-overview" class="mb-16">
-      <div class="catalog-charts lg:grid-cols-2">${distribution("Invocations by function kind", plan.function_kind_counts, {
+      <div class="catalog-charts lg:grid-cols-2">${distribution("Invocations by operator kind", plan.operator_kind_counts, {
         total: plan.invocation_count, kindLabels: true,
       })}
         ${distribution("Invocations by stage", data.stages.map(stage => [`Stage ${stage.stage}`, stage.steps.length]), {
@@ -75,7 +75,7 @@ export function lineage(data, topology) {
   const style = topology ? data.graphs.invocation_style : data.graphs.feature_style;
   const profileCount = new Set(graphData.nodes.filter(node => !node.is_operator)
     .map(node => node.profile_id || UNASSIGNED_DATASET)).size;
-  const kinds = [...new Set(graphData.nodes.map(node => node.function_kind).filter(Boolean))];
+  const kinds = [...new Set(graphData.nodes.map(node => node.operator_kind).filter(Boolean))];
   const payload = (id, value) => `<script id="${id}" type="application/json">${JSON.stringify(value).replace(/</g, "\\u003c")}</script>`;
   return {
     context: `<aside class="site-context" id="lineage-context" aria-label="${title} context" data-context-label="${title.toLowerCase()}">
@@ -98,7 +98,7 @@ export function lineage(data, topology) {
         <i class="lineage-legend-chevron" data-lucide="chevron-down" aria-hidden="true"></i></summary>
         <div class="legend" aria-label="Graph legend">
         <p class="lineage-legend-note">Colors show profiles, not run status. Arrows show dependencies.</p>
-        <h3 class="legend-heading">${topology ? "Function kinds" : "Nodes"}</h3>
+        <h3 class="legend-heading">${topology ? "Operator kinds" : "Nodes"}</h3>
         <div class="lineage-legend-kinds">${topology
           ? kinds.map(kind => `<span class="lineage-legend-item">${kindIcon(kind)}<span>${escape(KINDS[kind]?.label || kind)}</span></span>`).join("")
           : `<span class="lineage-legend-item">${icon("features")}<span>Feature</span></span>

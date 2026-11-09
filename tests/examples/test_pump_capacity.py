@@ -84,7 +84,7 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         for invocation in restored.invocations
         if invocation.profile_id == "pump"
         and invocation.operator_id == "read_pump_capacity"
-        and invocation.function_kind == "read"
+        and invocation.operator_kind == "read"
     )
     assert set(reader.identifier_columns) == {"pump_id", "machine_series_id", "machine_category_id"}
     assert reader.output_features == ["pump_id", "pump_max_capacity"]
@@ -92,7 +92,7 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         invocation
         for invocation in restored.invocations
         if invocation.operator_id == "expand_series_capacity"
-        and invocation.function_kind == "expand"
+        and invocation.operator_kind == "expand"
     )
     assert series_compute.identifier_columns == reader.identifier_columns
     assert "pump_assets_source" not in series_compute.arguments
@@ -101,13 +101,12 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         for invocation in restored.invocations
         if invocation.profile_id == "pump"
         and invocation.operator_id == "read_pump_capacity"
-        and invocation.function_kind == "merge"
+        and invocation.role == "merge"
     )
     series_merge = next(
         invocation
         for invocation in restored.invocations
-        if invocation.operator_id == "expand_series_capacity"
-        and invocation.function_kind == "merge"
+        if invocation.operator_id == "expand_series_capacity" and invocation.role == "merge"
     )
     assert reader_merge.id not in series_merge.dependency_ids
     assert "identifier_columns" not in series_merge.arguments

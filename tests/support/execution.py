@@ -35,7 +35,9 @@ def merge_fragment(
     """Exercise runtime validation and projection around a physical accumulator."""
     invocation = fragment.invocation or execution_plan.Invocation(
         id="standalone",
-        function_kind="read",
+        role="compute",
+        result="fragment",
+        operator_kind="read",
         entrypoint="test:read",
         function_id="read",
         operator_id="read",
@@ -123,10 +125,9 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
                 )
                 profile["grain"].append({"dimension": dimension_id, "resolution": resolution_id})
         function = functions.setdefault(invocation.function_id, {})
-        function.setdefault("kind", invocation.function_kind)
         function.setdefault(
             "returns",
-            {"escape": "any", "write": "none"}.get(invocation.function_kind, "dataframe"),
+            {"escape": "any", "write": "none"}.get(invocation.operator_kind, "dataframe"),
         )
         function.setdefault("entrypoint", invocation.entrypoint)
         function.setdefault(

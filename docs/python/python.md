@@ -37,7 +37,7 @@ machine = up.Dimension(
 )
 
 
-@up.function(kind="collapse")
+@up.function(returns="dataframe")
 def maximum(
     dataset: pl.LazyFrame, feature: str, dimensions: list[str], output: str
 ) -> pl.LazyFrame: ...
@@ -136,7 +136,7 @@ validates feature references and rejects repeated input or output IDs when
 constructed. It checks them again during conversion, so later mutations of its
 collections cannot bypass those checks.
 
-`Binding` owns function metadata (`kind`, optional `category`, and `reference`),
+`Binding` owns a function reference and its reusable contract metadata,
 callable argument validation (`bound_arguments()`), and conversion (`to_model()` and
 `to_function_template()`). `Interface.to_model(compute=..., merge=...)` accepts
 canonical bindings and builds feature selectors. `Operator` coordinates these
@@ -149,20 +149,20 @@ conversions; their signature checks are deferred until compilation.
 can refer to its scalar attributes with `ref.row_context("before")`,
 `ref.row_context("after")`, or `ref.row_context("dimension")`. Its function
 catalog ID is derived from the referenced function name. Optionally annotate
-callable implementations with `@function(kind=...)`.
-The decorator attaches
-semantic metadata for validation;
+callable implementations with `@function(returns=...)`.
+The decorator attaches reusable argument and return contracts;
 an optional `category="..."` may also be supplied as descriptive Spec metadata.
 The category is unrestricted text and does not affect execution or validation.
 The decorator returns the original function without wrapping or executing it. Alternatively,
 keep implementations undecorated and supply their contract through
-`ref.function(implementation, kind=...)`. Entrypoint strings also use explicit
-function references. Kind belongs to the function, not the operator.
+`ref.function(implementation, returns=...)`. Entrypoint strings also use explicit
+function references. Operator meaning comes from its binding position and
+source/target declarations, not from metadata attached to the implementation.
 
-An explicit reference kind must agree with decorated metadata. References to
-decorated callables inherit their kind when it is omitted. Decoration is
-optional, but a function kind is still required to build an executable operator;
-Uptimely never guesses a producer's kind from its signature or collection.
+An explicit reference contract must agree with decorated metadata. Decoration
+is optional: dataframe and `None` return annotations can establish the return
+contract. Missing, opaque, or mixed annotations require explicit `returns`.
+String references always require it because authoring does not import them.
 Implementations aren't called during authoring; assembly checks callable
 parameter names and required arguments.
 
@@ -170,26 +170,31 @@ parameter names and required arguments.
 from uptimely.spec.python import function, ref
 
 
-@function(kind="collapse", category="aggregation")
+@function(returns="dataframe", category="aggregation")
 def maximum(dataset, feature, dimensions, output): ...
 
 
-decorated = ref.function(maximum)  # Carries the declared collapse contract.
-external = ref.function("third_party.analytics:maximum", kind="collapse")
-categorized = ref.function("third_party.analytics:maximum", kind="collapse", category="aggregation")
+decorated = ref.function(maximum)
+external = ref.function("third_party.analytics:maximum", returns="dataframe")
+categorized = ref.function(
+    "third_party.analytics:maximum", returns="dataframe", category="aggregation"
+)
 ```
-`read` functions take no dataframe arguments. `conform`, `collapse`, and
-`expand` each take only their foreign/source dataframe; the engine supplies and
-reconciles the target profile separately. `conform` sources and targets have
+Compute bindings take zero or one dataframe argument and declare `returns` as
+`dataframe`, `none`, or `any` (an ignored result with logical dependencies).
+Merge bindings take exactly two dataframe arguments and return a dataframe.
+These roles belong to binding positions, not permanently to callables.
+Derived `conform` sources and targets have
 the same grain. `collapse` moves to a coarser grain, and `expand` moves to a
 finer grain; parent links between resolutions describe valid coarsening and
 refinement.
 Declare dimensional matching keys explicitly with
 `ref.profile().grain.ids` (or a named profile's `.grain.ids` selector).
 Grouping and ordering references do not implicitly select matching keys.
-Fragment-producing functions (`read`, `conform`, `expand`, and `collapse`)
-return Polars `DataFrame` or `LazyFrame` fragments; other dataframe types and
-custom adapters are not currently supported. The engine assembles fragments
+With a merge binding, compute returns a Polars `DataFrame` or `LazyFrame`
+fragment. Select the builtin merge explicitly with `merge=up.default_merge()`;
+omitting a merge publishes a complete target rather than silently joining.
+The builtin merge assembles fragments
 for the same profile by complete keys with a full outer join, preserving
 partial coverage while rejecting duplicate keys and feature collisions. An
 `expand` fragment may omit dimension keys its lower-dimensional source cannot
@@ -208,8 +213,8 @@ preservation of existing values and row order. Functions must not mutate their
 input dataframes: publishing by assignment cannot roll back mutations made by
 user code.
 
-Fragment-producing operators without an explicit `merge` binding use the
-builtin merge-by-grain function. A custom merge binding overrides the default.
+Operators stage fragments only when they declare a `merge` binding.
+Use `up.default_merge()` for the builtin grain merge, or provide a custom binding.
 Changing an operator's merge binding requires rebuilding the project.
 The implementation module's package must be installed in the build and runtime
 environments; install a local project package in editable mode for development.
@@ -235,8 +240,8 @@ assembly = {
 }
 ```
 
-Groups are organizational only; function kind remains explicit on functions
-or function references and determines runtime behavior. Operator IDs must be
+Groups are organizational only; execution roles come from compute and merge
+binding positions. Operator IDs must be
 non-empty and unique within the profile. Reusing one function in multiple
 operators is allowed with distinct operator IDs; its function name identifies
 the reusable catalog contract.
@@ -266,9 +271,9 @@ function's internal steps.
 
 Python profiles expose declarations through `Profile.assembly`; canonical
 documents and exported JSON use the same `assembly` key.
-The current JSON contract is spec version 6. JSON profiles use an `assembly`
+The current JSON contract is spec version 8. JSON profiles use an `assembly`
 mapping whose operators declare `compute`, optionally `merge`, and `interface`;
-see the [spec migration guide](../components/spec.md#migrating-from-spec-version-5).
+see the [binding contracts](../components/spec.md#binding-roles-and-derived-operator-labels).
 
 <div class="api-reference" markdown="1">
 
@@ -322,10 +327,10 @@ the declarations used in a profile's assembly.
 
 ## functions
 
-`uptimely.spec.python.functions` defines optional implementation-level semantics.
+`uptimely.spec.python.functions` defines reusable callable contracts.
 Import `function` directly from `uptimely.spec.python` for
-`@function(kind="...")`, or import the `functions` module for
-`@functions.function(kind="...")`. The former `@kind(...)` decorator is removed.
+`@function(returns="dataframe")`, or import the `functions` module for
+`@functions.function(returns="dataframe")`. The `kind` argument is removed.
 The decorator does not prove implementation behavior; it declares the contract
 that Uptimely validates at its supported boundaries.
 
@@ -371,7 +376,10 @@ inspect its signature. Spec-level contracts and declared feature dependencies
 are still validated, and execution still requires a loadable implementation.
 When enabled, compilation checks keyword-call compatibility, required
 parameters, positional-only parameters, and supported annotation contradictions.
-Annotations may be omitted; an explicit incompatible annotation is rejected.
+Annotations may be omitted when `returns` is explicit; incompatible return
+annotations are rejected when inspection is enabled. Disabling inspection
+requires explicit `args` and `returns`; it does not disable binding-name or
+dataframe-arity checks.
 
 Function references also carry a `description` into the function catalog and
 exported JSON. When a callable is referenced, the description defaults to the
@@ -385,7 +393,8 @@ loading the Python spec:
 ```python
 ref.function(
     "other_project.functions:calculate",
-    kind="vectorize",
+    returns="dataframe",
+    args={"dataset": "dataframe", "feature": "string"},
     validate_signature=False,
 )
 ```

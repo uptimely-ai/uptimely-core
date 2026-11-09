@@ -11,7 +11,7 @@ from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import merge as merge_module
-from uptimely.spec import arg_types, function_kinds
+from uptimely.spec import arg_types, operator_kinds
 
 from . import bindings as bindings_module
 from . import state as state_module
@@ -40,10 +40,10 @@ class InvocationExecutor:
 
     def execute(self, invocation: plan_module.Invocation) -> None:
         """Execute one invocation, validating before side effects and state updates."""
-        definition = function_kinds.FUNCTION_KINDS.get(invocation.function_kind)
+        definition = operator_kinds.OPERATOR_KINDS.get(invocation.operator_kind)
         if definition is None:
-            raise ValueError(f"Unsupported invocation function kind: {invocation.function_kind}")
-        if invocation.function_kind == function_kinds.MERGE:
+            raise ValueError(f"Unsupported invocation function kind: {invocation.operator_kind}")
+        if invocation.role == "merge":
             self._execute_merge(invocation)
             return
         if definition.is_effect:
@@ -51,14 +51,14 @@ class InvocationExecutor:
             return
         if self.validate:
             self.check_input_requirements(invocation)
-        if definition.returns == arg_types.DATAFRAME:
-            if definition.produces_fragment:
-                self._execute_dataframe_operator(invocation)
-            else:
+        if invocation.result == "fragment":
+            self._execute_dataframe_operator(invocation)
+        elif invocation.result == "target":
+            if definition.dataframe_input_scope == "target":
                 self._execute_column_operator(invocation)
+            else:
+                self._execute_target_operator(invocation)
         else:
-            if invocation.profile_id not in self.state.datasets:
-                raise KeyError(invocation.profile_id)
             self._invoke(invocation)
 
     def check_input_requirements(self, invocation: plan_module.Invocation) -> None:
@@ -68,7 +68,7 @@ class InvocationExecutor:
             ValueError: A source reference is invalid or required features are
                 unavailable or ambiguous.
         """
-        definition = function_kinds.FUNCTION_KINDS[invocation.function_kind]
+        definition = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
         if definition.dataframe_input_scope == "foreign":
             argument_name = self._check_foreign_dataframe_argument(invocation)
             source_id = self._check_foreign_source_reference(invocation, argument_name)
@@ -227,6 +227,56 @@ class InvocationExecutor:
         dataset.dataframe = frame
         self.state.calculated_outputs.update(calculated_outputs)
 
+    def _execute_target_operator(self, invocation: plan_module.Invocation) -> None:
+        """Publish a complete target dataframe returned without a merge binding."""
+        dataset_id = self._profile_id(invocation)
+        frame = self._invoke(invocation)
+        context = (
+            f"target result from operator {invocation.operator_id}, "
+            f"function {invocation.function_id}, invocation {invocation.id}, "
+            f"profile {dataset_id}"
+        )
+        logger.debug("Check dataframe type for %s", context)
+        if not self.backend.is_frame(frame):
+            raise ValueError(
+                f"Target result from {invocation.function_id} must be "
+                "a Polars DataFrame or LazyFrame"
+            )
+
+        frame_columns = set(self.backend.column_names(frame))
+        missing_dimensions = sorted(set(invocation.id_columns) - frame_columns)
+        if missing_dimensions:
+            raise ValueError(
+                f"Target result from {invocation.function_id} is missing dimension columns: "
+                + ", ".join(missing_dimensions)
+            )
+        output_features = [
+            output for output in invocation.output_features if output not in invocation.id_columns
+        ]
+        missing_outputs = sorted(set(output_features) - frame_columns)
+        if missing_outputs:
+            raise ValueError(
+                f"Operator {invocation.operator_id} is missing output columns: "
+                + ", ".join(missing_outputs)
+            )
+
+        columns = list(dict.fromkeys([*invocation.id_columns, *output_features]))
+        target = self.backend.select(frame, columns)
+        dataset = dataset_module.Dataset(self.backend, invocation.id_columns)
+        dataset.validate_frame(
+            target,
+            description=f"Target result for profile {dataset_id}",
+            column_types=invocation.column_types,
+            validate_content=self.validate,
+        )
+        calculated_outputs = {
+            (dataset_id, output): self.backend.select(target, [*invocation.id_columns, output])
+            for output in output_features
+        }
+        dataset.dataframe = target
+        self.state.datasets[dataset_id] = dataset
+        self.state.calculated_outputs.update(calculated_outputs)
+
     def _validate_vectorized_result(
         self,
         frame: object,
@@ -316,7 +366,7 @@ class InvocationExecutor:
             )
 
         if preserve_data:
-            definition = function_kinds.FUNCTION_KINDS[invocation.function_kind]
+            definition = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
             if (
                 definition.row_order_relation == "preserve"
                 or definition.existing_data_relation == "preserve"

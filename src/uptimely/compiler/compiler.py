@@ -7,8 +7,9 @@ from collections import abc
 
 from uptimely import entrypoint, spec
 from uptimely import plan as plan_module
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec import validation as spec_validation
 from uptimely.spec.validation import errors
 
@@ -256,30 +257,57 @@ class Compiler:
         """Expand Spec operators into compiler-owned compute and merge nodes."""
         invocations: list[invocation_graph.InvocationNode] = []
         for key, operator in spec_definition.operator_items:
-            profile = spec_definition.profiles_by_key[key[0]]
-            function_kind = spec_definition.functions[operator.compute.function].kind
+            profile_id = spec_definition.profiles_by_key[key[0]].id
+            operator_kind = spec_definition.operator_kinds[key]
+            compute_function = spec_definition.functions[operator.compute.function]
+            compute_dataframe_arity = sum(
+                arg_types.is_dataframe(argument.type) for argument in compute_function.args.values()
+            )
+            if compute_dataframe_arity > 1:
+                raise ValueError(
+                    f"Compute function {compute_function.id} for operator {operator.id} "
+                    "must declare at most one dataframe argument"
+                )
+            result = (
+                "none"
+                if compute_function.returns != "dataframe"
+                else "fragment"
+                if operator.merge is not None
+                else "target"
+            )
             invocations.append(
                 invocation_graph.InvocationNode(
                     function_id=operator.compute.function,
-                    profile_id=profile.id,
+                    profile_id=profile_id,
                     operator_id=operator.id,
-                    function_kind=function_kind,
+                    operator_kind=operator_kind,
+                    role="compute",
+                    result=result,
                     output_features=tuple(operator.output_features),
                     arguments=operator.compute.args,
                     input_features=tuple(operator.input_features),
                     row_context=operator.row_context,
                 )
             )
-            if (
-                functions.FUNCTION_KINDS[function_kind].produces_fragment
-                and operator.merge is not None
-            ):
+            if operator.merge is not None:
+                merge_function = spec_definition.functions[operator.merge.function]
+                merge_dataframe_arity = sum(
+                    arg_types.is_dataframe(argument.type)
+                    for argument in merge_function.args.values()
+                )
+                if merge_dataframe_arity != 2:
+                    raise ValueError(
+                        f"Merge function {merge_function.id} for operator {operator.id} "
+                        "must declare exactly two dataframe arguments"
+                    )
                 invocations.append(
                     invocation_graph.InvocationNode(
                         function_id=operator.merge.function,
-                        profile_id=profile.id,
+                        profile_id=profile_id,
                         operator_id=operator.id,
-                        function_kind=spec_definition.functions[operator.merge.function].kind,
+                        operator_kind=operator_kind,
+                        role="merge",
+                        result="target",
                         arguments=operator.merge.args,
                     )
                 )
@@ -291,9 +319,9 @@ class Compiler:
                 raise ValueError(
                     f"Invocation ID collision {invocation.node_id!r} between operators "
                     f"{previous.profile_id!r}/{previous.operator_id!r} "
-                    f"({previous.function_kind}:{previous.function_id}) and "
+                    f"({previous.operator_kind}:{previous.function_id}) and "
                     f"{invocation.profile_id!r}/{invocation.operator_id!r} "
-                    f"({invocation.function_kind}:{invocation.function_id})"
+                    f"({invocation.operator_kind}:{invocation.function_id})"
                 )
             nodes_by_id[invocation.node_id] = invocation
         return invocations
@@ -307,33 +335,60 @@ class Compiler:
         dict[str, invocation_graph.InvocationNode],
     ]:
         """Resolve Spec feature and fragment relationships into graph edges."""
-        by_binding = {
-            (node.profile_id, node.operator_id, node.function_id): node for node in invocations
-        }
+        by_binding = {(node.profile_id, node.operator_id, node.role): node for node in invocations}
         feature_producers: dict[str, invocation_graph.InvocationNode] = {}
         dependencies: dict[str, set[str]] = {node.node_id: set() for node in invocations}
+        dataset_publishers: dict[str, list[invocation_graph.InvocationNode]] = {}
 
         for node in invocations:
-            definition = functions.FUNCTION_KINDS[node.function_kind]
+            if node.role == "merge" or node.result == "target":
+                dataset_publishers.setdefault(node.profile_id, []).append(node)
+            if node.role != "compute":
+                continue
+            definition = functions.OPERATOR_KINDS[node.operator_kind]
             producer = node
-            if definition.produces_fragment:
-                operator = spec_definition.profiles[node.profile_id].assembly[node.operator_id]
-                if operator.merge is not None:
-                    merge_node = by_binding.get(
-                        (node.profile_id, node.operator_id, operator.merge.function)
-                    )
-                    if merge_node is not None:
-                        dependencies[merge_node.node_id].add(node.node_id)
-                        producer = merge_node
+            if node.result == "fragment":
+                merge_node = by_binding.get((node.profile_id, node.operator_id, "merge"))
+                if merge_node is not None:
+                    dependencies[merge_node.node_id].add(node.node_id)
+                    producer = merge_node
             if definition.produces_features:
                 for feature in node.output_features:
                     feature_producers[feature] = producer
 
         for node in invocations:
+            if node.role != "compute":
+                continue
             for feature in node.input_features:
                 producer = feature_producers.get(feature)
                 if producer is not None and producer != node:
                     dependencies[node.node_id].add(producer.node_id)
+
+        for key, operator in spec_definition.operator_items:
+            profile_id = spec_definition.profiles_by_key[key[0]].id
+            for role, binding in operator.bindings.items():
+                node = by_binding.get((profile_id, operator.id, role))
+                if node is None:
+                    continue
+                function = spec_definition.functions[binding.function]
+                if role != "compute" or operator.input_features:
+                    continue
+                dataframe_arguments = function.arguments_by_type.get(arg_types.DATAFRAME, {})
+                for argument_name in dataframe_arguments:
+                    argument = binding.args.get(argument_name)
+                    if argument is None:
+                        continue
+                    for source_id in argument.profile_dependencies(profile_id):
+                        if source_id == profile_id:
+                            continue
+                        source_key = spec_definition.profile_keys.get(source_id)
+                        if source_key is None:
+                            continue
+                        source_profile_id = spec_definition.profiles_by_key[source_key].id
+                        for publisher in dataset_publishers.get(source_profile_id, ()):
+                            if publisher == node:
+                                continue
+                            dependencies[node.node_id].add(publisher.node_id)
         return invocation_graph.InvocationGraph(invocations, dependencies), feature_producers
 
     @staticmethod
@@ -358,8 +413,11 @@ class Compiler:
 
         selected_profiles = {node.profile_id for node in requested_nodes}
         for node in invocations:
-            kind = spec_definition.functions[node.function_id].kind
-            if functions.FUNCTION_KINDS[kind].is_sink and node.profile_id in selected_profiles:
+            if (
+                node.role == "compute"
+                and functions.OPERATOR_KINDS[node.operator_kind].is_sink
+                and node.profile_id in selected_profiles
+            ):
                 selected_nodes.add(node)
                 selected_nodes.update(graph.ancestors(node.node_id))
         return graph.subset([node.node_id for node in selected_nodes])

@@ -497,7 +497,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		element('graph-data').textContent = JSON.stringify({
 			nodes: ['before', 'selected', 'after', 'unrelated'].map((id, index) => ({
 				id, label: id, label_lines: [id], stage: index + 1,
-				function_id: id, function_kind: 'read', entity: 'test', profile_id: id,
+				function_id: id, operator_kind: 'read', entity: 'test', profile_id: id,
 				profile_name: ({ before: 'Before', selected: 'Selected Profile', after: 'After', unrelated: 'Unrelated' })[id],
 			})),
 			links: [
@@ -789,7 +789,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		assert.ok(details.rows.some(([label]) => label === (
 			filename === 'lineage/feature_lineage.js' ? 'Declared logical outputs' : 'Declared feature outputs'
 		)));
-		node.function_kind = 'escape';
+		node.operator_kind = 'escape';
 		node.is_effect = false;
 		graph.properties.get('onNodeClick')(node);
 		assert.equal(details.children[0].children[1].children[1].textContent, 'selected');
@@ -891,7 +891,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			{ id: 'result', profile_id: 'a_source', profile_name: 'Source profile', stage: 3 },
 			{ id: 'other', profile_id: 'b_isolated', profile_name: 'Isolated profile', stage: 1 },
 			{ id: 'missing', stage: 1 },
-		].map(node => ({ ...node, label: node.id, function_id: node.id, function_kind: 'read' }));
+		].map(node => ({ ...node, label: node.id, function_id: node.id, operator_kind: 'read' }));
 		const links = [
 			{ source: 'a', target: 'z_operator' },
 			{ source: 'z', target: 'a_operator' },
@@ -1047,8 +1047,8 @@ test('invocation lanes use execution stages, not inferred dependency depths', ()
 
 test('fragment assembly edges use merge function-kind styling', () => {
 	const layout = lineageLayout('lineage/invocation_lineage.js', [
-		{ id: 'compute', label: 'Read values', function_id: 'read', function_kind: 'read', profile_id: 'data', stage: 1 },
-		{ id: 'merge', label: 'Join values', function_id: 'join', function_kind: 'merge', profile_id: 'data', stage: 2, phase: 'merge' },
+		{ id: 'compute', label: 'Read values', function_id: 'read', operator_kind: 'read', profile_id: 'data', stage: 1 },
+		{ id: 'merge', label: 'Join values', function_id: 'join', operator_kind: 'merge', profile_id: 'data', stage: 2, phase: 'merge' },
 	], [{ source: 'compute', target: 'merge', dependency_type: 'fragment' }]);
 	const link = layout.graph.properties.get('graphData').links[0];
 

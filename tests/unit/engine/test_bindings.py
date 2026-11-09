@@ -141,8 +141,8 @@ def test_runtime_bindings_resolve_nested_parameter_references() -> None:
     assert bindings.resolve_args(read_invocation) == {"source": ["/override/input.parquet"]}
 
 
-def test_runtime_bindings_use_invocation_types_independently_of_function_kind() -> None:
-    read_invocation = copy.replace(PLAN.invocations[0], function_kind="write")
+def test_runtime_bindings_use_invocation_types_independently_of_operator_kind() -> None:
+    read_invocation = copy.replace(PLAN.invocations[0], operator_kind="write")
     bindings = _bindings()
 
     bindings = _bindings(parameters={"source": "input.json"})

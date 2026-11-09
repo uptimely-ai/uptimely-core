@@ -93,19 +93,19 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "stages",
     }
     assert metadata["plan_version"] == execution_plan.PLAN_VERSION
-    assert {invocation["function_kind"] for invocation in metadata["invocations"]} == {
+    assert {invocation["operator_kind"] for invocation in metadata["invocations"]} == {
         "read",
         "collapse",
         "expand",
         "vectorize",
         "write",
         "escape",
-        "merge",
     }
+    assert {invocation["role"] for invocation in metadata["invocations"]} == {"compute", "merge"}
     collapse_invocation = next(
         invocation
         for invocation in metadata["invocations"]
-        if invocation["function_kind"] == "collapse"
+        if invocation["operator_kind"] == "collapse"
     )
     assert "entity_id" not in collapse_invocation
     assert collapse_invocation["entrypoint"].endswith(":aggregate")

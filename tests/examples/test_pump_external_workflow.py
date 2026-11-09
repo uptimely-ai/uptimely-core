@@ -69,7 +69,7 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
         for invocation in saved_plan.invocations
         if invocation.function_id == "process_pump_external_workflow"
     )
-    assert escape.function_kind == "escape"
+    assert escape.operator_kind == "escape"
     assert escape.input_features == ["measurement", "reference_value"]
     assert escape.output_features == ["ratio"]
     assert result.invocation_statuses[escape.id] == "succeeded"

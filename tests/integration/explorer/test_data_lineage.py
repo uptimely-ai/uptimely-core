@@ -5,7 +5,7 @@ import pytest
 from uptimely import plan as execution_plan
 from uptimely import spec
 from uptimely.explorer.sections import data_lineage
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import operator_kinds as functions
 
 
 @pytest.mark.parametrize(
@@ -17,7 +17,7 @@ from uptimely.spec import function_kinds as functions
     ],
 )
 def test_transfer_tables_preserve_source_grain_and_shared_keys(
-    kind: functions.FunctionKindId,
+    kind: functions.OperatorKindId,
     source_dimensions: list[str],
     target_dimensions: list[str],
     row_counts: tuple[int, int],
@@ -44,8 +44,10 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
         }
     )
     invocation = execution_plan.Invocation(
+        role="compute",
+        result="target",
         id="transfer",
-        function_kind=kind,
+        operator_kind=kind,
         entrypoint="example:transfer",
         function_id="transfer",
         operator_id="transfer_source-values",
@@ -111,7 +113,7 @@ def test_animation_stages_match_compiled_execution_order(pump_bundle) -> None:
         }
     for stage in stages:
         for step in stage:
-            if step.kind.id == "merge":
+            if pump_bundle.execution_plan.invocations_by_id[step.invocation_id].role == "merge":
                 assert all(column.role == "Dimension" for column in step.columns)
             else:
                 assert step.columns

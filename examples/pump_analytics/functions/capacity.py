@@ -5,7 +5,7 @@ import polars as pl
 from uptimely import function
 
 
-@function(kind="vectorize", category="calculate")
+@function(category="calculate")
 def resolve_capacity(dataset: pl.LazyFrame, features: list[str], output: str) -> pl.LazyFrame:
     """Choose the first non-null capacity in most-to-least-specific order.
 

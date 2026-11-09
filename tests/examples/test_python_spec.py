@@ -129,11 +129,11 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
     }
 
 
-def test_function_catalog_functions_declare_kinds() -> None:
+def test_function_catalog_contracts_are_independent_of_operator_kinds() -> None:
     spec_definition = pump_telemetry_spec.python_spec.to_model()
 
-    function_kinds = {function.kind for function in spec_definition.functions.root.values()}
-    assert "vectorize" in function_kinds
+    operator_kinds = set(spec_definition.operator_kinds.values())
+    assert "vectorize" in operator_kinds
     user_functions = {
         function_id: function
         for function_id, function in spec_definition.functions.root.items()
@@ -150,7 +150,8 @@ def test_recommended_flow_rate_binds_polars_with_columns() -> None:
     template = spec_definition.functions.root[operator.compute.function]
 
     assert template.entrypoint == "polars.lazyframe.frame:LazyFrame.with_columns"
-    assert template.kind == "vectorize"
+    assert template.returns == "dataframe"
+    assert "kind" not in template.model_dump()
     assert template.validate_signature is False
     assert operator.compute.inferred_feature_inputs == ("flow_rate",)
     assert operator.output_features == ["recommended_flow_rate"]
@@ -187,17 +188,15 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert isinstance(spec_definition, spec.Spec)
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
-    assert {function.kind for function in spec_definition.functions.root.values()} == {
+    assert set(spec_definition.operator_kinds.values()) == {
         "read",
         "write",
         "vectorize",
         "collapse",
         "expand",
         "escape",
-        "merge",
     }
-    assert "aggregate" not in spec_definition.functions.by_kind("vectorize")
-    assert len(spec_definition.functions.by_kind("vectorize")) == 9
+    assert spec_definition.functions["aggregate"].returns == "dataframe"
 
     pump_profile = spec_definition.profiles["pump"]
     collapse = pump_profile.assembly["bearing_temperature_by_pump"]
@@ -225,7 +224,7 @@ def test_spec_from_profiles_python_api() -> None:
     assert spec_definition.name == pump_telemetry_spec.python_spec.name
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
-    assert spec_definition.functions.by_kind("read")
+    assert "read" in spec_definition.operator_kinds.values()
 
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
@@ -267,7 +266,7 @@ def test_sources_and_transforms_python_spec() -> None:
                     outputs=[python_spec.feature.Feature(id="input_1")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(_read_transform_data, kind="read"),
+                    function=python_spec.ref.function(_read_transform_data, returns="dataframe"),
                     arguments={},
                 ),
             )
@@ -287,7 +286,7 @@ def test_sources_and_transforms_python_spec() -> None:
                     outputs=[python_spec.feature.Feature(id="target_value")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(_read_transform_data, kind="read"),
+                    function=python_spec.ref.function(_read_transform_data, returns="dataframe"),
                     arguments={},
                 ),
             ),
@@ -298,7 +297,7 @@ def test_sources_and_transforms_python_spec() -> None:
                     outputs=[python_spec.feature.Feature(id="input_2")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(expand_data, kind="expand"),
+                    function=python_spec.ref.function(expand_data, returns="dataframe"),
                     arguments={
                         "source": python_spec.ref.profile("transformed_dataset").dataset,
                     },
@@ -317,12 +316,15 @@ def test_sources_and_transforms_python_spec() -> None:
                     outputs=[python_spec.feature.Feature(id="collapsed_feature")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(analytics.aggregate, kind="collapse"),
+                    function=python_spec.ref.function(analytics.aggregate, returns="dataframe"),
                     arguments={
                         "dataset": python_spec.ref.profile("target").dataset,
                         "feature": python_spec.ref.feature("input_2").id,
-                        "group_by": python_spec.ref.profile().grain.ids,
+                        "dimensions": python_spec.ref.profile().grain.ids,
                         "output": python_spec.ref.feature("collapsed_feature").id,
+                        "method": "max",
+                        "filter_column": "",
+                        "filter_value": "",
                     },
                 ),
             )
@@ -347,8 +349,11 @@ def test_sources_and_transforms_python_spec() -> None:
     assert collapse.compute.model_dump()["args"] == {
         "dataset": "$profiles.target.dataset",
         "feature": "$features.input_2.id",
-        "group_by": "$profiles.@.grain.ids",
+        "dimensions": "$profiles.@.grain.ids",
         "output": "$features.collapsed_feature.id",
+        "method": "max",
+        "filter_column": "",
+        "filter_value": "",
     }
     assert collapse.output_features == ["id", "collapsed_feature"]
-    assert spec_definition.functions["aggregate"].kind == "collapse"
+    assert spec_definition.operator_kinds[("summary", "collapse_data")] == "collapse"

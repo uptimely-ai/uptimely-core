@@ -9,10 +9,8 @@ from collections import abc
 
 from uptimely.spec import (
     arg_types,
+    function_contracts,
     selectors,
-)
-from uptimely.spec import (
-    function_kinds as functions,
 )
 from uptimely.spec import model as spec_model
 from uptimely.spec import (
@@ -21,7 +19,7 @@ from uptimely.spec import (
 
 from . import binding_conversion, ref
 from . import feature as feature_module
-from . import functions as function_semantics
+from . import functions as function_metadata
 from . import row_context as row_context_module
 
 __all__ = ["Operator", "Interface", "Binding"]
@@ -135,30 +133,6 @@ class Binding:
     arguments: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
 
     @property
-    def _declared_kind(self) -> functions.FunctionKindId | None:
-        """Return function semantics without requiring a complete contract."""
-        if isinstance(self.function, ref.FunctionReference):
-            return self.function.kind
-        if callable(self.function):
-            return function_semantics.declared_kind(self.function)
-        return None
-
-    @property
-    def kind(self) -> functions.FunctionKindId:
-        """Return the required function kind.
-
-        Raises:
-            ValueError: If the implementation has no supported declared kind.
-        """
-        value = self._declared_kind
-        if value is None or value not in functions.FUNCTION_KINDS:
-            raise ValueError(
-                "Function kind is required: use @function(kind=...) or "
-                "ref.function(..., kind=...) for an undecorated implementation"
-            )
-        return value
-
-    @property
     def reference(self) -> ref.FunctionReference:
         """Return the normalized entrypoint without importing string references."""
         if isinstance(self.function, ref.FunctionReference):
@@ -171,8 +145,16 @@ class Binding:
         Entrypoint strings and references are not imported during authoring;
         their signature validation is deferred until compilation.
         """
-        if callable(self.function):
+        if (
+            callable(self.function)
+            and function_metadata.declared_metadata(self.function).validate_signature
+        ):
             inspect.signature(self.function).bind(**self.arguments)
+        reference = self.reference
+        if reference.signature is not None:
+            reference.signature.bind(**self.arguments)
+        if reference.args is not None and set(reference.args) != set(self.arguments):
+            raise ValueError("Binding arguments must match the explicit function args contract")
         return self.arguments.copy()
 
     def to_model(self) -> spec_model.Binding:
@@ -186,20 +168,29 @@ class Binding:
     def to_function_template(
         self, *, row_context: row_context_values.RowContext | None = None
     ) -> spec_model.FunctionTemplate:
-        """Build the reusable function contract, including merge-target optionality."""
+        """Build a reusable contract without operator-specific classifications."""
         argument_definitions = {
             name: binding_conversion.argument_definition(value, row_context=row_context)
             for name, value in self.bound_arguments().items()
         }
         reference = self.reference
-        kind = self.kind
-        if kind == functions.MERGE and "target" in argument_definitions:
-            argument_definitions["target"]["type"] = arg_types.OPTIONAL_DATAFRAME
+        if reference.returns is None:
+            raise ValueError(
+                "Explicit returns metadata is required for absent or ambiguous return annotations"
+            )
+        if reference.args is not None:
+            argument_definitions = {name: {"type": value} for name, value in reference.args.items()}
+        elif reference.signature is not None:
+            for name, definition in argument_definitions.items():
+                parameter = reference.signature.parameters.get(name)
+                if parameter is not None and definition["type"] == arg_types.DATAFRAME:
+                    names = function_contracts.annotation_names(parameter.annotation)
+                    if names is not None and "None" in names:
+                        definition["type"] = arg_types.OPTIONAL_DATAFRAME
         return spec_model.FunctionTemplate(
             id=reference.name,
-            kind=kind,
             category=reference.category,
-            returns=functions.FUNCTION_KINDS[kind].returns,
+            returns=reference.returns,
             entrypoint=reference.entrypoint,
             validate_signature=reference.validate_signature,
             args={
@@ -242,26 +233,11 @@ class Operator:
             raise TypeError("Operator merge must be a Binding or None")
         if not isinstance(self.id, str) or not self.id.strip():
             raise ValueError("Operator requires a non-empty id")
-        kind = self.kind
-        if kind == functions.MERGE:
-            raise ValueError("Merge functions must be declared in Operator.merge")
-        if self.merge is not None:
-            if kind == functions.VECTORIZE:
-                raise ValueError("Vectorize operators cannot declare a merge binding")
-            if not functions.FUNCTION_KINDS[kind].produces_fragment:
-                raise ValueError(f"{kind.capitalize()} operators cannot declare a merge binding")
-            if self.merge._declared_kind != functions.MERGE:
-                raise ValueError("Operator merge binding must reference a function of kind 'merge'")
         object.__setattr__(
             self,
             "row_context",
             row_context_module._context(self.compute.arguments, self.row_context),
         )
-
-    @property
-    def kind(self) -> functions.FunctionKindId:
-        """Return the kind declared on the function or its reference."""
-        return self.compute.kind
 
     @property
     def reference(self) -> ref.FunctionReference:
@@ -295,11 +271,25 @@ class Operator:
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Build the reusable function contract declared by this operator."""
-        bindings = [self.compute]
+        bindings = [("compute", self.compute)]
         if self.merge is not None:
-            bindings.append(self.merge)
+            bindings.append(("merge", self.merge))
         catalogs = []
-        for binding in bindings:
+        for role, binding in bindings:
             template = binding.to_function_template(row_context=self.row_context)
+            dataframe_count = sum(
+                arg_types.is_dataframe(argument.type) for argument in template.args.values()
+            )
+            if (role == "compute" and dataframe_count > 1) or (
+                role == "merge" and dataframe_count != 2
+            ):
+                raise ValueError(
+                    f"Operator {self.id} {role} binding has invalid dataframe arity: "
+                    f"{dataframe_count}"
+                )
+            if role == "merge" and template.returns != "dataframe":
+                raise ValueError("Merge binding must return a dataframe")
+            if role == "compute" and self.merge is not None and template.returns != "dataframe":
+                raise ValueError("A merge requires a dataframe-producing compute binding")
             catalogs.append(spec_model.FunctionCatalog(root={template.id: template}))
         return spec_model.FunctionCatalog.merge(catalogs)

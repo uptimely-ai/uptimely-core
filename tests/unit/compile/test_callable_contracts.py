@@ -9,8 +9,8 @@ import pytest
 
 from uptimely import entrypoint
 from uptimely.compiler import validation
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
+from uptimely.spec import operator_kinds as functions
 from uptimely.spec.validation import errors
 
 
@@ -32,6 +32,10 @@ def untyped_dataframe(frame):
 
 def positional_only_dataframe(frame: DataFrame, /) -> DataFrame:
     return frame
+
+
+def variadic_positional_dataframe(*frame: DataFrame) -> DataFrame:
+    return frame[0]
 
 
 def requires_extra_parameter(frame: DataFrame, required: str) -> DataFrame:
@@ -77,7 +81,6 @@ def _function_template(
 ) -> spec_model.FunctionTemplate:
     return spec_model.FunctionTemplate(
         id="calculate",
-        kind="vectorize",
         returns=returns,
         entrypoint=f"{__name__}:typed_dataframe",
         args={
@@ -150,7 +153,6 @@ def test_signature_validation_does_not_log_individual_annotation_skips(
 
 def test_unrestricted_return_annotation_skip_is_quiet(caplog: pytest.LogCaptureFixture) -> None:
     function = _function_template(returns="any")
-    function.kind = "escape"
     caplog.set_level(logging.DEBUG, logger=validation.__name__)
 
     validation.validation_return_annotation(
@@ -238,6 +240,15 @@ def test_callable_must_accept_declared_arguments_as_keywords() -> None:
 
     assert error.value.code == "invalid_implementation_signature"
     assert error.value.path == ("functions", "calculate", "args", "frame")
+
+
+def test_var_positional_parameter_does_not_accept_a_declared_keyword() -> None:
+    with pytest.raises(errors.SpecError, match="cannot be passed as a keyword"):
+        validation.validation_callable_signature(
+            validation.CallableValidationContext(
+                _function_template(), _signature("variadic_positional_dataframe")
+            )
+        )
 
 
 def test_callable_cannot_require_undeclared_parameters() -> None:

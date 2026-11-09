@@ -12,7 +12,7 @@ from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.library.merge import polars as merge_module
-from uptimely.spec import function_kinds as functions
+from uptimely.spec import operator_kinds as functions
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -218,10 +218,10 @@ def test_fragment_stage_checks_structure_when_validation_is_disabled(
 
 @pytest.mark.parametrize("kind", ["write", "escape"])
 def test_fragment_stage_rejects_non_dataframe_invocations_without_loading(
-    kind: functions.FunctionKindId,
+    kind: functions.OperatorKindId,
 ) -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
-    invocation = copy.replace(plan.invocations[0], function_kind=kind)
+    invocation = copy.replace(plan.invocations[0], operator_kind=kind)
 
     def load() -> object:
         pytest.fail("A non-dataframe invocation must not be loaded during staging")
@@ -335,7 +335,7 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     invocation = copy.replace(
         plan.invocations[0],
-        function_kind="expand",
+        operator_kind="expand",
         output_features=["new"],
         id_columns=["group", "id"],
     )

@@ -10,8 +10,8 @@ from uptimely import compiler, entrypoint, spec
 from uptimely import plan as compiler_plan
 from uptimely.compiler import compiler as compiler_module
 from uptimely.compiler import validation
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
+from uptimely.spec import operator_kinds as functions
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
@@ -27,7 +27,6 @@ def _add_escape_mapping(
 ) -> None:
     """Add one escape operator with logical feature dependencies."""
     configuration["functions"][function_id] = {
-        "kind": "escape",
         "returns": "any",
         "entrypoint": entrypoint,
         "args": {},
@@ -159,7 +158,7 @@ def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Pat
     invocation = next(
         item
         for item in plan.invocations
-        if item.operator_id == "bearing_temperature_by_pump" and item.function_kind == "collapse"
+        if item.operator_id == "bearing_temperature_by_pump" and item.operator_kind == "collapse"
     )
 
     assert "bearing_temperature_max" in invocation.output_features
@@ -197,12 +196,12 @@ def test_compact_invocation_ids_are_stable_across_recompilation_and_selection() 
     repeated_plan = builder.compile(document)
     selected_plan = builder.compile(document, features=["health_signal_normalized"])
     full_by_binding = {
-        (item.function_kind, item.function_id, item.profile_id, item.operator_id): item.id
+        (item.operator_kind, item.function_id, item.profile_id, item.operator_id): item.id
         for item in full_plan.invocations
     }
 
     assert {
-        (item.function_kind, item.function_id, item.profile_id, item.operator_id): item.id
+        (item.operator_kind, item.function_id, item.profile_id, item.operator_id): item.id
         for item in repeated_plan.invocations
     } == full_by_binding
     assert selected_plan.invocations
@@ -210,7 +209,7 @@ def test_compact_invocation_ids_are_stable_across_recompilation_and_selection() 
         assert (
             item.id
             == full_by_binding[
-                (item.function_kind, item.function_id, item.profile_id, item.operator_id)
+                (item.operator_kind, item.function_id, item.profile_id, item.operator_id)
             ]
         )
         assert len(item.id) <= 36
@@ -277,7 +276,6 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     )
     definition.functions.root["conform_auxiliary"] = spec_model.FunctionTemplate(
         id="conform_auxiliary",
-        kind="conform",
         returns="dataframe",
         entrypoint="examples.pump_analytics.functions.analytics:aggregate",
         validate_signature=False,
@@ -289,12 +287,12 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     definition = spec_model.Spec.model_validate(definition.model_dump())
     plan = compiler.Compiler().compile(definition, features=["conformed_auxiliary"])
     conform = next(
-        invocation for invocation in plan.invocations if invocation.function_kind == "conform"
+        invocation for invocation in plan.invocations if invocation.operator_kind == "conform"
     )
     source = next(
         invocation
         for invocation in plan.invocations
-        if invocation.operator_id == "read_auxiliary" and invocation.function_kind == "merge"
+        if invocation.operator_id == "read_auxiliary" and invocation.result == "target"
     )
     stage_by_id = {
         invocation_id: index for index, stage in enumerate(plan.stages) for invocation_id in stage
@@ -315,21 +313,20 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
         feature
         for stage in plan.execution_stages
         for invocation in stage
-        if invocation.function_kind == "vectorize"
+        if invocation.operator_kind == "vectorize"
         for feature in invocation.output_features
     ] == [
         "health_signal_normalized",
     ]
-    assert {invocation.function_kind for invocation in plan.invocations} == {
+    assert {invocation.operator_kind for invocation in plan.invocations} == {
         "read",
-        "merge",
         "collapse",
         "vectorize",
     }
     assert {
         feature
         for invocation in plan.invocations
-        if invocation.function_kind == "vectorize"
+        if invocation.operator_kind == "vectorize"
         for feature in invocation.output_features
     } == {
         "health_signal_normalized",
@@ -352,7 +349,7 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
         spec.load_spec(spec_path), features=["health_signal_normalized"]
     )
     vectorize_invocations = [
-        invocation for invocation in plan.invocations if invocation.function_kind == "vectorize"
+        invocation for invocation in plan.invocations if invocation.operator_kind == "vectorize"
     ]
 
     assert len(vectorize_invocations) == 1
@@ -375,7 +372,7 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
     assert {
         invocation.operator_id
         for invocation in compiled.invocations
-        if invocation.function_kind == "escape"
+        if invocation.operator_kind == "escape"
     } == {
         "escape_start",
         "escape_chain",
@@ -412,7 +409,7 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
     compiled_escapes = {
         invocation.operator_id: invocation
         for invocation in compiled.invocations
-        if invocation.function_kind == "escape"
+        if invocation.operator_kind == "escape"
     }
     assert compiled_escapes["escape_start"].output_features == ["escape_start_output"]
     assert compiled_escapes["escape_chain"].output_features == ["escape_chain_output"]
@@ -423,12 +420,12 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
     assert restored.invocations == compiled.invocations
 
 
-def test_feature_subset_retains_sink_roles_independent_of_function_kind(
+def test_feature_subset_retains_sink_roles_independent_of_operator_kind(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    definitions = dict(functions.FUNCTION_KINDS)
+    definitions = dict(functions.OPERATOR_KINDS)
     definitions[functions.ESCAPE] = dataclasses.replace(definitions[functions.ESCAPE], is_sink=True)
-    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(functions, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     path = tmp_path / "sink_spec.json"
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
@@ -437,17 +434,17 @@ def test_feature_subset_retains_sink_roles_independent_of_function_kind(
     assert "escape_unrelated" in {invocation.operator_id for invocation in subset.invocations}
 
 
-def test_feature_index_uses_function_kind_output_contract(
+def test_feature_index_uses_operator_kind_output_contract(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     path = tmp_path / "feature_contract_spec.json"
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
     document = spec.load_spec(path)
-    definitions = dict(functions.FUNCTION_KINDS)
+    definitions = dict(functions.OPERATOR_KINDS)
     definitions[functions.ESCAPE] = dataclasses.replace(
         definitions[functions.ESCAPE], produces_features=False
     )
-    monkeypatch.setattr(functions, "FUNCTION_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(functions, "OPERATOR_KINDS", types.MappingProxyType(definitions))
     monkeypatch.setattr(compiler_module.spec_validation, "validate_spec", lambda _spec: None)
 
     plan = compiler.Compiler().compile(document)
@@ -550,15 +547,15 @@ def test_compiler_feature_subset_contains_requested_output_and_ancestors() -> No
     assert normalized.output_features == ["health_signal_normalized"]
     assert {
         (
-            subset.invocations_by_id[dependency_id].function_kind,
+            subset.invocations_by_id[dependency_id].role,
             subset.invocations_by_id[dependency_id].function_id,
         )
         for dependency_id in normalized.dependency_ids
-    } == {("merge", "__uptimely_merge_by_grain")}
+    } == {("merge", "merge_by_grain")}
     assert {
         invocation.operator_id
         for invocation in subset.invocations
-        if invocation.function_kind == "collapse"
+        if invocation.operator_kind == "collapse"
     } == {"bearing_temperature_by_pump"}
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
@@ -581,7 +578,7 @@ def test_compiled_inputs_match_each_profile_mapping() -> None:
     assert len(profiles) > 1
     for invocation in execution_plan.invocations:
         operator = profiles[invocation.profile_id].assembly[invocation.operator_id]
-        if invocation.function_kind == "merge":
+        if invocation.role == "merge":
             assert invocation.input_features == []
             assert invocation.output_features == []
             continue
@@ -595,7 +592,7 @@ def test_compiler_feature_subset_uses_source_profile_and_operator_declarations()
 
     for invocation in subset.invocations:
         operator = document.profiles[invocation.profile_id].assembly[invocation.operator_id]
-        if invocation.function_kind == "merge":
+        if invocation.role == "merge":
             assert invocation.input_features == []
             assert invocation.output_features == []
             continue

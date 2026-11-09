@@ -76,7 +76,7 @@ def _spec() -> spec.Spec:
                             ],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(read_values, kind="read"),
+                            function=ref.function(read_values),
                             arguments={},
                         ),
                     ),
@@ -87,7 +87,7 @@ def _spec() -> spec.Spec:
                             outputs=[feature.Feature(id="result", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(add_one, kind="vectorize"),
+                            function=ref.function(add_one),
                             arguments={
                                 "dataset": ref.profile().dataset,
                                 "output": ref.feature("result").id,
@@ -101,7 +101,7 @@ def _spec() -> spec.Spec:
                             outputs=[feature.Feature(id="metadata", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(metadata_only, kind="vectorize"),
+                            function=ref.function(metadata_only),
                             arguments={
                                 "dataset": ref.profile().dataset,
                                 "identifier": ref.feature("result").id,
@@ -125,9 +125,9 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     assert dataset_model.assembly["result"].input_features == ["value"]
 
     computed = compiler.Compiler().compile(spec_definition, features=["result"])
-    assert len(computed.invocations) == 3
+    assert len(computed.invocations) == 2
     assert next(
-        item for item in computed.invocations if item.function_kind == "vectorize"
+        item for item in computed.invocations if item.operator_kind == "vectorize"
     ).input_features == [
         "value",
     ]
@@ -202,7 +202,7 @@ def test_vectorize_rejects_reordered_existing_rows(
     assert "result" not in execution.datasets["observations"].columns
 
 
-def test_vectorize_merge_field_is_rejected_by_json_and_python_authoring(
+def test_merge_binding_contract_is_validated_by_json_and_python_authoring(
     tmp_path: pathlib.Path,
 ) -> None:
     path = tmp_path / "spec.json"
@@ -213,13 +213,20 @@ def test_vectorize_merge_field_is_rejected_by_json_and_python_authoring(
     with pytest.raises(ValueError, match="merge.function"):
         spec.load_spec(path)
 
-    with pytest.raises(ValueError, match="Vectorize operators cannot declare a merge binding"):
-        assembly.Operator(
-            id="vectorize",
-            interface=assembly.Interface(),
-            compute=assembly.Binding(function=ref.function(add_one, kind="vectorize")),
-            merge=assembly.Binding(function=ref.function(add_one, kind="merge")),
-        )
+    operator = assembly.Operator(
+        id="vectorize",
+        interface=assembly.Interface(),
+        compute=assembly.Binding(
+            function=ref.function(add_one),
+            arguments={"dataset": ref.dataset(), "output": "result"},
+        ),
+        merge=assembly.Binding(
+            function=ref.function(add_one),
+            arguments={"dataset": ref.dataset(), "output": "result"},
+        ),
+    )
+    with pytest.raises(ValueError, match="invalid dataframe arity"):
+        operator.function_catalog()
 
 
 @pytest.mark.parametrize(
@@ -301,7 +308,6 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
     dataset["assembly"]["result"]["interface"]["inputs"].append("$features.id")
     if with_sink:
         configuration["functions"]["write_ids"] = {
-            "kind": "write",
             "returns": "none",
             "entrypoint": f"{__name__}:write_ids",
             "args": {"dataset": {"type": "dataframe"}, "column": {"type": "string"}},
@@ -347,7 +353,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                             outputs=[feature.Feature(id="value", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(read_lower_grain, kind="read"),
+                            function=ref.function(read_lower_grain),
                             arguments={},
                         ),
                     )
@@ -367,7 +373,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                             outputs=[feature.Feature(id="target_value", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(read_target_grain, kind="read"),
+                            function=ref.function(read_target_grain),
                             arguments={"include_second": dataframe},
                         ),
                     ),
@@ -384,7 +390,6 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                         compute=assembly.Binding(
                             function=ref.function(
                                 copy_values if dataframe else dataset_identifier,
-                                kind="expand",
                             ),
                             arguments={
                                 "dataset": source_reference.dataset,
@@ -398,12 +403,12 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
         ],
     )
     compiled = compiler.Compiler().compile(spec_definition, features=["copied"])
-    assert len(compiled.invocations) == 4
-    expand = next(item for item in compiled.invocations if item.function_kind == "expand")
+    assert len(compiled.invocations) == 2
+    expand = next(item for item in compiled.invocations if item.operator_kind == "expand")
     source_merge = next(
         item
         for item in compiled.invocations
-        if item.operator_id == "read_lower_grain" and item.function_kind == "merge"
+        if item.operator_id == "read_lower_grain" and item.result == "target"
     )
     assert source_merge.id in expand.dependency_ids
     assert expand.input_features == ["value"]

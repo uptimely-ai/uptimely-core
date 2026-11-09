@@ -6,7 +6,7 @@ const INVOCATION_LAYOUT = Object.freeze({
 	spineWidth: 5, spineOpacity: 0.28,
 	groupPadding: 12, groupRadius: 16, groupFillOpacity: 0.08, groupBorderOpacity: 0.3,
 });
-const DEFAULT_MERGE_FUNCTION_ID = '__uptimely_merge_by_grain';
+const DEFAULT_MERGE_FUNCTION_ID = 'merge_by_grain';
 const DATASET_MARKERS = Object.freeze({
 	gap: 32, padding: 16, iconSize: 20, badgeSize: 36, radius: 9,
 	minLabelWidth: 140, labelGap: 12, connectorLength: 24,
@@ -17,8 +17,8 @@ export function isDefaultMerge(node) {
 }
 
 export function invocationRole(node) {
-	if (node.function_kind === 'merge' || node.phase === 'merge') return 'merge';
-	if (node.function_kind === 'vectorize') return 'enrich';
+	if (node.operator_kind === 'merge' || node.phase === 'merge') return 'merge';
+	if (node.operator_kind === 'vectorize') return 'enrich';
 	return node.is_effect ? 'effect' : 'compute';
 }
 
@@ -47,7 +47,7 @@ export function invocationFlowDetails(node, scoped = false) {
 		: role === 'enrich'
 			? "This step adds calculated columns directly to the profile's dataset."
 			: role === 'effect'
-				? node.function_kind === 'escape'
+				? node.operator_kind === 'escape'
 					? 'This step performs an external action. Declared features describe dependencies, not stored output columns. Only explicit arguments pass data to the function; its return value is ignored.'
 					: "This step uses data without adding columns to the profile's dataset. Declared features describe dependencies; explicit arguments determine which data is passed to the function."
 				: "This step calculates data separately from the profile's dataset. Follow its outgoing arrows to see which steps use the results.";

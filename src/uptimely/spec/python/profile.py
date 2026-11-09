@@ -6,7 +6,6 @@ import dataclasses
 import typing
 from collections import abc
 
-from uptimely.spec import function_kinds as functions
 from uptimely.spec import model as spec_model
 from uptimely.spec import selectors
 from uptimely.spec.model import base as model_base
@@ -152,13 +151,10 @@ class Profile:
         for operator in self.assembly:
             if not isinstance(operator, assembly.Operator):
                 raise TypeError(f"Profile '{self.id}' assembly must contain Operators")
-            if (
-                operator.interface.outputs
-                and not functions.FUNCTION_KINDS[operator.kind].produces_features
-            ):
+            if operator.interface.outputs and operator.compute.reference.returns == "none":
                 raise ValueError(
                     f"Profile '{self.id}', operator '{operator.id}': "
-                    f"{operator.kind.capitalize()} operator cannot produce features"
+                    "No-result operator cannot produce features"
                 )
             if operator.id in collected:
                 raise ValueError(f"Profile '{self.id}' has duplicate operator ID '{operator.id}'")
@@ -204,6 +200,7 @@ class Profile:
         """Build the canonical profile, rejecting duplicate feature producers."""
         grain = self._grain()
         selected_resolutions = [self._selected_resolution(item)[1] for item in self.grain]
+        operators = self._operator_models(selected_resolutions)
         return spec_model.Profile(
             id=self.id,
             name=self.name,
@@ -213,7 +210,7 @@ class Profile:
             grain=grain,
             order=[key.to_model() for key in self.order],
             features=self._feature_metadata(self.grain),
-            assembly=self._operator_models(selected_resolutions),
+            assembly=operators,
         )
 
     def _selected_resolution(
@@ -263,7 +260,7 @@ class Profile:
         operators_by_id: dict[str, spec_model.Operator] = {}
         for operator_id, declaration in self._assembly_by_id.items():
             operator_model = self._operator_model(operator_id, declaration)
-            if declaration.kind in {functions.READ, functions.COLLAPSE}:
+            if self._publishes_grain(declaration):
                 key_outputs = [
                     f"{selectors.FEATURE_PREFIX}{resolution.key}"
                     for resolution in resolutions
@@ -290,7 +287,7 @@ class Profile:
                     )
                 producers[identifier] = name
                 features[identifier] = metadata.to_model()
-            if declaration.kind in {functions.READ, functions.COLLAPSE}:
+            if self._publishes_grain(declaration):
                 for item in grain:
                     _, resolution = self._selected_resolution(item)
                     if resolution.key not in features:
@@ -301,6 +298,15 @@ class Profile:
                             description=item.dimension.description,
                         )
         return features
+
+    def _publishes_grain(self, declaration: assembly.Operator) -> bool:
+        """Include grain outputs when a dataframe computation initializes this profile."""
+        binding = declaration.compute.to_model()
+        return declaration.compute.reference.returns == "dataframe" and not any(
+            argument.is_current_profile_dataframe
+            or argument.root in (f"$profiles.{self.id}", f"$profiles.{self.id}.dataset")
+            for argument in binding.args.values()
+        )
 
     def _operator_model(self, name: str, declaration: assembly.Operator) -> spec_model.Operator:
         """Convert an operator and add its profile location to declaration errors."""

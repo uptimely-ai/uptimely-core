@@ -23,7 +23,6 @@ def _write_configuration(tmp_path: pathlib.Path, configuration: dict, name: str)
 def _escape_configuration() -> dict:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["external_operator"] = {
-        "kind": "escape",
         "returns": "any",
         "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
         "args": {},
@@ -124,7 +123,6 @@ def test_location_indexes_describe_original_objects() -> None:
 def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
-        "kind": "expand",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
@@ -237,7 +235,7 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
     health_signal_producer = next(
         item for item in parsed_spec.operators if "health_signal_normalized" in item.output_features
     )
-    assert parsed_spec.functions[health_signal_producer.compute.function].kind == "vectorize"
+    assert parsed_spec.operator_kinds[("pump", health_signal_producer.id)] == "vectorize"
 
 
 @pytest.mark.parametrize(
@@ -287,7 +285,7 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_operator(
                     outputs=[feature.Feature(id="external_result")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function("example:escape", kind="escape"),
+                    function=ref.function("example:escape", returns="any"),
                     arguments={},
                 ),
             )
@@ -316,7 +314,7 @@ def test_python_dataset_accepts_escape_feature_outputs() -> None:
                     outputs=[feature.Feature(id="external_result")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function("example:escape", kind="escape"),
+                    function=ref.function("example:escape", returns="any"),
                     arguments={},
                 ),
             )
@@ -326,10 +324,9 @@ def test_python_dataset_accepts_escape_feature_outputs() -> None:
     assert declaration.to_model().assembly["escape"].output_features == ["external_result"]
 
 
-def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> None:
+def test_higher_dimensional_source_derives_collapse(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
-        "kind": "expand",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
@@ -353,14 +350,13 @@ def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> Non
     path = tmp_path / "invalid_expand_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="lower-dimensional"):
-        spec.load_spec(path)
+    document = spec.load_spec(path)
+    assert document.operator_kinds[("pump", "expand_op")] == "collapse"
 
 
-def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Path) -> None:
+def test_shared_callable_can_derive_collapse(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_telemetry"] = {
-        "kind": "conform",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {
@@ -384,14 +380,13 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
     path = tmp_path / "invalid_conform_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="must preserve target dimensionality"):
-        spec.load_spec(path)
+    document = spec.load_spec(path)
+    assert document.operator_kinds[("pump", "conform_op")] == "collapse"
 
 
 def _matching_key_configuration(key_selector: object, *, key_type: str = "array[string]") -> dict:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_with_keys"] = {
-        "kind": "conform",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "validate_signature": False,
@@ -498,23 +493,22 @@ def test_matching_key_errors_point_to_the_declared_key(
     assert expected_dimension in str(error.value)
 
 
-def test_escape_accepts_explicit_dataframe_arguments(tmp_path: pathlib.Path) -> None:
+def test_ignored_result_still_enforces_compute_dataframe_arity(tmp_path: pathlib.Path) -> None:
     configuration = _matching_key_configuration("$profiles.pump.dataset", key_type="dataframe")
     function = configuration["functions"]["conform_with_keys"]
-    function["kind"] = "escape"
     function["returns"] = "any"
     configuration["profiles"]["conformed_dataset"]["assembly"]["conform_values"]["interface"][
         "outputs"
     ] = ["$features.conformed_value"]
     path = _write_configuration(tmp_path, configuration, "dimension_key_dataframe.json")
 
-    spec.load_spec(path)
+    with pytest.raises(ValueError, match="invalid dataframe arity: 2"):
+        spec.load_spec(path)
 
 
 def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_telemetry"] = {
-        "kind": "conform",
         "returns": "dataframe",
         "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
         "args": {"source": {"type": "dataframe"}},
@@ -534,7 +528,7 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
     path = tmp_path / "conform_target_argument.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="must reference a foreign source profile"):
+    with pytest.raises(ValueError, match="cannot read feature .* from another profile"):
         spec.load_spec(path)
 
 
@@ -610,7 +604,7 @@ def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Pat
     ]
     path = tmp_path / "invalid_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    with pytest.raises(ValueError, match="grouping keys must exist in source"):
+    with pytest.raises(ValueError, match="produced by multiple operators"):
         spec.load_spec(path)
 
 
@@ -626,35 +620,36 @@ def test_collapse_catalog_requires_function_entrypoint(tmp_path: pathlib.Path) -
 @pytest.mark.parametrize(
     ("field", "value", "message"),
     [
-        ("returns", "none", "must declare returns=dataframe.*fit kind.*write"),
-        ("args", {}, "requires 1 dataframe argument.*fit kind.*read"),
+        ("returns", "none", "compute binding must return a dataframe when merging"),
+        ("args", {}, None),
     ],
 )
 def test_function_contract_validates_kind_inputs_and_return(
-    tmp_path: pathlib.Path, field: str, value: object, message: str
+    tmp_path: pathlib.Path, field: str, value: object, message: str | None
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     if field == "returns":
         configuration["functions"]["aggregate"][field] = value
     else:
         configuration["functions"]["unmapped_vectorize"] = {
-            "kind": "vectorize",
             "returns": "dataframe",
             "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
             "args": value,
         }
     path = tmp_path / "invalid_function_contract.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    with pytest.raises(ValueError, match=message):
-        spec.load_spec(path)
+    if message is None:
+        assert spec.load_spec(path).functions["unmapped_vectorize"].args == {}
+    else:
+        with pytest.raises(ValueError, match=message):
+            spec.load_spec(path)
 
 
-def test_function_contract_hint_never_selects_escape_implicitly(
+def test_ignored_return_contract_is_independent_of_operator_usage(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["unmapped_vectorize"] = {
-        "kind": "vectorize",
         "returns": "any",
         "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
         "args": {"dataset": {"type": "dataframe"}},
@@ -662,8 +657,7 @@ def test_function_contract_hint_never_selects_escape_implicitly(
     path = tmp_path / "unmatched_function_contract.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    with pytest.raises(ValueError, match="declare kind=escape explicitly"):
-        spec.load_spec(path)
+    assert spec.load_spec(path).functions["unmapped_vectorize"].returns == "any"
 
 
 def test_collapse_rejects_inputs_from_multiple_datasets(
