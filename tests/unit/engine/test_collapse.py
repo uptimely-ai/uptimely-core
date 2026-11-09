@@ -148,7 +148,7 @@ def _spec(*, lazy=False, empty=False):
     )
     source = profile.Profile(
         id="observations",
-        grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
+        grain=[group.resolution("group"), identifier.resolution("id")],
         assembly=[
             assembly.Operator(
                 id="read_values",
@@ -195,7 +195,7 @@ def _spec(*, lazy=False, empty=False):
     )
     summary = profile.Profile(
         id="summary",
-        grain=[profile.Grain(group, "group")],
+        grain=[group.resolution("group")],
         assembly=[
             assembly.Operator(
                 id="group_summary",
@@ -276,7 +276,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     )
     target = profile.Profile(
         id="target",
-        grain=[profile.Grain(group, "group")],
+        grain=[group.resolution("group")],
         assembly=[
             assembly.Operator(
                 id="read_target",
@@ -307,7 +307,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     )
     foreign = profile.Profile(
         id="foreign",
-        grain=[profile.Grain(group, "group")],
+        grain=[group.resolution("group")],
         assembly=[
             assembly.Operator(
                 id="read_source",
@@ -607,7 +607,7 @@ def _broadcast_spec(
     dimensions = {"group": group, "id": identifier}
     observations = profile.Profile(
         id="observations",
-        grain=[profile.Grain(group, "group"), profile.Grain(identifier, "id")],
+        grain=[group.resolution("group"), identifier.resolution("id")],
         assembly=[
             assembly.Operator(
                 id="read_values",
@@ -639,7 +639,7 @@ def _broadcast_spec(
     )
     source = profile.Profile(
         id="reference_source",
-        grain=[profile.Grain(dimensions[name], name) for name in source_dimension_ids],
+        grain=[dimensions[name].resolution(name) for name in source_dimension_ids],
         assembly=[
             assembly.Operator(
                 id="read_reference",

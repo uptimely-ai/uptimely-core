@@ -61,7 +61,13 @@ def to_model(
         if isinstance(declaration, profile_module.Profile):
             canonical = declaration.to_model()
             for item in declaration.grain:
-                dimension = item.dimension.to_model()
+                dimension_declaration = item.dimension
+                if dimension_declaration is None:
+                    raise ValueError(
+                        f"Profile '{declaration.id}' grain resolutions must be selected "
+                        "through Dimension.resolution()"
+                    )
+                dimension = dimension_declaration.to_model()
                 existing = dimension_values.get(dimension.id)
                 if existing is not None and existing != dimension:
                     raise ValueError(f"Conflicting metadata for dimension '{dimension.id}'")

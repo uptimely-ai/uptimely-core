@@ -22,6 +22,12 @@ class Resolution:
     key: str
     type: str
     parent: str | None = None
+    _dimension: Dimension | None = dataclasses.field(default=None, repr=False, compare=False)
+
+    @property
+    def dimension(self) -> Dimension | None:
+        """Return the owning dimension when selected through ``Dimension.resolution``."""
+        return self._dimension
 
     def to_model(self) -> spec_model.Resolution:
         """Convert this resolution declaration to its document model."""
@@ -43,14 +49,14 @@ class Dimension:
     name: str | None = None
 
     def resolution(self, name: str) -> Resolution:
-        """Return a declared resolution by ID.
+        """Return a selected resolution by ID, associated with this dimension.
 
         Raises:
             ValueError: If the resolution is not declared in this dimension.
         """
         for resolution in self.resolutions:
             if resolution.id == name:
-                return resolution
+                return dataclasses.replace(resolution, _dimension=self)
         raise ValueError(f"Dimension '{self.id}' does not declare resolution '{name}'")
 
     def __post_init__(self) -> None:

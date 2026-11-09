@@ -11,7 +11,6 @@ from .spec import (  # noqa: I001
 from .spec.python import (
     Operator,
     Binding,
-    Grain,
     Profile,
     Dimension,
     Feature,
@@ -38,7 +37,6 @@ __all__ = [
     "Feature",
     "FeatureSet",
     "Order",
-    "Grain",
     "function",
     "ref",
     "Compiler",

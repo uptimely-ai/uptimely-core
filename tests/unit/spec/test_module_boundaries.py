@@ -258,7 +258,7 @@ def test_python_dictionary_and_json_export_share_the_same_encoding(
 
     class Readings(profile.Profile):
         id = "readings"
-        grain = [profile.Grain(pump, "machine")]
+        grain = [pump.resolution("machine")]
 
     declaration = uptimely.Spec(profiles=[Readings])
     document = declaration.to_model()

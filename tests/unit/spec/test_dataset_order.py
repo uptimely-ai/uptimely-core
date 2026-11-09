@@ -184,8 +184,8 @@ def test_dataset_order_python_authoring_matches_json(tmp_path: pathlib.Path) -> 
     declaration = python_spec.profile.Profile(
         id="observations",
         grain=[
-            python_spec.profile.Grain(dimensions[0], "machine"),
-            python_spec.profile.Grain(dimensions[1], "timestamp"),
+            dimensions[0].resolution("machine"),
+            dimensions[1].resolution("timestamp"),
         ],
         order=[
             python_spec.profile.Order(dimensions[0], "machine", direction="asc"),
@@ -216,7 +216,7 @@ def test_dataset_order_python_authoring_validates_references() -> None:
             profiles=[
                 python_spec.profile.Profile(
                     id="observations",
-                    grain=[python_spec.profile.Grain(machine, "machine")],
+                    grain=[machine.resolution("machine")],
                     order=[python_spec.profile.Order(machine, "fleet", direction="asc")],
                 )
             ]
@@ -232,7 +232,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
     )
     declaration = python_spec.profile.Profile(
         id="ordered_values",
-        grain=[python_spec.profile.Grain(identifier, "id")],
+        grain=[identifier.resolution("id")],
         assembly=[
             python_spec.Operator(
                 id="read",
@@ -273,7 +273,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
             python_spec.profile.Profile(
                 id=declaration.id,
                 assembly=declaration.assembly,
-                grain=[python_spec.profile.Grain(identifier, "id")],
+                grain=[identifier.resolution("id")],
                 order=[python_spec.profile.Order(identifier, "id", direction="desc")],
             )
         ]

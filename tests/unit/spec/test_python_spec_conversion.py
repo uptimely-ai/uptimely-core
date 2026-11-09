@@ -185,11 +185,11 @@ def test_python_spec_accepts_profile_classes_with_profile_grain() -> None:
 
     class Readings(profile.Profile):
         id = "readings"
-        grain = [profile.Grain(pump, "machine")]
+        grain = [pump.resolution("machine")]
 
     class Summary(profile.Profile):
         id = "summary"
-        grain = [profile.Grain(pump, "machine")]
+        grain = [pump.resolution("machine")]
 
     spec_definition = Spec(profiles=[Readings, Summary])
 
@@ -208,7 +208,7 @@ def test_python_spec_infers_selected_key_and_available_resolutions() -> None:
         ],
     )
     readings = _declaration("readings", "read")
-    readings.grain = [profile.Grain(pump, "machine")]
+    readings.grain = [pump.resolution("machine")]
     definition = Spec(profiles=[readings])
 
     document = definition.to_model()
@@ -223,7 +223,7 @@ def test_python_spec_infers_selected_key_and_available_resolutions() -> None:
     canonical = document.profiles["readings"]
     assert canonical.features["pump"].type == "string"
     assert canonical.assembly["readings_mapping"].interface.outputs == ["$features.pump"]
-    assert readings.grain == [profile.Grain(pump, "machine")]
+    assert readings.grain == [pump.resolution("machine")]
 
 
 def test_dimension_name_defaults_to_humanized_id_and_can_be_overridden() -> None:
@@ -252,9 +252,8 @@ def test_python_spec_rejects_unresolved_grain_resolutions() -> None:
         id="machine",
         resolutions=[dimension.Resolution(id="machine", key="pump", type="string")],
     )
-    readings = profile.Profile(id="readings", grain=[profile.Grain(machine, "fleet")])
     with pytest.raises(ValueError, match="does not declare resolution 'fleet'"):
-        Spec(profiles=[readings]).to_model()
+        machine.resolution("fleet")
 
 
 def test_python_spec_rejects_duplicate_profiles_and_conflicting_metadata() -> None:
@@ -262,7 +261,7 @@ def test_python_spec_rejects_duplicate_profiles_and_conflicting_metadata() -> No
         id="pump",
         resolutions=[dimension.Resolution(id="machine", key="pump", type="string")],
     )
-    readings = profile.Profile(id="readings", grain=[profile.Grain(pump, "machine")])
+    readings = profile.Profile(id="readings", grain=[pump.resolution("machine")])
     with pytest.raises(ValueError, match="Duplicate profile id readings"):
         Spec(profiles=[readings, readings]).to_model()
     with pytest.raises(ValueError, match="Conflicting metadata for dimension 'pump'"):
@@ -272,17 +271,12 @@ def test_python_spec_rejects_duplicate_profiles_and_conflicting_metadata() -> No
                 profile.Profile(
                     id="summary",
                     grain=[
-                        profile.Grain(
-                            dimension.Dimension(
-                                id="pump",
-                                resolutions=[
-                                    dimension.Resolution(
-                                        id="machine", key="pump_id", type="integer"
-                                    )
-                                ],
-                            ),
-                            "machine",
-                        )
+                        dimension.Dimension(
+                            id="pump",
+                            resolutions=[
+                                dimension.Resolution(id="machine", key="pump_id", type="integer")
+                            ],
+                        ).resolution("machine"),
                     ],
                 ),
             ],
@@ -311,7 +305,7 @@ def test_python_spec_infers_dimensions_in_profile_grain_order() -> None:
     )
     readings = profile.Profile(
         id="readings",
-        grain=[profile.Grain(timestamp, "timestamp"), profile.Grain(pump, "machine")],
+        grain=[timestamp.resolution("timestamp"), pump.resolution("machine")],
     )
     definition = Spec(profiles=[readings])
 
@@ -501,7 +495,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
         id = "telemetry"
         name = "Pump Telemetry"
         description = "Telemetry readings"
-        grain = [profile.Grain(pump, "machine")]
+        grain = [pump.resolution("machine")]
         category = "telemetry"
         scope = "One row per pump observation"
         order = [profile.Order(pump, "machine", direction="desc")]

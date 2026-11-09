@@ -18,54 +18,33 @@ from . import feature as feature_module
 __all__ = [
     "Profile",
     "ProfileRegistry",
-    "Grain",
     "Order",
 ]
 
 
 @dataclasses.dataclass(frozen=True)
-class Grain:
-    """Select a resolution from a declared dimension for a profile's grain."""
+class Order:
+    """Declare a logical profile ordering key, not a required physical sort."""
 
     dimension: dimension_module.Dimension
     resolution: str | dimension_module.Resolution
+    direction: typing.Literal["asc", "desc"]
 
     @property
     def resolution_id(self) -> str:
-        """Return the resolution ID, validating instance metadata and membership."""
-        if isinstance(self.resolution, dimension_module.Resolution):
-            if self.resolution not in self.dimension.resolutions:
-                raise ValueError(
-                    f"Dimension '{self.dimension.id}' does not declare resolution "
-                    f"'{self.resolution.id}' with matching metadata"
-                )
-            return self.resolution.id
-        return self.resolution
-
-    def to_model(self) -> spec_model.Grain:
-        """Convert this selected resolution to its document reference."""
-        if not isinstance(self.dimension, dimension_module.Dimension):
-            raise TypeError("Profile grain entries must reference Dimension declarations")
-        dimension = self.dimension.to_model()
-        if self.resolution_id not in dimension.resolutions:
-            raise ValueError(
-                f"Dimension '{self.dimension.id}' does not declare resolution '{self.resolution}'"
-            )
-        return spec_model.Grain(dimension=self.dimension.id, resolution=self.resolution_id)
-
-
-@dataclasses.dataclass(frozen=True)
-class Order(Grain):
-    """Declare a logical profile ordering key, not a required physical sort."""
-
-    direction: typing.Literal["asc", "desc"]
+        """Return the selected resolution ID after validating dimension membership."""
+        selected = (
+            self.dimension.resolution(self.resolution.id)
+            if isinstance(self.resolution, dimension_module.Resolution)
+            else self.dimension.resolution(self.resolution)
+        )
+        return selected.id
 
     def to_model(self) -> spec_model.Order:
         """Convert this ordering key to its document model."""
-        grain = super().to_model()
         return spec_model.Order(
-            dimension=grain.dimension,
-            resolution=grain.resolution,
+            dimension=self.dimension.id,
+            resolution=self.resolution_id,
             direction=self.direction,
         )
 
@@ -86,7 +65,7 @@ class Profile:
     category: str | None = None
     scope: str | None = None
     features: feature_module.FeatureSet | None = None
-    grain: abc.Sequence[Grain] = ()
+    grain: abc.Sequence[dimension_module.Resolution] = ()
     order: abc.Sequence[Order] = ()
     assembly: (
         abc.Sequence[assembly.Operator] | abc.Mapping[str, abc.Sequence[assembly.Operator]]
@@ -110,7 +89,7 @@ class Profile:
         description: str | None = None,
         category: str | None = None,
         scope: str | None = None,
-        grain: abc.Sequence[Grain] | None = None,
+        grain: abc.Sequence[dimension_module.Resolution] | None = None,
         order: abc.Sequence[Order] | None = None,
     ) -> None:
         if id is not None:
@@ -142,8 +121,8 @@ class Profile:
         if grain is not None:
             if not isinstance(grain, abc.Sequence) or isinstance(grain, (str, bytes)):
                 raise TypeError("Profile grain must be a sequence")
-            if any(not isinstance(item, Grain) for item in grain):
-                raise TypeError("Profile grain must contain Grain declarations")
+            if any(not isinstance(item, dimension_module.Resolution) for item in grain):
+                raise TypeError("Profile grain must contain resolution declarations")
             self.grain = tuple(grain)
         if order is not None:
             self.order = tuple(order)
@@ -210,9 +189,7 @@ class Profile:
     def to_model(self) -> spec_model.Profile:
         """Build the canonical profile, rejecting duplicate feature producers."""
         grain = self._grain()
-        selected_resolutions = [
-            item.dimension.to_model().resolutions[item.resolution_id] for item in self.grain
-        ]
+        selected_resolutions = [self._selected_resolution(item)[1] for item in self.grain]
         return spec_model.Profile(
             id=self.id,
             name=self.name,
@@ -225,16 +202,32 @@ class Profile:
             assembly=self._operator_models(selected_resolutions),
         )
 
+    def _selected_resolution(
+        self, item: dimension_module.Resolution
+    ) -> tuple[dimension_module.Dimension, dimension_module.Resolution]:
+        """Resolve a profile grain item to its owning dimension and declaration."""
+        if not isinstance(item, dimension_module.Resolution):
+            raise TypeError("Profile grain must contain resolution declarations")
+        if item.dimension is None:
+            raise ValueError(
+                f"Profile '{self.id}' grain resolutions must be selected through "
+                "Dimension.resolution()"
+            )
+        if item not in item.dimension.resolutions:
+            raise ValueError(
+                f"Dimension '{item.dimension.id}' does not declare resolution "
+                f"'{item.id}' with matching metadata"
+            )
+        return item.dimension, item
+
     def _grain(self) -> list[spec_model.Grain]:
         """Convert and validate selected dimensional resolutions."""
         references: list[spec_model.Grain] = []
         dimensions: set[str] = set()
         keys: set[str] = set()
         for item in self.grain:
-            if not isinstance(item, Grain):
-                raise TypeError("Profile grain must contain Grain declarations")
-            reference = item.to_model()
-            resolution = item.dimension.to_model().resolutions[item.resolution_id]
+            dimension, resolution = self._selected_resolution(item)
+            reference = spec_model.Grain(dimension=dimension.id, resolution=resolution.id)
             if reference.dimension in dimensions:
                 raise ValueError(
                     f"Profile '{self.id}' selects multiple resolutions for dimension "
@@ -267,7 +260,9 @@ class Profile:
             operators_by_id[operator_id] = operator_model
         return operators_by_id
 
-    def _feature_metadata(self, grain: abc.Sequence[Grain]) -> dict[str, spec_model.Feature]:
+    def _feature_metadata(
+        self, grain: abc.Sequence[dimension_module.Resolution]
+    ) -> dict[str, spec_model.Feature]:
         """Collect output metadata and selected grain keys, rejecting duplicate producers."""
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
@@ -283,7 +278,7 @@ class Profile:
                 features[identifier] = metadata.to_model()
             if declaration.kind in {functions.READ, functions.COLLAPSE}:
                 for item in grain:
-                    resolution = item.dimension.to_model().resolutions[item.resolution_id]
+                    _, resolution = self._selected_resolution(item)
                     if resolution.key not in features:
                         features[resolution.key] = spec_model.Feature(
                             id=resolution.key,
