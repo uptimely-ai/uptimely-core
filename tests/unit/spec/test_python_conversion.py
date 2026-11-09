@@ -40,6 +40,7 @@ def test_auto_catalog_converts_profile_sequences_and_mappings(keyed: bool) -> No
     assert payload["functions"]["source"] == {
         "name": "Source",
         "description": None,
+        "category": None,
         "kind": "read",
         "returns": "dataframe",
         "entrypoint": f"{__name__}:source",
@@ -53,6 +54,7 @@ def test_auto_catalog_converts_profile_sequences_and_mappings(keyed: bool) -> No
     assert payload["functions"][default_merge.id] == {
         "name": "Automatic merge by grain",
         "description": None,
+        "category": None,
         "kind": "merge",
         "returns": "dataframe",
         "entrypoint": default_merge.entrypoint,
@@ -115,6 +117,7 @@ def test_explicit_catalog_preserves_argument_metadata(
     assert payload["functions"]["source"] == {
         "name": "Source",
         "description": None,
+        "category": None,
         "kind": "read",
         "returns": "dataframe",
         "entrypoint": "custom.reader:load",
@@ -146,6 +149,7 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
     assert payload["functions"]["configured"] == {
         "name": "Configured",
         "description": None,
+        "category": None,
         "kind": "read",
         "returns": "dataframe",
         "entrypoint": "reader:load",

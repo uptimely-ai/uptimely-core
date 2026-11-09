@@ -23,6 +23,7 @@ class FunctionReference:
     kind: functions.FunctionKindId | None = None
     validate_signature: bool = True
     description: str | None = None
+    category: str | None = None
 
     def __post_init__(self) -> None:
         if not isinstance(self.module, str):
@@ -35,6 +36,8 @@ class FunctionReference:
             raise ValueError("Function reference name must be a Python qualified name")
         if self.kind is not None and self.kind not in functions.FUNCTION_KINDS:
             raise ValueError(f"Unsupported function kind: {self.kind}")
+        if self.category is not None and not isinstance(self.category, str):
+            raise TypeError("Function reference category must be a string")
         if not isinstance(self.validate_signature, bool):
             raise TypeError("validate_signature must be a boolean")
         if self.description is not None and not isinstance(self.description, str):
@@ -59,6 +62,7 @@ def function(
     function: abc.Callable[..., object] | str,
     *,
     kind: functions.FunctionKindId | None = None,
+    category: str | None = None,
     validate_signature: bool = True,
     description: str | None = None,
 ) -> FunctionReference:
@@ -70,6 +74,7 @@ def function(
             a reference does not load code; compilation and execution do.
         kind: Optional function contract for undecorated implementations. Must
             agree with decorated semantics when supplied for a decorated callable.
+        category: Optional free-form grouping label stored in the Spec.
         validate_signature: Whether compilation and documentation should inspect
             the Python signature and validate implementation contracts.
         description: Optional explicit function description. Defaults to the
@@ -80,8 +85,8 @@ def function(
         description.
 
     Raises:
-        TypeError: If the argument is neither callable nor a string, or
-            validate_signature is not a boolean.
+        TypeError: If the argument is neither callable nor a string,
+            category is not a string, or validate_signature is not a boolean.
         ValueError: If the entrypoint is invalid or the callable has no valid
             module and function name, or if kind is unsupported.
     """
@@ -102,12 +107,21 @@ def function(
                     f"Function kind '{kind}' conflicts with decorated kind '{declared}'"
                 )
             kind = declared
+        declared_category = function_semantics.declared_category(function)
+        if declared_category is not None:
+            if category is not None and category != declared_category:
+                raise ValueError(
+                    f"Function category '{category}' conflicts with decorated category "
+                    f"'{declared_category}'"
+                )
+            category = declared_category
         if description is None:
             description = _docstring_summary(function)
     return FunctionReference(
         module=module,
         name=name,
         kind=kind,
+        category=category,
         validate_signature=validate_signature,
         description=description,
     )

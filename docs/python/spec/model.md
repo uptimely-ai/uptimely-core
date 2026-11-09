@@ -82,10 +82,13 @@ normalize their children:
 | `FunctionTemplate` | `arguments_by_type` |
 | `FunctionCatalog` | `arguments`, `functions_by_kind`, `by_kind(kind)` |
 
-`FunctionTemplate` owns checks for its return kind, dataframe argument count,
-and argument contracts. Semantic validation runs these checks on the function
-models. Rebuild an edited Spec before validating it again so all cached views
-reflect the edits.
+`FunctionTemplate` includes an optional free-form `category` in addition to
+its execution `kind`. The category is stored in the Spec and does not affect
+execution or validation. When omitted, it is omitted from serialized function
+definitions. `FunctionTemplate` owns checks for its return kind, dataframe
+argument count, and argument contracts. Semantic validation runs these checks
+on the function models. Rebuild an edited Spec before validating it again so
+all cached views reflect the edits.
 
 Raw child dictionaries such as `profile.features`, `profile.assembly`, and
 `function.args` remain available. Bound arguments wrap values; catalog arguments

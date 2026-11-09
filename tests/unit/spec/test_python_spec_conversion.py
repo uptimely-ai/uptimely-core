@@ -428,6 +428,7 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
     assert payload["functions"][function_id] == {
         "name": category.title() + " Shared",
         "description": None,
+        "category": None,
         "kind": category,
         "returns": "none" if category == "write" else "dataframe",
         "entrypoint": f"{__name__}:{function_id}",

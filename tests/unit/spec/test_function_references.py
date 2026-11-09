@@ -54,6 +54,50 @@ def test_function_reference_accepts_qualified_names() -> None:
     assert reference.entrypoint == "decimal:Decimal.from_float"
 
 
+def test_category_survives_conversion_to_spec_document() -> None:
+    reference = ref.function(
+        "unavailable_package.functions:calculate",
+        kind="vectorize",
+        category="user-defined / free-form",
+        validate_signature=False,
+    )
+    declaration = _dataset(
+        assembly.Operator(
+            id="calculate",
+            interface=assembly.Interface(outputs=[]),
+            compute=assembly.Binding(function=reference, arguments={}),
+        ),
+    )
+
+    payload = conversion.to_dict(profiles=[declaration])
+    reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
+
+    assert payload["functions"]["calculate"]["category"] == "user-defined / free-form"
+    assert reloaded.functions["calculate"].category == "user-defined / free-form"
+
+
+def test_omitted_category_is_serialized_as_null_in_spec_json() -> None:
+    declaration = _dataset(
+        assembly.Operator(
+            id="calculate",
+            interface=assembly.Interface(outputs=[]),
+            compute=assembly.Binding(
+                function=ref.function("unavailable_package.functions:calculate", kind="vectorize"),
+                arguments={},
+            ),
+        ),
+    )
+
+    payload = conversion.to_dict(profiles=[declaration])
+
+    assert payload["functions"]["calculate"]["category"] is None
+
+
+def test_function_reference_rejects_non_string_category() -> None:
+    with pytest.raises(TypeError, match="category must be a string"):
+        ref.function("math:ceil", category=typing.cast(str, 1))
+
+
 def test_function_reference_rejects_unsupported_operation() -> None:
     with pytest.raises(ValueError, match="Unsupported function kind"):
         ref.function("math:ceil", kind=typing.cast(functions.FunctionKindId, "unknown"))
@@ -181,6 +225,8 @@ def test_function_model_defaults_signature_validation_and_exposes_schema() -> No
     schema = spec_model.FunctionTemplate.model_json_schema()
     assert schema["properties"]["validate_signature"]["type"] == "boolean"
     assert schema["properties"]["validate_signature"]["default"] is True
+    assert schema["properties"]["category"]["anyOf"][0]["type"] == "string"
+    assert schema["properties"]["category"]["default"] is None
 
 
 def test_function_model_preserves_explicit_name() -> None:

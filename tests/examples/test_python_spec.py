@@ -130,10 +130,18 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
 
 
 def test_function_catalog_functions_declare_kinds() -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
+    spec_definition = pump_telemetry_spec.python_spec.to_model()
 
     function_kinds = {function.kind for function in spec_definition.functions.root.values()}
     assert "vectorize" in function_kinds
+    user_functions = {
+        function_id: function
+        for function_id, function in spec_definition.functions.root.items()
+        if function.entrypoint.startswith("examples.pump_analytics.functions.")
+    }
+    assert all(function.category for function in user_functions.values())
+    assert user_functions["aggregate"].category == "aggregate"
+    assert user_functions["read_pump_telemetry"].category == "read"
 
 
 def test_recommended_flow_rate_binds_polars_with_columns() -> None:

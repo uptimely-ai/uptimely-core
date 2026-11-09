@@ -30,6 +30,7 @@ class FunctionTemplate(base.StrictModel):
     id: str = pydantic.Field(exclude=True)
     name: str | None = None
     kind: functions.FunctionKindId
+    category: str | None = None
     returns: functions.ReturnKind
     entrypoint: str
     validate_signature: bool = pydantic.Field(
