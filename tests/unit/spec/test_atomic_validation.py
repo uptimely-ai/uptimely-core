@@ -1,16 +1,13 @@
 """Direct raising-rule contracts against a complete example spec."""
 
-import dataclasses
 import json
 import logging
 import pathlib
-import types
 
 import pytest
 from support import examples as example_support
 
 from uptimely import spec
-from uptimely.spec import operator_kinds
 from uptimely.spec.validation import errors
 from uptimely.spec.validation import spec as spec_validation
 from uptimely.spec.validation.rules import bindings, dimensions, profiles
@@ -373,61 +370,37 @@ def test_zero_dataframe_no_result_compute_contract_is_valid(document: spec.Spec)
     assert bindings.validate_binding_contracts(document) is None
 
 
-def test_mapping_rules_use_shared_operation_dataframe_counts(
-    document: spec.Spec, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    kind = "collapse"
-    definitions = dict(operator_kinds.OPERATOR_KINDS)
-    definitions[kind] = dataclasses.replace(definitions[kind], dataframe_inputs=2)
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
-
-    with pytest.raises(errors.SpecError, match=r"exactly 2 foreign profile\(s\)") as error:
-        operator_contracts.validate_dataframe_argument_count(document)
-    assert error.value.code == "invalid_mapping_dataframe_input"
-    assert error.value.path[-2:] == ("compute", "args")
-
-
-def test_local_and_foreign_input_validation_uses_kind_attributes(
-    document: spec.Spec, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_dataframe_feature_source_must_match_its_argument_profile(document: spec.Spec) -> None:
     vectorize_key = next(
         key for key, label in document.operator_kinds.items() if label == "vectorize"
     )
-    definitions = dict(operator_kinds.OPERATOR_KINDS)
-    definitions["vectorize"] = dataclasses.replace(
-        definitions["vectorize"], dataframe_input_scope="foreign"
+    operator = document.operators_by_key[vectorize_key]
+    dataframe_argument = next(
+        name
+        for name, argument in document.functions[operator.compute.function].args.items()
+        if argument.type == "dataframe"
     )
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
-
-    with pytest.raises(errors.SpecError, match="must reference a foreign source profile"):
-        operator_contracts.validate_foreign_profile_argument(document)
-
-    assert document.operator_kinds[vectorize_key] == "vectorize"
-
-
-def test_target_dataset_validation_uses_kind_attribute(
-    document: spec.Spec, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    definitions = dict(operator_kinds.OPERATOR_KINDS)
-    definitions["collapse"] = dataclasses.replace(
-        definitions["collapse"], dataframe_input_scope="target"
+    operator.compute.args[dataframe_argument] = spec.model.BindingArgument(
+        "$profiles.other.dataset"
     )
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
+    document = document.rebuild()
 
-    with pytest.raises(errors.SpecError, match="must consume its target profile"):
-        operator_contracts.validate_target_profile_input(document)
+    with pytest.raises(errors.SpecError, match="must reference its target profile") as error:
+        operator_contracts.validate_dataframe_argument_feature_source(document)
+    assert error.value.path[-1] == dataframe_argument
 
 
-def test_feature_input_validation_uses_kind_attribute(
-    document: spec.Spec, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    definitions = dict(operator_kinds.OPERATOR_KINDS)
-    definitions["vectorize"] = dataclasses.replace(
-        definitions["vectorize"], feature_input_scope="none"
+def test_feature_inputs_require_a_dataframe_source(document: spec.Spec) -> None:
+    vectorize_key = next(
+        key for key, label in document.operator_kinds.items() if label == "vectorize"
     )
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
+    operator = document.operators_by_key[vectorize_key]
+    function = document.functions[operator.compute.function]
+    function.args.clear()
+    operator.compute.args.clear()
+    document = document.rebuild()
 
-    with pytest.raises(errors.SpecError, match="Kind vectorize cannot declare feature inputs"):
+    with pytest.raises(errors.SpecError, match="without a dataframe source"):
         operator_contracts.validate_feature_input_scope(document)
 
 

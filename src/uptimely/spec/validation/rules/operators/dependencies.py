@@ -3,7 +3,6 @@
 import logging
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +14,8 @@ def validate_operator_cycle(spec: spec_model.Spec) -> None:
     logger.debug("Check operator feature dependencies are acyclic")
     producers: dict[str, OperatorKey] = {}
     for key, operator in spec.operator_items:
-        if spec.operator_kinds[key] == operator_kinds.WRITE:
+        function = spec.functions.root.get(operator.compute.function)
+        if function is None or function.returns == "none":
             continue
         profile_id = spec.operator_profile_keys[key]
         grain_keys = spec.grain_keys_by_profile[profile_id]

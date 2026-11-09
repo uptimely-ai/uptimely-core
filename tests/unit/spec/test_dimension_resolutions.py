@@ -304,7 +304,7 @@ def test_collapse_rejects_an_unrelated_target_resolution() -> None:
     document = _collapse_spec("line")
 
     assert not document.grain_refines("target", "source")
-    with pytest.raises(ValueError, match="must preserve target dimensionality"):
+    with pytest.raises(ValueError, match="unrelated grain relationship"):
         contracts.validate_dimension_change(document)
 
 

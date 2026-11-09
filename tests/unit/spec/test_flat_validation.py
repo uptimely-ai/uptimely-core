@@ -3,11 +3,9 @@
 from __future__ import annotations
 
 import collections.abc
-import dataclasses
 import inspect
 import json
 import pathlib
-import types
 import typing
 
 import pydantic
@@ -153,9 +151,7 @@ def compute(spec: model.Spec) -> model.Operator:
     return target(spec).assembly["compute"]
 
 
-def test_dimension_change_uses_dimension_identities_not_cardinality(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_dimension_change_uses_dimension_identities_not_cardinality() -> None:
     spec = make_spec("conform")
     spec.dimensions["other"] = model.Dimension(
         id="other",
@@ -164,16 +160,11 @@ def test_dimension_change_uses_dimension_identities_not_cardinality(
     spec.profiles["source"].grain[1] = model.Grain(dimension="other", resolution="other")
     assert len(spec.profiles["source"].dimension_ids) == len(spec.profiles["target"].dimension_ids)
 
-    with pytest.raises(ValueError, match="preserve target dimensionality"):
+    with pytest.raises(ValueError, match="unrelated grain relationship"):
         operator_contracts.validate_dimension_change(spec)
 
-    definitions = dict(operator_kinds.OPERATOR_KINDS)
-    definitions[operator_kinds.CONFORM] = dataclasses.replace(
-        definitions[operator_kinds.CONFORM], dimension_change="unrestricted"
-    )
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
-
-    assert operator_contracts.validate_dimension_change(spec) is None
+    key = ("target", "compute")
+    assert spec.operator_grain_relationships[key]["source"] == "unrelated"
 
 
 @pytest.mark.parametrize(
@@ -549,7 +540,17 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
         (
             operator_inputs.validate_grouping_dimensions,
             "collapse",
-            lambda s: s.profiles["source"].grain.clear(),
+            lambda s: (
+                s.dimensions["machine"].resolutions["machine"].__setattr__("parent", "fleet"),
+                s.dimensions["machine"].resolutions.update(
+                    {"fleet": model.Resolution(id="fleet", key="fleet_id", type="integer")}
+                ),
+                setattr(
+                    s.profiles["target"],
+                    "grain",
+                    [model.Grain(dimension="machine", resolution="fleet")],
+                ),
+            ),
             "grouping keys",
         ),
         (
@@ -605,12 +606,6 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "unknown profile",
         ),
         (
-            operator_contracts.validate_dataframe_argument_count,
-            "collapse",
-            lambda s: s.functions["compute"].args.clear(),
-            "exactly 1 foreign",
-        ),
-        (
             operator_contracts.validate_foreign_profile_argument,
             "collapse",
             lambda s: compute(s).compute.args.update(
@@ -645,41 +640,56 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             "cannot declare",
         ),
         (
-            operator_contracts.validate_target_profile_input,
-            "vectorize",
-            lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.source.dataset")}
-            ),
-            "consume its target",
-        ),
-        (
-            operator_contracts.validate_dimension_source,
-            "collapse",
-            lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.target.dataset")}
-            ),
-            "consume its source",
-        ),
-        (
             operator_contracts.validate_dimension_change,
             "collapse",
-            lambda s: s.profiles["target"].grain.append(
-                model.Grain(dimension="time", resolution="time")
+            lambda s: (
+                s.dimensions.update(
+                    {
+                        "other": model.Dimension(
+                            id="other",
+                            resolutions={
+                                "other": model.Resolution(id="other", key="other", type="integer")
+                            },
+                        )
+                    }
+                ),
+                setattr(
+                    s.profiles["target"],
+                    "grain",
+                    [model.Grain(dimension="other", resolution="other")],
+                ),
             ),
-            "strictly higher",
+            "unrelated grain relationship",
         ),
         (
             operator_contracts.validate_dimension_change,
             "conform",
-            lambda s: s.profiles["target"].grain.pop(),
-            "preserve target",
+            lambda s: (
+                s.dimensions.update(
+                    {
+                        "other": model.Dimension(
+                            id="other",
+                            resolutions={
+                                "other": model.Resolution(id="other", key="other", type="integer")
+                            },
+                        )
+                    }
+                ),
+                setattr(
+                    s.profiles["source"],
+                    "grain",
+                    [
+                        s.profiles["source"].grain[0],
+                        model.Grain(dimension="other", resolution="other"),
+                    ],
+                ),
+            ),
+            "unrelated grain relationship",
         ),
         (
             operator_contracts.validate_dimension_expansion_input,
             "expand",
-            lambda s: s.profiles["source"].grain.append(
-                model.Grain(dimension="time", resolution="time")
-            ),
+            lambda s: compute(s).interface.inputs.clear(),
             "lower-dimensional",
         ),
         (

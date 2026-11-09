@@ -4,7 +4,6 @@ import logging
 import warnings
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds
 from uptimely.spec.validation import errors
 
 logger = logging.getLogger(__name__)
@@ -17,36 +16,26 @@ def validate_output_presence(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].requires_feature_outputs
+            and function.returns == "dataframe"
             and not operator.output_features
         ):
             raise ValueError(f"Operator {key[1]} must declare one or more features")
 
 
 def validate_function_id(spec: spec_model.Spec) -> None:
-    """Require a calculation function ID to be nonempty."""
-    logger.debug("Check calculation function IDs are nonempty")
-    for key, operator in spec.operator_items:
-        function = spec.functions.root.get(operator.compute.function)
-        if (
-            function is not None
-            and spec.operator_kinds[key] == operator_kinds.VECTORIZE
-            and not function.id.strip()
-        ):
+    """Require function identifiers to be nonempty."""
+    logger.debug("Check function IDs are nonempty")
+    for function in spec.functions.root.values():
+        if not function.id.strip():
             raise ValueError("Every function must define a non-empty string id")
 
 
 def validate_output_names(spec: spec_model.Spec) -> None:
-    """Require calculated output names to be nonempty."""
-    logger.debug("Check calculated output names are nonempty")
+    """Require declared output names to be nonempty."""
+    logger.debug("Check declared output names are nonempty")
     for key, operator in spec.operator_items:
-        function = spec.functions.root.get(operator.compute.function)
-        if (
-            function is not None
-            and spec.operator_kinds[key] == operator_kinds.VECTORIZE
-            and any(not feature.strip() for feature in operator.output_features)
-        ):
-            raise ValueError("Every calculation must define a non-empty output feature name")
+        if any(not feature.strip() for feature in operator.output_features):
+            raise ValueError(f"Operator {key[1]} must define non-empty output feature names")
 
 
 def validate_dimension_collision(spec: spec_model.Spec) -> None:
@@ -57,7 +46,8 @@ def validate_dimension_collision(spec: spec_model.Spec) -> None:
         collisions = set(operator.output_features) & spec.grain_key_ids
         if (
             function is not None
-            and spec.operator_kinds[key] == operator_kinds.VECTORIZE
+            and function.returns == "dataframe"
+            and key[0] in spec.dataframe_argument_profiles[key]
             and collisions
         ):
             raise ValueError(
@@ -101,14 +91,8 @@ def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
     logger.debug("Check nonproducing operator do not declare outputs")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if (
-            function is not None
-            and not operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].produces_features
-            and operator.output_features
-        ):
-            raise ValueError(
-                f"{spec.operator_kinds[key].capitalize()} operator {key[1]} cannot produce features"
-            )
+        if function is not None and function.returns == "none" and operator.output_features:
+            raise ValueError(f"Operator {key[1]} cannot produce features")
 
 
 def validate_output_feature(spec: spec_model.Spec) -> None:
@@ -116,10 +100,7 @@ def validate_output_feature(spec: spec_model.Spec) -> None:
     logger.debug("Check operator outputs are declared in the target profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if (
-            function is None
-            or not operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].produces_features
-        ):
+        if function is None or function.returns == "none":
             continue
         for feature in operator.output_features:
             if (
@@ -135,10 +116,7 @@ def validate_unique_producer(spec: spec_model.Spec) -> None:
     producers: dict[tuple[spec_model.ProfileKey, str], str] = {}
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if (
-            function is None
-            or not operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].produces_features
-        ):
+        if function is None or function.returns == "none":
             continue
         for feature in operator.output_features:
             if feature in spec.grain_keys_by_profile[key[0]]:
@@ -159,7 +137,8 @@ def validate_collapse_output(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and spec.operator_kinds[key] == operator_kinds.COLLAPSE
+            and function.returns == "dataframe"
+            and _has_dataframe_grain_relationship(spec, key, "collapse")
             and not (set(operator.output_features) - set(spec.grain_keys_by_profile[key[0]]))
         ):
             raise ValueError(f"Collapse operator {key[1]} must produce a non-dimension feature")
@@ -170,21 +149,31 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
     logger.debug("Check current-feature selectors are unambiguous")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or spec.operator_kinds[key] not in {
-            operator_kinds.VECTORIZE,
-            operator_kinds.COLLAPSE,
-        }:
+        if function is None or function.returns != "dataframe":
+            continue
+        if key[0] not in spec.dataframe_argument_profiles[key] and (
+            not _has_dataframe_grain_relationship(spec, key, "collapse")
+        ):
             continue
         count = (
             len(set(operator.output_features) - set(spec.grain_keys_by_profile[key[0]]))
-            if spec.operator_kinds[key] == operator_kinds.COLLAPSE
+            if _has_dataframe_grain_relationship(spec, key, "collapse")
             else len(operator.output_features)
         )
         if count > 1 and operator.compute.uses_current_feature:
             raise ValueError(
-                f"{spec.operator_kinds[key].capitalize()} operator {key[1]} "
-                "cannot use $features.@ when it produces multiple features"
+                f"Operator {key[1]} cannot use $features.@ when it produces multiple features"
             )
+
+
+def _has_dataframe_grain_relationship(
+    spec: spec_model.Spec, key: spec_model.OperatorKey, relationship: str
+) -> bool:
+    """Return whether a dataframe argument has the selected source-to-target grain relation."""
+    return any(
+        spec.operator_grain_relationships[key].get(source) == relationship
+        for source in spec.dataframe_argument_profiles[key]
+    )
 
 
 def warn_unproduced_features(spec: spec_model.Spec) -> None:
@@ -196,9 +185,7 @@ def warn_unproduced_features(spec: spec_model.Spec) -> None:
             for feature, producers in profile.feature_producers.items()
             if any(
                 spec.functions.root.get(operator.compute.function) is not None
-                and operator_kinds.OPERATOR_KINDS[
-                    spec.operator_kinds[(key, operator_id)]
-                ].produces_features
+                and spec.functions.root[operator.compute.function].returns != "none"
                 for operator_id, operator in producers
             )
         }

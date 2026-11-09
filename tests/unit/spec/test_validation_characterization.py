@@ -80,7 +80,6 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
         document = spec.Spec.model_validate_json(path.read_text(encoding="utf-8"))
     else:
         document = spec.Spec.model_validate(configuration)
-    document.operator_kinds[("pump", "bearing_temperature_by_pump")] = "collapse"
     with pytest.raises(ValueError, match=message):
         operator_inputs.validate_source_feature(document)
         operator_inputs.validate_feature_owner(document)
@@ -92,13 +91,19 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
 
 def test_independent_rules_report_grouping_and_dimension_reference_faults() -> None:
     configuration = _configuration()
-    configuration["profiles"]["pump_telemetry"]["grain"].remove(
-        {"dimension": "machine_dimension", "resolution": "machine"}
-    )
+    machine_dimension = configuration["dimensions"]["machine_dimension"]
+    machine_dimension["resolutions"]["machine_category"]["parent"] = "unselected"
+    machine_dimension["resolutions"]["unselected"] = {
+        "key": "unselected_id",
+        "type": "string",
+        "parent": None,
+    }
+    configuration["profiles"]["pump"]["grain"] = [
+        {"dimension": "machine_dimension", "resolution": "unselected"}
+    ]
     operator = configuration["profiles"]["pump"]["assembly"]["bearing_temperature_by_pump"]
     operator["compute"]["args"]["unexpected"] = "$dimensions.missing"
     document = spec.Spec.model_validate(configuration)
-    document.operator_kinds[("pump", "bearing_temperature_by_pump")] = "collapse"
     with pytest.raises(ValueError, match="grouping keys must exist in source"):
         operator_inputs.validate_grouping_dimensions(document)
     with pytest.raises(validation.SpecError, match="unknown dimension: missing"):
@@ -125,7 +130,7 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
         document.operator_kinds[(dataset.id, "alias")] = "vectorize"
         expected_id = "alias"
         expected_code = "invalid_mapping_dataframe_input"
-        validate = contracts_validation.validate_target_profile_input
+        validate = contracts_validation.validate_dataframe_argument_feature_source
     with pytest.raises(validation.SpecError) as error:
         validate(document)
     assert error.value.code == expected_code
@@ -136,7 +141,7 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
         expected_id,
         "compute",
         "args",
-    )
+    ) + (() if invalid_binding else (argument,))
 
 
 def test_direct_semantic_validation_preserves_profile_identity_error() -> None:
@@ -302,7 +307,7 @@ def test_document_validation_rejects_blank_calculated_output() -> None:
     dataset["assembly"]["pressure_flow_efficiency"]["interface"]["outputs"] = ["$features. "]
     document = spec.Spec.model_validate(configuration)
 
-    with pytest.raises(ValueError, match="Every calculation must define a non-empty output"):
+    with pytest.raises(ValueError, match="non-empty output feature names"):
         validation.validate_spec(document)
 
 
