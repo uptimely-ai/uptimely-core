@@ -52,7 +52,8 @@ def test_pump_dimensions_are_declared_in_spec_order() -> None:
         "hour",
         "day",
     ]
-    assert inferred["machine_timestamp"].resolutions["timestamp"].parent == "hour"
+    assert inferred["machine_timestamp"].resolutions["timestamp"].parent == "minute"
+    assert inferred["machine_timestamp"].resolutions["minute"].parent == "hour"
     assert inferred["machine_timestamp"].resolutions["hour"].parent == "day"
     assert pump_dimensions.FACILITY_DIMENSION.id == "facility_dimension"
     assert [resolution.id for resolution in pump_dimensions.FACILITY_DIMENSION.resolutions] == [
