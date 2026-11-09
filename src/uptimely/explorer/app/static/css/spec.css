@@ -4,8 +4,15 @@
 .catalog-charts { display: grid; gap: 24px; margin-top: 24px; }
 .catalog-charts > * { margin-top: 0; }
 
-.function-metadata-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
+.function-origin-grid, .function-metadata-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 12px; margin-top: 40px; }
+.function-example { min-width: 0; margin-top: 40px; }
+.function-source { min-width: 0; }
+.function-source-card { min-height: 160px; margin-top: 12px; padding: 20px; }
+.function-source-card dl { display: grid; gap: 12px; margin: 0; }
+.function-source-card dl > div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 12px; }
+.function-source-card dt { color: #94a3b8; font-size: 12px; }
+.function-source-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: #e2e8f0; font: 12px/1.5 var(--font-mono); }
 .function-metadata-entry { min-width: 0; }
 .function-metadata-title { display: flex; align-items: center; gap: 7px; margin-bottom: 8px;
   color: #e2e8f0; font: 600 12px/1.5 var(--font-body); }
@@ -15,13 +22,10 @@
 .function-metadata-card > p, .function-metadata-card li { margin-top: 8px; color: #e2e8f0; font-size: 12px; line-height: 1.7; }
 .function-metadata-card ul { margin-top: 8px; padding: 0; list-style: none; }
 .function-metadata-card li + li { margin-top: 6px; }
-.function-metadata-card .function-metadata-source { overflow-wrap: anywhere; font-family: var(--font-mono); }
 .function-metadata-card .function-metadata-description { color: #cbd5e1; }
 .function-detail-title { display: flex; align-items: center; gap: 10px; color: #f1f5f9;
   font: 600 24px/1.3 var(--font-display); overflow-wrap: anywhere; }
 .function-detail-icon { width: 20px; height: 20px; flex: 0 0 20px; color: #94a3b8; }
-.function-kind-value { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: #cbd5e1; font-size: 13px; }
-.function-kind-value-icon { width: 16px; height: 16px; color: #94a3b8; }
 .function-usage { margin-top: 32px; }
 .function-usage-list, .function-usage-item > ul { margin: 12px 0 0; padding: 0; list-style: none; }
 .function-usage-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); gap: 12px; }

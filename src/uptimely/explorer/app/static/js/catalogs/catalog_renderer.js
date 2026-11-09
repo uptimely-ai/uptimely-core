@@ -31,6 +31,7 @@ const featureReferenceId = reference => reference.startsWith("$features.")
   : null;
 const operatorInputs = operator => operator.interface.inputs || [];
 const label = (id, value) => value.name || id;
+const operatorLabel = (id, operator) => operator.name || id.replace(/[_-]+/g, " ").replace(/\b\w/g, character => character.toUpperCase());
 const description = value => `<p class="mt-4 text-sm leading-6 text-slate-400">${escape(value || "No description provided.")}</p>`;
 const itemTitle = (id, item, tag = "h2", size = "text-2xl", type = null, showId = true) => `<${tag} class="break-words font-display ${size} font-semibold text-white">${type === null ? escape(label(id, item)) : typedName(label(id, item), type)}</${tag}>${item.name && showId ? `<p class="mt-1 font-mono text-xs text-slate-500">${escape(id)}</p>` : ""}`;
 const subheading = (title, iconKey = null) => iconKey
@@ -406,7 +407,7 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       invocation.profile === profileId && invocation.operator_id === id && invocation.phase === "compute"
       && Object.keys(invocation.args).length);
     const hasMerge = Boolean(operator.merge);
-    const operatorName = operator.name || id.replace(/[_-]+/g, " ").replace(/\b\w/g, character => character.toUpperCase());
+    const operatorName = operatorLabel(id, operator);
     return `<article id="${escape(idPrefix)}-${escape(profileId)}-${escape(id)}" class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(fn.kind)}">
       <header class="profile-operator-header">
         <div class="profile-operator-identity"><h4>${escape(operatorName)}</h4></div>
@@ -474,7 +475,7 @@ function profileCards(config, invocations) {
 function functionMetadata(fn) {
   const returns = fn.return_type || fn.doc?.returns;
   const errors = fn.doc?.raises || [];
-  if (!returns && !errors.length && !fn.entrypoint && !fn.signature_validation_disabled) return "";
+  if (!returns && !errors.length) return "";
 
   return `<div class="function-metadata-grid">
     ${returns ? `<section class="function-metadata-entry" aria-label="Returns">
@@ -490,38 +491,43 @@ function functionMetadata(fn) {
         <ul>${errors.map(error => `<li><span class="font-mono text-amber-300">${escape(error.type || "Error")}</span>${error.description ? ` — ${escape(error.description)}` : ""}</li>`).join("")}</ul>
       </div>
     </section>` : ""}
-    ${fn.entrypoint || fn.signature_validation_disabled ? `<section class="function-metadata-entry" aria-label="Source">
-      <h4 class="function-metadata-title">${icon("book-open")}<span>Source</span></h4>
-      <div class="function-metadata-card function-detail-box">
-        ${fn.entrypoint ? `<p class="function-metadata-source">${escape(fn.entrypoint)}</p>` : ""}
-        ${fn.signature_validation_disabled ? `<div class="mt-2">${badge("Python signature validation disabled", "amber")}</div>` : ""}
-      </div>
-    </section>` : ""}
   </div>`;
+}
+
+function functionSource(fn) {
+  if (!fn.entrypoint && !fn.signature_validation_disabled) return "";
+  const [modulePath, ...qualifiedName] = (fn.entrypoint || "").split(":");
+  const parts = modulePath.split(".");
+  const module = parts.pop();
+  const fields = fn.entrypoint ? [
+    ["Package", parts.join(".") || "—"],
+    ["Module", module || "—"],
+    ["Function", qualifiedName.join(":") || "—"],
+  ] : [];
+  return `<section class="function-source" aria-label="Source">
+    ${subheading("Source", "source")}
+    <div class="function-detail-box function-source-card">
+      ${fields.length ? `<dl>${fields.map(([name, value]) => `<div><dt>${name}</dt><dd><code>${escape(value)}</code></dd></div>`).join("")}</dl>` : ""}
+      ${fn.signature_validation_disabled ? `<div class="mt-2">${badge("Python signature validation disabled", "amber")}</div>` : ""}
+    </div>
+  </section>`;
 }
 
 function functionUsage(functionId, config) {
   const usages = profiles(config).flatMap(({ id, profile }) => {
-    const grainKeys = new Set(profileGrainKeys(config, profile));
-    const outputs = new Set();
-    for (const operator of Object.values(profile.assembly)) {
-      if (operator.compute.function !== functionId) continue;
-      for (const reference of operator.interface.outputs || []) {
-        const featureId = featureReferenceId(reference);
-        if (featureId && !grainKeys.has(featureId)) outputs.add(featureId);
-      }
-    }
-    return outputs.size ? [{ id, profile, outputs: [...outputs] }] : [];
+    const operators = Object.entries(profile.assembly).filter(([, operator]) =>
+      operator.compute.function === functionId || operator.merge?.function === functionId);
+    return operators.length ? [{ id, profile, operators }] : [];
   });
 
   return `<section class="function-usage" aria-label="Function usage">
-    ${subheading("Used by", "profiles")}
-    ${usages.length ? `<ul class="function-usage-list">${usages.map(({ id, profile, outputs }) =>
+    ${subheading("Used by operators", "operators")}
+    ${usages.length ? `<ul class="function-usage-list">${usages.map(({ id, profile, operators }) =>
       `<li class="function-usage-item function-detail-box">
         <a class="function-usage-profile" href="${href("profiles", `profile-${id}`)}">${escape(label(id, profile))}</a>
-        <ul>${outputs.map(featureId =>
-          `<li><a class="function-usage-feature" href="${href("features", `feature-${id}-${featureId}`)}">${escape(label(featureId, profile.features[featureId] || {}))}</a></li>`).join("")}</ul>
-      </li>`).join("")}</ul>` : '<p class="function-usage-empty">Not used by any profile.</p>'}
+        <ul>${operators.map(([operatorId, operator]) =>
+          `<li><a class="function-usage-feature" href="${href("profiles", `operator-${id}-${operatorId}`)}">${escape(operatorLabel(operatorId, operator))}</a></li>`).join("")}</ul>
+      </li>`).join("")}</ul>` : '<p class="function-usage-empty">Not used by any operator.</p>'}
   </section>`;
 }
 
@@ -532,20 +538,18 @@ function functionCards(data) {
         <h3 class="function-detail-title">${kindIcon(kind, "function-detail-icon")}<span>${escape(label(id, fn))}</span></h3>
         <p data-function-description class="mt-4 max-w-3xl text-base leading-7 text-slate-300">${escape(fn.description || "No description provided.")}</p>
         ${fn.doc?.body ? `<p class="mt-3 max-w-3xl whitespace-pre-line text-sm leading-7 text-slate-400">${escape(fn.doc.body)}</p>` : ""}
-        <div class="mt-10 grid gap-6 ${fn.doc?.examples?.length ? "lg:grid-cols-[minmax(0,3fr)_minmax(0,1fr)]" : "max-w-xl"}">
-          ${fn.doc?.examples?.length ? `<section class="min-w-0">${subheading("Example")}
-            <div class="mt-3">${badge("Python")}</div>
-            <pre class="function-detail-box mt-3 min-h-40 overflow-x-auto p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(fn.doc.examples[0])}</code></pre></section>` : ""}
+        ${(fn.doc?.examples || []).map((example, index) => `<section class="function-example">${subheading(index ? `Example ${index + 1}` : "Example")}
+          <div class="mt-3">${badge("Python")}</div>
+          <pre class="function-detail-box mt-3 min-h-40 overflow-x-auto p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(example)}</code></pre></section>`).join("")}
+        <div class="function-origin-grid">
           <section class="function-kind-graphic min-w-0" aria-label="${escape(kind[0].toUpperCase() + kind.slice(1))} function kind diagram">
-            ${subheading("Function kind")}
-            <p class="function-kind-value">${kindIcon(kind, "function-kind-value-icon")}<span>${escape(kind[0].toUpperCase() + kind.slice(1))}</span></p>
+            <h3 class="ui-section-title profile-detail-subheading">${kindIcon(kind, "profile-detail-icon")}<span>${escape(kind[0].toUpperCase() + kind.slice(1))} kind</span></h3>
             <div class="function-detail-box mt-3 flex min-h-40 flex-col items-center justify-center gap-3 overflow-x-auto p-5">
               ${miniGraphic(kind)}
             </div>
-          </section></div>
-        ${(fn.doc?.examples || []).slice(1).map((example, index) => `<section class="mt-6">${subheading(`Example ${index + 2}`)}
-          <div class="mt-3">${badge("Python")}</div>
-          <pre class="function-detail-box mt-3 overflow-x-auto p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(example)}</code></pre></section>`).join("")}
+          </section>
+          ${functionSource(fn)}
+        </div>
         ${functionUsage(id, data.catalogs.configuration)}
         ${Object.keys(fn.args || {}).length ? `<div class="mt-10">${subheading("Arguments")}
           <div class="ui-table-scroll mt-3" tabindex="0" role="region" aria-label="Arguments for ${escape(fn.name || id)}">

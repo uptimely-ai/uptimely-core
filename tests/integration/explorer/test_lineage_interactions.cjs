@@ -19,7 +19,7 @@ for (const withSectionCount of [false, true]) {
 				? (item === overview ? null : item.description) : heading;
 			item.contains = candidate => candidate === item;
 		}
-		const group = {
+			const group = {
 			...createElement(), id: 'functions-read',
 			contains: item => item === first || item === second,
 			querySelector: () => null,
@@ -107,6 +107,10 @@ test(`${catalog} selection displays its description in the section header`, () =
 			? item.description : heading;
 		item.contains = candidate => candidate === item;
 	}
+	const operator = { ...createElement(), id: 'operator-telemetry-read' };
+	operator.scrollIntoView = () => { operator.scrolled = true; };
+	operator.contains = candidate => candidate === operator;
+	first.contains = candidate => candidate === first || candidate === operator;
 	const links = items.map(item => ({
 		...createElement(), hash: `#${item.id}`,
 		removeAttribute(name) { delete this.attributes[name]; },
@@ -120,7 +124,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 	const description = { ...createElement(), textContent: '' };
 	const document = {
 		title: 'Spec features',
-		getElementById: id => items.find(item => item.id === id)
+		getElementById: id => [...items, operator].find(item => item.id === id)
 			|| (id === 'catalog-context' ? panel : null),
 		querySelector(selector) {
 			if (selector === 'main h1 span') return title;
@@ -136,7 +140,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 			return links;
 		},
 	};
-	const location = { hash: '#feature-first' };
+	const location = { hash: catalog === 'profiles' ? '#operator-telemetry-read' : '#feature-first' };
 	const context = vm.createContext({
 		document, location,
 		history: { pushState(_state, _title, hash) { location.hash = hash; } },
@@ -148,11 +152,12 @@ test(`${catalog} selection displays its description in the section header`, () =
 	vm.runInContext(
 		fs.readFileSync(path.join(scriptDirectory, 'catalogs/catalog_navigation.js'), 'utf8')
 			.replace('export function', 'function')
-			+ '\ninitializeCatalog(new AbortController().signal);', context,
+			+ '\nvar controller = initializeCatalog(new AbortController().signal);', context,
 	);
 	assert.equal(title.textContent, 'feature-first');
 	assert.equal(description.textContent, 'feature-first feature description');
 	assert.equal(first.description.hidden, true);
+	if (catalog === 'profiles') assert.equal(operator.scrolled, true);
 	if (catalog === 'features') {
 		assert.equal(heading.querySelector('[data-lucide]').attributes['data-lucide'], 'hash');
 		assert.equal(heading.attributes.title, 'float');
@@ -173,6 +178,15 @@ test(`${catalog} selection displays its description in the section header`, () =
 	assert.equal(description.hidden, true);
 	assert.equal(heading.querySelector('[data-lucide]').attributes['data-lucide'], 'variable');
 	assert.equal(heading.attributes.title, undefined);
+	if (catalog === 'profiles') {
+		location.hash = '#operator-telemetry-read';
+		context.controller.update();
+		assert.equal(title.textContent, 'feature-first');
+		assert.equal(first.hidden, false);
+		assert.equal(second.hidden, true);
+		assert.equal(operator.scrolled, true);
+		assert.equal(links[1].attributes['aria-current'], 'location');
+	}
 });
 }
 

@@ -71,7 +71,11 @@ stopped when leaving their view.
 Function details show documentation captured from implementation docstrings at
 build time when Python signature validation is enabled. NumPy-style Examples
 sections are displayed as a continuous block, including output and explanatory
-text; doctest prompts and directives are omitted.
+text; doctest prompts and directives are omitted. Each example uses the full
+available width. The function kind and source appear below the examples; the
+source separates the entrypoint's package, module, and qualified function name.
+Used by operators links to each referencing operator, including merge bindings,
+grouped by profile. Return values and errors appear beneath the arguments.
 
 Dimension details label the selected dimension above its title. The Resolution
 levels section uses compact cards connected by tree branches. Each card shows
