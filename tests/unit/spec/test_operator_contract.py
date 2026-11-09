@@ -64,7 +64,7 @@ def _spec() -> spec.Spec:
         profiles=[
             profile.Profile(
                 id="observations",
-                grain=[profile.Grain(identifier, "id")],
+                grain=[identifier.resolution("id")],
                 assembly=[
                     assembly.Operator(
                         id="read_values",
@@ -338,7 +338,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
         profiles=[
             profile.Profile(
                 id="source",
-                grain=[profile.Grain(identifier, "id")],
+                grain=[identifier.resolution("id")],
                 assembly=[
                     assembly.Operator(
                         id="read_lower_grain",
@@ -356,8 +356,8 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
             profile.Profile(
                 id="target",
                 grain=[
-                    profile.Grain(identifier, "id"),
-                    profile.Grain(region, "region"),
+                    identifier.resolution("id"),
+                    region.resolution("region"),
                 ],
                 assembly=[
                     assembly.Operator(

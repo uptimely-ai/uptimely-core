@@ -8,7 +8,6 @@ from uptimely import (
     Binding,
     Feature,
     FeatureSet,
-    Grain,
     Interface,
     Operator,
     Order,
@@ -21,8 +20,8 @@ HYDRAULIC_POWER_SCALE = 1.0 / 36.0
 """Converts bar * m3/h into kW for the hydraulic-power numerator."""
 
 TELEMETRY_GRAIN = [
-    Grain(dimension.MACHINE_DIMENSION, "machine"),
-    Grain(dimension.MACHINE_TIMESTAMP, "timestamp"),
+    dimension.MACHINE_DIMENSION.resolution("machine"),
+    dimension.MACHINE_TIMESTAMP.resolution("timestamp"),
 ]
 
 

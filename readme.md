@@ -138,7 +138,7 @@ measurement_id = up.Dimension(
 
 class MyAnalyticalProfile(up.Profile):
     id = "calculated_profile"
-    grain = [up.Grain(measurement_id, "measurement_id")]
+    grain = [measurement_id.resolution("measurement_id")]
 
     assembly = [
         up.Operator(

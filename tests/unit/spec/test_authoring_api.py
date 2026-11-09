@@ -23,15 +23,11 @@ def test_root_authoring_api_compiles_and_executes(
 ) -> None:
     class CalculatedData(up.Profile):
         id = "calculated_profile"
-        grain = [
-            up.Grain(
-                up.Dimension(
-                    id="id",
-                    resolutions=[up.Resolution(id="id", key="id", type="integer")],
-                ),
-                "id",
-            )
-        ]
+        id_dimension = up.Dimension(
+            id="id",
+            resolutions=[up.Resolution(id="id", key="id", type="integer")],
+        )
+        grain = [id_dimension.resolution("id")]
         assembly = [
             up.Operator(
                 id="read",

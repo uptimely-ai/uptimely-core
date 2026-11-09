@@ -55,7 +55,7 @@ class Pump(up.Profile):
     id = "pump_summary"
     name = "Pump Summary"
     description = "Maximum bearing temperature per pump."
-    grain = [up.Grain(machine, "machine")]
+    grain = [machine.resolution("machine")]
     features = PumpFeatures()
 
     assembly = [
@@ -95,7 +95,7 @@ python_spec = up.Spec(
 ```
 
 Root-level `Spec`, `Profile`, `Operator`, `Interface`, `Binding`,
-`Dimension`, `Resolution`, `Grain`, `Feature` and `FeatureSet` are Python
+`Dimension`, `Resolution`, `Feature` and `FeatureSet` are Python
 authoring classes.
 Document-model classes remain under `uptimely.spec.model` and the existing
 `uptimely.spec` exports. The authoring `Spec` is defined as
@@ -103,8 +103,9 @@ Document-model classes remain under `uptimely.spec.model` and the existing
 `uptimely.spec.python.Spec`.
 
 Dimensions have stable IDs and declare one or more keyed resolutions. A profile's
-`grain` selects one resolution per dimension; the selected resolution's key is
-the dataframe column used by that profile. Optional dimension names are
+`grain` is a list of selected resolutions, one per dimension; select them with
+`dimension.resolution("resolution_id")`. The selected resolution's key is the
+dataframe column used by that profile. Optional dimension names are
 human-readable labels generated from IDs when omitted.
 
 `up.Spec` accepts the profile declarations only. It infers dimension and

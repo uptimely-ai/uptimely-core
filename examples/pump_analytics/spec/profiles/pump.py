@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics, external_workflow
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Grain, Interface, Operator, Profile, ref
+from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, ref
 from uptimely.spec import feature_types
 
 
@@ -45,7 +45,7 @@ class Pump(Profile):
     name = "Pump Summary"
     description = "One row per pump with collapsed condition and workflow inputs."
     category = "Machines"
-    grain = [Grain(dimension.MACHINE_DIMENSION, "machine")]
+    grain = [dimension.MACHINE_DIMENSION.resolution("machine")]
     scope = "Pump-level telemetry and external workflow inputs"
     features = PumpFeatures()
 

@@ -1063,13 +1063,10 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
     declaration = profile.Profile(
         id="external",
         grain=[
-            profile.Grain(
-                dimension.Dimension(
-                    id="asset",
-                    resolutions=[dimension.Resolution(id="asset", key="asset_id", type="string")],
-                ),
-                "asset",
-            )
+            dimension.Dimension(
+                id="asset",
+                resolutions=[dimension.Resolution(id="asset", key="asset_id", type="string")],
+            ).resolution("asset"),
         ],
         assembly=[
             assembly.Operator(

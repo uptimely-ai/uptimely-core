@@ -4,7 +4,6 @@ from uptimely.spec.python import (
     Binding,
     Dimension,
     Feature,
-    Grain,
     Interface,
     Operator,
     Profile,
@@ -23,7 +22,7 @@ row = Dimension(
 
 class Values(Profile):
     id = "values"
-    grain = [Grain(row, "row")]
+    grain = [row.resolution("row")]
 
     assembly = [
         Operator(
