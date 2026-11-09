@@ -81,7 +81,7 @@ class InstalledImportsTest(unittest.TestCase):
                 snapshot = json.loads(
                     (project / "_generated" / "explorer.json").read_text(encoding="utf-8")
                 )
-                self.assertEqual(snapshot["format_version"], 1)
+                self.assertEqual(snapshot["format_version"], 3)
                 frontend = pathlib.Path(uptimely.__file__).parent / "explorer" / "app" / "static"
                 self.assertTrue((frontend / "index.html").is_file())
                 self.assertTrue((frontend / "css" / "explorer.css").is_file())
@@ -121,10 +121,6 @@ class InstalledImportsTest(unittest.TestCase):
                 "installed_analytics.functions:Readers.values": {
                     "distribution": "uptimely-import-fixture",
                     "version": "1.2.3",
-                },
-                "uptimely.library.merge.polars:merge_by_grain": {
-                    "distribution": "uptimely-core",
-                    "version": importlib.metadata.version("uptimely-core"),
                 },
             },
         )

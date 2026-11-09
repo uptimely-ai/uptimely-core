@@ -8,6 +8,7 @@ import tempfile
 import typing
 
 from uptimely import project as project_module
+from uptimely.project import paths
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLES_ROOT = pathlib.Path(
@@ -81,11 +82,19 @@ def copy_example_project(
     example: str = "pump_analytics",
     features: tuple[str, ...] | None = None,
 ) -> pathlib.Path:
-    """Copy a prepared example, including its build, for an isolated test."""
+    """Copy example sources and saved build artifacts, excluding mutable run files."""
+    source = _example_project(example, features)
+
+    def ignore(directory: str, names: list[str]) -> list[str]:
+        if pathlib.Path(directory) == source / paths.GENERATED_DIR:
+            retained = {paths.BUILD_OUTPUT_DIR.name, paths.EXPLORER_DATA_FILE.name}
+            return [name for name in names if name not in retained]
+        return [name for name in names if name == "__pycache__"]
+
     shutil.copytree(
-        _example_project(example, features),
+        source,
         target,
-        ignore=shutil.ignore_patterns("__pycache__"),
+        ignore=ignore,
     )
     return target
 

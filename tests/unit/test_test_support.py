@@ -102,6 +102,27 @@ def test_example_objects_and_project_copies_are_independent(tmp_path: pathlib.Pa
     assert spec.load_spec(first.spec_path).name == second.spec_definition.name
 
 
+def test_example_project_copy_excludes_mutable_run_artifacts(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = example_support.copy_example_project(tmp_path / "source")
+    generated = source / project.BUILD_OUTPUT_DIR.parent
+    for name in ("run", ".run-staging-active", ".run-backup-active"):
+        artifact = generated / name
+        artifact.mkdir()
+        (artifact / "partial.json").write_text("{}", encoding="utf-8")
+    monkeypatch.setattr(example_support, "_example_project", lambda *args: source)
+
+    copied_root = example_support.copy_example_project(tmp_path / "copied")
+
+    assert {path.name for path in (copied_root / project.BUILD_OUTPUT_DIR.parent).iterdir()} == {
+        "build",
+        "explorer.json",
+    }
+    copied = project.load_build_bundle(copied_root)
+    assert copied.manifest == project.load_build_bundle(source).manifest
+
+
 def test_scoped_example_is_built_once_for_multiple_consumers(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, example_projects: pathlib.Path
 ) -> None:
