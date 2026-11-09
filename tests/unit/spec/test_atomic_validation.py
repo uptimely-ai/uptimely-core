@@ -229,14 +229,14 @@ def _add_merge_binding(document: spec.Spec) -> spec.model.Operator:
         entrypoint="merge",
         validate_signature=False,
         args={
-            "target": spec.model.Argument(id="target", type="dataframe | null"),
+            "dataset": spec.model.Argument(id="dataset", type="dataframe | null"),
             "fragment": spec.model.Argument(id="fragment", type="dataframe"),
         },
     )
     operator.merge = spec.model.Binding(
         function="merge",
         args={
-            "target": "$profiles.@.dataset",
+            "dataset": "$profiles.@.dataset",
             "fragment": "$operators.@.fragment",
         },
     )
@@ -253,15 +253,15 @@ def test_merge_binding_requires_two_dataframe_argument_slots(document: spec.Spec
     assert error.value.code == "invalid_binding_arity"
 
 
-def test_merge_target_is_validated_independently(document: spec.Spec) -> None:
+def test_merge_dataset_is_validated_independently(document: spec.Spec) -> None:
     operator = _add_merge_binding(document)
-    operator.merge.args["target"] = spec.model.BindingArgument("$profiles.other.dataset")
+    operator.merge.args["dataset"] = spec.model.BindingArgument("$profiles.other.dataset")
 
     with pytest.raises(errors.SpecError, match="current profile dataframe") as error:
-        bindings.validate_merge_target(document)
+        bindings.validate_merge_dataset(document)
 
     assert error.value.code == "invalid_merge_binding"
-    assert error.value.path[-3:] == ("merge", "args", "target")
+    assert error.value.path[-3:] == ("merge", "args", "dataset")
 
 
 def test_merge_fragment_is_validated_independently(document: spec.Spec) -> None:

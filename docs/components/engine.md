@@ -201,7 +201,7 @@ merge function delegates key-based assembly to the stateless
 that behavior and are not retried with the default. The executor does not merge
 the returned dataframe a second time. After successful publication, it retains
 the staged fragment on the `Dataset` under the operator ID without copying
-the dataframe. Merge functions must not mutate their target input because
+the dataframe. Merge functions must not mutate their dataset input because
 arbitrary function-side mutations cannot be rolled back. The same limitation
 applies to any user function that mutates input state: assigning a result only
 after checks succeed cannot undo mutations performed before that assignment.

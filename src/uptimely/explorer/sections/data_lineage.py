@@ -202,7 +202,7 @@ class _DataLineageBuilder:
 
         tables = []
         profile_key = self.definition.profile_keys[profile.id]
-        target_keys = set(self.definition.grain_keys_by_profile[profile_key])
+        dataset_keys = set(self.definition.grain_keys_by_profile[profile_key])
         for source_id, inputs in source_columns.items():
             source = self.features[inputs[0].name]
             tables.append(
@@ -216,7 +216,7 @@ class _DataLineageBuilder:
                         for key in self.definition.grain_keys_by_profile[
                             self.definition.profile_keys[source.profile.id]
                         ]
-                        if key in target_keys
+                        if key in dataset_keys
                     ],
                     row_count=1 if source_id in self.compact_datasets else 3,
                 )

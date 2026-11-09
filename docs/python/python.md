@@ -204,7 +204,7 @@ observation. See the runnable
 [dimensional operations example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/dimensional_operations)
 and [engine fragment contract](../components/engine.md#fragments).
 
-`vectorize` functions instead receive the accumulated target dataframe and
+`vectorize` functions instead receive the accumulated dataset dataframe and
 return that complete dataframe enriched with their declared outputs. They must
 preserve existing columns and values, row count, key identities, and row order;
 they do not return fragments and cannot declare a merge binding. The engine

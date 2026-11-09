@@ -512,9 +512,9 @@ def test_function_catalog_records_independent_return_contract(returns: str) -> N
 
 
 @authoring.function(returns="dataframe")
-def merge_frames(target: object | None, fragment: object) -> object:
+def merge_frames(dataset: object | None, fragment: object) -> object:
     """Return the merged dataframe."""
-    return target if target is not None else fragment
+    return dataset if dataset is not None else fragment
 
 
 @authoring.function(returns="dataframe")
@@ -531,7 +531,7 @@ def test_python_spec_merge_binding_export() -> None:
         merge=authoring.Binding(
             function=merge_frames,
             arguments={
-                "target": ref.dataset(),
+                "dataset": ref.dataset(),
                 "fragment": ref.fragment(),
             },
         ),
@@ -544,11 +544,11 @@ def test_python_spec_merge_binding_export() -> None:
     assert spec_definition.spec_version == 8
     assert model_operator.merge is not None
     assert model_operator.merge.model_dump()["args"] == {
-        "target": "$profiles.@.dataset",
+        "dataset": "$profiles.@.dataset",
         "fragment": "$operators.@.fragment",
     }
     assert not hasattr(spec_definition.functions["merge_frames"], "kind")
-    assert spec_definition.functions["merge_frames"].args["target"].type == "dataframe | null"
+    assert spec_definition.functions["merge_frames"].args["dataset"].type == "dataframe | null"
     assert spec_definition.functions["merge_frames"].args["fragment"].type == "dataframe"
     assert "options" not in spec_definition.model_dump()
     assert "options" not in authoring.Spec(profiles=[declaration]).to_dict()

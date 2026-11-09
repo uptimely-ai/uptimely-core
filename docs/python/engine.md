@@ -25,10 +25,10 @@ and type checks run when `validate=True`. The executor retains that fragment by
 compute invocation ID without changing the profile's accumulated dataframe.
 
 The separately scheduled merge invocation resolves its pending fragment and
-current target, then calls the merge function declared by the Spec. The default
+current dataset, then calls the merge function declared by the Spec. The default
 merge function uses `merge_by_grain`; a custom merge replaces it and is never
 silently retried with the default. A merge function returns the complete new
-target dataframe. The runtime `Merge` checks its structure and declared columns, then the executor
+dataset dataframe. The runtime `Merge` checks its structure and declared columns, then the executor
 publishes it by assignment; it does not merge the returned frame a second time.
 The fragment is retained on the `Dataset` by operator ID only after successful
 publication, reusing the staged object rather than copying the dataframe.
@@ -101,7 +101,7 @@ expected target schema; overlapping feature columns are rejected.
 Publishing is transactional with respect to the executor's assignment: a failed
 merge leaves the previously published Dataset unchanged. It cannot undo
 mutation performed by an arbitrary user function, so merge functions must not
-mutate their target input. User functions and `ExecutionResult.datasets`
+mutate their dataset input. User functions and `ExecutionResult.datasets`
 continue to receive ordinary Polars dataframes or lazy frames, not these
 internal runtime wrappers.
 
@@ -233,12 +233,12 @@ dimension-aware assembly is handled by the stateless Polars merge library.
 
 ### Merge functions
 
-`uptimely.library.merge.polars.merge_by_grain(target, fragment, target_keys,
+`uptimely.library.merge.polars.merge_by_grain(dataset, fragment, dataset_keys,
 fragment_keys=None)` assembles a fragment using its carried keys. When
-`fragment_keys` is omitted, the function infers carried target keys from the
+`fragment_keys` is omitted, the function infers carried dataset keys from the
 fragment schema at runtime. Equal key sets use a full join, a strict subset
-uses a left join, and an empty strict subset uses a cross join. With no target,
-only a fragment at the complete target grain can initialize the result. The
+uses a left join, and an empty strict subset uses a cross join. With no dataset,
+only a fragment at the complete dataset grain can initialize the result. The
 function supports eager and lazy Polars dataframes.
 
 ::: uptimely.library.merge.polars

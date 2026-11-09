@@ -87,7 +87,7 @@ def validate_binding_contracts(spec: spec_model.Spec) -> None:
             for name, argument in function.args.items():
                 if (
                     role == "merge"
-                    and name in {"target", "fragment"}
+                    and name in {"dataset", "fragment"}
                     and (
                         not arg_types.is_dataframe(argument.type)
                         or (name == "fragment" and argument.type != arg_types.DATAFRAME)
@@ -106,18 +106,18 @@ def validate_binding_contracts(spec: spec_model.Spec) -> None:
                     )
 
 
-def validate_merge_target(spec: spec_model.Spec) -> None:
-    """Require merge bindings to use the current profile dataframe as their target."""
-    logger.debug("Check merge bindings reference the current target")
+def validate_merge_dataset(spec: spec_model.Spec) -> None:
+    """Require merge bindings to use the current profile dataframe as their dataset."""
+    logger.debug("Check merge bindings reference the current dataset")
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
-        target = operator.merge.args.get("target")
-        if target is None or not target.is_current_profile_dataframe:
+        dataset = operator.merge.args.get("dataset")
+        if dataset is None or not dataset.is_current_profile_dataframe:
             raise errors.SpecError(
-                "Merge target must reference the current profile dataframe",
+                "Merge dataset must reference the current profile dataframe",
                 code="invalid_merge_binding",
-                path=(*spec.declaration_paths[key], "merge", "args", "target"),
+                path=(*spec.declaration_paths[key], "merge", "args", "dataset"),
             )
 
 

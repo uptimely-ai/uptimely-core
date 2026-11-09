@@ -12,13 +12,13 @@ if typing.TYPE_CHECKING:
 DEFAULT_FUNCTION = functions.FunctionTemplate(
     id="merge_by_grain",
     name="Merge By Grain",
-    description="Merge a fragment into the target by grain keys.",
+    description="Merge a fragment into the dataset by grain keys.",
     returns="dataframe",
     entrypoint="uptimely.library.merge.polars:merge_by_grain",
     args={
-        "target": functions.Argument(id="target", type="dataframe | null"),
+        "dataset": functions.Argument(id="dataset", type="dataframe | null"),
         "fragment": functions.Argument(id="fragment", type="dataframe"),
-        "target_keys": functions.Argument(id="target_keys", type="array[string]"),
+        "dataset_keys": functions.Argument(id="dataset_keys", type="array[string]"),
     },
 )
 

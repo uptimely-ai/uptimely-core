@@ -44,9 +44,9 @@ export function initializeInvocationLineage(signal) {
 		];
 		if (invocationRole(node) === 'merge') {
 			outputRows.push(
-				['Merge target', node.merge_target ?? node.arguments?.target],
+				['Merge dataset', node.merge_dataset ?? node.arguments?.dataset],
 				['Fragment source', node.fragment_source ?? node.arguments?.fragment],
-				['Merge keys', formatList(node.merge_keys ?? node.arguments?.target_keys)],
+				['Merge keys', formatList(node.merge_keys ?? node.arguments?.dataset_keys)],
 			);
 			if (isDefaultMerge(node)) outputRows.push(['Binding', 'Automatically supplied default merge']);
 		}

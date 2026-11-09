@@ -73,9 +73,9 @@
           "merge": {
             "function": "merge_by_grain",
             "args": {
-              "target": "$profiles.@.dataset",
+              "dataset": "$profiles.@.dataset",
               "fragment": "$operators.@.fragment",
-              "target_keys": "$profiles.@.grain.ids"
+              "dataset_keys": "$profiles.@.grain.ids"
             }
           }
         },

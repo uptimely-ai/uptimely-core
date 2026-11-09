@@ -278,7 +278,7 @@ def test_merge_rejects_feature_collisions(lazy: bool, collision: bool) -> None:
 
 
 @pytest.mark.parametrize(
-    ("result", "target", "fragment_frame", "message"),
+    ("result", "dataset", "fragment_frame", "message"),
     [
         (
             pl.DataFrame({"key": ["A"]}),
@@ -296,12 +296,12 @@ def test_merge_rejects_feature_collisions(lazy: bool, collision: bool) -> None:
 )
 def test_merge_checks_complete_result_schema(
     result: pl.DataFrame,
-    target: pl.DataFrame | None,
+    dataset: pl.DataFrame | None,
     fragment_frame: pl.DataFrame,
     message: str,
 ) -> None:
     backend = backend_module.PolarsBackend()
-    dataset = dataset_module.Dataset(backend, ["key"], target)
+    dataset = dataset_module.Dataset(backend, ["key"], dataset)
     fragment = fragment_module.Fragment(fragment_frame, ("key",))
 
     with pytest.raises(ValueError, match=message):

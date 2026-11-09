@@ -1,3 +1,4 @@
+import collections.abc
 import copy
 import logging
 import pathlib
@@ -30,8 +31,25 @@ def _plan() -> uptimely_plan.ExecutionPlan:
 
 
 def _patch_callables(monkeypatch: pytest.MonkeyPatch, callables: dict[str, object]) -> None:
-    def merge_by_grain_entrypoint(*args: object, **kwargs: object) -> object:
-        return merge_module.merge_by_grain(*args, **kwargs)
+    def merge_by_grain_entrypoint(
+        dataset: merge_module.DataFrame | None,
+        fragment: merge_module.DataFrame,
+        dataset_keys: collections.abc.Sequence[str],
+        fragment_keys: collections.abc.Sequence[str] | None = None,
+        *,
+        identifier_columns: collections.abc.Sequence[str] = (),
+        join_cardinality: str = "m:m",
+        broadcast_cardinality: str = "m:m",
+    ) -> merge_module.DataFrame:
+        return merge_module.merge_by_grain(
+            dataset,
+            fragment,
+            dataset_keys,
+            fragment_keys,
+            identifier_columns=identifier_columns,
+            join_cardinality=join_cardinality,
+            broadcast_cardinality=broadcast_cardinality,
+        )
 
     callables = {
         "uptimely.library.merge.polars:merge_by_grain": merge_by_grain_entrypoint,
@@ -133,16 +151,16 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
         return pl.DataFrame({"id": ["A"], "second": [2]})
 
     def custom_merge(
-        target: pl.DataFrame | None,
+        dataset: pl.DataFrame | None,
         fragment: pl.DataFrame,
-        target_keys: list[str],
+        dataset_keys: list[str],
     ) -> pl.DataFrame:
-        merge_inputs.append((target.columns if target is not None else None, fragment.columns))
-        if target is not None and merge_failure == "exception":
+        merge_inputs.append((dataset.columns if dataset is not None else None, fragment.columns))
+        if dataset is not None and merge_failure == "exception":
             raise RuntimeError("custom merge failed")
-        if target is not None and merge_failure == "incomplete":
+        if dataset is not None and merge_failure == "incomplete":
             return fragment
-        return merge_module.merge_by_grain(target, fragment, target_keys)
+        return merge_module.merge_by_grain(dataset, fragment, dataset_keys)
 
     def write(dataset: pl.DataFrame) -> None:
         assert dataset.columns == ["id", "first", "second"]
@@ -192,16 +210,16 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             operator_id=operator_id,
             profile_id="telemetry",
             arguments={
-                "target": "telemetry",
+                "dataset": "telemetry",
                 "fragment": "$operators.@.fragment",
-                "target_keys": ["id"],
+                "dataset_keys": ["id"],
             },
             dependency_ids=[compute_id, *dependencies],
             id_columns=["id"],
             argument_types={
-                "target": "dataframe | null",
+                "dataset": "dataframe | null",
                 "fragment": "dataframe",
-                "target_keys": "array[string]",
+                "dataset_keys": "array[string]",
             },
         )
 
@@ -301,7 +319,7 @@ def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
                         invocation,
                         id_columns=[],
                         arguments=(
-                            invocation.arguments | {"target_keys": []}
+                            invocation.arguments | {"dataset_keys": []}
                             if invocation.role == "merge"
                             else invocation.arguments
                         ),
@@ -951,14 +969,14 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         profile_id="telemetry",
         id_columns=["asset_id"],
         arguments={
-            "target": "telemetry",
+            "dataset": "telemetry",
             "fragment": "$operators.@.fragment",
-            "target_keys": ["asset_id"],
+            "dataset_keys": ["asset_id"],
         },
         argument_types={
-            "target": "dataframe | null",
+            "dataset": "dataframe | null",
             "fragment": "dataframe",
-            "target_keys": "array[string]",
+            "dataset_keys": "array[string]",
         },
         dependency_ids=[read_id],
     )
@@ -1246,13 +1264,13 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
             profile_id=profile_id,
             operator_id="shared",
             arguments={
-                "target": profile_id,
+                "dataset": profile_id,
                 **{
                     key: value
                     for key, value in next(
                         item for item in engine.plan.invocations if item.role == "merge"
                     ).arguments.items()
-                    if key != "target"
+                    if key != "dataset"
                 },
             },
             dependency_ids=[read.id],
@@ -1601,17 +1619,17 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         output_features=[],
         input_features=[],
         arguments={
-            "target": "telemetry",
+            "dataset": "telemetry",
             "fragment": "$operators.@.fragment",
-            "target_keys": ["asset_id"],
+            "dataset_keys": ["asset_id"],
         },
         dependency_ids=[read_invocation.id],
         id_columns=["asset_id"],
         column_types={},
         argument_types={
-            "target": "dataframe | null",
+            "dataset": "dataframe | null",
             "fragment": "dataframe",
-            "target_keys": "array[string]",
+            "dataset_keys": "array[string]",
         },
     )
     vectorize_invocation = uptimely_plan.Invocation(

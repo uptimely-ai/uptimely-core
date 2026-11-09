@@ -81,7 +81,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
                     "args": {
                         "target": {"type": "dataframe | null"},
                         "fragment": {"type": "dataframe"},
-                        "target_keys": {"type": "array[string]"},
+                        "dataset_keys": {"type": "array[string]"},
                     },
                 },
             },
@@ -111,9 +111,9 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         operator_id="source",
         profile_id="data",
         arguments={
-            "target": "data",
+            "dataset": "data",
             "fragment": "$operators.source.fragment",
-            "target_keys": ["id"],
+            "dataset_keys": ["id"],
         },
         dependency_ids=[read_id],
     )
@@ -132,7 +132,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
     assert merge_node["phase"] == card["phase"] == "merge"
     assert merge_node["operator_id"] == card["operator_id"] == "source"
     assert merge_node["operator_name"] == "Source"
-    assert merge_node["merge_target"] == card["merge_target"] == "data"
+    assert merge_node["merge_dataset"] == card["merge_dataset"] == "data"
     assert merge_node["fragment_source"] == card["fragment_source"] == "$operators.source.fragment"
     assert merge_node["merge_keys"] == card["merge_keys"] == ["id"]
     assert all(node["profile_id"] == "data" for node in nodes)

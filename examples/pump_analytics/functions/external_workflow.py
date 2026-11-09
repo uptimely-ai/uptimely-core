@@ -13,20 +13,20 @@ OUTPUT_PATH = EXAMPLE_ROOT / "_generated" / "pump_external_workflow_results.csv"
 
 @function(category="merge")
 def merge_pump_inputs(
-    target: pl.DataFrame | pl.LazyFrame | None,
+    dataset: pl.DataFrame | pl.LazyFrame | None,
     fragment: pl.DataFrame | pl.LazyFrame,
-    target_keys: list[str],
+    dataset_keys: list[str],
 ) -> pl.DataFrame | pl.LazyFrame:
-    """Full-join external inputs into the pump profile's current target."""
-    if target is None:
+    """Full-join external inputs into the pump profile's current dataset."""
+    if dataset is None:
         return fragment
-    if isinstance(target, pl.DataFrame) and isinstance(fragment, pl.LazyFrame):
-        target = target.lazy()
-    elif isinstance(target, pl.LazyFrame) and isinstance(fragment, pl.DataFrame):
+    if isinstance(dataset, pl.DataFrame) and isinstance(fragment, pl.LazyFrame):
+        dataset = dataset.lazy()
+    elif isinstance(dataset, pl.LazyFrame) and isinstance(fragment, pl.DataFrame):
         fragment = fragment.lazy()
-    return target.join(
+    return dataset.join(
         fragment,
-        on=target_keys,
+        on=dataset_keys,
         how="full",
         coalesce=True,
         nulls_equal=True,

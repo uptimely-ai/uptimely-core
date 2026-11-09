@@ -201,9 +201,9 @@ class Pump(Profile):
             merge=Binding(
                 function=external_workflow.merge_pump_inputs,
                 arguments={
-                    "target": ref.dataset(),
+                    "dataset": ref.dataset(),
                     "fragment": ref.fragment(),
-                    "target_keys": ref.profile().grain.ids,
+                    "dataset_keys": ref.profile().grain.ids,
                 },
             ),
         ),

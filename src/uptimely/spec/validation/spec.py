@@ -64,7 +64,7 @@ DECLARATION_CHECKS: tuple[Validator, ...] = (
     operator_inputs.validate_feature_owner,
     bindings.validate_selector_type,
     bindings.validate_selector_metadata,
-    bindings.validate_merge_target,
+    bindings.validate_merge_dataset,
     bindings.validate_merge_fragment,
     operator_contracts.validate_dataframe_argument_profile_reference,
     operator_outputs.validate_current_feature_selector,
