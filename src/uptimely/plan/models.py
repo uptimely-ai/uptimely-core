@@ -11,7 +11,7 @@ from uptimely import spec
 from uptimely.spec import operator_kinds
 from uptimely.spec import row_context as uptimely_row_context
 
-PLAN_VERSION = 9
+PLAN_VERSION = 10
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
@@ -24,6 +24,13 @@ class _InvocationNode(typing.Protocol):
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
     operator_kind: operator_kinds.OperatorKindId
+    produces_features: bool
+    is_sink: bool
+    fragment_dimensions: operator_kinds.FragmentDimensions
+    row_count_relation: operator_kinds.RowCountRelation
+    key_relation: operator_kinds.KeyRelation
+    row_order_relation: operator_kinds.RowOrderRelation
+    existing_data_relation: operator_kinds.ExistingDataRelation
     output_features: tuple[str, ...]
     input_features: tuple[str, ...]
     row_context: uptimely_row_context.RowContext | None
@@ -39,6 +46,10 @@ class _PlanModel(pydantic.BaseModel):
 
     def __replace__(self, **changes: typing.Any) -> typing.Self:
         """Return a revalidated copy with selected fields replaced."""
+        if "id_columns" in changes:
+            changes["target_grain_keys"] = changes.pop("id_columns")
+        if "identifier_columns" in changes:
+            changes["fragment_identifiers"] = changes.pop("identifier_columns")
         values = {name: getattr(self, name) for name in type(self).model_fields}
         return type(self).model_validate({**values, **changes})
 
@@ -72,6 +83,13 @@ class Invocation(_PlanModel):
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
     operator_kind: operator_kinds.OperatorKindId
+    produces_features: bool = False
+    is_sink: bool = False
+    fragment_dimensions: operator_kinds.FragmentDimensions = "not_applicable"
+    row_count_relation: operator_kinds.RowCountRelation = "unrestricted"
+    key_relation: operator_kinds.KeyRelation = "unrestricted"
+    row_order_relation: operator_kinds.RowOrderRelation = "unrestricted"
+    existing_data_relation: operator_kinds.ExistingDataRelation = "unrestricted"
     entrypoint: NonEmptyString
     function_id: NonEmptyString
     operator_id: NonEmptyString
@@ -81,8 +99,15 @@ class Invocation(_PlanModel):
     output_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     input_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     row_context: uptimely_row_context.RowContext | None = None
-    id_columns: list[NonEmptyString] = pydantic.Field(default_factory=list)
-    identifier_columns: list[NonEmptyString] = pydantic.Field(default_factory=list)
+    target_grain_keys: list[NonEmptyString] = pydantic.Field(
+        default_factory=list,
+        validation_alias=pydantic.AliasChoices("target_grain_keys", "id_columns"),
+    )
+    fragment_identifiers: list[NonEmptyString] = pydantic.Field(
+        default_factory=list,
+        validation_alias=pydantic.AliasChoices("fragment_identifiers", "identifier_columns"),
+    )
+    output_types: dict[NonEmptyString, NonEmptyString | None] = pydantic.Field(default_factory=dict)
     column_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     argument_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     return_type: str | None = None
@@ -144,11 +169,21 @@ class Invocation(_PlanModel):
         } | spec_definition.grain_key_types_by_profile[profile_key]
         identifier_types = spec_definition.identifier_types_by_profile[profile_key]
         column_types |= identifier_types
+        output_types = {
+            feature_id: column_types.get(feature_id) for feature_id in node.output_features
+        }
         return cls(
             id=node.node_id,
             role=node.role,
             result=node.result,
             operator_kind=node.operator_kind,
+            produces_features=node.produces_features,
+            is_sink=node.is_sink,
+            fragment_dimensions=node.fragment_dimensions,
+            row_count_relation=node.row_count_relation,
+            key_relation=node.key_relation,
+            row_order_relation=node.row_order_relation,
+            existing_data_relation=node.existing_data_relation,
             entrypoint=function.entrypoint,
             function_id=node.function_id,
             operator_id=node.operator_id,
@@ -158,8 +193,9 @@ class Invocation(_PlanModel):
             arguments=arguments,
             dependency_ids=dependency_ids,
             row_context=node.row_context,
-            id_columns=list(id_columns),
-            identifier_columns=list(identifier_types),
+            target_grain_keys=list(id_columns),
+            fragment_identifiers=list(identifier_types),
+            output_types=output_types,
             column_types=column_types,
             argument_types={key: argument.type for key, argument in function.args.items()},
             return_type=return_type,
@@ -184,25 +220,29 @@ class Invocation(_PlanModel):
         """Require valid role/result combinations and distinct invocation outputs."""
         if len(set(self.output_features)) != len(self.output_features):
             raise ValueError("Invocation output_features must be unique")
-        if len(set(self.identifier_columns)) != len(self.identifier_columns):
-            raise ValueError("Invocation identifier_columns must be unique")
+        if len(set(self.fragment_identifiers)) != len(self.fragment_identifiers):
+            raise ValueError("Invocation fragment_identifiers must be unique")
         if self.role == "merge" and self.result != "target":
             raise ValueError("Merge invocations must have result='target'")
         if self.result == "fragment" and self.role != "compute":
             raise ValueError("Only compute invocations may have result='fragment'")
-        if (
-            self.role == "compute"
-            and self.operator_kind == operator_kinds.COLLAPSE
-            and not self.output_features
-        ):
-            raise ValueError("Collapse must declare output_features")
         return self
+
+    @property
+    def id_columns(self) -> list[str]:
+        """Return target grain keys for existing runtime consumers."""
+        return self.target_grain_keys
+
+    @property
+    def identifier_columns(self) -> list[str]:
+        """Return fragment identifiers for existing runtime consumers."""
+        return self.fragment_identifiers
 
 
 class ExecutionPlan(_PlanModel):
     """Portable invocations and the compiler-selected execution schedule."""
 
-    plan_version: typing.Literal[9]
+    plan_version: typing.Literal[10]
     required_backend: NonEmptyString
     invocations: list[Invocation]
     stages: list[Stage]

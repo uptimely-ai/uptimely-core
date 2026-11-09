@@ -115,11 +115,24 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     for operator_key, merge in merges_by_operator.items():
         compute = compute_by_operator[operator_key]
         assert compute.id in merge.dependency_ids
+        profile_key = specification.profile_keys[compute.profile_id]
+        assert compute.target_grain_keys == specification.grain_keys_by_profile[profile_key]
+        assert set(compute.output_types) == set(compute.output_features)
+        assert merge.target_grain_keys == compute.target_grain_keys
+        assert merge.fragment_identifiers == compute.fragment_identifiers
         assert merge.result == "target"
         assert merge.role == "merge"
         assert merge.output_features == []
+        assert merge.output_types == {}
         assert compute.result == "fragment"
         assert compute.output_features
+    vectorized = next(
+        invocation for invocation in compiled.invocations if invocation.operator_kind == "vectorize"
+    )
+    assert vectorized.row_count_relation == "same"
+    assert vectorized.key_relation == "identical"
+    assert vectorized.row_order_relation == "preserve"
+    assert vectorized.existing_data_relation == "preserve"
     assert all(
         len({(producer.profile_id, producer.operator_id) for producer in producers})
         == len(producers)

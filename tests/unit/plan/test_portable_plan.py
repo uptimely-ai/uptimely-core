@@ -23,7 +23,9 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 profile_id="pump_profile",
                 arguments={"dataset": {"type": "literal", "value": "pump_profile"}},
                 dependency_ids=[],
-                id_columns=["plant", "pump"],
+                target_grain_keys=["plant", "pump"],
+                fragment_identifiers=["plant", "pump"],
+                output_types={"pressure": "float"},
                 column_types={"plant": "string", "pump": "string", "pressure": "float"},
                 argument_types={"dataset": "dataframe"},
                 return_type="DataFrame",
@@ -80,6 +82,7 @@ def test_plan_round_trip_preserves_operator_kind_metadata() -> None:
     assert restored.invocations[0].operator_id == "read_pressure"
     assert restored.invocations[0].profile_id == "pump_profile"
     assert restored.invocations[0].id_columns == ["plant", "pump"]
+    assert restored.invocations[0].output_types == {"pressure": "float"}
     assert restored.invocations[0].column_types == {
         "plant": "string",
         "pump": "string",
@@ -94,7 +97,7 @@ def test_plan_round_trip_preserves_operator_kind_metadata() -> None:
 def test_plan_round_trip_preserves_expansion_identifier_columns() -> None:
     original = _sample_plan()
     invocation = original.invocations[1].__replace__(
-        operator_kind="expand", identifier_columns=["series"]
+        operator_kind="expand", fragment_identifiers=["series"]
     )
     plan = original.__replace__(
         invocations=[original.invocations[0], invocation, original.invocations[2]]
@@ -106,19 +109,18 @@ def test_plan_round_trip_preserves_expansion_identifier_columns() -> None:
     assert restored.invocations[1].identifier_columns == ["series"]
 
 
-def test_plan_accepts_older_invocations_without_identifier_metadata() -> None:
+def test_plan_requires_fragment_identifier_metadata() -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     for invocation in payload["invocations"]:
-        invocation.pop("identifier_columns")
+        invocation.pop("fragment_identifiers")
 
-    restored = uptimely_plan.from_dict(payload)
-
-    assert all(invocation.identifier_columns == [] for invocation in restored.invocations)
+    with pytest.raises(ValueError, match="missing runtime metadata: fragment_identifiers"):
+        uptimely_plan.from_dict(payload)
 
 
 def test_plan_round_trip_preserves_read_identifier_columns() -> None:
     original = _sample_plan()
-    reader = original.invocations[0].__replace__(identifier_columns=["series", "category"])
+    reader = original.invocations[0].__replace__(fragment_identifiers=["series", "category"])
     plan = original.__replace__(invocations=[reader, *original.invocations[1:]])
 
     restored = uptimely_plan.from_dict(uptimely_plan.to_dict(plan))
@@ -145,7 +147,22 @@ def test_invocation_rejects_legacy_dataset_id_without_an_alias(
 
 @pytest.mark.parametrize(
     "field",
-    ["id_columns", "column_types", "argument_types", "return_type", "package"],
+    [
+        "target_grain_keys",
+        "fragment_identifiers",
+        "output_types",
+        "produces_features",
+        "is_sink",
+        "fragment_dimensions",
+        "row_count_relation",
+        "key_relation",
+        "row_order_relation",
+        "existing_data_relation",
+        "column_types",
+        "argument_types",
+        "return_type",
+        "package",
+    ],
 )
 def test_plan_requires_runtime_metadata_in_saved_invocations(field: str) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
@@ -188,7 +205,7 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "invocations",
         "stages",
     }
-    assert payload["plan_version"] == 9
+    assert payload["plan_version"] == 10
     assert "phase" not in payload["invocations"][0]
     assert not hasattr(plan.invocations[0], "phase")
     assert {"function_id", "operator_id"} <= set(payload["invocations"][0])
@@ -247,11 +264,13 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["plan_version"] = 1
     payload["callables"] = payload.pop("invocations")
 
-    with pytest.raises(ValueError, match=r"Unsupported plan version: 1\. Supported version is 9\."):
+    with pytest.raises(
+        ValueError, match=r"Unsupported plan version: 1\. Supported version is 10\."
+    ):
         uptimely_plan.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, 7, 8, "9", "unsupported", None, True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "10", "unsupported", None, True])
 def test_plan_rejects_unsupported_versions(version: object) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = version
@@ -341,14 +360,24 @@ def test_direct_execution_plan_construction_validates_structure() -> None:
     [
         ("entrypoint", None, "must declare an entrypoint"),
         ("entrypoint", "", "must declare an entrypoint"),
-        ("output_features", [], "must declare output_features"),
     ],
 )
-def test_plan_rejects_invalid_collapse_metadata(field: str, value: object, message: str) -> None:
+def test_plan_rejects_invalid_invocation_metadata(field: str, value: object, message: str) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["invocations"][1][field] = value
     with pytest.raises(ValueError, match=message):
         uptimely_plan.from_dict(payload)
+
+
+def test_plan_does_not_infer_runtime_contract_from_operator_kind() -> None:
+    payload = uptimely_plan.to_dict(_sample_plan())
+    payload["invocations"][1]["operator_kind"] = "expand"
+    payload["invocations"][1]["row_count_relation"] = "same"
+
+    plan = uptimely_plan.from_dict(payload)
+
+    assert plan.invocations[1].operator_kind == "expand"
+    assert plan.invocations[1].row_count_relation == "same"
 
 
 class _CountingInvocations(list[uptimely_plan.Invocation]):

@@ -119,6 +119,11 @@ class Operator(base.StrictModel):
             feature_id = None
         else:
             raise ValueError(f"Operator {self.id} has no {role} binding")
+        if selected_binding.function != function_id:
+            raise ValueError(
+                f"Operator {self.id} {role} binding selects {selected_binding.function}, "
+                f"not {function_id}"
+            )
         return selected_binding.resolve_args(
             profile_id,
             feature_id,

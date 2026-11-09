@@ -258,56 +258,58 @@ class Compiler:
         for key, operator in spec_definition.operator_items:
             profile_id = spec_definition.profiles_by_key[key[0]].id
             operator_kind = spec_definition.operator_kinds[key]
-            compute_function = spec_definition.functions[operator.compute.function]
-            compute_dataframe_arity = sum(
-                arg_types.is_dataframe(argument.type) for argument in compute_function.args.values()
-            )
-            if compute_dataframe_arity > 1:
-                raise ValueError(
-                    f"Compute function {compute_function.id} for operator {operator.id} "
-                    "must declare at most one dataframe argument"
+            for role, binding in operator.bindings.items():
+                function = spec_definition.functions[binding.function]
+                dataframe_arity = sum(
+                    arg_types.is_dataframe(argument.type) for argument in function.args.values()
                 )
-            result = (
-                "none"
-                if compute_function.returns != "dataframe"
-                else "fragment"
-                if operator.merge is not None
-                else "target"
-            )
-            invocations.append(
-                invocation_graph.InvocationNode(
-                    function_id=operator.compute.function,
-                    profile_id=profile_id,
-                    operator_id=operator.id,
-                    operator_kind=operator_kind,
-                    role="compute",
-                    result=result,
-                    output_features=tuple(operator.output_features),
-                    arguments=operator.compute.args,
-                    input_features=tuple(operator.input_features),
-                    row_context=operator.row_context,
-                )
-            )
-            if operator.merge is not None:
-                merge_function = spec_definition.functions[operator.merge.function]
-                merge_dataframe_arity = sum(
-                    arg_types.is_dataframe(argument.type)
-                    for argument in merge_function.args.values()
-                )
-                if merge_dataframe_arity != 2:
+                if role == "compute" and dataframe_arity > 1:
                     raise ValueError(
-                        f"Merge function {merge_function.id} for operator {operator.id} "
+                        f"Compute function {function.id} for operator {operator.id} "
+                        "must declare at most one dataframe argument"
+                    )
+                if role == "merge" and dataframe_arity != 2:
+                    raise ValueError(
+                        f"Merge function {function.id} for operator {operator.id} "
                         "must declare exactly two dataframe arguments"
                     )
+                is_compute = role == "compute"
+                definition = operator_kinds.OPERATOR_KINDS[operator_kind]
+                if role == "merge":
+                    result = "target"
+                elif function.returns != "dataframe":
+                    result = "none"
+                elif operator.merge is not None:
+                    result = "fragment"
+                else:
+                    result = "target"
                 invocations.append(
                     invocation_graph.InvocationNode(
-                        function_id=operator.merge.function,
+                        function_id=binding.function,
                         profile_id=profile_id,
                         operator_id=operator.id,
                         operator_kind=operator_kind,
-                        role="merge",
-                        result="target",
-                        arguments=operator.merge.args,
+                        role=role,
+                        result=result,
+                        produces_features=definition.produces_features if is_compute else False,
+                        is_sink=definition.is_sink if is_compute else False,
+                        fragment_dimensions=(
+                            definition.fragment_dimensions if is_compute else "not_applicable"
+                        ),
+                        row_count_relation=(
+                            definition.row_count_relation if is_compute else "unrestricted"
+                        ),
+                        key_relation=definition.key_relation if is_compute else "unrestricted",
+                        row_order_relation=(
+                            definition.row_order_relation if is_compute else "unrestricted"
+                        ),
+                        existing_data_relation=(
+                            definition.existing_data_relation if is_compute else "unrestricted"
+                        ),
+                        output_features=tuple(operator.output_features) if is_compute else (),
+                        arguments=binding.args,
+                        input_features=tuple(operator.input_features) if is_compute else (),
+                        row_context=operator.row_context if is_compute else None,
                     )
                 )
 
@@ -344,14 +346,13 @@ class Compiler:
                 dataset_publishers.setdefault(node.profile_id, []).append(node)
             if node.role != "compute":
                 continue
-            definition = operator_kinds.OPERATOR_KINDS[node.operator_kind]
             producer = node
             if node.result == "fragment":
                 merge_node = by_binding.get((node.profile_id, node.operator_id, "merge"))
                 if merge_node is not None:
                     dependencies[merge_node.node_id].add(node.node_id)
                     producer = merge_node
-            if definition.produces_features:
+            if node.produces_features:
                 for feature in node.output_features:
                     feature_producers[feature] = producer
 
@@ -412,11 +413,7 @@ class Compiler:
 
         selected_profiles = {node.profile_id for node in requested_nodes}
         for node in invocations:
-            if (
-                node.role == "compute"
-                and operator_kinds.OPERATOR_KINDS[node.operator_kind].is_sink
-                and node.profile_id in selected_profiles
-            ):
+            if node.role == "compute" and node.is_sink and node.profile_id in selected_profiles:
                 selected_nodes.add(node)
                 selected_nodes.update(graph.ancestors(node.node_id))
         return graph.subset([node.node_id for node in selected_nodes])
