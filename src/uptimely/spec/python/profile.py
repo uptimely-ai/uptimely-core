@@ -76,6 +76,20 @@ class Profile:
         """Reference this profile's dataset without materializing it."""
         return references.ProfileReference(kind="string", value=f"$profiles.{self.id}").dataset
 
+    @property
+    def keys(self) -> list[str]:
+        """Return all resolution keys for the dimensions used by this profile."""
+        return list(self.key_types)
+
+    @property
+    def key_types(self) -> dict[str, str]:
+        """Return all resolution key types without changing the declared grain."""
+        return {
+            resolution.key: resolution.type
+            for item in self.grain
+            for resolution in self._selected_resolution(item)[0].resolutions
+        }
+
     def __init__(
         self,
         *,

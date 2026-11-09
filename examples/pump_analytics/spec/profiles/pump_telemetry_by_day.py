@@ -1,0 +1,55 @@
+"""Pump telemetry by day profile declaration."""
+
+from examples.pump_analytics.functions import analytics
+from examples.pump_analytics.spec import dimension
+
+from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, ref
+
+
+class PumpTelemetryByDayFeatures(FeatureSet):
+    """Features declared by the day-level profile."""
+
+    bearing_temperature_max = Feature(
+        id="bearing_temperature_day_max",
+        type="float",
+        unit="C",
+        description="Maximum observed bearing temperature at this profile's grain.",
+    )
+
+
+class PumpTelemetryByDay(Profile):
+    """Maximum bearing temperature at pump-and-day grain."""
+
+    id = "pump_telemetry_by_day"
+    name = "Pump Telemetry by Day"
+    description = "Maximum bearing temperature per pump and day."
+    category = "Telemetry"
+    grain = [
+        dimension.MACHINE_DIMENSION.resolution("machine"),
+        dimension.MACHINE_TIMESTAMP.resolution("day"),
+    ]
+    features = PumpTelemetryByDayFeatures()
+    assembly = [
+        Operator(
+            id="bearing_temperature_max",
+            interface=Interface(
+                inputs=[ref.feature("bearing_temperature")],
+                outputs=[features.bearing_temperature_max],
+            ),
+            compute=Binding(
+                function=analytics.aggregate,
+                arguments=dict(
+                    dataset=ref.dataset("pump_telemetry"),
+                    feature=ref.feature("bearing_temperature"),
+                    method="max",
+                    dimensions=[
+                        dimension.MACHINE_DIMENSION.resolution("machine").key,
+                        dimension.MACHINE_TIMESTAMP.resolution("day").key,
+                    ],
+                    output=features.bearing_temperature_max,
+                    filter_column="",
+                    filter_value="",
+                ),
+            ),
+        )
+    ]

@@ -75,7 +75,7 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     assert result.invocation_statuses[escape.id] == "succeeded"
     assert all(status == "succeeded" for status in result.invocation_statuses.values())
     assert result.failures == {}
-    assert len(result.datasets) == 3
+    assert len(result.datasets) == 8
     dataset = result.datasets["pump"]
     assert {
         "bearing_temperature_max",

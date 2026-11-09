@@ -245,7 +245,7 @@ def test_feature_graph_summary_subset_and_tree(
         "debug",
     )
     text = capsys.readouterr().out
-    assert "Feature graph: 13 features" in text
+    assert "Feature graph: 19 features" in text
     assert "Selected feature subset: 2 features" in text
     assert "health_signal_normalized" in text
     assert "Selected feature subset\n" in text
@@ -266,7 +266,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     text = capsys.readouterr().out
     assert "Engine processed 2 profiles in " in text
     assert "Scope:" not in text
-    assert "Processed profile pump: 6 features" in text
+    assert "Processed profile pump: 10 features" in text
 
 
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
@@ -401,7 +401,7 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
 
     result = capsys.readouterr()
     assert not result.err
-    dataset_count = 2 if scoped else 3
+    dataset_count = 2 if scoped else 8
     lines = result.out.splitlines()
     assert lines[0] == "INFO     | Start Uptimely engine run"
     assert "Start building the project bundle" not in result.out
@@ -410,7 +410,7 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
     processed_profiles = [line for line in lines[1:] if "Processed profile " in line]
     assert len(processed_profiles) == dataset_count
     assert all(line.startswith("INFO     | ") for line in processed_profiles)
-    assert any("Processed profile pump: 6 features" in line for line in processed_profiles)
+    assert any("Processed profile pump: 10 features" in line for line in processed_profiles)
     assert lines[-3] == (f"INFO     | Engine processed {dataset_count} profiles in 1.234 s.")
     assert all(lines.index(line) < len(lines) - 3 for line in processed_profiles)
     assert lines[-2] == "INFO     | View results in Explorer:"

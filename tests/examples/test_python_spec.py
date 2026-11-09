@@ -3,7 +3,16 @@ import pytest
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension as pump_dimensions
 from examples.pump_analytics.spec import spec as pump_telemetry_spec
-from examples.pump_analytics.spec.profiles import constants, pump, pump_telemetry
+from examples.pump_analytics.spec.profiles import (
+    constants,
+    pump,
+    pump_category,
+    pump_series,
+    pump_telemetry,
+    pump_telemetry_by_day,
+    pump_telemetry_by_hour,
+    pump_telemetry_by_minute,
+)
 from support import examples as example_support
 
 from uptimely import spec
@@ -68,16 +77,35 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         pump_telemetry.PumpTelemetry,
         pump.Pump,
         constants.Constants,
+        pump_series.PumpSeries,
+        pump_category.PumpCategory,
+        pump_telemetry_by_minute.PumpTelemetryByMinute,
+        pump_telemetry_by_hour.PumpTelemetryByHour,
+        pump_telemetry_by_day.PumpTelemetryByDay,
     ]
 
     assert [
         profile.category for profile in pump_telemetry_spec.python_spec.to_model().profiles.values()
-    ] == ["Telemetry", "Machines", "Configuration"]
+    ] == [
+        "Telemetry",
+        "Machines",
+        "Configuration",
+        "Machines",
+        "Machines",
+        "Telemetry",
+        "Telemetry",
+        "Telemetry",
+    ]
     assert [type(profile) for profile in pump_telemetry_spec.python_spec.profiles] == expected
     assert [profile.id for profile in pump_telemetry_spec.python_spec.profiles] == [
         "pump_telemetry",
         "pump",
         "constants",
+        "pump_series",
+        "pump_category",
+        "pump_telemetry_by_minute",
+        "pump_telemetry_by_hour",
+        "pump_telemetry_by_day",
     ]
     assert pump_telemetry.PumpTelemetry.grain == [
         pump_dimensions.MACHINE_DIMENSION.resolution("machine"),
@@ -130,6 +158,11 @@ def test_example_manifest_parses_complete_spec() -> None:
         "pump_telemetry",
         "pump",
         "constants",
+        "pump_series",
+        "pump_category",
+        "pump_telemetry_by_minute",
+        "pump_telemetry_by_hour",
+        "pump_telemetry_by_day",
     }
     assert spec_definition.profiles["pump_telemetry"].dimension_ids == [
         "machine_dimension",
@@ -156,7 +189,7 @@ def test_example_manifest_parses_complete_spec() -> None:
         "merge",
     }
     assert "aggregate" not in spec_definition.functions.by_kind("vectorize")
-    assert len(spec_definition.functions.by_kind("vectorize")) == 8
+    assert len(spec_definition.functions.by_kind("vectorize")) == 9
 
     pump_profile = spec_definition.profiles["pump"]
     collapse = pump_profile.assembly["bearing_temperature_by_pump"]
@@ -175,6 +208,11 @@ def test_spec_from_profiles_python_api() -> None:
         "pump_telemetry",
         "pump",
         "constants",
+        "pump_series",
+        "pump_category",
+        "pump_telemetry_by_minute",
+        "pump_telemetry_by_hour",
+        "pump_telemetry_by_day",
     }
     assert spec_definition.name == pump_telemetry_spec.python_spec.name
     assert spec_definition.source.name == "python_api"

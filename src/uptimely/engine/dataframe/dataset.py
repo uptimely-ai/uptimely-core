@@ -3,16 +3,15 @@
 import logging
 from collections import abc
 
-from uptimely.library.merge import polars as merge_module
-
 from . import backend as backend_module
 from . import fragment as fragment_module
+from . import merge as merge_module
 
 logger = logging.getLogger(__name__)
 
 
 class Dataset:
-    """Own an accumulated dataframe and assemble fragments by identifier columns."""
+    """Own accumulated data, retained fragments, and the dataset's grain contract."""
 
     def __init__(
         self,
@@ -41,85 +40,37 @@ class Dataset:
         Raises:
             ValueError: The dataset violates its structural or type contract.
         """
-        self._validate_frame_structure(self.dataframe, description)
-        self._validate_dimensionless_row_count(self.dataframe, description)
-        self._validate_unique_dimension_keys(self.dataframe, description)
-        self._validate_declared_types(self.dataframe, column_types, description)
-
-    def validate_fragment_merge(
-        self,
-        fragment: fragment_module.Fragment,
-        *,
-        description: str = "Accumulated profile",
-        column_types: abc.Mapping[str, str] | None = None,
-        validate: bool = False,
-    ) -> None:
-        """Check fragment feature collisions and optionally validate this dataset.
-
-        Args:
-            fragment: Prepared contribution whose dimension columns may overlap.
-            description: Dataset identity used in validation logs and errors.
-            column_types: Declared logical types keyed by column name.
-            validate: Whether to check this dataset's full runtime contract.
-
-        Raises:
-            ValueError: The fragment collides with existing features or the dataset
-                violates its runtime contract.
-        """
-        logger.debug("Check fragment feature collisions in dataset %s", description)
-        fragment_columns = set(self.backend.column_names(fragment.dataframe))
-        existing_columns = set(self.backend.column_names(self.dataframe))
-        collisions = sorted((fragment_columns - set(self.id_columns)) & existing_columns)
-        if collisions:
-            raise ValueError(
-                "Fragment feature columns overlap the accumulated profile frame: "
-                + ", ".join(collisions)
-            )
-        if validate:
-            self.validate_accumulated_frame(
-                description=description,
-                column_types=column_types,
-            )
-
-    def validate_merge_candidate(
-        self,
-        target: object | None,
-        fragment: fragment_module.Fragment,
-        *,
-        description: str,
-        column_types: abc.Mapping[str, str] | None = None,
-        validate: bool = False,
-    ) -> None:
-        """Validate this dataset's candidate merge result before it is published.
-
-        Args:
-            target: The previous target dataframe, or ``None`` for initialization.
-            fragment: Staged contribution included in the merge.
-            description: Merge-result identity used in validation logs and errors.
-            column_types: Declared logical types keyed by column name.
-            validate: Whether to check key uniqueness and declared types.
-
-        Raises:
-            ValueError: The result has an invalid dataframe contract.
-        """
-        self._validate_frame_structure(self.dataframe, description)
-        expected_columns = list(
-            dict.fromkeys(
-                [
-                    *(self.backend.column_names(target) if target is not None else []),
-                    *self.backend.column_names(fragment.dataframe),
-                ]
-            )
-        )
-        self._validate_merge_candidate_columns(
+        self.validate_frame(
             self.dataframe,
-            expected_columns,
-            description,
+            description=description,
+            column_types=column_types,
+            validate_content=True,
         )
-        if validate:
-            self._validate_dimensionless_row_count(self.dataframe, description)
-            self._validate_unique_dimension_keys(self.dataframe, description)
-            self._validate_declared_types(self.dataframe, column_types, description)
+
+    def validate_frame(
+        self,
+        frame: object,
+        *,
+        description: str = "Dataset",
+        column_types: abc.Mapping[str, str] | None = None,
+        validate_content: bool = False,
+    ) -> None:
+        """Check a frame against this dataset's grain and declared types.
+
+        Args:
+            frame: Accumulated or candidate dataframe to validate.
+            description: Identity used in validation logs and errors.
+            column_types: Declared logical types keyed by column name.
+            validate_content: Whether to check key uniqueness and declared types.
+
+        Raises:
+            ValueError: The frame violates the dataset contract.
+        """
+        self._validate_frame_structure(frame, description)
+        if validate_content:
+            self._validate_dimensionless_row_count(frame, description)
+            self._validate_unique_dimension_keys(frame, description)
+            self._validate_declared_types(frame, column_types, description)
 
     def _validate_frame_structure(self, frame: object, description: str) -> None:
         logger.debug("Check dataset dataframe type for %s", description)
@@ -172,22 +123,6 @@ class Dataset:
         )
         self.backend.validate_types(frame, types)
 
-    def _validate_merge_candidate_columns(
-        self, frame: object, expected_columns: list[str], description: str
-    ) -> None:
-        logger.debug(
-            "Check dataset merge result contains exactly columns %s for %s",
-            expected_columns,
-            description,
-        )
-        actual_columns = set(self.backend.column_names(frame))
-        missing = sorted(set(expected_columns) - actual_columns)
-        if missing:
-            raise ValueError(f"{description} is missing required columns: " + ", ".join(missing))
-        unexpected = sorted(actual_columns - set(expected_columns))
-        if unexpected:
-            raise ValueError(f"{description} contains undeclared columns: " + ", ".join(unexpected))
-
     def merge(
         self,
         fragment: fragment_module.Fragment,
@@ -198,9 +133,9 @@ class Dataset:
     ) -> fragment_module.Fragment:
         """Merge a prepared contribution, optionally retaining it under an explicit ID.
 
-        Equal identifier sets use a full join, preserving either observation scope.
-        A strict subset uses a left join, broadcasting over the existing scope;
-        an empty subset uses a cross join. State changes only after assembly succeeds.
+        Delegate assembly and validation to Merge, then publish the checked frame.
+        Complete-grain fragments use a full join; lower-resolution fragments
+        broadcast over the existing scope. State changes only after assembly succeeds.
 
         Args:
             fragment: Prepared data and its carried identifier columns.
@@ -214,11 +149,7 @@ class Dataset:
         Raises:
             ValueError: Identifier columns are incompatible or a broadcast has no target.
         """
-        merged = merge_module.merge_by_grain(
-            self.dataframe,
-            fragment.dataframe,
-            self.id_columns,
-            fragment.dimensions,
+        merged = merge_module.Merge(self, fragment).execute(
             join_cardinality=join_cardinality,
             broadcast_cardinality=broadcast_cardinality,
         )

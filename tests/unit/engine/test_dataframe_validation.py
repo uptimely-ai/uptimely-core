@@ -9,6 +9,7 @@ from uptimely import plan as plan_module
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
+from uptimely.engine.dataframe import merge as merge_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import function_kinds as function_kinds_module
@@ -64,6 +65,120 @@ def test_fragment_checks_required_outputs_even_without_content_validation() -> N
     with pytest.raises(ValueError, match="missing output columns: result"):
         fragment.validate_invocation_result(
             backend_module.PolarsBackend(), invocation, validate_content=False
+        )
+
+
+@pytest.mark.parametrize("validate", [False, True])
+def test_read_retains_dimension_identifiers_without_feature_outputs(validate: bool) -> None:
+    invocation = _invocation(
+        output_features=["value"],
+        column_types={"key": "string", "series": "string", "category": "string", "value": "float"},
+    ).__replace__(identifier_columns=["series", "category"])
+    frame = pl.LazyFrame(
+        {"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0], "extra": [1, 2]}
+    )
+
+    fragment = fragment_module.Fragment.stage(
+        backend_module.PolarsBackend(), invocation, lambda: frame, validate=validate
+    )
+
+    assert fragment.dimensions == ("key",)
+    assert fragment.dataframe.collect().columns == ["key", "value", "series"]
+    assert invocation.output_features == ["value"]
+    assert fragment.dataframe.collect()["series"].to_list() == ["s1", "s1"]
+
+
+def test_read_validates_carried_identifier_types() -> None:
+    invocation = _invocation(
+        output_features=["value"], column_types={"series": "string"}
+    ).__replace__(identifier_columns=["series"])
+
+    with pytest.raises(ValueError, match="Output column series.*expected string"):
+        fragment_module.Fragment.stage(
+            backend_module.PolarsBackend(),
+            invocation,
+            lambda: pl.LazyFrame({"key": ["p1"], "series": [1], "value": [90.0]}),
+            validate=True,
+        )
+
+
+@pytest.mark.parametrize("validate", [False, True])
+def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
+    invocation = _invocation("expand", output_features=["value"]).__replace__(
+        identifier_columns=["series"],
+        column_types={"series": "string", "value": "float"},
+    )
+    frame = pl.LazyFrame({"series": ["s1", "s2"], "value": [90.0, 80.0], "extra": [1, 2]})
+
+    fragment = fragment_module.Fragment.stage(
+        backend_module.PolarsBackend(), invocation, lambda: frame, validate=validate
+    )
+
+    assert fragment.dimensions == ("series",)
+    assert fragment.dataframe.collect().columns == ["series", "value"]
+
+
+def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
+    invocation = _invocation("expand", output_features=["value"]).__replace__(
+        identifier_columns=["plant", "series"]
+    )
+    fragment = fragment_module.Fragment.stage(
+        backend_module.PolarsBackend(),
+        invocation,
+        lambda: pl.LazyFrame({"series": ["s1"], "value": [90.0]}),
+        validate=True,
+    )
+    assert fragment.dimensions == ("series",)
+    assert fragment.dataframe.collect().columns == ["series", "value"]
+
+
+def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() -> None:
+    invocation = _invocation("expand", output_features=["value"]).__replace__(
+        identifier_columns=["series"]
+    )
+
+    with pytest.raises(ValueError, match="duplicate dimension keys"):
+        fragment_module.Fragment.stage(
+            backend_module.PolarsBackend(),
+            invocation,
+            lambda: pl.LazyFrame({"series": ["s1", "s1"], "value": [90.0, 80.0]}),
+            validate=True,
+        )
+
+
+def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
+    invocation = _invocation("expand", output_features=["value"]).__replace__(
+        identifier_columns=["series"]
+    )
+    frame = pl.LazyFrame({"key": ["p1", "p2"], "value": [90.0, 80.0]})
+
+    fragment = fragment_module.Fragment.stage(
+        backend_module.PolarsBackend(), invocation, lambda: frame, validate=True
+    )
+
+    assert fragment.dimensions == ("key",)
+    assert fragment.dataframe.collect().equals(frame.collect())
+
+
+def test_full_grain_fragment_retains_other_resolution_keys_without_changing_uniqueness() -> None:
+    invocation = _invocation("expand", output_features=["value"]).__replace__(
+        identifier_columns=["key", "series"]
+    )
+    frame = pl.LazyFrame({"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0]})
+    backend = backend_module.PolarsBackend()
+
+    fragment = fragment_module.Fragment.stage(backend, invocation, lambda: frame, validate=True)
+
+    assert fragment.dimensions == ("key",)
+    assert (
+        fragment.dataframe.collect().select(frame.collect_schema().names()).equals(frame.collect())
+    )
+    with pytest.raises(ValueError, match="duplicate dimension keys"):
+        fragment_module.Fragment.stage(
+            backend,
+            invocation,
+            lambda: frame.with_columns(pl.lit("p1").alias("key")),
+            validate=True,
         )
 
 
@@ -140,7 +255,7 @@ def test_dataset_validates_structure_keys_and_types(lazy: bool) -> None:
 
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("collision", [False, True])
-def test_dataset_rejects_merge_feature_collisions(lazy: bool, collision: bool) -> None:
+def test_merge_rejects_feature_collisions(lazy: bool, collision: bool) -> None:
     backend = backend_module.PolarsBackend()
     dataset = dataset_module.Dataset(
         backend,
@@ -155,9 +270,9 @@ def test_dataset_rejects_merge_feature_collisions(lazy: bool, collision: bool) -
 
     if collision:
         with pytest.raises(ValueError, match="overlap the accumulated profile frame: value"):
-            dataset.validate_fragment_merge(fragment)
+            merge_module.Merge(dataset, fragment).validate_input()
     else:
-        dataset.validate_fragment_merge(fragment)
+        merge_module.Merge(dataset, fragment).validate_input()
 
 
 @pytest.mark.parametrize(
@@ -177,33 +292,26 @@ def test_dataset_rejects_merge_feature_collisions(lazy: bool, collision: bool) -
         ),
     ],
 )
-def test_candidate_dataset_checks_complete_merge_schema(
+def test_merge_checks_complete_result_schema(
     result: pl.DataFrame,
     target: pl.DataFrame | None,
     fragment_frame: pl.DataFrame,
     message: str,
 ) -> None:
     backend = backend_module.PolarsBackend()
-    candidate = dataset_module.Dataset(backend, ["key"], result)
+    dataset = dataset_module.Dataset(backend, ["key"], target)
     fragment = fragment_module.Fragment(fragment_frame, ("key",))
 
     with pytest.raises(ValueError, match=message):
-        candidate.validate_merge_candidate(
-            target,
-            fragment,
-            description="Merge result",
-        )
+        merge_module.Merge(dataset, fragment).validate_result(result)
 
 
-def test_candidate_dataset_skips_optional_checks_when_disabled(
+def test_merge_skips_optional_checks_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     backend = backend_module.PolarsBackend()
-    candidate = dataset_module.Dataset(
-        backend,
-        ["key"],
-        pl.DataFrame({"key": ["A", "A"], "value": ["wrong", "wrong"]}),
-    )
+    dataset = dataset_module.Dataset(backend, ["key"])
+    result = pl.DataFrame({"key": ["A", "A"], "value": ["wrong", "wrong"]})
     fragment = fragment_module.Fragment(
         pl.DataFrame({"key": ["A"], "value": ["wrong"]}),
         ("key",),
@@ -215,7 +323,7 @@ def test_candidate_dataset_skips_optional_checks_when_disabled(
     monkeypatch.setattr(backend, "row_count", unexpected_check)
     monkeypatch.setattr(backend, "is_duplicated", unexpected_check)
     monkeypatch.setattr(backend, "validate_types", unexpected_check)
-    candidate.validate_merge_candidate(None, fragment, description="Merge result")
+    merge_module.Merge(dataset, fragment).validate_result(result)
 
 
 def test_executor_checks_vectorized_contract_and_preservation(

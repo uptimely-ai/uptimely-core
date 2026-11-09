@@ -91,3 +91,112 @@ def test_merge_by_grain_rejects_incompatible_fragment_keys() -> None:
 
     with pytest.raises(ValueError, match="must be a subset"):
         merge.merge_by_grain(target, fragment, ["id"], ["other"])
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_merge_by_grain_matches_parent_keys_without_expanding_target_scope(lazy: bool) -> None:
+    target = pl.DataFrame(
+        {"pump": ["p1", "p2", "p3", "p4"], "series": ["s1", "s1", "missing", None]}
+    )
+    fragment = pl.DataFrame({"series": ["s1", "unused", None], "capacity": [90.0, 100.0, 80.0]})
+    if lazy:
+        target, fragment = target.lazy(), fragment.lazy()
+
+    result = merge.merge_by_grain(
+        target, fragment, ["pump"], identifier_columns=["series"], broadcast_cardinality="m:1"
+    )
+    if lazy:
+        result = result.collect()
+
+    assert result.sort("pump").to_dicts() == [
+        {"pump": "p1", "series": "s1", "capacity": 90.0},
+        {"pump": "p2", "series": "s1", "capacity": 90.0},
+        {"pump": "p3", "series": "missing", "capacity": None},
+        {"pump": "p4", "series": None, "capacity": 80.0},
+    ]
+
+
+def test_parent_merge_uses_all_matching_identifiers() -> None:
+    target = pl.DataFrame({"pump": ["p1", "p2"], "plant": ["A", "B"], "series": ["s1", "s1"]})
+    fragment = pl.DataFrame({"plant": ["A", "B"], "series": ["s1", "s1"], "capacity": [90.0, 80.0]})
+
+    result = merge.merge_by_grain(
+        target, fragment, ["pump", "plant"], identifier_columns=["plant", "series"]
+    )
+
+    assert result["capacity"].to_list() == [90.0, 80.0]
+
+
+def test_parent_merge_requires_a_target_with_matching_keys() -> None:
+    fragment = pl.DataFrame({"series": ["s1"], "capacity": [90.0]})
+
+    with pytest.raises(ValueError, match="requires the accumulated"):
+        merge.merge_by_grain(None, fragment, ["pump"], identifier_columns=["series"])
+    with pytest.raises(ValueError, match="Matching keys are missing from the target: series"):
+        merge.merge_by_grain(
+            pl.DataFrame({"pump": ["p1"]}), fragment, ["pump"], identifier_columns=["series"]
+        )
+
+
+def test_parent_merge_rejects_duplicate_source_identifiers_when_cardinality_is_checked() -> None:
+    with pytest.raises(pl.exceptions.ComputeError, match="m:1"):
+        merge.merge_by_grain(
+            pl.DataFrame({"pump": ["p1"], "series": ["s1"]}),
+            pl.DataFrame({"series": ["s1", "s1"], "capacity": [90.0, 80.0]}),
+            ["pump"],
+            identifier_columns=["series"],
+            broadcast_cardinality="m:1",
+        )
+
+
+@pytest.mark.parametrize("lazy", [False, True])
+def test_full_grain_merge_coalesces_other_resolution_keys(lazy: bool) -> None:
+    target = pl.DataFrame({"pump": ["p1", "p2"], "series": ["s1", None], "value": [10, 20]})
+    fragment = pl.DataFrame(
+        {
+            "pump": ["p2", "p3"],
+            "series": ["s2", "s3"],
+            "category": ["c1", "c2"],
+            "new": [30, 40],
+            "series__identifier": [50, 60],
+        }
+    )
+    if lazy:
+        target, fragment = target.lazy(), fragment.lazy()
+
+    result = merge.merge_by_grain(
+        target,
+        fragment,
+        ["pump"],
+        identifier_columns=["pump", "series", "category"],
+        join_cardinality="1:1",
+    )
+    if lazy:
+        result = result.collect()
+
+    assert result.sort("pump").to_dicts() == [
+        {
+            "pump": "p1",
+            "series": "s1",
+            "value": 10,
+            "category": None,
+            "new": None,
+            "series__identifier": None,
+        },
+        {
+            "pump": "p2",
+            "series": "s2",
+            "value": 20,
+            "category": "c1",
+            "new": 30,
+            "series__identifier": 50,
+        },
+        {
+            "pump": "p3",
+            "series": "s3",
+            "value": None,
+            "category": "c2",
+            "new": 40,
+            "series__identifier": 60,
+        },
+    ]

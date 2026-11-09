@@ -10,6 +10,7 @@ from uptimely import plan as plan_module
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
+from uptimely.engine.dataframe import merge as merge_module
 from uptimely.spec import arg_types, function_kinds
 
 from . import bindings as bindings_module
@@ -170,26 +171,17 @@ class InvocationExecutor:
         dataset_id = self._profile_id(invocation)
         fragment_id, fragment = self.state.staged_fragment_for(invocation)
         current = self.state.datasets.get(dataset_id)
-        target = current.dataframe if current is not None else None
+        dataset = (
+            current
+            if current is not None
+            else dataset_module.Dataset(self.backend, invocation.id_columns)
+        )
         logger.debug("Merging into profile %s", dataset_id)
         arguments = self.bindings.resolve_args(invocation, staged_fragment=fragment.dataframe)
-        if current is not None:
-            current.validate_fragment_merge(
-                fragment,
-                description=f"Accumulated profile {dataset_id}",
-                column_types=invocation.column_types,
-                validate=self.validate,
-            )
-
-        result = self._invoke(invocation, arguments=arguments)
-        candidate = dataset_module.Dataset(
-            self.backend,
-            invocation.id_columns,
-            result,
-        )
-        candidate.validate_merge_candidate(
-            target,
-            fragment,
+        if invocation.entrypoint == "uptimely.library.merge.polars:merge_by_grain":
+            arguments["identifier_columns"] = fragment.identifiers
+        result = merge_module.Merge(dataset, fragment).execute(
+            functools.partial(self._invoke, invocation, arguments=arguments),
             description=(
                 f"Merge result {invocation.function_id} for profile {dataset_id}, "
                 f"operator {invocation.operator_id}, invocation {invocation.id}"
@@ -198,12 +190,8 @@ class InvocationExecutor:
             validate=self.validate,
         )
 
-        if current is None:
-            dataset = candidate
-        else:
-            current.dataframe = result
-            dataset = current
-        dataset.fragments[fragment.invocation.operator_id] = fragment
+        dataset.dataframe = result
+        dataset.fragments[invocation.operator_id] = fragment
         self.state.datasets[dataset_id] = dataset
         del self.state.staged_fragments[fragment_id]
 

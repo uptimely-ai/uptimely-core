@@ -85,6 +85,42 @@ def test_plan_round_trip_preserves_function_kind_metadata() -> None:
     assert all(not hasattr(invocation, "dataset_id") for invocation in restored.invocations)
 
 
+def test_plan_round_trip_preserves_expansion_identifier_columns() -> None:
+    original = _sample_plan()
+    invocation = original.invocations[1].__replace__(
+        function_kind="expand", identifier_columns=["series"]
+    )
+    plan = original.__replace__(
+        invocations=[original.invocations[0], invocation, original.invocations[2]]
+    )
+
+    restored = uptimely_plan.from_dict(uptimely_plan.to_dict(plan))
+
+    assert restored == plan
+    assert restored.invocations[1].identifier_columns == ["series"]
+
+
+def test_plan_accepts_older_invocations_without_identifier_metadata() -> None:
+    payload = uptimely_plan.to_dict(_sample_plan())
+    for invocation in payload["invocations"]:
+        invocation.pop("identifier_columns")
+
+    restored = uptimely_plan.from_dict(payload)
+
+    assert all(invocation.identifier_columns == [] for invocation in restored.invocations)
+
+
+def test_plan_round_trip_preserves_read_identifier_columns() -> None:
+    original = _sample_plan()
+    reader = original.invocations[0].__replace__(identifier_columns=["series", "category"])
+    plan = original.__replace__(invocations=[reader, *original.invocations[1:]])
+
+    restored = uptimely_plan.from_dict(uptimely_plan.to_dict(plan))
+
+    assert restored == plan
+    assert restored.invocations[0].identifier_columns == ["series", "category"]
+
+
 @pytest.mark.parametrize("include_profile_id", [False, True])
 def test_invocation_rejects_legacy_dataset_id_without_an_alias(
     include_profile_id: bool,

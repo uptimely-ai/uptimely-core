@@ -3,12 +3,54 @@
     "plant_id": "PLANT-01",
     "production_line_id": "LINE-A",
     "pump_id": "PUMP-101",
-    "rated_flow_rate": 119.0
+    "machine_series_id": "SERIES-1",
+    "machine_category_id": "CAT-1",
+    "rated_flow_rate": 119.0,
+    "max_capacity": 125.0
   },
   {
     "plant_id": "PLANT-01",
     "production_line_id": "LINE-B",
     "pump_id": "PUMP-201",
-    "rated_flow_rate": 85.0
+    "machine_series_id": "SERIES-2",
+    "machine_category_id": "CAT-1",
+    "rated_flow_rate": 85.0,
+    "max_capacity": null
+  },
+  {
+    "plant_id": "PLANT-01",
+    "production_line_id": "LINE-A",
+    "pump_id": "PUMP-102",
+    "machine_series_id": "SERIES-1",
+    "machine_category_id": "CAT-1",
+    "rated_flow_rate": 120.0,
+    "max_capacity": null
+  },
+  {
+    "plant_id": "PLANT-02",
+    "production_line_id": "LINE-C",
+    "pump_id": "PUMP-301",
+    "machine_series_id": "SERIES-3",
+    "machine_category_id": "CAT-2",
+    "rated_flow_rate": 180.0,
+    "max_capacity": 190.0
+  },
+  {
+    "plant_id": "PLANT-02",
+    "production_line_id": "LINE-C",
+    "pump_id": "PUMP-302",
+    "machine_series_id": "SERIES-4",
+    "machine_category_id": "CAT-2",
+    "rated_flow_rate": 160.0,
+    "max_capacity": null
+  },
+  {
+    "plant_id": "PLANT-02",
+    "production_line_id": "LINE-D",
+    "pump_id": "PUMP-401",
+    "machine_series_id": "SERIES-5",
+    "machine_category_id": "CAT-3",
+    "rated_flow_rate": 60.0,
+    "max_capacity": null
   }
 ]

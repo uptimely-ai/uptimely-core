@@ -18,6 +18,13 @@ Use `document.grain_keys_by_profile` and
 `document.grain_key_types_by_profile` for the dataframe keys and types selected
 by each profile.
 
+For all resolution identifiers of a profile's grain dimensions, use
+`profile.keys(document.dimensions)` and `profile.key_types(document.dimensions)`.
+The methods take the owning document's dimension catalog because document-model
+grain entries contain references rather than dimension objects. They preserve
+declaration order and do not change the selected grain.
+`document.identifier_types_by_profile` caches the per-profile type mappings.
+
 `document.operators` is an ordered list of the original canonical `Operator` objects.
 Use `for operator in document.operators` to traverse it. Operator IDs are profile-scoped,
 so `document.operators_by_key` uses `(profile_id, operator_key)` keys.

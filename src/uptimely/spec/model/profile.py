@@ -12,6 +12,7 @@ from uptimely.spec import row_context as uptimely_row_context
 from uptimely.spec import selectors
 
 from . import base, binding, binding_argument, merge
+from . import dimension as dimension_module
 
 
 class Feature(base.StrictModel):
@@ -179,6 +180,35 @@ class Profile(base.StrictModel):
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)
     assembly: dict[str, Operator] = pydantic.Field(default_factory=dict)
     order: list[Order] = pydantic.Field(default_factory=list)
+
+    def keys(self, dimensions: typing.Mapping[str, dimension_module.Dimension]) -> list[str]:
+        """Return all resolution keys for dimensions used by this profile's grain.
+
+        Args:
+            dimensions: Dimension catalog from the owning Spec.
+
+        Returns:
+            Distinct identifier columns in grain-dimension and resolution order.
+        """
+        return list(self.key_types(dimensions))
+
+    def key_types(
+        self, dimensions: typing.Mapping[str, dimension_module.Dimension]
+    ) -> dict[str, str]:
+        """Return all resolution key types for dimensions used by this profile.
+
+        Args:
+            dimensions: Dimension catalog from the owning Spec.
+
+        Returns:
+            Identifier columns mapped to logical types, without changing the grain.
+        """
+        return {
+            resolution.key: resolution.type
+            for reference in self.grain
+            if (dimension := dimensions.get(reference.dimension)) is not None
+            for resolution in dimension.resolutions.values()
+        }
 
     @functools.cached_property
     def dimension_ids(self) -> list[str]:

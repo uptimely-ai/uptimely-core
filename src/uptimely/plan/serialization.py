@@ -27,6 +27,7 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
                 "output_features": invocation.output_features,
                 "input_features": invocation.input_features,
                 "id_columns": invocation.id_columns,
+                "identifier_columns": invocation.identifier_columns,
                 "column_types": invocation.column_types,
                 "argument_types": invocation.argument_types,
                 "return_type": invocation.return_type,

@@ -197,6 +197,7 @@ async def test_list_calculated_features(state: server.ServerState) -> None:
         "converged",
         "energy_cost_score",
         "health_signal_normalized",
+        "max_capacity",
         "operating_point_recommendation",
         "pressure_flow_efficiency",
         "pump_health_score",
@@ -291,7 +292,12 @@ async def test_reload_build(state: server.ServerState) -> None:
     assert payload["profiles"] == [
         "constants",
         "pump",
+        "pump_category",
+        "pump_series",
         "pump_telemetry",
+        "pump_telemetry_by_day",
+        "pump_telemetry_by_hour",
+        "pump_telemetry_by_minute",
     ]
 
 

@@ -170,6 +170,12 @@ explicit dimensional operation; same-profile fragment assembly is
 not a cross-profile reconciliation. Functions are responsible for grouping,
 matching, output names, and constructing literal values.
 
+For `collapse`, target keys must be available as source grain keys or source
+features, and each target dimension must be selected by the source profile.
+This allows a finer-resolution source to group by a parent-resolution key
+carried as a source feature, such as a pump-series ID or an hour derived from
+a timestamp.
+
 The compiled plan groups independent invocations into stages. The built-in engine
 processes stages and invocations sequentially. Profile `order` metadata does not
 sort data or guarantee physical row order; order-sensitive functions must
@@ -184,9 +190,11 @@ optionally validates it against the invocation's compiled contract, and
 projects its declared outputs. The fragment is held pending by compute
 invocation ID until the corresponding merge invocation executes.
 
-The merge invocation receives the current target dataframe (or `None` when
-initializing) and the staged fragment, calls its declared function, validates
-the complete returned target schema, then publishes by assignment. The default
+The runtime `Merge` owns collision checks, assembly execution, and complete
+result-schema validation. It uses identifiers carried directly by `Fragment`,
+without reaching through the fragment's invocation. The merge invocation supplies
+its configured function; the executor publishes the checked result by assignment.
+`Dataset` owns accumulated state and its grain/type contract, not merge decisions. The default
 merge function delegates key-based assembly to the stateless
 `uptimely.library.merge.polars.merge_by_grain`; custom merge functions replace
 that behavior and are not retried with the default. The executor does not merge
@@ -208,12 +216,30 @@ required.
 For a lower-grain `expand` fragment, the default merge function left-joins onto
 the existing accumulated profile frame by the carried keys with a many-to-one
 relationship, transferring each source observation to matching target
-observations. A fragment with no dimension keys can hold at most one row and
+observations. This includes parent-resolution identifiers, such as a pump's
+`machine_series_id` and `machine_category_id`. Read them among the pump data;
+they are identifiers, not analytical features or read-interface outputs.
+The compiler includes all resolution key names and types for every dimension
+used by the profile grain, and staging retains those columns when present. Unrelated
+undeclared columns are still discarded. Keeping parent identifiers does not
+change the profile's grain or add calculated features.
+
+Return the source identifiers with the capacity or other selected feature.
+The merge uses the resolution identifiers present in the fragment. Those identifiers
+must already be available on the target when merging; the compiler does not
+infer dependencies on readers or identifier producers.
+If a required identifier was not read, the merge fails explicitly. Staging retains
+these keys; the merge uses them without changing the target profile's grain.
+A function may still return full target-grain keys instead. Full-grain fragments
+join by the declared grain and coalesce other shared resolution identifiers.
+
+A fragment with no dimension keys can hold at most one row and
 is broadcast to all observations; it therefore requires an existing target
 frame. These behaviors belong to the default merge function; a custom merge
 function defines its own assembly behavior.
 
-Feature columns may not overlap existing target columns. The default join is
+Feature columns may not overlap existing target columns; carried matching
+identifiers are join keys, not replacement features. The default join is
 permissive about coverage: it does not prove that fragments satisfy the
 profile's declared grain. Profile `scope` is descriptive metadata only and has
 no bearing on merging.
@@ -256,8 +282,10 @@ or unambiguous cross-profile features.
 required dimensions, and declared
 outputs before projection; validation additionally checks optional type,
 uniqueness, and preservation contracts.
-`Dataset` owns checks for the accumulated dataframe, merge collisions, and merge
-candidates. The invocation executor owns vectorized-result contracts because
+`Dataset` owns checks for the accumulated dataframe's grain and types.
+`Merge` owns feature collisions and complete result-schema checks, and applies
+the dataset contract to a candidate before returning it for publication.
+The invocation executor owns vectorized-result contracts because
 they depend on invocation metadata. Structural and schema checks are mandatory
 even when runtime validation is disabled; declared type, key uniqueness, and
 data-preservation checks are enabled by `--validate`.

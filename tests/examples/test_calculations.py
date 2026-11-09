@@ -5,6 +5,29 @@ import pytest
 from examples.pump_analytics.functions import analytics
 
 
+@pytest.mark.parametrize("rename", [{}, {"value": "reading", "other": "secondary"}])
+def test_select_columns_preserves_order_rows_and_nulls(rename: dict[str, str]) -> None:
+    frame = pl.LazyFrame(
+        {"id": ["a", "a"], "value": [1.0, None], "other": [None, 2.0], "unused": [3, 4]}
+    )
+
+    result = analytics.select_columns(frame, ["other", "id", "value"], rename).collect()
+
+    assert result.columns == [rename.get(column, column) for column in ["other", "id", "value"]]
+    assert result.rows() == [(None, "a", 1.0), (2.0, "a", None)]
+
+
+def test_select_columns_defaults_to_no_renaming() -> None:
+    frame = pl.LazyFrame({"id": ["a"], "value": [1.0]})
+
+    assert analytics.select_columns(frame, ["value"]).collect().to_dicts() == [{"value": 1.0}]
+
+
+def test_select_columns_reports_missing_column() -> None:
+    with pytest.raises(pl.exceptions.ColumnNotFoundError):
+        analytics.select_columns(pl.LazyFrame({"id": ["a"]}), ["missing"]).collect()
+
+
 @pytest.mark.parametrize("dimensions", [[], ["plant", "pump"]])
 def test_aggregate_handles_grouping_and_null_readings(dimensions: list[str]) -> None:
     frame = pl.LazyFrame(
@@ -36,11 +59,44 @@ def test_aggregate_preserves_all_null_groups() -> None:
     assert result.rows() == [("one", None)]
 
 
+def test_aggregate_filters_before_grouping() -> None:
+    result = analytics.aggregate(
+        pl.LazyFrame(
+            {
+                "pump_id": ["PUMP-101", "PUMP-101", "PUMP-201"],
+                "temperature": [68.2, 68.7, 64.5],
+            }
+        ),
+        "temperature",
+        "max",
+        ["pump_id"],
+        "maximum",
+        filter_column="pump_id",
+        filter_value="PUMP-101",
+    ).collect()
+
+    assert result.rows() == [("PUMP-101", 68.7)]
+
+
 def test_aggregate_rejects_unsupported_method() -> None:
     frame = pl.LazyFrame({"pump": ["one"], "temperature": [10.0]})
 
     with pytest.raises(ValueError, match="Unsupported aggregation method: median"):
         analytics.aggregate(frame, "temperature", "median", ["pump"], "maximum")
+
+
+def test_aggregate_requires_both_filter_arguments() -> None:
+    frame = pl.LazyFrame({"pump": ["one"], "temperature": [10.0]})
+
+    with pytest.raises(ValueError, match="Both filter_column and filter_value"):
+        analytics.aggregate(
+            frame,
+            "temperature",
+            "max",
+            ["pump"],
+            "maximum",
+            filter_column="pump",
+        )
 
 
 @pytest.mark.parametrize(

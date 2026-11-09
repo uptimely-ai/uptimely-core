@@ -77,6 +77,7 @@ class Invocation(_PlanModel):
     input_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     row_context: uptimely_row_context.RowContext | None = None
     id_columns: list[NonEmptyString] = pydantic.Field(default_factory=list)
+    identifier_columns: list[NonEmptyString] = pydantic.Field(default_factory=list)
     column_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     argument_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     return_type: str | None = None
@@ -135,6 +136,8 @@ class Invocation(_PlanModel):
             for feature_id, feature in profile.features.items()
             if feature.type is not None
         } | spec_definition.grain_key_types_by_profile[profile_key]
+        identifier_types = spec_definition.identifier_types_by_profile[profile_key]
+        column_types |= identifier_types
         return cls(
             id=node.node_id,
             function_kind=function.kind,
@@ -148,6 +151,7 @@ class Invocation(_PlanModel):
             dependency_ids=dependency_ids,
             row_context=node.row_context,
             id_columns=list(id_columns),
+            identifier_columns=list(identifier_types),
             column_types=column_types,
             argument_types={key: argument.type for key, argument in function.args.items()},
             return_type=return_type,
@@ -172,6 +176,8 @@ class Invocation(_PlanModel):
         """Require distinct outputs and outputs for collapse invocations."""
         if len(set(self.output_features)) != len(self.output_features):
             raise ValueError("Invocation output_features must be unique")
+        if len(set(self.identifier_columns)) != len(self.identifier_columns):
+            raise ValueError("Invocation identifier_columns must be unique")
         if self.function_kind == functions.COLLAPSE and not self.output_features:
             raise ValueError("Collapse must declare output_features")
         return self

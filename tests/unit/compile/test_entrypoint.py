@@ -119,7 +119,8 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
         assert merge.output_features == []
         assert compute.output_features
     assert all(
-        len({producer.operator_id for producer in producers}) == len(producers)
+        len({(producer.profile_id, producer.operator_id) for producer in producers})
+        == len(producers)
         for producers in compiled.features.values()
     )
 

@@ -28,7 +28,7 @@ The separately scheduled merge invocation resolves its pending fragment and
 current target, then calls the merge function declared by the Spec. The default
 merge function uses `merge_by_grain`; a custom merge replaces it and is never
 silently retried with the default. A merge function returns the complete new
-target dataframe. The executor checks its structure and declared columns, then
+target dataframe. The runtime `Merge` checks its structure and declared columns, then the executor
 publishes it by assignment; it does not merge the returned frame a second time.
 The fragment is retained on the `Dataset` by operator ID only after successful
 publication, reusing the staged object rather than copying the dataframe.
@@ -37,16 +37,42 @@ inspect values.
 
 `Dataset(backend, id_columns, dataframe=None)` needs neither a profile declaration
 nor a Spec. The invocation executor translates profile grain keys into physical ID
-column names. `Fragment` validates and projects staged results; `Dataset` validates
-its accumulated frame and merge candidates. The invocation executor checks
+column names. Ownership is split explicitly:
+
+- `Fragment` stages and validates compute results, carrying `dimensions` for
+  uniqueness and `identifiers` for joins. Merge code does not inspect its invocation.
+- `Merge(dataset, fragment)` checks collisions, executes the configured assembly,
+  and validates its complete result without changing dataset state.
+- `Dataset` owns the accumulated frame, retained fragments, and grain/type checks.
+
+The invocation executor checks
 vectorized results against invocation-specific contracts before publication.
-These operations use `invocation.id_columns`, `invocation.column_types`, and the
+These operations use `invocation.id_columns`, `invocation.identifier_columns`,
+`invocation.column_types`, and the
 invocation's function kind where needed. The compiler resolves these values from
 declarations. Runtime execution does not receive profile objects or traverse the
 bundled Spec.
 
-`Dataset.merge(fragment)` remains the direct physical assembly helper and
-selects assembly by its keys:
+An expansion can return a source-resolution feature and its identifiers without
+performing its own join. Parent-resolution IDs are dimension identifiers, not
+analytical features. The compiler includes every resolution key from each
+dimension used by the target grain in `identifier_columns`. Staging retains
+these columns when they occur in the data,
+without requiring feature declarations or interface outputs. Other undeclared
+columns are discarded. Their types are validated when runtime validation is enabled.
+
+The merge uses the resolution identifiers present in the fragment. They must
+already be available on the target; no reader or identifier-producer dependencies
+are inferred. A missing target identifier fails the merge rather than falling
+back to a cross join. Full-grain fragments merge by the declared grain and
+coalesce other shared identifiers. Lower-resolution fragments left-join by their
+carried identifiers without changing the target grain. This metadata is optional
+in saved plans; older plans default to grain keys only. Rebuild after changing
+these declarations.
+
+`Dataset.merge(fragment)` delegates to `Merge` for automatic assembly and publishes
+only after checks succeed. `Merge.execute(load)` accepts a configured merge
+callable; without one, it uses the shared key-based merge function:
 
 - Equal dimension sets: full join, retaining partial or disjoint key coverage.
 - A strict subset of dimensions: left join over the existing profile frame.
@@ -69,7 +95,7 @@ after their merge succeeds.
 A run passes its `validate` flag to the invocation executor and fragment staging.
 When enabled, the invocation executor checks input requirements before invoking
 operators, `Fragment` checks optional content contracts before projection, and
-`Dataset` checks declared types and key uniqueness before publishing. Regardless of the
+`Merge` validates its result against the dataset's grain and types before publishing. Regardless of the
 flag, merge output must be a dataframe with required dimensions and the complete
 expected target schema; overlapping feature columns are rejected.
 Publishing is transactional with respect to the executor's assignment: a failed
@@ -79,7 +105,7 @@ mutate their target input. User functions and `ExecutionResult.datasets`
 continue to receive ordinary Polars dataframes or lazy frames, not these
 internal runtime wrappers.
 
-`Dataset` and `Fragment` are available from `uptimely.engine`. They replace
+`Dataset`, `Fragment`, and `Merge` are available from `uptimely.engine`. They replace
 the internal `DataFrameExecution` assembly helper.
 
 <div class="api-reference" markdown="1">
@@ -188,6 +214,12 @@ preview, not silently altered data.
       show_root_heading: false
       members: [Fragment]
 
+::: uptimely.engine.dataframe.merge
+    options:
+      heading_level: 3
+      show_root_heading: false
+      members: [Merge]
+
 ## backend
 
 `uptimely.engine.dataframe.backend` defines adapter protocols and their built-in
@@ -197,7 +229,7 @@ Backend methods operate only on dataframe values, column names, keys, and join
 cardinalities. Full, left, and cross joins are reusable operations. Backends do
 not know about profiles, materialized Datasets, fragments, or invocation contracts;
 dimension-aware assembly is handled by the stateless Polars merge library.
-`Dataset` delegates assembly to that library and owns accumulator state.
+`Merge` delegates automatic assembly to that library; `Dataset` owns accumulator state.
 
 ### Merge functions
 

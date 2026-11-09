@@ -11,21 +11,6 @@ SOURCE_PATH = EXAMPLE_ROOT / "data" / "pump_external_workflow.csv"
 OUTPUT_PATH = EXAMPLE_ROOT / "_generated" / "pump_external_workflow_results.csv"
 
 
-@function(kind="read")
-def read_pump_external_inputs() -> pl.DataFrame:
-    """Load the dataframe inputs declared by the external workflow operator.
-
-    Returns
-    -------
-    Observations read from the external workflow source CSV.
-
-    Examples
-    --------
-    >>> observations = read_pump_external_inputs()  # doctest: +SKIP
-    """
-    return pl.read_csv(SOURCE_PATH)
-
-
 @function(kind="merge")
 def merge_pump_inputs(
     target: pl.DataFrame | pl.LazyFrame | None,
