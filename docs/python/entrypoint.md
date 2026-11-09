@@ -47,10 +47,18 @@ previously read provenance.
 Read `entrypoint.module.source_file` to get the loaded module's file path.
 Modules without a file raise `ValueError`.
 
+`entrypoint.read_source_origin(project_root)` resolves the callable and returns
+a `SourceOrigin` identifying project code, verified installed distribution
+code, or unknown ownership. It follows re-exports and decorated callables to
+their implementation. A missing project root or unverifiable source returns
+unknown; installed file ownership takes precedence over project containment.
+This is distinct from `read_package()`, which does not import the module.
+
 !!! warning "Only load trusted code"
 
-    Loading a callable, reading its signature, and accessing `module.source_file`
-    import and execute the referenced Python module if it is not already loaded.
+    Loading a callable, reading its signature or source origin, and accessing
+    `module.source_file` import and execute the referenced Python module if it is
+    not already loaded.
 
 <div class="api-reference" markdown="1">
 
@@ -67,5 +75,6 @@ Modules without a file raise `ValueError`.
         - Signature
         - TypeAnnotation
         - PackageProvenance
+        - SourceOrigin
 
 </div>

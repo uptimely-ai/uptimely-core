@@ -72,8 +72,17 @@ Function details show documentation captured from implementation docstrings at
 build time when Python signature validation is enabled. NumPy-style Examples
 sections are displayed as a continuous block, including output and explanatory
 text; doctest prompts and directives are omitted. Each example uses the full
-available width. The function kind and source appear below the examples; the
-source separates the entrypoint's package, module, and qualified function name.
+available width. The source and function kind appear below the examples, using
+two-thirds and one-third of the available width when space permits; the
+source separates the entrypoint's top-level import name, full module path, and
+qualified function name. For a standalone module, the package field shows the
+same top-level import name as the module field. The module path uses dotted
+import notation.
+It identifies implementation files verified against installed distribution metadata as
+third-party code, and other files inside the project directory as project source.
+Origin is unknown when it cannot be verified, including when signature
+validation is disabled; editable distributions without file ownership records
+may also be unknown. Rebuild to update this information.
 Used by operators links to each referencing operator, including merge bindings,
 grouped by profile. Return values and errors appear beneath the arguments.
 

@@ -6,6 +6,7 @@ import sys
 import types
 from collections import abc
 
+import polars
 import pytest
 from support import examples as example_support
 
@@ -25,6 +26,66 @@ def isolate_package_index() -> abc.Iterator[None]:
     shared_entrypoint.PackageProvenance.invalidate_cache()
     yield
     shared_entrypoint.PackageProvenance.invalidate_cache()
+
+
+def test_source_origin_identifies_project_and_unknown_code(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    (project_root / "origin_project_fixture.py").write_text(
+        "def calculate():\n    return 1\n", encoding="utf-8"
+    )
+    monkeypatch.syspath_prepend(str(project_root))
+    function = shared_entrypoint.Entrypoint("origin_project_fixture:calculate")
+
+    assert function.read_source_origin(project_root) == shared_entrypoint.SourceOrigin("project")
+    assert function.read_source_origin(tmp_path / "project-other") == (
+        shared_entrypoint.SourceOrigin("unknown")
+    )
+    assert function.read_source_origin(None) == shared_entrypoint.SourceOrigin("unknown")
+    assert shared_entrypoint.Entrypoint("builtins:len").read_source_origin(project_root) == (
+        shared_entrypoint.SourceOrigin("unknown")
+    )
+
+
+def test_source_origin_identifies_installed_code_even_inside_project_root(
+    tmp_path: pathlib.Path,
+) -> None:
+    assert polars.__file__ is not None
+    installed_root = pathlib.Path(polars.__file__).resolve().parents[2]
+    function = shared_entrypoint.Entrypoint("polars:thread_pool_size")
+    expected = shared_entrypoint.SourceOrigin("third_party", "polars")
+
+    assert function.read_source_origin(tmp_path) == expected
+    assert function.read_source_origin(installed_root) == expected
+
+
+def test_source_origin_without_project_root_does_not_import_module() -> None:
+    function = shared_entrypoint.Entrypoint("unavailable_origin_fixture:calculate")
+
+    assert function.read_source_origin(None) == shared_entrypoint.SourceOrigin("unknown")
+    assert "unavailable_origin_fixture" not in sys.modules
+
+
+def test_source_origin_follows_decorated_reexport(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "origin_decorated_fixture.py").write_text(
+        "import functools\n"
+        "import polars\n"
+        "@functools.wraps(polars.thread_pool_size)\n"
+        "def wrapped():\n"
+        "    return polars.thread_pool_size()\n",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+
+    origin = shared_entrypoint.Entrypoint("origin_decorated_fixture:wrapped").read_source_origin(
+        tmp_path
+    )
+
+    assert origin == shared_entrypoint.SourceOrigin("third_party", "polars")
 
 
 def test_compiler_rejects_string_feature_selection() -> None:
