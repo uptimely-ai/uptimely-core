@@ -32,6 +32,7 @@ export const STATIC_LAYOUT_COOLDOWN_TICKS = 1;
 export const DATASET_LAYOUT = Object.freeze({
 	rankGap: 100, nodeSpacing: 70, fitPadding: 80,
 	lanePadding: 32, laneHeaderHeight: 36, laneGap: 16,
+	laneLabelMinWidth: 160, laneLabelMaxWidth: 280, laneLabelIconSize: 16, laneLabelGap: 8,
 	labelFont: '600 14px "DM Sans", sans-serif', labelColor: '#9fb3c3',
 	evenBackground: 'rgba(143, 163, 181, .07)', oddBackground: 'rgba(143, 163, 181, .03)',
 	borderColor: 'rgba(143, 163, 181, .3)', orderingPasses: 4,

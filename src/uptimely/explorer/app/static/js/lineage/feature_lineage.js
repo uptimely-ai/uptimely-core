@@ -1,7 +1,7 @@
 import { ExplorerLineage } from './lineage_components.js';
 import { initializeLineage } from './lineage_initializer.js';
 import { projectFeatureLineage } from './feature_projection.js';
-import { KINDS, dataTypeIconName } from '../rendering/shared_markup.js';
+import { ICONS, KINDS, dataTypeIconName } from '../rendering/shared_markup.js';
 
 export function initializeFeatureLineage(signal) {
 	const LINEAGE_LAYOUT_2D = Object.freeze({
@@ -90,7 +90,8 @@ export function initializeFeatureLineage(signal) {
 
 		const nodeRanks = rankNodes(graphData);
 		const layout = ExplorerLineage.prepareLineageLayout(
-			graphData, node => nodeRanks.get(node.id), node => node.label || node.id);
+			graphData, node => nodeRanks.get(node.id), node => node.label || node.id,
+			{ laneIcon: ICONS.profiles });
 		const drawNode = (node, ctx) => {
 			const isOperator = node.is_operator === true;
 			const color = isOperator ? functionColor : node.datasetColor;

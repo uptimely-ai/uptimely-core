@@ -351,7 +351,7 @@ function createLineage2D(container, graphData, style, layout, highlight, {
 		.height(container.clientHeight)
 		.backgroundColor(style.background_color)
 		.onRenderFramePre((ctx, scale) => {
-			LineageLayout.drawLineageLanes(layout, ctx, scale);
+			LineageLayout.drawLineageLanes(layout, ctx, scale, drawIcon);
 			renderOverlay?.(ctx, scale);
 		})
 		.onRenderFramePost((ctx, scale) => {

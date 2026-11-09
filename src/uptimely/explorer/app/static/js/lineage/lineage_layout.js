@@ -12,7 +12,7 @@ function sizeCard(node, label) {
 	node.cardHeight = CARD_STYLE.height;
 }
 
-function prepareLineageLayout(graphData, rankForNode, labelForNode) {
+function prepareLineageLayout(graphData, rankForNode, labelForNode, { laneIcon = null } = {}) {
 	const rankGroups = new Map();
 	const lanes = new Map();
 	const nodesById = new Map(graphData.nodes.map(node => [node.id, node]));
@@ -26,7 +26,8 @@ function prepareLineageLayout(graphData, rankForNode, labelForNode) {
 		rankGroups.get(node.rank).push(node);
 		if (!lanes.has(node.profile_id)) {
 			lanes.set(node.profile_id, {
-				id: node.profile_id, ranks: new Map(), connections: new Map(),
+				id: node.profile_id, name: node.profile_name || node.profile_id,
+				color: node.datasetColor, ranks: new Map(), connections: new Map(),
 			});
 		}
 		const lane = lanes.get(node.profile_id);
@@ -117,27 +118,46 @@ function prepareLineageLayout(graphData, rankForNode, labelForNode) {
 			node.routeY = lane.top + lane.height - DATASET_LAYOUT.lanePadding / 2 - layoutHeight / 2;
 		}
 	}
+	const laneLabelWidth = laneIcon
+		? Math.min(DATASET_LAYOUT.laneLabelMaxWidth, Math.max(
+			DATASET_LAYOUT.laneLabelMinWidth,
+			...orderedLanes.map(lane =>
+				lane.name.length * CARD_STYLE.characterWidth + DATASET_LAYOUT.laneLabelIconSize
+					+ DATASET_LAYOUT.laneLabelGap + 2 * DATASET_LAYOUT.lanePadding),
+		))
+		: 0;
+	if (laneLabelWidth) {
+		const offset = laneLabelWidth / 2;
+		for (const node of graphData.nodes) {
+			node.x += offset;
+			node.fx += offset;
+			node.rankLeft += offset;
+			node.rankRight += offset;
+		}
+	}
 	return {
-		lanes: orderedLanes, width: layoutWidth, height: layoutHeight,
+		lanes: orderedLanes, width: layoutWidth + laneLabelWidth, height: layoutHeight,
+		laneLabelWidth, laneIcon,
 		columns: ranksInOrder.map(rank => ({
 			rank,
-			x: rankOffsets.get(rank) - layoutWidth / 2,
+			x: rankOffsets.get(rank) - layoutWidth / 2 + laneLabelWidth / 2,
 			width: rankWidths.get(rank) + DATASET_LAYOUT.rankGap,
 		})),
 		bounds: {
 			x: 0, y: 0,
-			width: layoutWidth + 2 * DATASET_LAYOUT.lanePadding,
+			width: layoutWidth + laneLabelWidth + 2 * DATASET_LAYOUT.lanePadding,
 			height: Math.max(1, layoutHeight),
 		},
 	};
 }
 
-function drawLineageLanes(layout, ctx, globalScale) {
+function drawLineageLanes(layout, ctx, globalScale, drawIcon) {
 	ctx.save();
 	layout.lanes.forEach((lane, index) => {
-		const left = -layout.width / 2 - DATASET_LAYOUT.lanePadding;
+		const labelAreaLeft = -layout.width / 2 - DATASET_LAYOUT.lanePadding;
+		const left = labelAreaLeft + layout.laneLabelWidth;
 		const top = lane.top - layout.height / 2;
-		const width = layout.width + 2 * DATASET_LAYOUT.lanePadding;
+		const width = layout.width - layout.laneLabelWidth + 2 * DATASET_LAYOUT.lanePadding;
 		ctx.fillStyle = index % 2 === 0
 			? DATASET_LAYOUT.evenBackground : DATASET_LAYOUT.oddBackground;
 		ctx.fillRect(left, top, width, lane.height);
@@ -151,10 +171,15 @@ function drawLineageLanes(layout, ctx, globalScale) {
 		ctx.fillStyle = DATASET_LAYOUT.labelColor;
 		ctx.textAlign = 'left';
 		ctx.textBaseline = 'middle';
-		if (!layout.hideLaneLabels) {
-			ctx.fillText(lane.name || lane.id, left + DATASET_LAYOUT.lanePadding,
-				top + DATASET_LAYOUT.laneHeaderHeight / 2,
-				width - 2 * DATASET_LAYOUT.lanePadding);
+		if (!layout.hideLaneLabels && layout.laneLabelWidth) {
+			const labelX = labelAreaLeft + DATASET_LAYOUT.lanePadding;
+			const labelY = top + lane.height / 2;
+			const textX = labelX + DATASET_LAYOUT.laneLabelIconSize + DATASET_LAYOUT.laneLabelGap;
+			drawIcon(ctx, layout.laneIcon, labelX, labelY - DATASET_LAYOUT.laneLabelIconSize / 2,
+				DATASET_LAYOUT.laneLabelIconSize, lane.color || DATASET_LAYOUT.labelColor);
+			ctx.fillText(lane.name || lane.id, textX, labelY,
+				layout.laneLabelWidth - 2 * DATASET_LAYOUT.lanePadding
+					- DATASET_LAYOUT.laneLabelIconSize - DATASET_LAYOUT.laneLabelGap);
 		}
 	});
 	ctx.restore();
