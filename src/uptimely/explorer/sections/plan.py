@@ -63,12 +63,14 @@ def _build_step(
         "output_features": output_labels,
         "input_feature_ids": invocation.input_features,
         "output_feature_ids": invocation.output_features,
-        "merge_target": (_display_value(invocation.arguments.get("target")) if is_merge else None),
+        "merge_dataset": (
+            _display_value(invocation.arguments.get("dataset")) if is_merge else None
+        ),
         "fragment_source": (
             _display_value(invocation.arguments.get("fragment")) if is_merge else None
         ),
         "merge_keys": (
-            _display_value(invocation.arguments.get("target_keys")) if is_merge else None
+            _display_value(invocation.arguments.get("dataset_keys")) if is_merge else None
         ),
         "uncontrolled": kind.is_effect,
         "row_context": invocation.row_context.to_dict() if invocation.row_context else None,

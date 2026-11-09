@@ -127,12 +127,12 @@ def test_parent_merge_uses_all_matching_identifiers() -> None:
     assert result["capacity"].to_list() == [90.0, 80.0]
 
 
-def test_parent_merge_requires_a_target_with_matching_keys() -> None:
+def test_parent_merge_requires_a_dataset_with_matching_keys() -> None:
     fragment = pl.DataFrame({"series": ["s1"], "capacity": [90.0]})
 
     with pytest.raises(ValueError, match="requires the accumulated"):
         merge.merge_by_grain(None, fragment, ["pump"], identifier_columns=["series"])
-    with pytest.raises(ValueError, match="Matching keys are missing from the target: series"):
+    with pytest.raises(ValueError, match="Matching keys are missing from the dataset: series"):
         merge.merge_by_grain(
             pl.DataFrame({"pump": ["p1"]}), fragment, ["pump"], identifier_columns=["series"]
         )

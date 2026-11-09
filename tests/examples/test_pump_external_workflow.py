@@ -12,23 +12,23 @@ from uptimely import plan as plan_module
 from uptimely import project
 
 
-@pytest.mark.parametrize("target_lazy", [False, True])
+@pytest.mark.parametrize("dataset_lazy", [False, True])
 @pytest.mark.parametrize("fragment_lazy", [False, True])
-def test_custom_pump_merge_full_joins_on_target_keys(
-    target_lazy: bool, fragment_lazy: bool
+def test_custom_pump_merge_full_joins_on_dataset_keys(
+    dataset_lazy: bool, fragment_lazy: bool
 ) -> None:
-    target: pl.DataFrame | pl.LazyFrame = pl.DataFrame(
+    dataset: pl.DataFrame | pl.LazyFrame = pl.DataFrame(
         {"pump_id": ["PUMP-101", "PUMP-201"], "bearing_temperature_max": [60.0, 70.0]}
     )
     fragment: pl.DataFrame | pl.LazyFrame = pl.DataFrame(
         {"pump_id": ["PUMP-201", "PUMP-301"], "measurement": [8.0, 9.0]}
     )
-    if target_lazy:
-        target = target.lazy()
+    if dataset_lazy:
+        dataset = dataset.lazy()
     if fragment_lazy:
         fragment = fragment.lazy()
 
-    result = external_workflow.merge_pump_inputs(target, fragment, ["pump_id"])
+    result = external_workflow.merge_pump_inputs(dataset, fragment, ["pump_id"])
     if isinstance(result, pl.LazyFrame):
         result = result.collect()
 

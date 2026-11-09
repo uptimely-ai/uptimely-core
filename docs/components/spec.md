@@ -347,8 +347,8 @@ are established at each usage.
 
 Compute bindings accept zero or one dataframe argument and declare an independent
 return contract. Merge bindings accept exactly two dataframe arguments and return
-a dataframe. A merge consumes its current target and its operator's staged
-fragment. The target may be nullable for initialization. Binding arity counts
+a dataframe. A merge consumes its current dataset and its operator's staged
+fragment. The dataset may be nullable for initialization. Binding arity counts
 argument slots, not distinct referenced profiles, even when inspection is disabled.
 
 With a merge, compute returns a fragment. Without one, a dataframe result is
@@ -360,9 +360,9 @@ builtin merge binding:
 "merge": {
   "function": "merge_by_grain",
   "args": {
-    "target": "$profiles.@.dataset",
+    "dataset": "$profiles.@.dataset",
     "fragment": "$operators.@.fragment",
-    "target_keys": "$profiles.@.grain.ids"
+    "dataset_keys": "$profiles.@.grain.ids"
   }
 }
 ```
@@ -402,7 +402,7 @@ Common argument type expressions are:
 | `float` | Floating-point value. |
 | `boolean` | Boolean value. |
 | `dataframe` | Tabular dataset input. |
-| `dataframe | null` | Nullable tabular input, used for a merge's initial target. |
+| `dataframe | null` | Nullable tabular input, used for a merge's initial dataset. |
 | `array` | Collection value. |
 | `object` | Dictionary value. |
 
@@ -465,7 +465,7 @@ An operator separates analytical requirements from its computation:
 | `compute.args` | object | No | `{}` | Concrete arguments matching the template schema. |
 | `merge` | object or null | No | `null` | Optional merge function invocation for a staged fragment. |
 | `merge.function` | string | Yes when `merge` is set | N/A | Function-catalog key; its binding position establishes the merge role. |
-| `merge.args` | object | No | `{}` | Arguments including the current target and this operator's staged fragment. |
+| `merge.args` | object | No | `{}` | Arguments including the current dataset and this operator's staged fragment. |
 
 Input and output lists contain distinct `$features.<id>` references, without
 selectors. Inputs establish feature dependencies even when not passed as
@@ -501,8 +501,8 @@ a dataframe compute result publishes the complete target. The binding is part of
 plan; changing it requires rebuilding. Runtime configuration does not select or
 change the merge function.
 
-When declared, `merge.args.target` must be `$profiles.@.dataset` and
-`merge.args.fragment` must be `$operators.@.fragment`. The target is nullable
+When declared, `merge.args.dataset` must be `$profiles.@.dataset` and
+`merge.args.fragment` must be `$operators.@.fragment`. The dataset is nullable
 for the first merge. Python declarations use `ref.dataset()` and `ref.fragment()`.
 Merge bindings cannot reference features; assembly
 uses the target profile's declared dimensions to determine join keys.
@@ -542,13 +542,13 @@ dataframe profile. Use only the listed forms for compute arguments.
 
 Merge arguments additionally support `$operators.@.fragment`, which supplies
 the current operator's staged fragment as a dataframe. `$profiles.@.dataset`
-in a merge binding supplies the current target, or null before initialization.
+in a merge binding supplies the current dataset, or null before initialization.
 
 In Python declarations, use `ref.profile().grain.ids` or
 `ref.profile("source").grain.ids` for the corresponding selector. Grain-key
 selectors are explicit binding values; grouping, ordering, and other dimension
 references do not implicitly declare matching keys. For a dimensional
-operation, pass the selected target keys as its explicit matching-key argument;
+operation, pass the selected dataset keys as its explicit matching-key argument;
 the operation's source dataframe remains its only dataframe argument.
 
 ### Row Context

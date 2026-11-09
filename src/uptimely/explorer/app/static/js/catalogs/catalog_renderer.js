@@ -637,7 +637,7 @@ export function stageCards(data) {
             <dd class="flex flex-wrap gap-1.5">${step.depends_on_invocations.map(dep => `<span class="rounded-md bg-slate-950/70 px-2 py-1 text-slate-300">${escape(dep.function)}</span>`).join("") || '<span class="text-slate-400">No invocation dependencies</span>'}</dd></div>
         </dl>
         ${step.phase === "merge" ? `<dl class="mt-3 grid gap-2 rounded-lg border border-amber-900/50 bg-amber-950/15 p-3 font-mono text-xs sm:grid-cols-3">
-          ${[["Merge target", step.merge_target], ["Fragment source", step.fragment_source], ["Merge keys", step.merge_keys]].map(([title, value]) =>
+          ${[["Merge dataset", step.merge_dataset], ["Fragment source", step.fragment_source], ["Merge keys", step.merge_keys]].map(([title, value]) =>
             `<div class="min-w-0"><dt class="mb-1 uppercase tracking-wider text-slate-500">${title}</dt><dd class="break-all text-amber-100">${display(value)}</dd></div>`).join("")}
         </dl>` : ""}
         ${step.dataset_label ? `<p class="mt-3 font-mono text-xs text-slate-500">Profile: ${escape(step.dataset_label)}</p>` : ""}

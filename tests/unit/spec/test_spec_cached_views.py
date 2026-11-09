@@ -194,7 +194,7 @@ def test_operator_bindings_preserve_identity_aliases_order_and_unresolved_functi
     document = _sample_spec()
     profile = document.profiles["first"]
     operator = profile.assembly["read"]
-    operator.merge = model.Binding(function="missing", args={"target": "$profiles.@.dataset"})
+    operator.merge = model.Binding(function="missing", args={"dataset": "$profiles.@.dataset"})
     profile.assembly["alias"] = operator
     original = document.model_dump()
     assert list(operator.bindings) == ["compute", "merge"]

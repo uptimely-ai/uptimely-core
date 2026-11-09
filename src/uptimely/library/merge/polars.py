@@ -101,30 +101,30 @@ def cross_join(left: DataFrame, right: DataFrame) -> DataFrame:
 
 
 def merge_by_grain(
-    target: DataFrame | None,
+    dataset: DataFrame | None,
     fragment: DataFrame,
-    target_keys: collections.abc.Sequence[str],
+    dataset_keys: collections.abc.Sequence[str],
     fragment_keys: collections.abc.Sequence[str] | None = None,
     *,
     identifier_columns: collections.abc.Sequence[str] = (),
     join_cardinality: str = "m:m",
     broadcast_cardinality: str = "m:m",
 ) -> DataFrame:
-    """Assemble a fragment into a target according to the keys each carries.
+    """Assemble a fragment into a dataset according to the keys each carries.
 
     Fragments carrying the complete grain use a full join, preserving either
     observation scope. Other carried resolution keys use a left join,
-    broadcasting over the target's scope; no keys uses a cross join.
-    With no target, only a fragment carrying
-    the complete target key set can initialize the result.
+    broadcasting over the dataset's scope; no keys uses a cross join.
+    With no dataset, only a fragment carrying the complete dataset key set
+    can initialize the result.
 
     Args:
-        target: Accumulated target dataframe, or ``None`` for initialization.
+        dataset: Accumulated dataset dataframe, or ``None`` for initialization.
         fragment: Contribution dataframe.
-        target_keys: Complete key set defining the target grain.
+        dataset_keys: Complete key set defining the dataset grain.
         fragment_keys: Keys carried by the contribution. If omitted, infer the
             carried resolution keys from the fragment schema at runtime.
-        identifier_columns: All resolution keys for the target's grain dimensions.
+        identifier_columns: All resolution keys for the dataset's grain dimensions.
             Present keys are retained and used to join lower-resolution fragments.
         join_cardinality: Cardinality constraint for full joins.
         broadcast_cardinality: Cardinality constraint for subset-key left joins.
@@ -133,9 +133,9 @@ def merge_by_grain(
         The assembled dataframe.
 
     Raises:
-        ValueError: Fragment keys are incompatible or broadcasting has no target.
+        ValueError: Fragment keys are incompatible or broadcasting has no dataset.
     """
-    allowed_keys = list(dict.fromkeys([*target_keys, *identifier_columns]))
+    allowed_keys = list(dict.fromkeys([*dataset_keys, *identifier_columns]))
     if fragment_keys is None:
         fragment_columns = set(_column_names(fragment))
         fragment_keys = [key for key in allowed_keys if key in fragment_columns]
@@ -144,48 +144,48 @@ def merge_by_grain(
             "Fragment identifier columns must be a subset of accumulated dataset identifier columns"
         )
 
-    same_grain = set(target_keys).issubset(fragment_keys)
-    if target is None:
+    same_grain = set(dataset_keys).issubset(fragment_keys)
+    if dataset is None:
         if not same_grain:
             raise ValueError(
-                "A fragment with fewer identifier columns requires the accumulated main dataframe"
+                "A fragment with fewer identifier columns requires the accumulated dataset"
             )
         logger.debug("Initialize from fragment (no join)")
         return fragment
 
-    if type(target) is not type(fragment):
-        target, fragment = target.lazy(), fragment.lazy()
+    if type(dataset) is not type(fragment):
+        dataset, fragment = dataset.lazy(), fragment.lazy()
 
     if same_grain:
-        logger.debug("Full join on %s (cardinality %s)", tuple(target_keys), join_cardinality)
+        logger.debug("Full join on %s (cardinality %s)", tuple(dataset_keys), join_cardinality)
         shared_identifiers = [
             key
             for key in identifier_columns
-            if key not in target_keys
-            and key in _column_names(target)
+            if key not in dataset_keys
+            and key in _column_names(dataset)
             and key in _column_names(fragment)
         ]
         if shared_identifiers:
-            columns = set(_column_names(target)) | set(_column_names(fragment))
+            columns = set(_column_names(dataset)) | set(_column_names(fragment))
             suffix = "__identifier"
             while any(key + suffix in columns for key in shared_identifiers):
                 suffix += "_"
             renamed = {key: key + suffix for key in shared_identifiers}
             result = full_join(
-                target, fragment.rename(renamed), target_keys, validate=join_cardinality
+                dataset, fragment.rename(renamed), dataset_keys, validate=join_cardinality
             )
             return result.with_columns(
                 pl.coalesce(key, renamed[key]).alias(key) for key in shared_identifiers
             ).drop(list(renamed.values()))
-        return full_join(target, fragment, target_keys, validate=join_cardinality)
-    missing_keys = set(fragment_keys) - set(_column_names(target))
+        return full_join(dataset, fragment, dataset_keys, validate=join_cardinality)
+    missing_keys = set(fragment_keys) - set(_column_names(dataset))
     if missing_keys:
         raise ValueError(
-            "Matching keys are missing from the target: " + ", ".join(sorted(missing_keys))
+            "Matching keys are missing from the dataset: " + ", ".join(sorted(missing_keys))
         )
     if not fragment_keys:
         logger.debug("Cross join (dimensionless broadcast)")
-        return cross_join(target, fragment)
+        return cross_join(dataset, fragment)
 
     logger.debug(
         "Left join on %s (cardinality %s)",
@@ -193,7 +193,7 @@ def merge_by_grain(
         broadcast_cardinality,
     )
     return left_join(
-        target,
+        dataset,
         fragment,
         fragment_keys,
         validate=broadcast_cardinality,

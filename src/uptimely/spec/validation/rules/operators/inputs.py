@@ -78,11 +78,11 @@ def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
         if source is None:
             continue
         target_profile = spec.profiles_by_key[key[0]]
-        target_keys = set(spec.grain_keys_by_profile[key[0]])
+        dataset_keys = set(spec.grain_keys_by_profile[key[0]])
         target_dimensions = {reference.dimension for reference in target_profile.grain}
         source_keys = spec.local_features[source]
         source_dimensions = spec.dimensions_by_profile[source]
-        if not target_keys <= source_keys or not target_dimensions <= source_dimensions:
+        if not dataset_keys <= source_keys or not target_dimensions <= source_dimensions:
             raise ValueError(f"Collapse {operator.id} grouping keys must exist in source {source}")
 
 

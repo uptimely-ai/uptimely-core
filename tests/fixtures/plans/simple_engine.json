@@ -79,16 +79,16 @@
         "asset_id": "string"
       },
       "argument_types": {
-        "target": "dataframe | null",
+        "dataset": "dataframe | null",
         "fragment": "dataframe",
-        "target_keys": "array[string]"
+        "dataset_keys": "array[string]"
       },
       "return_type": null,
       "package": null,
       "arguments": {
-        "target": "telemetry",
+        "dataset": "telemetry",
         "fragment": "$operators.@.fragment",
-        "target_keys": [
+        "dataset_keys": [
           "asset_id"
         ]
       },

@@ -227,7 +227,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
     operator_kind: "merge",
     title: "Join results",
     function_label: "Join results",
-    merge_target: "readings",
+    merge_dataset: "readings",
     fragment_source: "$operators.calculate.fragment",
     merge_keys: ["id"],
     profile: "readings",
@@ -243,7 +243,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
     args: {
       target: { value: "readings", type: { function: "dataframe | null" } },
       fragment: { value: "$operators.calculate.fragment", type: { function: "dataframe" } },
-      target_keys: { value: ["id"], type: { function: "array[string]" } },
+      dataset_keys: { value: ["id"], type: { function: "array[string]" } },
     },
     returns: { type: { engine: "DataFrame" } },
   };
@@ -256,7 +256,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
       function_name: merge.function_label,
       operator_id: merge.operator_id,
       profile_id: "readings",
-      merge_target: merge.merge_target,
+      merge_dataset: merge.merge_dataset,
       fragment_source: merge.fragment_source,
       merge_keys: merge.merge_keys,
       arguments: { target: "readings" },
@@ -267,7 +267,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
   };
   data.catalogs.configuration.profiles.readings.assembly.calculate.merge = {
     function: "join",
-    args: { target: "$profiles.@.dataset", fragment: "$operators.@.fragment", target_keys: ["id"] },
+    args: { dataset: "$profiles.@.dataset", fragment: "$operators.@.fragment", dataset_keys: ["id"] },
   };
   data.catalogs.configuration.functions.join = { name: "Join results", returns: "dataframe", category: "Joining" };
   data.catalogs.function_groups.Joining = { join: data.catalogs.configuration.functions.join };
@@ -276,7 +276,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
   const profiles = renderCatalog(data, "profiles").content;
   const topology = lineage(data, true).content;
   assert.match(stages, /data-phase="merge"/);
-  assert.match(stages, /Merge target/);
+  assert.match(stages, /Merge dataset/);
   assert.match(stages, /Fragment source/);
   assert.match(stages, /Merge keys/);
   assert.match(profiles, /id="operator-readings-calculate"/);

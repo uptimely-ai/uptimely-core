@@ -67,12 +67,12 @@ def test_plain_string_binding_conversion_does_not_require_function_semantics() -
         binding.to_function_template()
 
 
-def combine_optional(target: pl.DataFrame | None) -> pl.DataFrame:
-    return target if target is not None else pl.DataFrame()
+def combine_optional(dataset: pl.DataFrame | None) -> pl.DataFrame:
+    return dataset if dataset is not None else pl.DataFrame()
 
 
-def combine_required(target: pl.DataFrame) -> pl.DataFrame:
-    return target
+def combine_required(dataset: pl.DataFrame) -> pl.DataFrame:
+    return dataset
 
 
 @pytest.mark.parametrize(
@@ -87,9 +87,9 @@ def test_binding_dataframe_optionality_follows_annotation(
 ) -> None:
     binding = assembly.Binding(
         function=implementation,
-        arguments={"target": ref.dataset()},
+        arguments={"dataset": ref.dataset()},
     )
-    assert binding.to_function_template().args["target"].type == expected
+    assert binding.to_function_template().args["dataset"].type == expected
 
 
 @pytest.mark.parametrize("explicit", [False, True])
@@ -183,10 +183,10 @@ def test_operator_combines_binding_contracts_but_only_compute_row_context() -> N
         function=ref.function(
             "unavailable_assembly_test_package:combine",
             returns="dataframe",
-            args={"target": "dataframe", "fragment": "dataframe"},
+            args={"dataset": "dataframe", "fragment": "dataframe"},
         ),
         arguments={
-            "target": row_context.rows(ref.dataset(), before=9),
+            "dataset": row_context.rows(ref.dataset(), before=9),
             "fragment": ref.fragment(),
         },
     )
@@ -218,9 +218,9 @@ def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
             function=ref.function(
                 "unavailable_assembly_test_package:combine",
                 returns="dataframe",
-                args={"target": "dataframe"},
+                args={"dataset": "dataframe"},
             ),
-            arguments={"target": ref.dataset()},
+            arguments={"dataset": ref.dataset()},
         ),
     )
     with pytest.raises(ValueError, match="invalid dataframe arity: 1"):

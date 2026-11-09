@@ -193,7 +193,7 @@ def test_automatic_capacity_merge_reports_identifier_missing_from_pump_data(
     ).run(validate=validate)
 
     assert len(result.failures) == 1
-    assert "Matching keys are missing from the target: machine_series_id" in next(
+    assert "Matching keys are missing from the dataset: machine_series_id" in next(
         iter(result.failures.values())
     )
 
