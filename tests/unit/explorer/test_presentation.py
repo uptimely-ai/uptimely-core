@@ -1,9 +1,11 @@
 """Tests for JSON-ready Explorer presentation data."""
 
 import json
+import pathlib
 
 from support import examples as example_support
 
+from uptimely import project
 from uptimely.explorer import presentation
 
 
@@ -49,3 +51,27 @@ def test_build_presentation_data_returns_versioned_json_structures(
     )
     assert "graph_data" not in serialized
     assert "invocation_lineage_data" not in serialized
+
+
+def test_build_snapshot_preserves_complete_function_example(
+    example_projects: pathlib.Path,
+) -> None:
+    snapshot = json.loads(
+        (example_projects / "pump_analytics" / project.EXPLORER_DATA_FILE).read_text(
+            encoding="utf-8"
+        )
+    )
+    configuration = snapshot["catalogs"]["configuration"]["functions"]
+    function = configuration["operation_point_quantum_optimization"]
+    examples = function["doc"]["examples"]
+
+    assert len(examples) == 1
+    assert examples[0].startswith('frame = pl.LazyFrame(\n    {"pressure":')
+    assert '\n)\nfeatures = ["pressure", "flow", "power", "temp", "vib"]\n' in examples[0]
+    assert examples[0].endswith('["converged"]\nTrue')
+    assert (
+        snapshot["catalogs"]["function_groups"]["vectorize"][
+            "operation_point_quantum_optimization"
+        ]["doc"]["examples"]
+        == examples
+    )

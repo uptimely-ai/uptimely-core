@@ -68,6 +68,11 @@ reloading the document or refetching the snapshot. Refresh the browser after
 rebuilding to load updated project data. Graphs and animation playback are
 stopped when leaving their view.
 
+Function details show documentation captured from implementation docstrings at
+build time when Python signature validation is enabled. NumPy-style Examples
+sections are displayed as a continuous block, including output and explanatory
+text; doctest prompts and directives are omitted.
+
 Dimension details label the selected dimension above its title. The Resolution
 levels section uses compact cards connected by tree branches. Each card shows
 the resolution ID and its data key with a data-type icon (or type text when no

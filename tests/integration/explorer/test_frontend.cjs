@@ -139,6 +139,23 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.doesNotMatch(stages, /Binding type|Function type|Engine type|<th[^>]*>Data type<\/th>/);
 });
 
+test("function examples retain multiline content, order and HTML escaping", async () => {
+  const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
+  const data = sampleData();
+  data.catalogs.function_groups.vectorize.calculate.doc.examples = [
+    'frame = make_frame(\n    "<input>"\n)\nresult = calculate(frame)\n[1, 2]',
+    'print("<second>")',
+  ];
+
+  const html = renderCatalog(data, "functions").content;
+  const examples = [...html.matchAll(/<code class="language-python">([^]*?)<\/code>/g)]
+    .map(match => match[1]);
+  assert.deepEqual(examples, [
+    'frame = make_frame(\n    &quot;&lt;input&gt;&quot;\n)\nresult = calculate(frame)\n[1, 2]',
+    'print(&quot;&lt;second&gt;&quot;)',
+  ]);
+});
+
 test("merge phases expose their invocation metadata and owning operator", async () => {
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const { lineage } = await moduleAt("rendering/page_renderer.js");
