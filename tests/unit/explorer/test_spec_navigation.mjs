@@ -13,6 +13,9 @@ const catalog = (await readFile(new URL("catalogs/catalog_renderer.js", root), "
   .replace("../rendering/shared_markup.js", shared)
   .replace("../rendering/page_renderer.js", pages);
 const { catalogContext, renderCatalog, schemaColumns, stageCards } = await import(moduleUrl(catalog));
+const { initializeCatalog } = await import(moduleUrl(
+  await readFile(new URL("catalogs/catalog_navigation.js", root), "utf8"),
+));
 const { Router } = await import(moduleUrl(
   await readFile(new URL("application/history_router.js", root), "utf8"),
 ));
@@ -347,13 +350,13 @@ test("feature details show metadata and direct used-by badges below the operator
   assert.match(alarm, /feature-lineage-empty">None declared<\/span>/);
 });
 
-test("dimension details distinguish the dimension from its nested resolution levels", () => {
-  const { content } = renderCatalog({
+test("dimension details distinguish the dimension from its nested resolution levels", async () => {
+  const { context, content } = renderCatalog({
     catalogs: {
       summary: { dimension_count: 1 },
       configuration: { dimensions: {
         location: { name: "Location", resolutions: {
-          country: { key: "country_id", type: "string" },
+          country: { name: "Country name", key: "country_id", type: "string" },
           city: { key: "city_id", type: "string", parent: "country" },
           site_level: { key: "site_id", type: "integer", parent: "city" },
         } },
@@ -369,20 +372,116 @@ test("dimension details distinguish the dimension from its nested resolution lev
   assert.match(content, /aria-label="Resolution levels"/);
   assert.match(content, /<h3 class="ui-section-title profile-detail-subheading"><i class="site-icon icon--resolutions profile-detail-icon" data-lucide="scan-square" aria-hidden="true"><\/i><span>Resolution levels<\/span><\/h3>/);
   assert.match(content, /Resolution levels, from parent to child\./);
-  for (const id of ["country", "city"]) {
-    assert.match(content, new RegExp(`<h3 class="dimension-resolution-id"><span class="typed-name"[^>]*>[\\s\\S]*?data-lucide="case-sensitive"[^>]*><\\/i><span>${id}</span>`));
-  }
+  assert.match(content, /<h3 class="dimension-resolution-id"><span class="typed-name"[^>]*><i data-lucide="case-sensitive"[^>]*><\/i><span>Country name<\/span>/);
+  assert.match(content, /<h3 class="dimension-resolution-id"><span class="typed-name"[^>]*><i data-lucide="case-sensitive"[^>]*><\/i><span>city<\/span>/);
   assert.match(content, /<span class="typed-name" title="integer" aria-label="site_level \(integer\)"><i data-lucide="hash"[^>]*><\/i><span>site_level<\/span>/);
   const hierarchy = content.match(/<ul aria-label="Resolution hierarchy"[\s\S]*?<\/section>/)[0];
   assert.doesNotMatch(hierarchy, /country_id|city_id|site_id|data-type-label-text|>string<|>integer</);
+  assert.match(hierarchy, /id="dimension-resolution-location-country" data-resolution-id="country"/);
+  assert.match(hierarchy, /id="dimension-resolution-location-city" data-resolution-id="city"/);
   assert.match(content, /data-resolution-id="city" data-parent-resolution="country"/);
   assert.match(content, /data-resolution-id="site_level" data-parent-resolution="city"/);
   assert.equal((content.match(/class="dimension-resolution-children"/g) || []).length, 2);
-  assert.match(content, /aria-label="Profile usage"[\s\S]*?href="\?view=profiles#profile-country_summary">Country summary<\/a>[\s\S]*?<code>country<\/code>/);
+  assert.match(context, /href="#dimension-location"[\s\S]*?href="#dimension-resolution-location-country"[\s\S]*?data-lucide="scan-square"[^]*?<span class="context-link-label">Country name<\/span>[\s\S]*?href="#dimension-resolution-location-city"/);
+  assert.match(content, /aria-label="Profile usage"[\s\S]*?<span>Used by profiles<\/span>/);
+  const [styles, navigation] = await Promise.all([
+    readFile(new URL("../css/spec.css", root), "utf8"),
+    readFile(new URL("../js/catalogs/catalog_navigation.js", root), "utf8"),
+  ]);
+  assert.match(navigation, /card\.classList\.toggle\("dimension-resolution-selected", card\.parentElement === target\)/);
+  assert.match(styles, /\.dimension-resolution-card\.dimension-resolution-selected/);
+  assert.match(styles, /\.dimension-context-resolutions\s*\{[^}]*margin-left:\s*20px/);
+  assert.doesNotMatch(styles.match(/\.dimension-context-resolutions\s*\{[^}]*\}/)[0], /border-left/);
+  assert.match(styles, /\.dimension-context-resolutions a\s*\{[^}]*font-size:\s*inherit/);
+  assert.match(content, /aria-label="Profile usage"[\s\S]*?href="\?view=profiles#profile-country_summary">Country summary<\/a>[\s\S]*?<code>Country name<\/code>/);
   assert.match(content, /href="\?view=profiles#profile-site_summary">site_summary<\/a>[\s\S]*?<code>site_level<\/code>/);
   assert.doesNotMatch(content, /Resolution: <code>/);
   assert.doesNotMatch(content, /daily_summary/);
   assert.doesNotMatch(content, /Parent resolution:|Top-level resolution|dimension-resolution-level|dimension-resolution-fields/);
+});
+
+test("dimension context orders resolutions from coarse to fine regardless of declaration order", () => {
+  const context = catalogContext({ catalogs: { configuration: { dimensions: {
+    location: { resolutions: {
+      site: { parent: "city" },
+      city: { parent: "country" },
+      country: {},
+    } },
+  } } } }, "dimensions");
+  assert.deepEqual([...context.matchAll(/href="#dimension-resolution-location-([^"]+)"/g)]
+    .map(([, id]) => id), ["country", "city", "site"]);
+});
+
+test("resolution navigation filters exact profile usage and restores dimension usage", t => {
+  const resolution = id => ({ dataset: { usageResolution: id }, hidden: false });
+  const country = resolution("country");
+  const city = resolution("city");
+  const usages = [
+    { hidden: false, querySelectorAll: () => [country] },
+    { hidden: false, querySelectorAll: () => [city] },
+  ];
+  const usageList = { hidden: false, querySelectorAll: () => usages };
+  const empty = { hidden: true };
+  const dimension = {
+    id: "dimension-location",
+    dataset: {},
+    querySelector(selector) {
+      if (selector === "[data-dimension-usage-list]") return usageList;
+      if (selector === "[data-dimension-usage-empty]") return empty;
+      return { textContent: "Location" };
+    },
+    contains: target => targets.includes(target),
+  };
+  const targets = ["country", "city", "unused"].map(id => ({
+    id: `dimension-resolution-location-${id}`,
+    dataset: { resolutionId: id },
+    contains: () => false,
+    scrollIntoView() {},
+  }));
+  const overview = {
+    id: "overview", contains: () => false, querySelector: () => null,
+  };
+  const links = [overview, dimension, ...targets].map(target => ({
+    hash: `#${target.id}`, setAttribute() {}, removeAttribute() {}, addEventListener() {},
+  }));
+  const panel = { dataset: { contextLabel: "dimensions" }, querySelectorAll: () => links };
+  const heading = {
+    querySelector: () => ({ cloneNode: () => ({}) }), setAttribute() {},
+  };
+  const title = { textContent: "Dimensions" };
+  const elements = new Map([overview, dimension, ...targets].map(target => [target.id, target]));
+  const globals = {
+    requestAnimationFrame: () => 1,
+    cancelAnimationFrame() {},
+    document: {
+      title: "Dimensions",
+      getElementById: id => id === "catalog-context" ? panel : elements.get(id),
+      querySelector: selector => selector === "main h1 span" ? title
+        : selector === "main h1" ? heading : null,
+      querySelectorAll: selector => selector === "main [data-context-item]" ? [overview, dimension] : [],
+    },
+    location: { hash: `#${targets[0].id}` },
+    history: {},
+    window: { scrollTo() {} },
+  };
+  for (const [key, value] of Object.entries(globals)) {
+    const descriptor = Object.getOwnPropertyDescriptor(globalThis, key);
+    Object.defineProperty(globalThis, key, { configurable: true, value });
+    t.after(() => {
+      if (descriptor) Object.defineProperty(globalThis, key, descriptor);
+      else delete globalThis[key];
+    });
+  }
+  const navigation = initializeCatalog(new AbortController().signal);
+  assert.deepEqual(usages.map(usage => usage.hidden), [false, true]);
+  assert.equal(empty.hidden, true);
+  for (const [target, expected] of [[targets[1], [true, false]], [targets[2], [true, true]], [dimension, [false, false]]]) {
+    location.hash = `#${target.id}`;
+    navigation.update();
+    assert.deepEqual(usages.map(usage => usage.hidden), expected);
+    assert.equal(usageList.hidden, expected.every(Boolean));
+    assert.equal(empty.hidden, !usageList.hidden);
+  }
 });
 
 test("Dimensions overview shows resolution charts without number cards or overview heading", () => {

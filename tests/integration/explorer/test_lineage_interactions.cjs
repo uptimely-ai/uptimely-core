@@ -16,7 +16,8 @@ for (const withSectionCount of [false, true]) {
 			const heading = { ...createElement(), textContent: item.id };
 			item.description = { ...createElement(), textContent: `${item.id} description <&>` };
 			item.querySelector = selector => selector === '[data-function-description]'
-				? (item === overview ? null : item.description) : heading;
+				? (item === overview ? null : item.description)
+				: selector === 'h2, h3' ? heading : null;
 			item.contains = candidate => candidate === item;
 		}
 			const group = {
@@ -51,6 +52,7 @@ for (const withSectionCount of [false, true]) {
 			querySelectorAll(selector) {
 				if (selector === 'main [data-context-item]') return items;
 				if (selector === 'main [data-function-group]') return [group];
+				if (selector === '.dimension-resolution-tree li > .dimension-resolution-card') return [];
 				return links;
 			},
 		};
@@ -109,7 +111,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 		item.description = item === overview
 			? null : { ...createElement(), textContent: `${item.id} feature description` };
 		item.querySelector = selector => selector === `[data-${resource}-description]`
-			? item.description : heading;
+			? item.description : selector === 'h2, h3' ? heading : null;
 		item.contains = candidate => candidate === item;
 	}
 	const operator = { ...createElement(), id: 'operator-telemetry-read' };
@@ -142,6 +144,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 		querySelectorAll(selector) {
 			if (selector === 'main [data-context-item]') return items;
 			if (selector === 'main [data-function-group]') return [];
+			if (selector === '.dimension-resolution-tree li > .dimension-resolution-card') return [];
 			return links;
 		},
 	};
@@ -203,7 +206,8 @@ test('dimension selection displays its description in the section header', () =>
 	for (const item of items) {
 		const heading = { ...createElement(), textContent: item.id };
 		item.querySelector = selector => selector === '[data-dimension-description]'
-			? (item === overview ? null : dimensionDescription) : heading;
+			? (item === overview ? null : dimensionDescription)
+			: selector === 'h2, h3' ? heading : null;
 		item.contains = candidate => candidate === item;
 	}
 	const links = items.map(item => ({
@@ -233,6 +237,7 @@ test('dimension selection displays its description in the section header', () =>
 		querySelectorAll(selector) {
 			if (selector === 'main [data-context-item]') return items;
 			if (selector === 'main [data-function-group]') return [];
+			if (selector === '.dimension-resolution-tree li > .dimension-resolution-card') return [];
 			return links;
 		},
 	};

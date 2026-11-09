@@ -1,6 +1,8 @@
 export function initializeCatalog(signal) {
   const catalogPanel = document.getElementById("catalog-context");
   const catalogItems = [...document.querySelectorAll("main [data-context-item]")];
+  const resolutionCards = [...document.querySelectorAll(
+    ".dimension-resolution-tree li > .dimension-resolution-card")];
   const catalogGroups = [...document.querySelectorAll("main [data-function-group]")];
   const catalogLinks = [...catalogPanel.querySelectorAll('a[href^="#"]')];
   const catalogNavigationLinks = [...document.querySelectorAll(
@@ -72,8 +74,28 @@ export function initializeCatalog(signal) {
     });
     catalogItems.forEach(item => { item.hidden = item !== selected; });
     catalogGroups.forEach(group => { group.hidden = !group.contains(selected); });
+    resolutionCards.forEach(card => {
+      card.classList.toggle("dimension-resolution-selected", card.parentElement === target);
+    });
+    const usageList = selected.querySelector("[data-dimension-usage-list]");
+    if (usageList) {
+      const resolutionId = target?.dataset.resolutionId;
+      const usages = [...usageList.querySelectorAll("[data-dimension-profile-usage]")];
+      usages.forEach(usage => {
+        const resolutions = [...usage.querySelectorAll("[data-usage-resolution]")];
+        resolutions.forEach(resolution => {
+          resolution.hidden = resolutionId !== undefined
+            && resolution.dataset.usageResolution !== resolutionId;
+        });
+        usage.hidden = resolutions.every(resolution => resolution.hidden);
+      });
+      usageList.hidden = usages.every(usage => usage.hidden);
+      selected.querySelector("[data-dimension-usage-empty]").hidden = !usageList.hidden;
+    }
+    const activeTarget = target && selected.contains(target) && catalogLinks.some(
+      link => decodeURIComponent(link.hash.slice(1)) === target.id) ? target : selected;
     catalogLinks.forEach(candidate => {
-      if (decodeURIComponent(candidate.hash.slice(1)) === selected.id) {
+      if (decodeURIComponent(candidate.hash.slice(1)) === activeTarget.id) {
         candidate.setAttribute("aria-current", "location");
       } else {
         candidate.removeAttribute("aria-current");

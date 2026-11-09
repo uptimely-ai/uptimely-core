@@ -14,6 +14,7 @@ class Resolution(base.StrictModel):
     key: str
     type: str
     parent: str | None = None
+    name: str | None = None
 
 
 class Dimension(base.StrictModel):

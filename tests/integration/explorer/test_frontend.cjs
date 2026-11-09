@@ -467,7 +467,7 @@ test("dimension catalog renders resolutions as a parent-linked hierarchy", async
   assert.doesNotMatch(html, /dimension-resolution-level|dimension-resolution-fields/);
   assert.match(
     html,
-    /data-resolution-id="plant"[^]*?<ul class="dimension-resolution-children"[^>]*><li data-resolution-id="production_line"[^]*?<ul class="dimension-resolution-children"[^>]*><li data-resolution-id="machine"/,
+    /data-resolution-id="plant"[^]*?<ul class="dimension-resolution-children"[^>]*><li id="dimension-resolution-machine-production_line" data-resolution-id="production_line"[^]*?<ul class="dimension-resolution-children"[^>]*><li id="dimension-resolution-machine-machine" data-resolution-id="machine"/,
   );
   assert.match(html, /data-parent-resolution="production_line"/);
   assert.match(html, /data-parent-resolution="plant"/);

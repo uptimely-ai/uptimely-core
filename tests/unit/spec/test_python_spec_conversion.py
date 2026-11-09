@@ -570,6 +570,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
                     "key": "pump",
                     "type": "string",
                     "parent": None,
+                    "name": None,
                 }
             },
             "name": "Machine",

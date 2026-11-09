@@ -122,6 +122,7 @@ Each resolution has the following fields:
 | `key` | string | Yes | N/A | Dataframe column used for this resolution. |
 | `type` | string | Yes | N/A | Logical key type, such as `string`, `integer`, or `datetime`. |
 | `parent` | string or null | No | `null` | Identifier of a parent resolution in this dimension. |
+| `name` | string or null | No | `null` | Human-readable resolution label used by Explorer instead of the identifier when provided. |
 
 Resolution IDs are local to their dimension; the identity of a resolution is
 the pair of dimension and resolution IDs. The `parent` field names a resolution

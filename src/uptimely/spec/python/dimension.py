@@ -23,6 +23,7 @@ class Resolution:
     type: str
     parent: str | None = None
     _dimension: Dimension | None = dataclasses.field(default=None, repr=False, compare=False)
+    name: str | None = dataclasses.field(default=None, kw_only=True)
 
     @property
     def dimension(self) -> Dimension | None:
@@ -36,6 +37,7 @@ class Resolution:
             key=self.key,
             type=self.type,
             parent=self.parent,
+            name=self.name,
         )
 
 
