@@ -30,7 +30,7 @@ MACHINE_TIMESTAMP = Dimension(
     id="machine_timestamp",
     description="UTC timestamp of pump telemetry at one-minute grain",
     resolutions=[
-        Resolution(id="timestamp", key="timestamp", type="datetime", parent="hour"),
+        Resolution(id="timestamp", key="timestamp", type="datetime", parent="minute"),
         Resolution(id="minute", key="minute", type="datetime", parent="hour"),
         Resolution(id="hour", key="hour", type="datetime", parent="day"),
         Resolution(id="day", key="day", type="datetime"),
