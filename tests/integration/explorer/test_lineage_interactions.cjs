@@ -246,7 +246,7 @@ function loadLineageScript(context, filename) {
 	let source = fs.readFileSync(path.join(scriptDirectory, filename), 'utf8');
 	if (filename === 'rendering/shared_markup.js') {
 		source = source.replace(/^export /gm, '');
-		source += '\nglobalThis.dataTypeIconName = dataTypeIconName;\nglobalThis.KINDS = KINDS;';
+		source += '\nglobalThis.dataTypeIconName = dataTypeIconName;\nglobalThis.KINDS = KINDS;\nglobalThis.ICONS = ICONS;';
 	} else if (filename === 'lineage/lineage_config.js') {
 		const exports = [...source.matchAll(/^export const (\w+)/gm)]
 			.map(([, name]) => name);
@@ -811,8 +811,11 @@ function lineageLayout(filename, nodes, links) {
 	});
 	const context = vm.createContext({
 		document: { getElementById: element, createElement },
-		Path2D: class {},
-		lucide: { icons: { Table2: [['path', { d: 'M1 2' }]] } },
+		Path2D: class { constructor(path) { this.path = path; } },
+		lucide: { icons: {
+			Table2: [['path', { d: 'table-icon' }]],
+			Layers2: [['path', { d: 'profile-icon' }]],
+		} },
 		ForceGraph: () => () => graph,
 		performance: { now: () => 1100 },
 		mountLineageViews(data, create2D) { view = create2D(container, data, () => {}); },
@@ -823,11 +826,20 @@ function lineageLayout(filename, nodes, links) {
 	const labels = [];
 	const paths = [];
 	const strokes = [];
+	const icons = [];
+	const iconColors = [];
 	const canvas = {
-		save() {}, restore() {}, fill() {}, stroke() { strokes.push(this.strokeStyle); }, closePath() {},
+		save() {}, restore() {}, fill() {}, closePath() {},
 		roundRect() {},
 		translate() {}, scale() {},
 		beginPath() { paths.push([]); },
+		stroke(path) {
+			strokes.push(this.strokeStyle);
+			if (path) {
+				icons.push(path.path);
+				iconColors.push(this.strokeStyle);
+			}
+		},
 		moveTo(x, y) { paths.at(-1).push([x, y]); },
 		lineTo(x, y) { paths.at(-1).push([x, y]); },
 		arc(...values) { assert.ok(values.every(Number.isFinite)); },
@@ -837,7 +849,7 @@ function lineageLayout(filename, nodes, links) {
 	graph.properties.get('onRenderFramePre')(canvas, 1);
 	return {
 		graph, view, container, nodes: graph.properties.get('graphData').nodes,
-		rectangles, labels: labels.filter(label => !/^Stage \d+$/.test(label[0])
+		rectangles, icons, iconColors, labels: labels.filter(label => !/^Stage \d+$/.test(label[0])
 			&& !['Dataset', 'Dataset ready', 'Selected outputs ready', 'No dataset produced'].includes(label[0])),
 		markerLabels: labels.filter(label =>
 			['Dataset', 'Dataset ready', 'Selected outputs ready', 'No dataset produced'].includes(label[0])),
@@ -848,12 +860,12 @@ function lineageLayout(filename, nodes, links) {
 for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineage.js']) {
 	test(`${filename}: dataset lanes preserve global ranks and deterministic connectivity ordering`, () => {
 		const nodes = [
-			{ id: 'a', profile_id: 'a_source', stage: 1 },
-			{ id: 'z', profile_id: 'a_source', stage: 1 },
-			{ id: 'a_operator', profile_id: 'z_output', stage: 2 },
-			{ id: 'z_operator', profile_id: 'z_output', stage: 2 },
-			{ id: 'result', profile_id: 'a_source', stage: 3 },
-			{ id: 'other', profile_id: 'b_isolated', stage: 1 },
+			{ id: 'a', profile_id: 'a_source', profile_name: 'Source profile', stage: 1 },
+			{ id: 'z', profile_id: 'a_source', profile_name: 'Source profile', stage: 1 },
+			{ id: 'a_operator', profile_id: 'z_output', profile_name: 'Output profile', stage: 2 },
+			{ id: 'z_operator', profile_id: 'z_output', profile_name: 'Output profile', stage: 2 },
+			{ id: 'result', profile_id: 'a_source', profile_name: 'Source profile', stage: 3 },
+			{ id: 'other', profile_id: 'b_isolated', profile_name: 'Isolated profile', stage: 1 },
 			{ id: 'missing', stage: 1 },
 		].map(node => ({ ...node, label: node.id, function_id: node.id, function_kind: 'read' }));
 		const links = [
@@ -864,18 +876,27 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		];
 		const layout = lineageLayout(filename, nodes, links);
 		const datasetOrder = ['a_source', 'z_output', 'b_isolated', 'Unassigned'];
-		assert.deepEqual(layout.labels.map(label => label[0]), datasetOrder);
+		assert.deepEqual(layout.labels.map(label => label[0]), [
+			'Source profile', 'Output profile', 'Isolated profile', 'Unassigned',
+		]);
 		layout.labels.forEach((label, index) => {
 			const [left, top, width] = layout.rectangles[index];
 			if (filename === 'lineage/invocation_lineage.js') {
 				assert.ok(label[1] < left, 'Profile names sit outside the stage grid');
 				assert.ok(label[2] > top && label[2] < top + layout.rectangles[index][3]);
 			} else {
-				assert.equal(label[1], left + 32);
-				assert.equal(label[2], top + 18);
-				assert.equal(label[3], width - 64);
+				assert.ok(label[1] < left, 'Profile names sit outside the swim lanes');
+				assert.equal(label[2], top + layout.rectangles[index][3] / 2);
+				assert.ok(label[1] + label[3] <= left);
 			}
 		});
+		if (filename === 'lineage/feature_lineage.js') {
+			assert.ok(layout.icons.includes('profile-icon'), 'Profile icons render beside swim-lane names');
+			assert.deepEqual(layout.icons.flatMap((icon, index) =>
+				icon === 'profile-icon' ? [layout.iconColors[index]] : []),
+			layout.labels.map(([name]) => layout.nodes.find(node =>
+				(node.profile_name || node.profile_id || 'Unassigned') === name)?.datasetColor));
+		}
 		const byId = new Map(layout.nodes.map(node => [node.id, node]));
 		assert.equal(byId.get('a').rank, 0);
 		assert.equal(byId.get('z_operator').rank, 1);
@@ -961,7 +982,8 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			assert.ok(zoom > 0);
 			assert.ok(width * zoom <= layout.container.clientWidth - 160);
 			assert.ok((height + headerHeight) * zoom <= layout.container.clientHeight - 160);
-			assert.equal(left + width / 2, 0);
+			assert.equal(left + width / 2,
+				filename === 'lineage/invocation_lineage.js' ? 0 : layout.nodes[0].x);
 			assert.equal(top + height / 2, 0);
 		};
 		layout.graph.properties.get('onEngineStop')();

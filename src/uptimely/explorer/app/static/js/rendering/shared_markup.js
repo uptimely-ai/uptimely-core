@@ -9,7 +9,7 @@ export const KINDS = {
   escape: { icon: "arrow-up-right", label: "Escape" },
 };
 
-const ICONS = {
+export const ICONS = {
   home: "house", menu: "menu", "collapse-navigation": "panel-left-close",
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
   execution: "play", info: "info", logs: "scroll-text", preview: "table-properties",
