@@ -6,7 +6,7 @@ import graphable as graphable_
 from graphable import views
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds, validation
+from uptimely.spec import validation
 
 from . import models
 
@@ -147,21 +147,21 @@ class FeatureGraph(FeatureGraphBase):
         for key, operator in self.spec.operator_items:
             profile = self.spec.operator_profiles[key]
             profile_id = self.spec.operator_profile_keys[key]
-            kind = operator_kinds.OPERATOR_KINDS[self.spec.operator_kinds[key]]
-            is_source_input = kind.is_source and kind.dimension_change != "remove"
+            function = self.spec.functions[operator.compute.function]
+            has_target_dataframe = any(
+                source_profile == profile_id
+                for _, _, source_profile in self.spec.operator_dataframe_arguments[key]
+            )
+            is_source_input = (
+                function.returns == "dataframe"
+                and not has_target_dataframe
+                and "collapse" not in self.spec.operator_grain_relationships[key].values()
+            )
             for name in operator.output_features:
                 feature = profile.all_features[name]
-                data_type = feature.type
-                if (
-                    data_type is None
-                    and name not in self.spec.grain_key_ids
-                    and not kind.is_effect
-                    and not kind.is_transformer
-                ):
-                    data_type = kind.returns
                 reference = models.FeatureNode(
                     name=name,
-                    data_type=data_type,
+                    data_type=feature.type,
                     profile_id=profile_id,
                     display_name=feature.name,
                     profile_name=profile.name,
@@ -239,7 +239,17 @@ class FeatureGraph(FeatureGraphBase):
                 profile_name=profile.name,
                 operator=operator,
                 function=self.spec.functions[operator.compute.function],
-                operator_kind=self.spec.operator_kinds[key],
+                execution_form=self.spec.operator_execution_forms[key],
+                binding_roles=self.spec.operator_binding_roles[key],
+                grain_relationships=tuple(
+                    (
+                        self.spec.profiles_by_key[source].id if source is not None else None,
+                        relationship,
+                    )
+                    for source, relationship in self.spec.operator_grain_relationships[key].items()
+                ),
+                source_status=self.spec.operator_source_statuses[key],
+                function_returns=self.spec.functions[operator.compute.function].returns,
             )
             operator_node = node(operator_metadata)
             for output in outputs:

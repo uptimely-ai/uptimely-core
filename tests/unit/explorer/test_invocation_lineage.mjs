@@ -15,10 +15,14 @@ const { invocationRole, invocationColor, invocationContribution, invocationFlowD
     .replace("./lineage_layout.js", layoutModule)));
 
 function node(id, stage, kind, profile = "pump") {
+  const isMerge = kind === "merge";
+  const isPublisher = kind === "vectorize";
+  const isEffect = kind === "escape";
   return {
-    id, stage, operator_kind: kind, function_name: id,
-    phase: kind === "merge" ? "merge" : "compute",
-    is_effect: ["write", "escape"].includes(kind),
+    id, stage, role: isMerge ? "merge" : "compute",
+    result: isPublisher ? "target" : "fragment",
+    function_returns: kind === "write" ? "none" : isEffect ? "any" : "dataframe",
+    function_name: id,
     operator_id: id.replace("-merge", ""),
     profile_id: profile, profile_name: `${profile} profile`, datasetColor: "#2dd4bf",
   };
@@ -43,11 +47,12 @@ function fixture() {
   };
 }
 
-test("invocation roles distinguish publication, enrichment and effects", () => {
+test("invocation roles derive from binding roles, results and return contracts", () => {
   assert.equal(invocationRole(node("merge", 1, "merge")), "merge");
-  assert.equal(invocationRole({ operator_kind: "merge" }), "merge");
+  assert.equal(invocationRole({ role: "merge" }), "merge");
   assert.equal(invocationRole(node("vector", 1, "vectorize")), "enrich");
-  assert.equal(invocationRole(node("write", 1, "write")), "effect");
+  assert.equal(invocationRole(node("write", 1, "write")), "sink");
+  assert.equal(invocationRole(node("effect", 1, "escape")), "effect");
   assert.equal(invocationRole(node("read", 1, "read")), "compute");
   assert.equal(invocationLabel(node("join", 1, "merge")), "Join");
   assert.equal(invocationLabel(node("score", 1, "vectorize")), "score");
@@ -67,7 +72,7 @@ test("publishers use the spine color and off-spine invocations use neutral gray"
 
 test("default merges use the callable name and an explicit automatic badge predicate", () => {
   const automatic = {
-    function_id: "merge_by_grain", operator_kind: "merge",
+    function_id: "merge_by_grain", role: "merge",
     function_name: "Automatic merge by grain",
   };
   assert.equal(invocationLabel(automatic), "Merge by grain");
@@ -75,7 +80,7 @@ test("default merges use the callable name and an explicit automatic badge predi
   const custom = { ...automatic, function_id: "custom_join", function_name: "Join inputs" };
   assert.equal(invocationLabel(custom), "Join inputs");
   assert.equal(isDefaultMerge(custom), false);
-  assert.equal(isDefaultMerge({ ...automatic, operator_kind: "read" }), false);
+  assert.equal(isDefaultMerge({ ...automatic, role: "compute" }), false);
   assert.equal(invocationLabel({ ...custom, function_name: "merge_pump_inputs" }), "Merge pump inputs");
 });
 
@@ -104,7 +109,7 @@ test("selected-node flow notes explain the step, plan markers and connections in
     assert.equal(details.split("\n\n").length, 3);
     assert.match(details, kind === "merge" ? /merging them are separate steps/
       : kind === "vectorize" ? /adds calculated columns directly/
-      : kind === "write" ? /uses data without adding columns/
+      : kind === "write" ? /consumes data without producing a dataframe result/
       : kind === "escape" ? /return value is ignored/
       : /calculates data separately/);
     assert.ok(details.length < 600);
@@ -141,6 +146,31 @@ test("profile mainframes separate computes, publishers and effects without chang
         || Math.abs(a.y - b.y) >= (a.cardHeight + b.cardHeight) / 2,
       `Overlapping cards: ${a.id}, ${b.id}`);
     }
+  }
+});
+
+test("sinks and effects share a non-overlapping consumer track within their profile lane", () => {
+  const data = {
+    nodes: [
+      node("publish", 1, "vectorize", "first"),
+      node("write-pump", 2, "write", "pump"),
+      node("write-copy", 2, "write", "pump"),
+      node("notify", 2, "escape", "pump"),
+    ],
+    links: [],
+  };
+  const layout = prepareInvocationLayout(data);
+  const lane = layout.lanes.find(lane => lane.id === "pump");
+  const consumers = data.nodes.filter(node => node.profile_id === "pump").sort((a, b) => a.y - b.y);
+  for (const consumer of consumers) {
+    assert.ok(consumer.y - consumer.cardHeight / 2 > lane.spineY);
+    assert.ok(consumer.y - consumer.cardHeight / 2 >= lane.top - layout.height / 2);
+    assert.ok(consumer.y + consumer.cardHeight / 2 <= lane.top + lane.height - layout.height / 2);
+    assert.equal(consumer.y, consumer.fy);
+    assert.ok(consumer.routeY > consumer.y + consumer.cardHeight / 2);
+  }
+  for (let index = 1; index < consumers.length; index++) {
+    assert.ok(consumers[index].y - consumers[index - 1].y >= consumers[index].cardHeight);
   }
 });
 
@@ -374,7 +404,7 @@ test("empty, single-publisher and effect-only graphs keep finite bounds", () => 
     const layout = prepareInvocationLayout(data);
     assert.ok(Object.values(layout.bounds).every(Number.isFinite));
     assert.ok(layout.bounds.width > 0 && layout.bounds.height > 0);
-    if (nodes[0]?.operator_kind === "merge") {
+    if (nodes[0]?.role === "merge") {
       assert.equal(nodes[0].y, layout.lanes[0].spineY);
     }
   }

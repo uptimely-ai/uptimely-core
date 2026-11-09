@@ -16,13 +16,13 @@ from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
 
-EXPLORER_FORMAT_VERSION = 2
+EXPLORER_FORMAT_VERSION = 3
 
 
 class ExplorerPresentationData(typing.TypedDict):
     """Versioned data consumed by the Explorer frontend."""
 
-    format_version: typing.Literal[2]
+    format_version: typing.Literal[3]
     project: dict[str, object]
     scope: dict[str, object]
     catalogs: dict[str, object]

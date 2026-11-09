@@ -5,7 +5,6 @@ import typing
 from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.explorer import common
-from uptimely.spec import operator_kinds
 from uptimely.spec.model import base
 
 
@@ -37,8 +36,17 @@ def invocation_lineage_payload(
     invocations_by_id = plan.invocations_by_id
     for invocation in sorted(plan.invocations, key=lambda item: item.id):
         function = spec_definition.functions[invocation.function_id]
-        kind = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
         is_merge = invocation.role == "merge"
+        key = (invocation.profile_id, invocation.operator_id)
+        grain_relationships = [
+            {
+                "source_profile": (
+                    spec_definition.profiles_by_key[source].id if source is not None else None
+                ),
+                "relationship": relationship,
+            }
+            for source, relationship in spec_definition.operator_grain_relationships[key].items()
+        ]
         profile = (
             spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
         )
@@ -48,11 +56,13 @@ def invocation_lineage_payload(
             {
                 "id": invocation.id,
                 "node_type": "invocation",
-                "operator_kind": invocation.operator_kind,
-                "phase": invocation.role,
+                "operator_label": spec_definition.operator_kinds[key],
+                "execution_form": spec_definition.operator_execution_forms[key],
+                "binding_roles": list(spec_definition.operator_binding_roles[key]),
+                "grain_relationships": grain_relationships,
+                "function_returns": function.returns,
                 "role": invocation.role,
                 "result": invocation.result,
-                "is_effect": kind.is_effect,
                 "stage": stage_by_invocation[invocation.id],
                 "label": function_name,
                 "label_lines": [function_name],
@@ -72,7 +82,7 @@ def invocation_lineage_payload(
                         feature_labels.get(feature, feature)
                         for feature in invocation.output_features
                     )
-                    if kind.is_effect or kind.is_transformer
+                    if invocation.output_features
                     else None
                 ),
                 "input_features": invocation.input_features,

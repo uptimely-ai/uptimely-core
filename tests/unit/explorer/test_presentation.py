@@ -34,9 +34,21 @@ def test_build_presentation_data_returns_versioned_json_structures(
         for function in data["catalogs"]["configuration"]["functions"].values()
     )
     assert all(
-        operator["kind"] == bundle.spec_definition.operator_kinds[(profile_id, operator_id)]
+        operator["operator_label"]
+        == bundle.spec_definition.operator_kinds[(profile_id, operator_id)]
         for profile_id, profile in data["catalogs"]["configuration"]["profiles"].items()
         for operator_id, operator in profile["assembly"].items()
+    )
+    assert all(
+        operator["execution_form"]
+        == bundle.spec_definition.operator_execution_forms[(profile_id, operator_id)]
+        for profile_id, profile in data["catalogs"]["configuration"]["profiles"].items()
+        for operator_id, operator in profile["assembly"].items()
+    )
+    assert all(
+        "binding_roles" in operator and "grain_relationships" in operator
+        for profile in data["catalogs"]["configuration"]["profiles"].values()
+        for operator in profile["assembly"].values()
     )
     assert data["catalogs"]["configuration"]["profiles"]["pump"]["scope"] == (
         "Pump-level telemetry and external workflow inputs"
@@ -47,10 +59,10 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert data["stages"]
     assert data["animation"]["stages"]
     merge_steps = [
-        step for stage in data["stages"] for step in stage["steps"] if step["phase"] == "merge"
+        step for stage in data["stages"] for step in stage["steps"] if step["role"] == "merge"
     ]
     merge_nodes = [
-        node for node in data["graphs"]["invocation_lineage"]["nodes"] if node["phase"] == "merge"
+        node for node in data["graphs"]["invocation_lineage"]["nodes"] if node["role"] == "merge"
     ]
     assert merge_steps
     assert merge_nodes
@@ -64,6 +76,9 @@ def test_build_presentation_data_returns_versioned_json_structures(
         link["dependency_type"] == "fragment"
         for link in data["graphs"]["invocation_lineage"]["links"]
     )
+    assert data["plan"]["invocation_role_counts"] == [
+        list(item) for item in bundle.execution_plan.count_per_role.items()
+    ]
     assert "graph_data" not in serialized
     assert "invocation_lineage_data" not in serialized
 
@@ -90,6 +105,23 @@ def test_build_snapshot_preserves_complete_function_example(
         ]["examples"]
         == examples
     )
+
+
+def test_saved_explorer_snapshot_matches_rebuilt_spec_and_plan(
+    pump_bundle: project.BuildBundle,
+) -> None:
+    saved = json.loads(
+        (pump_bundle.project_root / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8")
+    )
+    rebuilt = presentation.build_presentation_data(
+        pump_bundle.spec_definition,
+        pump_bundle.execution_plan,
+        features=pump_bundle.manifest.features,
+        project_root=pump_bundle.project_root,
+    )
+
+    assert saved == json.loads(presentation.serialize_presentation_data(rebuilt))
+    assert saved["format_version"] == 3
 
 
 def test_presentation_captures_project_source_in_catalog_and_snapshot(

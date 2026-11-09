@@ -13,7 +13,7 @@ from uptimely.spec.feature_graph import models
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 
 
-def test_graph_metadata_follows_function_capabilities(
+def test_graph_metadata_uses_derived_grain_semantics(
     monkeypatch: pytest.MonkeyPatch, pump_bundle: project.BuildBundle
 ) -> None:
     graph = spec.FeatureGraph(pump_bundle.spec_definition)
@@ -23,16 +23,8 @@ def test_graph_metadata_follows_function_capabilities(
     catalog["collapse"] = dataclasses.replace(catalog["collapse"], dimension_change="preserve")
     monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", catalog)
     changed = graph._declared_features()
-    checked = set()
-    for key, operator in graph.spec.operator_items:
-        kind = graph.spec.operator_kinds[key]
-        if kind not in {"read", "collapse"}:
-            continue
-        checked.add(kind)
-        for name in operator.output_features:
-            if name in graph.spec.grain_key_ids:
-                continue
-            assert changed[name].is_source_input is not original[name].is_source_input
+    checked = {kind for kind in graph.spec.operator_kinds.values() if kind in {"read", "collapse"}}
+    assert changed == original
     assert checked == {"read", "collapse"}
     graph.spec = spec.Spec.model_validate(graph.spec.model_dump())
     for profile_id, profile in graph.spec.profiles.items():

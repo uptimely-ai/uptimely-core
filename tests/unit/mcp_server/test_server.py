@@ -92,6 +92,17 @@ async def test_describe_function_resolves_signature(state: server.ServerState) -
     assert payload["python_signature_validation"] == "enabled"
     assert payload["python_signature"]["returns"] == "LazyFrame"
     assert payload["declared_returns"] == "dataframe"
+    usage = {
+        key: value
+        for key, value in payload["operator_usages"][0].items()
+        if key != "grain_relationships"
+    }
+    assert usage == {
+        "profile": "pump_telemetry",
+        "operator": "pump_health_score",
+        "role": "compute",
+        "execution_form": "compute",
+    }
 
 
 @pytest.mark.anyio
@@ -133,7 +144,7 @@ async def test_describe_function_skips_disabled_signature_without_importing_pare
 
 
 @pytest.mark.anyio
-async def test_escape_function_description_reports_logical_feature_dependencies(
+async def test_describe_function_reports_bindings_and_derived_operator_usage(
     state: server.ServerState,
 ) -> None:
     snapshot = state.load_snapshot()
@@ -165,17 +176,15 @@ async def test_escape_function_description_reports_logical_feature_dependencies(
         "returns": "any",
     } in listing
     assert described["declared_returns"] == "any"
-    assert described["escape_operators"] == [
+    assert described["operator_usages"] == [
         {
             "profile": "pump_telemetry",
             "operator": "external_audit",
-            "inputs": ["bearing_temperature", "vibration_rms"],
-            "outputs": [],
+            "role": "compute",
+            "execution_form": "compute",
+            "grain_relationships": [{"source_profile": "pump_telemetry", "relationship": "same"}],
         }
     ]
-    assert "return value is ignored" in described["execution_semantics"]
-    assert "logical dependencies only" in described["execution_semantics"]
-    assert "explicitly bound dataframe arguments" in described["execution_semantics"]
 
 
 @pytest.mark.anyio

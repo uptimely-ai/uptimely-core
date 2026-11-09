@@ -105,6 +105,19 @@ def test_spec_reports_operator_with_no_source() -> None:
     )
 
 
+def test_spec_exposes_calculated_feature_producers() -> None:
+    spec_definition = _make_spec([("scope", "root")], [("scope", "root")])
+    operator = spec_definition.profiles["target"].assembly["calculate"]
+    operator.compute.args["data"] = model.BindingArgument(root="$profiles.target.dataset")
+    spec_definition = spec_definition.rebuild()
+    key = ("target", "calculate")
+
+    assert spec_definition.operator_produces_target_features[key] is True
+    assert spec_definition.calculated_feature_producers == {
+        "result": ("target", spec_definition.profiles["target"].assembly["calculate"])
+    }
+
+
 def test_existing_operator_exposes_binding_and_output_declarations() -> None:
     spec = _make_spec([("scope", "root")], [("scope", "root")])
     spec_semantics = semantics.Semantics(spec)
@@ -114,7 +127,8 @@ def test_existing_operator_exposes_binding_and_output_declarations() -> None:
 
     assert spec_semantics.operator_execution_forms[key] == "compute + merge"
     assert spec_semantics.operator_binding_roles[key] == ("compute", "merge")
-    assert not hasattr(spec, "operator_execution_forms")
+    assert spec.operator_execution_forms[key] == "compute + merge"
+    assert spec.operator_binding_roles[key] == ("compute", "merge")
     assert list(operator.bindings) == ["compute", "merge"]
     assert operator.bindings["compute"] is operator.compute
     assert operator.bindings["merge"] is operator.merge

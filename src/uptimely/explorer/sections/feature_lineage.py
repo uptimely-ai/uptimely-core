@@ -4,7 +4,6 @@ import dataclasses
 import typing
 
 from uptimely.explorer import common, graph_style
-from uptimely.spec import operator_kinds
 from uptimely.spec.feature_graph import models
 
 if typing.TYPE_CHECKING:
@@ -51,8 +50,14 @@ def _node_data(
             profile_name=reference.profile_name,
             function_id=reference.function.id,
             function_name=reference.function.name,
-            operator_kind=reference.operator_kind,
-            is_effect=operator_kinds.OPERATOR_KINDS[reference.operator_kind].is_effect,
+            execution_form=reference.execution_form,
+            binding_roles=list(reference.binding_roles),
+            grain_relationships=[
+                {"source_profile": source, "relationship": relationship}
+                for source, relationship in reference.grain_relationships
+            ],
+            source_status=reference.source_status,
+            function_returns=reference.function_returns,
             type="python_function",
             entrypoint=reference.function.entrypoint,
             info={"description": reference.function.description},

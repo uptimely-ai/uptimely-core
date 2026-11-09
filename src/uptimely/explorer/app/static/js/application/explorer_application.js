@@ -2,7 +2,7 @@ import { AssetLoader } from "./asset_loader.js";
 import { Router } from "./history_router.js";
 import { getView, ViewController } from "./view_controller.js";
 
-const FORMAT_VERSION = 2;
+const FORMAT_VERSION = 3;
 
 export async function loadExplorerData(configuration, fetchData) {
   if (!configuration || typeof configuration.dataUrl !== "string") {

@@ -1,6 +1,7 @@
 import dataclasses
+import typing
 
-from uptimely.spec import model, operator_kinds
+from uptimely.spec import model
 
 
 @dataclasses.dataclass(frozen=True)
@@ -11,7 +12,11 @@ class OperatorNode:
     features: tuple[str, ...]
     profile_id: str
     function: model.FunctionTemplate = dataclasses.field(compare=False, hash=False)
-    operator_kind: operator_kinds.OperatorKindId
+    execution_form: str
+    binding_roles: tuple[str, ...]
+    grain_relationships: tuple[tuple[str | None, str], ...]
+    source_status: str
+    function_returns: typing.Literal["dataframe", "none", "any"]
     profile_name: str | None = None
     operator: model.Operator | None = dataclasses.field(default=None, compare=False, hash=False)
 

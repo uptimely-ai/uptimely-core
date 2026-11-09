@@ -5,21 +5,20 @@ import pytest
 from uptimely import plan as execution_plan
 from uptimely import spec
 from uptimely.explorer.sections import data_lineage
-from uptimely.spec import operator_kinds
 
 
 @pytest.mark.parametrize(
-    ("kind", "source_dimensions", "target_dimensions", "row_counts"),
+    ("source_dimensions", "target_dimensions", "expected_relationship", "row_counts"),
     [
-        ("collapse", ["id", "time"], ["id"], (3, 1)),
-        ("expand", ["id"], ["id", "time"], (1, 3)),
-        ("conform", ["id"], ["id"], (3, 3)),
+        (["id", "time"], ["id"], "collapse", (3, 1)),
+        (["id"], ["id", "time"], "expand", (1, 3)),
+        (["id"], ["id"], "same", (3, 3)),
     ],
 )
 def test_transfer_tables_preserve_source_grain_and_shared_keys(
-    kind: operator_kinds.OperatorKindId,
     source_dimensions: list[str],
     target_dimensions: list[str],
+    expected_relationship: str,
     row_counts: tuple[int, int],
 ) -> None:
     definition = spec.Spec.model_validate(
@@ -28,6 +27,13 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
                 dimension: {"resolutions": {dimension: {"key": dimension, "type": "integer"}}}
                 for dimension in ("id", "time")
             },
+            "functions": {
+                "transfer": {
+                    "returns": "dataframe",
+                    "entrypoint": "example:transfer",
+                    "args": {"dataset": {"type": "dataframe"}},
+                }
+            },
             "profiles": {
                 name: {
                     "grain": [
@@ -35,6 +41,24 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
                         for dimension in dimensions
                     ],
                     "features": {feature: {"type": "float"}},
+                    **(
+                        {
+                            "assembly": {
+                                "transfer": {
+                                    "compute": {
+                                        "function": "transfer",
+                                        "args": {"dataset": "$profiles.source.dataset"},
+                                    },
+                                    "interface": {
+                                        "inputs": ["$features.input_value"],
+                                        "outputs": ["$features.result"],
+                                    },
+                                }
+                            }
+                        }
+                        if name == "target"
+                        else {}
+                    ),
                 }
                 for name, dimensions, feature in (
                     ("source", source_dimensions, "input_value"),
@@ -43,14 +67,15 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
             },
         }
     )
+    operator = definition.profiles["target"].assembly["transfer"]
     invocation = execution_plan.Invocation(
         role="compute",
         result="target",
         id="transfer",
-        operator_kind=kind,
+        operator_kind="read",
         entrypoint="example:transfer",
         function_id="transfer",
-        operator_id="transfer_source-values",
+        operator_id=operator.id,
         profile_id="target",
         input_features=["input_value"],
         output_features=["result"],
@@ -65,7 +90,13 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
     step = data_lineage.build_context(definition, plan)["stages"][0][0]
     source = step.input_tables[0]
 
-    assert step.operator == "Transfer Source Values"
+    assert step.operator == "Transfer"
+    assert definition.operator_grain_relationships[("target", "transfer")]["source"] == (
+        expected_relationship
+    )
+    assert step.grain_relationships == [
+        {"source_profile": "source", "relationship": expected_relationship}
+    ]
     assert source.dataset == "source"
     assert [key.name for key in source.keys] == source_dimensions
     assert source.join_dimensions == ["id"]
@@ -87,7 +118,7 @@ def test_main_table_tracks_only_materialized_outputs(pump_bundle) -> None:
         current_outputs = [
             column.name
             for column in step.columns
-            if column.role == "Output" and not step.kind.is_effect
+            if column.role == "Output" and step.function_returns == "dataframe"
         ]
         expected[:] = [name for name in expected if name not in current_outputs]
         expected.extend(current_outputs)

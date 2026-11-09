@@ -17,9 +17,23 @@ export function isDefaultMerge(node) {
 }
 
 export function invocationRole(node) {
-	if (node.operator_kind === 'merge' || node.phase === 'merge') return 'merge';
-	if (node.operator_kind === 'vectorize') return 'enrich';
-	return node.is_effect ? 'effect' : 'compute';
+	if (node.role === 'merge') return 'merge';
+	if (node.function_returns === 'any') return 'effect';
+	if (node.function_returns === 'none') return 'sink';
+	return node.result === 'target' ? 'enrich' : 'compute';
+}
+
+export function invocationIcon(node) {
+	const role = invocationRole(node);
+	if (role === 'merge') return 'git-merge';
+	if (role === 'effect') return 'arrow-up-right';
+	if (role === 'sink') return 'send';
+	const relationships = (node.grain_relationships || []).map(item => item.relationship);
+	if (relationships.includes('collapse')) return 'combine';
+	if (relationships.includes('expand')) return 'expand';
+	if (relationships.includes('same')) return 'table-properties';
+	if (relationships.includes('unrelated')) return 'shuffle';
+	return 'square-function';
 }
 
 export function invocationColor(node) {
@@ -47,10 +61,10 @@ export function invocationFlowDetails(node, scoped = false) {
 		: role === 'enrich'
 			? "This step adds calculated columns directly to the profile's dataset."
 			: role === 'effect'
-				? node.operator_kind === 'escape'
-					? 'This step performs an external action. Declared features describe dependencies, not stored output columns. Only explicit arguments pass data to the function; its return value is ignored.'
-					: "This step uses data without adding columns to the profile's dataset. Declared features describe dependencies; explicit arguments determine which data is passed to the function."
-				: "This step calculates data separately from the profile's dataset. Follow its outgoing arrows to see which steps use the results.";
+				? 'This step performs an external action. Declared features describe dependencies, not stored output columns. Only explicit arguments pass data to the function; its return value is ignored.'
+				: role === 'sink'
+					? 'This step consumes data without producing a dataframe result.'
+					: "This step calculates data separately from the profile's dataset. Follow its outgoing arrows to see which steps use the results.";
 	return `${description}\n\nThe thick line shows how the dataset is built. "${scoped ? 'Selected outputs ready' : 'Dataset ready'}" marks the end of that plan, not a completed run.\n\nArrows show which steps depend on others. Brighter arrows connect directly to the selected step; lighter highlights trace the rest of its lineage.`;
 }
 
@@ -63,6 +77,7 @@ export function prepareInvocationLayout(data) {
 		}
 	}
 	const isPublisher = node => ['merge', 'enrich'].includes(invocationRole(node));
+	const isConsumer = node => ['effect', 'sink'].includes(invocationRole(node));
 	let width = 0;
 	for (const column of layout.columns) {
 		column.cardWidth = Math.max(...layout.lanes.map(lane => {
@@ -92,7 +107,7 @@ export function prepareInvocationLayout(data) {
 		const groups = [...lane.ranks.values()];
 		const count = predicate => Math.max(0, ...groups.map(nodes => nodes.filter(predicate).length));
 		const computeCount = count(node => invocationRole(node) === 'compute');
-		const effectCount = count(node => invocationRole(node) === 'effect');
+		const effectCount = count(isConsumer);
 		const publishCount = count(isPublisher);
 		const trackHeight = count => count ? (count - 1) * INVOCATION_LAYOUT.rowGap
 			+ INVOCATION_LAYOUT.cardHeight : 0;
@@ -111,7 +126,7 @@ export function prepareInvocationLayout(data) {
 		for (const nodes of groups) {
 			const compute = nodes.filter(node => invocationRole(node) === 'compute');
 			const publishers = nodes.filter(node => ['merge', 'enrich'].includes(invocationRole(node)));
-			const effects = nodes.filter(node => invocationRole(node) === 'effect');
+			const effects = nodes.filter(isConsumer);
 			const place = (nodes, center) => nodes.forEach((node, index) => {
 				node.cardHeight = INVOCATION_LAYOUT.cardHeight;
 				node.y = node.fy = center + (index - (nodes.length - 1) / 2) * INVOCATION_LAYOUT.rowGap;

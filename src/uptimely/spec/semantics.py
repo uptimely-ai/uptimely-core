@@ -9,6 +9,7 @@ from . import operator_kinds as kinds
 
 if typing.TYPE_CHECKING:
     from .model.dimension import Resolution
+    from .model.profile import Operator
     from .model.spec import OperatorKey, ProfileKey, Spec
 
 type OperatorExecutionForm = typing.Literal["compute", "compute + merge"]
@@ -67,6 +68,31 @@ class Semantics:
     def operator_binding_roles(self) -> dict[OperatorKey, tuple[BindingRole, ...]]:
         """Return the compute and optional merge roles declared by each operator."""
         return {key: tuple(operator.bindings) for key, operator in self.spec.operator_items}
+
+    @functools.cached_property
+    def operator_produces_target_features(self) -> dict[OperatorKey, bool]:
+        """Return whether each operator computes dataframe outputs from its target dataset."""
+        return {
+            key: (
+                operator.merge is None
+                and self.spec.functions[operator.compute.function].returns == "dataframe"
+                and any(
+                    source_profile == key[0]
+                    for _, _, source_profile in self.spec.operator_dataframe_arguments[key]
+                )
+            )
+            for key, operator in self.spec.operator_items
+        }
+
+    @functools.cached_property
+    def calculated_feature_producers(self) -> dict[str, tuple[ProfileKey, Operator]]:
+        """Return calculated feature IDs mapped to their owning profile and operator."""
+        return {
+            feature: (key[0], operator)
+            for key, operator in self.spec.operator_items
+            if self.operator_produces_target_features[key]
+            for feature in operator.output_features
+        }
 
     @functools.cached_property
     def operator_source_profile_keys(

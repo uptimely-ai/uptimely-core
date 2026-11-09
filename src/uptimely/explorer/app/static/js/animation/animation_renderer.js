@@ -1,4 +1,4 @@
-import { contextHeader, dataTypeLabel, escape, kindIcon } from "../rendering/shared_markup.js";
+import { contextHeader, dataTypeLabel, escape, icon } from "../rendering/shared_markup.js";
 
 const PLACEHOLDERS = {
   float: ["1.23", "4.56", "7.89"], numeric: ["1.23", "4.56", "7.89"], integer: ["12", "45", "78"],
@@ -33,36 +33,59 @@ export function sampleTable(columns, keys, label, side, rowCount, aggregate, pro
     </table></div>`;
 }
 
+function operationPresentation(step) {
+  const relationships = step.grain_relationships.map(item => item.relationship);
+  const isCollapse = relationships.includes("collapse");
+  const isExpand = relationships.includes("expand");
+  const operationIcon = step.binding_role === "merge" ? "merge"
+    : isCollapse ? "collapse" : isExpand ? "expand"
+      : step.function_returns === "any" ? "external"
+        : step.function_returns === "none" ? "write" : "compute";
+  const operationTitle = step.binding_role === "merge" ? "Merge binding"
+    : isCollapse ? "Collapse grain" : isExpand ? "Expand grain"
+      : step.function_returns === "any" ? "Uncontrolled external operation"
+        : step.function_returns === "none" ? "Write operation" : "Compute binding";
+  return { operationIcon, operationTitle };
+}
+
 function animationStep(step, stage) {
   const keys = step.columns.filter(column => column.role === "Dimension");
   const inputs = step.columns.filter(column => column.role === "Input");
   const declared = step.columns.filter(column => column.role === "Declared input");
   const joins = [...new Set(step.input_tables.flatMap(table => table.join_dimensions))];
   const profile = step.dataset ? step.dataset_label : step.profile;
+  const isEffect = step.function_returns === "any";
+  const isSink = step.function_returns === "none";
+  const relationships = step.grain_relationships.map(item => item.relationship);
+  const isCollapse = relationships.includes("collapse");
+  const isExpand = relationships.includes("expand");
+  const isSource = step.binding_role === "compute"
+    && step.function_returns === "dataframe" && !step.has_dataframe_inputs;
+  const { operationIcon, operationTitle } = operationPresentation(step);
   let sources;
-  if (step.kind.is_source && step.kind.dataframe_input_scope === "none") {
+  if (isSource) {
     sources = `<div class="data-lineage-boundary"><strong>Source</strong>${escape(profile)}</div>`;
-  } else if (step.kind.is_effect) {
+  } else if (isEffect) {
     sources = `<div class="data-lineage-boundary"><strong>Declared feature inputs</strong>${escape(declared.map(column => column.name).join(", ") || "None")}<p>These declarations do not establish that dataframe columns are available to the invocation.</p></div>`;
   } else if (step.input_tables.length) {
     sources = step.input_tables.map(table => sampleTable(table.columns, table.keys, "Source input", "input",
-      table.row_count, step.kind.dimension_change === "remove", table.dataset_label, table.join_dimensions, "removed")).join("");
-  } else if (step.kind.is_sink) {
+      table.row_count, isCollapse, table.dataset_label, table.join_dimensions, isCollapse ? "removed" : null)).join("");
+  } else if (isSink) {
     sources = `<div class="data-lineage-boundary" data-write-boundary="${escape(step.dataset || step.profile)}"><strong>Write destination</strong>${escape(profile)}</div>`;
   } else {
     sources = inputs.length || keys.length ? "" : '<div class="data-lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>';
   }
   return `<article class="data-lineage-step" id="step-${step.number}" data-invocation-id="${escape(step.invocation_id)}"
-    data-dependencies="${escape(step.dependencies.join(","))}" data-operator-kind="${escape(step.kind.id)}" data-stage="${stage}" aria-labelledby="step-${step.number}-title">
+    data-dependencies="${escape(step.dependencies.join(","))}" data-binding-role="${escape(step.binding_role)}" data-stage="${stage}" aria-labelledby="step-${step.number}-title">
     <header class="data-lineage-step-header"><h3 id="step-${step.number}-title">${escape(step.operator)}</h3>
       <p class="data-lineage-step-dataset">Profile: ${escape(profile)}</p></header>
     <div class="data-lineage-scene"><div class="data-lineage-panel data-lineage-panel-output">
       <p class="data-lineage-waiting" hidden>New features will appear in the main table as the operator runs.</p>
       ${sampleTable(step.main_columns.filter(column => column.role !== "Existing"), keys, null, "output", step.row_count,
-        ["remove", "add"].includes(step.kind.dimension_change), profile, joins, step.input_tables.length ? "added" : null)}
-    </div><div class="data-lineage-arrow" data-flow="${step.kind.is_sink ? "down" : "up"}">
-      <span class="data-lineage-edge" aria-hidden="true"></span><span class="data-lineage-node icon--functions" aria-hidden="true">${kindIcon(step.kind.id, "")}</span>
-      <span class="data-lineage-node-label"><small class="data-lineage-invocation-type">${escape(step.kind.id === "collapse" ? "Aggregate" : step.kind.id === "escape" ? "Uncontrolled external operation" : step.kind.id[0].toUpperCase() + step.kind.id.slice(1))}</small>
+        isCollapse || isExpand, profile, joins, step.input_tables.length ? isExpand ? "added" : isCollapse ? "removed" : null : null)}
+    </div><div class="data-lineage-arrow" data-flow="${isSink ? "down" : "up"}">
+      <span class="data-lineage-edge" aria-hidden="true"></span><span class="data-lineage-node icon--functions" aria-hidden="true">${icon(operationIcon, "")}</span>
+      <span class="data-lineage-node-label"><small class="data-lineage-invocation-type">${escape(operationTitle)}</small>
         <code title="${escape(step.function)}">${escape(step.function_label)}</code></span>
     </div><div class="data-lineage-panel data-lineage-sources">${sources}</div></div></article>`;
 }
@@ -92,9 +115,10 @@ export function animation(data) {
             const stage = stageNumbers.get(step.number), changed = stage !== previousStage;
             if (changed) number++;
             previousStage = stage;
+            const { operationIcon, operationTitle } = operationPresentation(step);
             return `${changed ? `<p class="context-group-label animation-stage-label"><span>Stage ${number}</span></p>` : ""}
               <a href="#step-${step.number}" data-animation-step="${step.number}"><span class="animation-step-number">${position + 1}</span>
-                <span class="context-link-icon" title="${escape(step.kind.id)}">${kindIcon(step.kind.id)}</span><span class="context-link-label">${escape(step.operator)}</span></a>`;
+                <span class="context-link-icon" title="${escape(operationTitle)}">${icon(operationIcon)}</span><span class="context-link-label">${escape(step.operator)}</span></a>`;
           }).join("")}</div>`;
         }).join("")}</nav>` : '<p class="context-empty">No processing steps.</p>'}
     </aside>`,

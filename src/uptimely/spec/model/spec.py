@@ -63,7 +63,12 @@ class Spec(base.StrictModel):
     @functools.cached_property
     def operator_kinds(self) -> dict[OperatorKey, operator_kinds.OperatorKindId]:
         """Derive per-operator policy labels from bindings and profile grain."""
-        return semantics.Semantics(self).operator_kinds
+        return self._derived_semantics.operator_kinds
+
+    @functools.cached_property
+    def _derived_semantics(self) -> semantics.Semantics:
+        """Share cached derived views without making them authoritative Spec fields."""
+        return semantics.Semantics(self)
 
     def rebuild(self) -> typing.Self:
         """Return a fresh Spec after declarations have been edited.
@@ -366,7 +371,43 @@ class Spec(base.StrictModel):
         self,
     ) -> dict[OperatorKey, dict[ProfileKey | None, semantics.GrainRelationship]]:
         """Return source-to-target grain relationships for each operator."""
-        return semantics.Semantics(self).operator_grain_relationships
+        return self._derived_semantics.operator_grain_relationships
+
+    @functools.cached_property
+    def operator_execution_forms(
+        self,
+    ) -> dict[OperatorKey, semantics.OperatorExecutionForm]:
+        """Return each operator's compute-only or compute-and-merge form."""
+        return self._derived_semantics.operator_execution_forms
+
+    @functools.cached_property
+    def operator_binding_roles(
+        self,
+    ) -> dict[OperatorKey, tuple[semantics.BindingRole, ...]]:
+        """Return the binding roles declared by each operator."""
+        return self._derived_semantics.operator_binding_roles
+
+    @functools.cached_property
+    def operator_produces_target_features(self) -> dict[OperatorKey, bool]:
+        """Return whether each operator computes dataframe outputs from its target dataset."""
+        return self._derived_semantics.operator_produces_target_features
+
+    @functools.cached_property
+    def calculated_feature_producers(
+        self,
+    ) -> dict[str, tuple[ProfileKey, profile_module.Operator]]:
+        """Return calculated feature IDs mapped to their owning profile and operator."""
+        return self._derived_semantics.calculated_feature_producers
+
+    @functools.cached_property
+    def operator_source_profile_keys(self) -> dict[OperatorKey, tuple[ProfileKey, ...]]:
+        """Return known source profiles for each operator."""
+        return self._derived_semantics.operator_source_profile_keys
+
+    @functools.cached_property
+    def operator_source_statuses(self) -> dict[OperatorKey, semantics.OperatorSourceStatus]:
+        """Return source-resolution status for each operator."""
+        return self._derived_semantics.operator_source_statuses
 
     @functools.cached_property
     def dataframe_argument_grain_keys(self) -> dict[OperatorKey, frozenset[str]]:
