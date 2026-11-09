@@ -109,8 +109,8 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   const profiles = profileCatalog.content;
   assert.match(profileCatalog.context, /href="#overview"[^]*?>Overview/);
   assert.equal((profiles.match(/class="profile-summary-card"/g) || []).length, 2);
-  assert.match(profiles, /href="#profile-readings"[^]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>1<\/strong><span>operator<\/span>/);
-  assert.match(profiles, /href="#profile-daily"[^]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>3<\/strong><span>operators<\/span>/);
+  assert.match(profiles, /href="#profile-readings"[^]*?class="profile-summary-size"><strong>1<\/strong><i class="site-icon icon--operators profile-summary-operator-icon" data-lucide="sigma"/);
+  assert.match(profiles, /href="#profile-daily"[^]*?class="profile-summary-size"><strong>3<\/strong><i class="site-icon icon--operators profile-summary-operator-icon" data-lucide="sigma"/);
   const profileOverview = profiles.slice(0, profiles.indexOf('<div class="space-y-8">'));
   assert.match(profileOverview, /profile-summary-grain-path" aria-label="Machine dimension at machine resolution"[^]*?<span class="profile-summary-grain-badge profile-summary-grain-resolution">[^]*?icon--resolutions profile-summary-grain-icon" data-lucide="scan-square"[^]*?<code>machine<\/code><\/span>\s*<i class="profile-summary-grain-relation" data-lucide="at-sign"[^]*><\/i>\s*<span class="profile-summary-grain-badge profile-summary-grain-dimension">[^]*?icon--dimensions profile-summary-grain-icon" data-lucide="axis-3d"[^]*?<strong>Machine<\/strong><\/span>/);
   assert.match(profileOverview, /profile-summary-grain-icon/);

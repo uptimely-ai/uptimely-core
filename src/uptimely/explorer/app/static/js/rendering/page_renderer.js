@@ -86,7 +86,7 @@ export function lineage(data, topology) {
           <button class="ui-button" type="button" data-dimension="3d" title="Show 3D view" aria-label="Show 3D view" aria-pressed="false" aria-controls="lineage-3d">${icon("view-3d")}</button>
         </div>
         ${topology ? `<button class="ui-button lineage-full-toggle" id="show-full-lineage" type="button" aria-label="Select an invocation to change highlight scope" title="Select an invocation to change highlight scope" aria-pressed="true" aria-controls="lineage" disabled><i data-lucide="route" aria-hidden="true"></i></button>`
-          : `<button class="ui-button lineage-operator-toggle" id="show-operators" type="button" aria-label="Show operators" title="Show operators" aria-pressed="true" aria-controls="lineage">${icon("functions")}</button>`}
+          : `<button class="ui-button lineage-operator-toggle" id="show-operators" type="button" aria-label="Show operators" title="Show operators" aria-pressed="true" aria-controls="lineage">${icon("operators")}</button>`}
         <div class="lineage-buttons" role="group" aria-label="${title} viewport">
           <button class="ui-button" type="button" data-zoom="1.25" aria-label="Zoom in" title="Zoom in">${icon("zoom-in")}</button>
           <button class="ui-button" type="button" data-zoom="0.8" aria-label="Zoom out" title="Zoom out">${icon("zoom-out")}</button>
@@ -102,7 +102,7 @@ export function lineage(data, topology) {
         <div class="lineage-legend-kinds">${topology
           ? kinds.map(kind => `<span class="lineage-legend-item">${kindIcon(kind)}<span>${escape(KINDS[kind]?.label || kind)}</span></span>`).join("")
           : `<span class="lineage-legend-item">${icon("features")}<span>Feature</span></span>
-            <span class="lineage-legend-item" id="operator-legend">${icon("functions")}<span>Operator</span></span>`}</div>
+            <span class="lineage-legend-item" id="operator-legend">${icon("operators")}<span>Operator</span></span>`}</div>
         <h3 class="legend-heading">Profiles</h3>
         <div class="dataset-legend" id="dataset-legend"></div>
         ${topology ? '<p class="lineage-legend-note">Colored nodes add data; gray nodes compute or consume it.</p>' : ""}

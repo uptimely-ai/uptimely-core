@@ -186,7 +186,7 @@ function profileOverview(data) {
         <div class="profile-summary-meter" role="img" aria-label="${escape(`${operatorCount} operator${operatorCount === 1 ? "" : "s"}; relative profile size`)}">
           <span style="width:${width}%"></span>
         </div>
-        <div class="profile-summary-size"><strong>${operatorCount}</strong><span>operator${operatorCount === 1 ? "" : "s"}</span></div>
+        <div class="profile-summary-size"><strong>${operatorCount}</strong>${icon("operators", "profile-summary-operator-icon")}</div>
       </div>
       <div class="profile-summary-grain" aria-label="Profile grain">
         <span class="profile-summary-grain-label">Grain</span>
