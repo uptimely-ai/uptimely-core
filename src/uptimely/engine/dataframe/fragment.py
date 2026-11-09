@@ -28,15 +28,24 @@ def _log_validation(invocation: plan_module.Invocation, message: str, *args: obj
 
 @dataclasses.dataclass(frozen=True)
 class Fragment:
-    """Data contributed to a dataset, with its carried dimension keys.
+    """Data contributed to a dataset, with explicit grain and merge identifiers.
 
     A fragment may come from a source, another dataset, or a calculation at the
     target grain. Staging loads, validates, and projects its dataframe before merging.
+    Dimensions define uniqueness; identifiers also include other carried resolution
+    keys. Invocation metadata is retained only as provenance.
     """
 
     dataframe: object
     dimensions: tuple[str, ...]
     invocation: plan_module.Invocation | None = None
+    identifiers: tuple[str, ...] = ()
+
+    def __post_init__(self) -> None:
+        """Always include carried grain keys among the fragment identifiers."""
+        object.__setattr__(
+            self, "identifiers", tuple(dict.fromkeys([*self.dimensions, *self.identifiers]))
+        )
 
     @classmethod
     def stage(
@@ -72,12 +81,21 @@ class Fragment:
                 f"Function kind {invocation.function_kind} does not produce dataframe fragments"
             )
         dataframe = load()
+        if not backend.is_frame(dataframe):
+            raise ValueError(
+                f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
+            )
+        columns = set(backend.column_names(dataframe))
         dimensions = tuple(invocation.id_columns)
-        if definition.fragment_dimensions == "subset" and backend.is_frame(dataframe):
-            columns = set(backend.column_names(dataframe))
-            dimensions = tuple(key for key in dimensions if key in columns)
+        keys = dict.fromkeys([*dimensions, *invocation.identifier_columns])
+        identifiers = tuple(key for key in keys if key in columns)
+        if definition.fragment_dimensions == "subset" and not set(dimensions).issubset(columns):
+            dimensions = identifiers
         outputs = [key for key in invocation.output_features if key not in invocation.id_columns]
-        cls(dataframe, dimensions, invocation).validate_invocation_result(
+        for key in identifiers:
+            if key not in dimensions and key not in outputs:
+                outputs.append(key)
+        cls(dataframe, dimensions, invocation, identifiers).validate_invocation_result(
             backend,
             invocation,
             output_features=outputs,
@@ -85,7 +103,7 @@ class Fragment:
             validate_content=validate,
         )
         columns = list(dict.fromkeys([*dimensions, *outputs]))
-        return cls(backend.select(dataframe, columns), dimensions, invocation)
+        return cls(backend.select(dataframe, columns), dimensions, invocation, identifiers)
 
     def validate_invocation_result(
         self,

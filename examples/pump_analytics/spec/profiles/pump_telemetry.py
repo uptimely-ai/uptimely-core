@@ -28,6 +28,26 @@ TELEMETRY_GRAIN = [
 class TelemetryFeatures(FeatureSet):
     """Features declared by the telemetry profile."""
 
+    machine_series_id = Feature(
+        type="string",
+        description="Pump-series key from the asset registry.",
+    )
+    machine_category_id = Feature(
+        type="string",
+        description="Pump-category key from the asset registry.",
+    )
+    minute = Feature(
+        type="datetime",
+        description="Telemetry timestamp truncated to minute resolution.",
+    )
+    hour = Feature(
+        type="datetime",
+        description="Telemetry timestamp truncated to hour resolution.",
+    )
+    day = Feature(
+        type="datetime",
+        description="Telemetry timestamp truncated to day resolution.",
+    )
     discharge_pressure = Feature(
         type="float",
         unit="bar",
@@ -129,6 +149,11 @@ class PumpTelemetry(Profile):
                 id="read_pump_telemetry",
                 interface=Interface(
                     outputs=[
+                        features.machine_series_id,
+                        features.machine_category_id,
+                        features.minute,
+                        features.hour,
+                        features.day,
                         features.discharge_pressure,
                         features.flow_rate,
                         features.bearing_temperature,

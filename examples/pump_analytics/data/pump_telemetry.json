@@ -31,5 +31,82 @@
     "bearing_temperature": 64.5,
     "vibration_rms": 1.8,
     "motor_power": 11.7
+  },
+  {
+    "plant_id": "PLANT-01",
+    "production_line_id": "LINE-A",
+    "pump_id": "PUMP-102",
+    "timestamp": "2026-09-01T08:00:00Z",
+    "discharge_pressure": 5.0,
+    "flow_rate": 115.0,
+    "bearing_temperature": 65.5,
+    "vibration_rms": 2.0,
+    "motor_power": 17.0
+  },
+  {
+    "plant_id": "PLANT-01",
+    "production_line_id": "LINE-A",
+    "pump_id": "PUMP-102",
+    "timestamp": "2026-09-01T08:01:00Z",
+    "discharge_pressure": 5.1,
+    "flow_rate": 121.0,
+    "bearing_temperature": 66.0,
+    "vibration_rms": 2.1,
+    "motor_power": 17.5
+  },
+  {
+    "plant_id": "PLANT-02",
+    "production_line_id": "LINE-C",
+    "pump_id": "PUMP-301",
+    "timestamp": "2026-09-01T08:00:00Z",
+    "discharge_pressure": 6.5,
+    "flow_rate": 175.0,
+    "bearing_temperature": 74.0,
+    "vibration_rms": 2.8,
+    "motor_power": 29.0
+  },
+  {
+    "plant_id": "PLANT-02",
+    "production_line_id": "LINE-C",
+    "pump_id": "PUMP-301",
+    "timestamp": "2026-09-01T08:01:00Z",
+    "discharge_pressure": 6.6,
+    "flow_rate": 182.0,
+    "bearing_temperature": 75.0,
+    "vibration_rms": 2.9,
+    "motor_power": 30.0
+  },
+  {
+    "plant_id": "PLANT-02",
+    "production_line_id": "LINE-C",
+    "pump_id": "PUMP-302",
+    "timestamp": "2026-09-01T08:00:00Z",
+    "discharge_pressure": 6.0,
+    "flow_rate": 155.0,
+    "bearing_temperature": 71.5,
+    "vibration_rms": 2.4,
+    "motor_power": 25.0
+  },
+  {
+    "plant_id": "PLANT-02",
+    "production_line_id": "LINE-C",
+    "pump_id": "PUMP-302",
+    "timestamp": "2026-09-01T08:01:00Z",
+    "discharge_pressure": 6.1,
+    "flow_rate": 162.0,
+    "bearing_temperature": 72.0,
+    "vibration_rms": 2.5,
+    "motor_power": 26.0
+  },
+  {
+    "plant_id": "PLANT-02",
+    "production_line_id": "LINE-D",
+    "pump_id": "PUMP-401",
+    "timestamp": "2026-09-01T08:00:00Z",
+    "discharge_pressure": 3.2,
+    "flow_rate": 58.0,
+    "bearing_temperature": 60.0,
+    "vibration_rms": 1.5,
+    "motor_power": 7.0
   }
 ]

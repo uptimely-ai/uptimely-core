@@ -1,0 +1,14 @@
+[
+  {
+    "machine_category_id": "CAT-1",
+    "max_capacity": 100.0
+  },
+  {
+    "machine_category_id": "CAT-2",
+    "max_capacity": 220.0
+  },
+  {
+    "machine_category_id": "CAT-3",
+    "max_capacity": 80.0
+  }
+]

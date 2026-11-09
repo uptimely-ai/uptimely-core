@@ -4,6 +4,7 @@ from .config import Config, EngineBackendConfig, EngineConfig, ParameterConfig, 
 from .dataframe.backend import DataFrameBackend, PolarsBackend
 from .dataframe.dataset import Dataset
 from .dataframe.fragment import Fragment
+from .dataframe.merge import Merge
 from .engine import Engine
 from .runtime.result import ExecutionResult
 
@@ -19,4 +20,5 @@ __all__ = [
     "PolarsBackend",
     "Dataset",
     "Fragment",
+    "Merge",
 ]

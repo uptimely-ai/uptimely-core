@@ -1,6 +1,6 @@
 """Pump-level profile and declarative dataframe transformations."""
 
-from examples.pump_analytics.functions import analytics, external_workflow
+from examples.pump_analytics.functions import analytics, capacity, external_workflow, source
 from examples.pump_analytics.spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, ref
@@ -10,6 +10,26 @@ from uptimely.spec import feature_types
 class PumpFeatures(FeatureSet):
     """Features declared by the pump profile."""
 
+    pump_max_capacity = Feature(
+        type=feature_types.FLOAT,
+        unit="m3/h",
+        description="Maximum flow capacity specified for this individual pump.",
+    )
+    series_max_capacity = Feature(
+        type=feature_types.FLOAT,
+        unit="m3/h",
+        description="Maximum flow capacity inherited from the pump series.",
+    )
+    category_max_capacity = Feature(
+        type=feature_types.FLOAT,
+        unit="m3/h",
+        description="Maximum flow capacity inherited from the pump category.",
+    )
+    max_capacity = Feature(
+        type=feature_types.FLOAT,
+        unit="m3/h",
+        description="First available maximum capacity at pump, series, then category resolution.",
+    )
     measurement = Feature(
         id="measurement",
         type=feature_types.FLOAT,
@@ -51,6 +71,77 @@ class Pump(Profile):
 
     assembly = [
         Operator(
+            id="read_pump_capacity",
+            interface=Interface(outputs=[features.pump_max_capacity]),
+            compute=Binding(
+                function=source.read_file,
+                arguments=dict(
+                    source=ref.params("pump_assets_source"),
+                    rename={"max_capacity": features.pump_max_capacity},
+                    schema={"max_capacity": "float"},
+                ),
+            ),
+        ),
+        Operator(
+            id="expand_series_capacity",
+            interface=Interface(
+                inputs=[ref.feature("max_capacity_series")],
+                outputs=[features.series_max_capacity],
+            ),
+            compute=Binding(
+                function=analytics.select_columns,
+                arguments=dict(
+                    dataset=ref.dataset("pump_series"),
+                    columns=[
+                        dimension.MACHINE_DIMENSION.resolution("machine_series").key,
+                        ref.feature("max_capacity_series"),
+                    ],
+                    rename={"max_capacity_series": features.series_max_capacity},
+                ),
+            ),
+        ),
+        Operator(
+            id="expand_category_capacity",
+            interface=Interface(
+                inputs=[ref.feature("max_capacity_category")],
+                outputs=[features.category_max_capacity],
+            ),
+            compute=Binding(
+                function=analytics.select_columns,
+                arguments=dict(
+                    dataset=ref.dataset("pump_category"),
+                    columns=[
+                        dimension.MACHINE_DIMENSION.resolution("machine_category").key,
+                        ref.feature("max_capacity_category"),
+                    ],
+                    rename={"max_capacity_category": features.category_max_capacity},
+                ),
+            ),
+        ),
+        Operator(
+            id="resolve_max_capacity",
+            interface=Interface(
+                inputs=[
+                    features.pump_max_capacity,
+                    features.series_max_capacity,
+                    features.category_max_capacity,
+                ],
+                outputs=[features.max_capacity],
+            ),
+            compute=Binding(
+                function=capacity.resolve_capacity,
+                arguments=dict(
+                    dataset=ref.dataset(),
+                    features=[
+                        features.pump_max_capacity,
+                        features.series_max_capacity,
+                        features.category_max_capacity,
+                    ],
+                    output=features.max_capacity,
+                ),
+            ),
+        ),
+        Operator(
             id="bearing_temperature_by_pump",
             interface=Interface(
                 inputs=[ref.feature("bearing_temperature")],
@@ -64,6 +155,8 @@ class Pump(Profile):
                     method="max",
                     dimensions=ref.profile().grain.ids,
                     output=features.bearing_temperature_max,
+                    filter_column="",
+                    filter_value="",
                 ),
             ),
         ),
@@ -91,8 +184,15 @@ class Pump(Profile):
                 outputs=[features.measurement, features.reference_value],
             ),
             compute=Binding(
-                function=external_workflow.read_pump_external_inputs,
-                arguments={},
+                function=source.read_file,
+                arguments=dict(
+                    source=ref.params("pump_external_inputs_source"),
+                    schema={"measurement": "float", "reference_value": "float"},
+                    rename={
+                        "measurement": features.measurement,
+                        "reference_value": features.reference_value,
+                    },
+                ),
             ),
             merge=Binding(
                 function=external_workflow.merge_pump_inputs,

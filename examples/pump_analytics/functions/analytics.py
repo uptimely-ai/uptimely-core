@@ -1,13 +1,40 @@
 """Analytical, source, and sink functions for pump telemetry."""
 
+import collections.abc
 import functools
 import operator
+import types
 
 import polars as pl
 
 from uptimely import function
 
 SUPPORTED_AGGREGATIONS = ("max", "min", "mean", "sum")
+EMPTY_COLUMN_RENAMES: collections.abc.Mapping[str, str] = types.MappingProxyType({})
+
+
+@function(kind="expand")
+def select_columns(
+    dataset: pl.LazyFrame,
+    columns: list[str],
+    rename: collections.abc.Mapping[str, str] = EMPTY_COLUMN_RENAMES,
+) -> pl.LazyFrame:
+    """Select source columns and optionally rename them for automatic merging.
+
+    Parameters
+    ----------
+    dataset
+        Source profile dataset.
+    columns
+        Source columns to select, in order, including identifiers needed for merging.
+    rename
+        Mapping from selected source column names to output names.
+
+    Returns
+    -------
+    Selected columns with optional renaming, preserving rows and nulls.
+    """
+    return dataset.select(columns).rename(rename)
 
 
 @function(kind="read")
@@ -60,7 +87,14 @@ def read_pump_telemetry(
     pump_assets = (
         pl.read_json(pump_assets_source)
         .lazy()
-        .select("plant_id", "production_line_id", "pump_id", "rated_flow_rate")
+        .select(
+            "plant_id",
+            "production_line_id",
+            "pump_id",
+            "machine_series_id",
+            "machine_category_id",
+            "rated_flow_rate",
+        )
     )
     data_read = (
         telemetry.join(
@@ -73,33 +107,16 @@ def read_pump_telemetry(
             pl.when(pl.col("flow_rate") < pl.col("rated_flow_rate"))
             .then(pl.lit("low_speed"))
             .otherwise(pl.lit("high_speed"))
-            .alias("operation_mode")
+            .alias("operation_mode"),
+            pl.col("timestamp").dt.truncate("1m").alias("minute"),
+            pl.col("timestamp").dt.truncate("1h").alias("hour"),
+            pl.col("timestamp").dt.truncate("1d").alias("day"),
         )
         .drop("rated_flow_rate")
     )
     if production_line:
         data_read = data_read.filter(pl.col("production_line_id") == production_line)
     return data_read
-
-
-@function(kind="read")
-def read_constants(source: str) -> pl.LazyFrame:
-    """Load project-wide physical constants.
-
-    Parameters
-    ----------
-    source
-        Path to the JSON file containing the constants.
-
-    Returns
-    -------
-    Constants as a single-row lazy frame.
-
-    Examples
-    --------
-    >>> constants = read_constants("data/constants.json")  # doctest: +SKIP
-    """
-    return pl.read_json(source).lazy()
 
 
 @function(kind="write")
@@ -126,7 +143,13 @@ def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
 
 @function(kind="collapse")
 def aggregate(
-    dataset: pl.LazyFrame, feature: str, method: str, dimensions: list[str], output: str
+    dataset: pl.LazyFrame,
+    feature: str,
+    method: str,
+    dimensions: list[str],
+    output: str,
+    filter_column: str = "",
+    filter_value: str = "",
 ) -> pl.LazyFrame:
     """Return a dimension-keyed aggregate fragment at the requested grain.
 
@@ -144,6 +167,10 @@ def aggregate(
         the aggregate is computed over the whole dataset.
     output
         Name of the resulting aggregate column.
+    filter_column
+        Optional key column to filter before aggregation.
+    filter_value
+        Value required in ``filter_column`` before aggregation.
 
     Returns
     -------
@@ -152,7 +179,7 @@ def aggregate(
     Raises
     ------
     ValueError
-        If ``method`` is not a supported aggregation method.
+        If ``method`` is unsupported or only one filter argument is provided.
 
     Examples
     --------
@@ -162,6 +189,10 @@ def aggregate(
     """
     if method not in SUPPORTED_AGGREGATIONS:
         raise ValueError(f"Unsupported aggregation method: {method}")
+    if bool(filter_column) != bool(filter_value):
+        raise ValueError("Both filter_column and filter_value must be provided together")
+    if filter_column:
+        dataset = dataset.filter(pl.col(filter_column) == filter_value)
     expression = getattr(pl.col(feature), method)().alias(output)
     data_collapsed = (
         dataset.group_by(dimensions).agg(expression) if dimensions else dataset.select(expression)

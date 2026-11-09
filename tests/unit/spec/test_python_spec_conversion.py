@@ -16,6 +16,50 @@ from uptimely.spec.python import (
 )
 
 
+def test_profile_exposes_all_resolution_keys_and_types() -> None:
+    machines = dimension.Dimension(
+        id="machines",
+        resolutions=[
+            dimension.Resolution(id="pump", key="pump_id", type="string", parent="series"),
+            dimension.Resolution(id="series", key="series_id", type="string"),
+            dimension.Resolution(id="sensor", key="sensor_id", type="integer", parent="pump"),
+        ],
+    )
+    sites = dimension.Dimension(
+        id="sites",
+        resolutions=[dimension.Resolution(id="site", key="site_id", type="string")],
+    )
+    declaration = profile.Profile(
+        id="pumps", grain=[machines.resolution("series"), sites.resolution("site")]
+    )
+    dimensions = {item.id: item.to_model() for item in (machines, sites)}
+    canonical = declaration.to_model()
+
+    assert declaration.keys == ["pump_id", "series_id", "sensor_id", "site_id"]
+    assert declaration.key_types == {
+        "pump_id": "string",
+        "series_id": "string",
+        "sensor_id": "integer",
+        "site_id": "string",
+    }
+    assert declaration.keys == canonical.keys(dimensions)
+    assert declaration.key_types == canonical.key_types(dimensions)
+    assert [item.key for item in declaration.grain] == ["series_id", "site_id"]
+    assert profile.Profile(id="global").keys == []
+    assert profile.Profile(id="global").key_types == {}
+
+
+def test_profile_identifier_properties_reject_unowned_resolutions() -> None:
+    declaration = profile.Profile(
+        id="invalid", grain=[dimension.Resolution(id="pump", key="pump_id", type="string")]
+    )
+
+    with pytest.raises(ValueError, match="Dimension.resolution"):
+        _ = declaration.keys
+    with pytest.raises(ValueError, match="Dimension.resolution"):
+        _ = declaration.key_types
+
+
 @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
 def test_output_reference_logging_is_one_counted_summary(
     caplog: pytest.LogCaptureFixture, level: int

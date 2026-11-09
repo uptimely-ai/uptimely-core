@@ -11,6 +11,7 @@ from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
+from uptimely.engine.dataframe import merge as merge_module
 from uptimely.spec import model as spec_model
 
 
@@ -61,7 +62,7 @@ def merge_fragment(
             description="Accumulated profile",
             column_types=invocation.column_types,
         )
-        main.validate_fragment_merge(fragment)
+        merge_module.Merge(main, fragment).validate_input()
     main.merge(
         fragment,
         fragment_id=fragment.invocation.operator_id if fragment.invocation is not None else None,

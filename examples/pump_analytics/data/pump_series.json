@@ -1,0 +1,22 @@
+[
+  {
+    "machine_series_id": "SERIES-1",
+    "max_capacity": 130.0
+  },
+  {
+    "machine_series_id": "SERIES-2",
+    "max_capacity": null
+  },
+  {
+    "machine_series_id": "SERIES-3",
+    "max_capacity": 200.0
+  },
+  {
+    "machine_series_id": "SERIES-4",
+    "max_capacity": null
+  },
+  {
+    "machine_series_id": "SERIES-5",
+    "max_capacity": 70.0
+  }
+]

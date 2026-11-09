@@ -65,16 +65,21 @@ def validate_source_target(spec: spec_model.Spec) -> None:
 
 
 def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
-    """Require grouping dimensions to exist in the collapse source."""
+    """Require target grouping keys and dimensions to exist in the collapse source."""
     logger.debug("Check collapse grouping dimensions exist in the source")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or function.kind != functions.COLLAPSE:
             continue
         source = spec.input_sources[key]
-        if source is not None and not (
-            set(spec.grain_keys_by_profile[key[0]]) <= set(spec.grain_keys_by_profile[source])
-        ):
+        if source is None:
+            continue
+        target_profile = spec.profiles_by_key[key[0]]
+        target_keys = set(spec.grain_keys_by_profile[key[0]])
+        target_dimensions = {reference.dimension for reference in target_profile.grain}
+        source_keys = spec.local_features[source]
+        source_dimensions = spec.dimensions_by_profile[source]
+        if not target_keys <= source_keys or not target_dimensions <= source_dimensions:
             raise ValueError(f"Collapse {operator.id} grouping keys must exist in source {source}")
 
 

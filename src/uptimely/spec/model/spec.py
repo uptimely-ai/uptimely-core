@@ -246,6 +246,14 @@ class Spec(base.StrictModel):
         }
 
     @functools.cached_property
+    def identifier_types_by_profile(self) -> dict[ProfileKey, dict[str, str]]:
+        """Return all resolution key types for the dimensions used by each profile."""
+        return {
+            profile_key: profile.key_types(self.dimensions)
+            for profile_key, profile in self.profile_items
+        }
+
+    @functools.cached_property
     def grain_key_ids(self) -> frozenset[str]:
         """Return all dataframe key column names selected by profile grains."""
         return frozenset(

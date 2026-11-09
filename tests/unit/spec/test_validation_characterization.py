@@ -341,7 +341,8 @@ def test_duplicate_feature_ownership_retains_all_candidates() -> None:
     dataset = document.profiles["pump"]
     grain_keys = {
         document.dimensions[reference.dimension].resolutions[reference.resolution].key
-        for reference in dataset.grain
+        for profile in document.profiles.values()
+        for reference in profile.grain
     }
     first, second = [feature for feature in dataset.features if feature not in grain_keys][:2]
     duplicate = dataset.model_copy(deep=True)

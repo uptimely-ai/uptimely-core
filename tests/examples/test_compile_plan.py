@@ -29,7 +29,11 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
                 if feature.type is not None
             },
             **document.grain_key_types_by_profile[invocation.profile_id],
+            **document.identifier_types_by_profile[invocation.profile_id],
         }
+        assert invocation.identifier_columns == list(
+            document.identifier_types_by_profile[invocation.profile_id]
+        )
         assert invocation.argument_types == {
             name: argument.type
             for name, argument in document.functions[invocation.function_id].args.items()
@@ -111,6 +115,8 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "dataset": "pump_telemetry",
         "dimensions": ["pump_id"],
         "output": "bearing_temperature_max",
+        "filter_column": "",
+        "filter_value": "",
     }
     assert collapse_invocation["output_features"] == [
         "pump_id",

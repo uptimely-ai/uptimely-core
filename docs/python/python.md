@@ -108,6 +108,11 @@ Dimensions have stable IDs and declare one or more keyed resolutions. A profile'
 dataframe column used by that profile. Optional dimension names are
 human-readable labels generated from IDs when omitted.
 
+Profile instances expose `profile.keys` and `profile.key_types`: all resolution
+key columns for the dimensions used by their grain, and their logical types.
+These include unselected resolutions without changing the grain or declaring
+additional features. Dimensionless profiles return an empty list and dictionary.
+
 `up.Spec` accepts the profile declarations only. It infers dimension and
 resolution definitions from each profile's grain, requires repeated declarations
 to agree, rejects unresolved resolutions and conflicting metadata, and emits

@@ -1,6 +1,6 @@
 """Project-wide physical constants profile."""
 
-from examples.pump_analytics.functions import analytics
+from examples.pump_analytics.functions import source
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, ref
 
@@ -38,8 +38,15 @@ class Constants(Profile):
                 outputs=[features.gravity, features.room_temperature],
             ),
             compute=Binding(
-                function=analytics.read_constants,
-                arguments={"source": ref.params("constants_source")},
+                function=source.read_file,
+                arguments=dict(
+                    source=ref.params("constants_source"),
+                    schema={"gravity": "float", "room_temperature": "float"},
+                    rename={
+                        "gravity": features.gravity,
+                        "room_temperature": features.room_temperature,
+                    },
+                ),
             ),
         )
     ]

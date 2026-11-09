@@ -406,7 +406,7 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    assert len(spec_definition.functions.by_kind("vectorize")) == 8
+    assert len(spec_definition.functions.by_kind("vectorize")) == 9
     collapse = spec_definition.profiles["pump"].assembly["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.compute.function == "aggregate"
@@ -415,7 +415,13 @@ def test_system_and_subset_support_multiple_variables() -> None:
 
     assert system.feature_names == {
         "bearing_temperature_max",
+        "bearing_temperature_series_max",
+        "bearing_temperature_category_max",
+        "bearing_temperature_minute_max",
+        "bearing_temperature_hour_max",
+        "bearing_temperature_day_max",
         "health_signal_normalized",
+        "max_capacity",
         "recommended_flow_rate",
         "recommended_discharge_pressure",
         "energy_cost_score",
