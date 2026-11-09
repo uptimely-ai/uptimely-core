@@ -34,7 +34,7 @@ For environment setup, commands to run each workflow, generated outputs, and
 documentation preview instructions, see the shared [examples guide](../README.md).
 The uncontrolled workflow writes
 `_generated/pump_external_workflow_results.csv` as a side effect. Its escape
-operator belongs to the pump profile, which has the same machine grain. It
+operator belongs to the pump profile, which has machine grain. It
 declares `measurement` and `reference_value` as logical inputs and `ratio` as a
 logical output. These declarations do not implicitly pass a dataframe; this
 function reads the input itself. The engine does not materialize `ratio`, and

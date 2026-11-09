@@ -92,7 +92,7 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
 def test_independent_rules_report_grouping_and_dimension_reference_faults() -> None:
     configuration = _configuration()
     configuration["profiles"]["pump_telemetry"]["grain"].remove(
-        {"dimension": "machine", "resolution": "machine"}
+        {"dimension": "machine_dimension", "resolution": "machine"}
     )
     operator = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
     operator["compute"]["args"]["unexpected"] = "$dimensions.missing"
@@ -310,7 +310,9 @@ def test_document_validation_rejects_blank_calculated_output() -> None:
 
 def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> None:
     document = spec.Spec.model_validate(_configuration())
-    document.dimensions["machine"].resolutions["plant"].parent = "plant"
+    document.dimensions["machine_dimension"].resolutions[
+        "machine_category"
+    ].parent = "machine_category"
     dataset = document.profiles["pump_profile"]
     dataset.assembly["bearing_temperature_by_pump"].interface.inputs = ["$features.missing"]
     other = document.profiles["pump_telemetry"]
