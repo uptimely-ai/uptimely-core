@@ -101,6 +101,7 @@ def _generate_artifacts(
     execution_plan: compiler.ExecutionPlan,
     selected_features: list[str] | None,
     staging_root: pathlib.Path,
+    project_root: pathlib.Path,
 ) -> str:
     """Write the spec and execution plan and prepare the Explorer snapshot."""
     try:
@@ -111,6 +112,7 @@ def _generate_artifacts(
             execution_plan,
             features=selected_features,
             validate_spec=False,
+            project_root=project_root,
         )
         return presentation.serialize_presentation_data(presentation_data)
     except (
@@ -234,7 +236,7 @@ def build_project(
         try:
             execution_plan = _compile_plan(spec_definition, selected_features)
             snapshot = _generate_artifacts(
-                spec_definition, execution_plan, selected_features, staging_root
+                spec_definition, execution_plan, selected_features, staging_root, root
             )
             _validate_staged_bundle(root, staging_root, selected_features)
             _publish_bundle(staging_root, root / paths.BUILD_OUTPUT_DIR)

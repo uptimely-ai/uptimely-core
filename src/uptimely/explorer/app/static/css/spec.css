@@ -4,14 +4,21 @@
 .catalog-charts { display: grid; gap: 24px; margin-top: 24px; }
 .catalog-charts > * { margin-top: 0; }
 
-.function-origin-grid, .function-metadata-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
-  gap: 12px; margin-top: 40px; }
+.function-detail { container-type: inline-size; }
+.function-origin-grid, .function-metadata-grid { display: grid; gap: 12px; margin-top: 40px; }
+.function-origin-grid { grid-template-columns: minmax(0, 1fr); }
+.function-metadata-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr)); }
+@container (min-width: 660px) {
+  .function-origin-grid { grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); }
+  .function-kind-graphic:only-child { grid-column: 2; }
+}
 .function-example { min-width: 0; margin-top: 40px; }
 .function-source { min-width: 0; }
 .function-source-card { min-height: 160px; margin-top: 12px; padding: 20px; }
 .function-source-card dl { display: grid; gap: 12px; margin: 0; }
 .function-source-card dl > div { display: grid; grid-template-columns: 6rem minmax(0, 1fr); gap: 12px; }
-.function-source-card dt { color: #94a3b8; font-size: 12px; }
+.function-source-card dt { display: flex; align-items: center; gap: 7px; color: #94a3b8; font-size: 12px; }
+.function-source-icon { width: 15px; height: 15px; flex: 0 0 15px; }
 .function-source-card dd { min-width: 0; margin: 0; overflow-wrap: anywhere; color: #e2e8f0; font: 12px/1.5 var(--font-mono); }
 .function-metadata-entry { min-width: 0; }
 .function-metadata-title { display: flex; align-items: center; gap: 7px; margin-bottom: 8px;

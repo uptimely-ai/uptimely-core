@@ -39,7 +39,7 @@ def test_disabled_signature_does_not_import_entrypoint_module(
 
     compiled = compiler.Compiler().compile(definition)
     invocation = next(item for item in compiled.invocations if item.function_id == function.id)
-    data = presentation.build_presentation_data(definition, compiled)
+    data = presentation.build_presentation_data(definition, compiled, project_root=tmp_path)
     function_data = data["catalogs"]["configuration"]["functions"]["ratio"]
     step = next(
         step
@@ -54,5 +54,6 @@ def test_disabled_signature_does_not_import_entrypoint_module(
     assert invocation.input_features
     assert step["returns"]["type"]["engine"] is None
     assert function_data["signature_validation_disabled"]
+    assert "source_origin" not in function_data
     assert function_data["entrypoint"] == function.entrypoint
     assert function_data["args"]

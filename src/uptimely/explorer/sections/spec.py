@@ -174,6 +174,7 @@ def _parse_docstring(docstring: str) -> dict[str, typing.Any] | None:
 def _build_context(
     spec_definition: spec_model.Spec,
     include_generated_at: bool,
+    project_root: pathlib.Path | None = None,
 ) -> ExplorerContext:
     """Build typed Explorer catalog data from a spec document model."""
     configuration = spec_definition.model_dump(mode="json", exclude_none=True)
@@ -225,6 +226,10 @@ def _build_context(
             function_entrypoint = entrypoint_module.Entrypoint(entrypoint)
             source_file = function_entrypoint.module.source_file
             function["entrypoint_file"] = pathlib.Path(source_file).resolve().as_uri()
+            origin = function_entrypoint.read_source_origin(project_root)
+            function["source_origin"] = origin.kind
+            if origin.distribution is not None:
+                function["source_distribution"] = origin.distribution
             return_type = function_entrypoint.function.read_signature().returns
             if return_type:
                 function["return_type"] = return_type

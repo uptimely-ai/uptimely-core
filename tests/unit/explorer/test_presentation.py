@@ -3,10 +3,13 @@
 import json
 import pathlib
 
+import pytest
+from examples.pump_analytics.functions import analytics
 from support import examples as example_support
 
 from uptimely import project
 from uptimely.explorer import presentation
+from uptimely.project.build import builder
 
 
 def test_build_presentation_data_returns_versioned_json_structures(
@@ -74,4 +77,82 @@ def test_build_snapshot_preserves_complete_function_example(
             "operation_point_quantum_optimization"
         ]["doc"]["examples"]
         == examples
+    )
+
+
+def test_presentation_captures_project_source_in_catalog_and_snapshot(
+    pump_bundle: project.BuildBundle,
+) -> None:
+    assert analytics.__file__ is not None
+    root = pathlib.Path(analytics.__file__).resolve().parents[1]
+    data = presentation.build_presentation_data(
+        pump_bundle.spec_definition, pump_bundle.execution_plan, project_root=root
+    )
+    serialized = json.loads(presentation.serialize_presentation_data(data))
+    function = serialized["catalogs"]["configuration"]["functions"]["ratio"]
+    assert function["source_origin"] == "project"
+    assert serialized["catalogs"]["function_groups"]["vectorize"]["ratio"]["source_origin"] == (
+        "project"
+    )
+
+
+def test_presentation_captures_installed_distribution_origin(
+    pump_bundle: project.BuildBundle, tmp_path: pathlib.Path
+) -> None:
+    pump_bundle.spec_definition.functions["ratio"].entrypoint = "polars:thread_pool_size"
+
+    data = presentation.build_presentation_data(
+        pump_bundle.spec_definition, pump_bundle.execution_plan, project_root=tmp_path
+    )
+    serialized = json.loads(presentation.serialize_presentation_data(data))
+    function = serialized["catalogs"]["configuration"]["functions"]["ratio"]
+    assert function["source_origin"] == "third_party"
+    assert function["source_distribution"] == "polars"
+    assert serialized["catalogs"]["function_groups"]["vectorize"]["ratio"]["source_origin"] == (
+        "third_party"
+    )
+
+
+def test_reexport_uses_implementation_origin_not_project_module(
+    pump_bundle: project.BuildBundle, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "reexport_provenance_fixture.py").write_text(
+        "from polars import thread_pool_size as calculate\n", encoding="utf-8"
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    pump_bundle.spec_definition.functions[
+        "ratio"
+    ].entrypoint = "reexport_provenance_fixture:calculate"
+
+    data = presentation.build_presentation_data(
+        pump_bundle.spec_definition, pump_bundle.execution_plan, project_root=tmp_path
+    )
+
+    function = data["catalogs"]["configuration"]["functions"]["ratio"]
+    assert function["source_origin"] == "third_party"
+    assert function["source_distribution"] == "polars"
+
+
+def test_project_build_persists_source_origin(
+    pump_bundle: project.BuildBundle, tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "source_provenance_fixture.py").write_text(
+        "import polars as pl\n"
+        "def calculate(dataset: pl.LazyFrame, numerator_features: list[str], "
+        "denominator_features: list[str], output: str, scale: float = 1.0) -> pl.LazyFrame:\n"
+        "    return dataset\n",
+        encoding="utf-8",
+    )
+    monkeypatch.syspath_prepend(str(tmp_path))
+    pump_bundle.spec_definition.functions[
+        "ratio"
+    ].entrypoint = "source_provenance_fixture:calculate"
+    monkeypatch.setattr(builder, "_load_spec_definition", lambda *args: pump_bundle.spec_definition)
+
+    project.build_project(tmp_path)
+
+    snapshot = json.loads((tmp_path / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
+    assert snapshot["catalogs"]["configuration"]["functions"]["ratio"]["source_origin"] == "project"
+    assert snapshot["catalogs"]["function_groups"]["vectorize"]["ratio"]["source_origin"] == (
+        "project"
     )

@@ -16,6 +16,7 @@ export const ICONS = {
   overview: "layout-grid", features: "variable", operators: "sigma",
   profiles: "layers-2", datasets: "table-2",
   dimensions: "axis-3d", resolutions: "scan-square", functions: "square-function", source: "code-xml",
+  "source-origin": "map-pin", "source-package": "package", "source-module": "file-code-2",
   grain: "rows-3", scope: "filter", order: "list-ordered",
   schema: "table-2", assembly: "blocks", key: "key-round", "data-type": "braces",
   input: "arrow-right-to-line", output: "arrow-right-from-line", "engine-bind": "circle-play",

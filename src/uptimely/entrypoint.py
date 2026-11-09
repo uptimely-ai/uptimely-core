@@ -102,6 +102,14 @@ class PackageProvenance:
 
 
 @dataclasses.dataclass(frozen=True)
+class SourceOrigin:
+    """Ownership of a callable's implementation file relative to a project."""
+
+    kind: typing.Literal["project", "third_party", "unknown"]
+    distribution: str | None = None
+
+
+@dataclasses.dataclass(frozen=True)
 class Module:
     """Represent and load an importable Python module."""
 
@@ -296,6 +304,40 @@ class Entrypoint:
     def read_package(self) -> PackageProvenance:
         """Read package provenance for this entrypoint without importing its module."""
         return self.module.read_package()
+
+    def read_source_origin(self, project_root: pathlib.Path | None) -> SourceOrigin:
+        """Identify the callable's implementation as project or installed code.
+
+        This imports the callable when a project root is supplied, unlike
+        ``read_package``. Re-exports and decorated functions are traced to the
+        unwrapped implementation. Installed distribution file ownership takes
+        precedence over project directory containment.
+
+        Args:
+            project_root: Project directory, or None when it is unavailable.
+
+        Returns:
+            Verified source origin and, for installed code, the distribution name.
+            The origin is unknown when neither ownership can be established.
+        """
+        if project_root is None:
+            return SourceOrigin("unknown")
+        implementation = inspect.unwrap(self.function.load())
+        module = inspect.getmodule(implementation)
+        source_file = getattr(module, "__file__", None)
+        if module is None or source_file is None:
+            return SourceOrigin("unknown")
+        source_path = pathlib.Path(source_file).resolve()
+        top_level = PackageProvenance._top_level_package(module.__name__)
+        for name in PackageProvenance._distribution_candidates(top_level):
+            distribution = importlib.metadata.distribution(name)
+            if distribution.files is not None and any(
+                pathlib.Path(file.locate()).resolve() == source_path for file in distribution.files
+            ):
+                return SourceOrigin("third_party", distribution.metadata.get("Name", name))
+        if source_path.is_relative_to(project_root.resolve()):
+            return SourceOrigin("project")
+        return SourceOrigin("unknown")
 
     def read_signature(self) -> Signature:
         """Import this entrypoint and read its callable signature."""

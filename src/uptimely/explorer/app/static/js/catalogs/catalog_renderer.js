@@ -497,17 +497,20 @@ function functionMetadata(fn) {
 function functionSource(fn) {
   if (!fn.entrypoint && !fn.signature_validation_disabled) return "";
   const [modulePath, ...qualifiedName] = (fn.entrypoint || "").split(":");
-  const parts = modulePath.split(".");
-  const module = parts.pop();
+  const packageName = modulePath.split(".")[0];
   const fields = fn.entrypoint ? [
-    ["Package", parts.join(".") || "—"],
-    ["Module", module || "—"],
-    ["Function", qualifiedName.join(":") || "—"],
+    ["Origin", "source-origin", {
+      project: "Project source code",
+      third_party: fn.source_distribution ? `Third-party (${fn.source_distribution})` : "Third-party",
+    }[fn.source_origin] || "Unknown"],
+    ["Package", "source-package", packageName || "—"],
+    ["Module", "source-module", modulePath || "—"],
+    ["Function", "functions", qualifiedName.join(":") || "—"],
   ] : [];
   return `<section class="function-source" aria-label="Source">
     ${subheading("Source", "source")}
     <div class="function-detail-box function-source-card">
-      ${fields.length ? `<dl>${fields.map(([name, value]) => `<div><dt>${name}</dt><dd><code>${escape(value)}</code></dd></div>`).join("")}</dl>` : ""}
+      ${fields.length ? `<dl>${fields.map(([name, iconKey, value]) => `<div><dt>${icon(iconKey, "function-source-icon")}<span>${name}</span></dt><dd><code>${escape(value)}</code></dd></div>`).join("")}</dl>` : ""}
       ${fn.signature_validation_disabled ? `<div class="mt-2">${badge("Python signature validation disabled", "amber")}</div>` : ""}
     </div>
   </section>`;
@@ -534,7 +537,7 @@ function functionUsage(functionId, config) {
 function functionCards(data) {
   return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length).map(([kind, items]) =>
     `<div id="functions-${escape(kind)}" data-function-group="${escape(kind)}" class="mb-20 scroll-mt-24"><div class="space-y-10">
-      ${Object.entries(items).map(([id, fn]) => `<article id="function-${escape(id)}" data-context-item>
+      ${Object.entries(items).map(([id, fn]) => `<article id="function-${escape(id)}" data-context-item class="function-detail">
         <h3 class="function-detail-title">${kindIcon(kind, "function-detail-icon")}<span>${escape(label(id, fn))}</span></h3>
         <p data-function-description class="mt-4 max-w-3xl text-base leading-7 text-slate-300">${escape(fn.description || "No description provided.")}</p>
         ${fn.doc?.body ? `<p class="mt-3 max-w-3xl whitespace-pre-line text-sm leading-7 text-slate-400">${escape(fn.doc.body)}</p>` : ""}
@@ -542,13 +545,13 @@ function functionCards(data) {
           <div class="mt-3">${badge("Python")}</div>
           <pre class="function-detail-box mt-3 min-h-40 overflow-x-auto p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(example)}</code></pre></section>`).join("")}
         <div class="function-origin-grid">
+          ${functionSource(fn)}
           <section class="function-kind-graphic min-w-0" aria-label="${escape(kind[0].toUpperCase() + kind.slice(1))} function kind diagram">
             <h3 class="ui-section-title profile-detail-subheading">${kindIcon(kind, "profile-detail-icon")}<span>${escape(kind[0].toUpperCase() + kind.slice(1))} kind</span></h3>
             <div class="function-detail-box mt-3 flex min-h-40 flex-col items-center justify-center gap-3 overflow-x-auto p-5">
               ${miniGraphic(kind)}
             </div>
           </section>
-          ${functionSource(fn)}
         </div>
         ${functionUsage(id, data.catalogs.configuration)}
         ${Object.keys(fn.args || {}).length ? `<div class="mt-10">${subheading("Arguments")}

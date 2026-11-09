@@ -50,7 +50,11 @@ test("vectorize uses the table properties icon", () => {
 
 test("function detail grids stack on narrow screens and share space when wide", async () => {
   const css = await readFile(new URL("../css/spec.css", root), "utf8");
-  assert.match(css, /\.function-origin-grid,\s*\.function-metadata-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*220px\),\s*1fr\)\)/);
+  assert.match(css, /\.function-detail\s*\{[^}]*container-type:\s*inline-size/);
+  assert.match(css, /\.function-origin-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(css, /@container\s*\(min-width:\s*660px\)\s*\{\s*\.function-origin-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*2fr\)\s+minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.function-kind-graphic:only-child\s*\{\s*grid-column:\s*2/);
+  assert.match(css, /\.function-metadata-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*220px\),\s*1fr\)\)/);
   assert.match(css, /\.function-example\s*\{[^}]*min-width:\s*0/);
 });
 

@@ -61,7 +61,8 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Returns">\s*<h4 class="function-metadata-title">[^]*?data-lucide="arrow-right"[^]*?<span>Returns<\/span><\/h4>\s*<div class="function-metadata-card function-detail-box">\s*<p><span class="ui-badge[^>]*>DataFrame<\/span><\/p>[^]*?Calculated &lt;values&gt;\./);
   assert.doesNotMatch(functionArticle.match(/<section class="function-metadata-entry" aria-label="Returns">[^]*?<\/section>/)[0], /data-type-label-icon|data-lucide="table-2"/);
   assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Errors">\s*<h4 class="function-metadata-title">[^]*?data-lucide="info"[^]*?<span>Errors<\/span><\/h4>\s*<div class="function-metadata-card function-detail-box">[^]*?ValueError<\/span> — Invalid &lt;value&gt;\./);
-  assert.match(functionArticle, /<section class="function-source" aria-label="Source">[^]*?data-lucide="code-xml"[^]*?<span>Source<\/span>[^]*?<dt>Package<\/dt><dd><code>—<\/code><\/dd>[^]*?<dt>Module<\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>Function<\/dt><dd><code>calculate<\/code>/);
+  assert.match(functionArticle, /<section class="function-source" aria-label="Source">[^]*?data-lucide="code-xml"[^]*?<span>Source<\/span>[^]*?<dt>[^]*?data-lucide="package"[^]*?<span>Package<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="file-code-2"[^]*?<span>Module<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="square-function"[^]*?<span>Function<\/span><\/dt><dd><code>calculate<\/code>/);
+  assert.match(functionArticle, /<dt>[^]*?data-lucide="map-pin"[^]*?<span>Origin<\/span><\/dt><dd><code>Unknown<\/code><\/dd>/);
   assert.match(functionArticle, /<pre class="function-detail-box mt-3 min-h-40/);
   assert.match(functionArticle, /<div class="function-detail-box mt-3 flex min-h-40/);
   assert.match(functionArticle, /aria-label="Function usage"[^]*?Used by operators[^]*?<li class="function-usage-item function-detail-box">[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=profiles#operator-readings-calculate">Calculate<\/a>/);
@@ -157,7 +158,7 @@ test("function examples retain multiline content, order and HTML escaping", asyn
   const article = html.slice(html.indexOf('<article id="function-calculate"'));
   assert.equal((article.match(/<section class="function-example">/g) || []).length, 2);
   assert.ok(article.indexOf("Example 2") < article.indexOf('class="function-origin-grid"'));
-  assert.match(article, /class="function-origin-grid"[^]*?class="function-kind-graphic[^]*?class="function-source"/);
+  assert.match(article, /class="function-origin-grid"[^]*?class="function-source"[^]*?class="function-kind-graphic/);
   assert.ok(article.indexOf("Arguments") < article.indexOf('class="function-metadata-grid"'));
   assert.doesNotMatch(article, /lg:grid-cols-\[minmax/);
 });
@@ -167,6 +168,8 @@ test("function source and operator usage handle qualified, missing and escaped v
   const data = sampleData();
   const fn = data.catalogs.function_groups.vectorize.calculate;
   fn.entrypoint = "pump.<package>.analytics:Class.method";
+  fn.source_origin = "third_party";
+  fn.source_distribution = "library <unsafe>";
   fn.signature_validation_disabled = true;
   fn.doc.raises = [{ type: "ValueError", description: "Invalid." }];
   const assembly = data.catalogs.configuration.profiles.readings.assembly;
@@ -177,14 +180,18 @@ test("function source and operator usage handle qualified, missing and escaped v
 
   const html = renderCatalog(data, "functions").content;
   const article = html.slice(html.indexOf('<article id="function-calculate"'));
-  assert.match(article, /<dt>Package<\/dt><dd><code>pump\.&lt;package&gt;<\/code><\/dd>/);
-  assert.match(article, /<dt>Module<\/dt><dd><code>analytics<\/code><\/dd>/);
-  assert.match(article, /<dt>Function<\/dt><dd><code>Class\.method<\/code><\/dd>/);
+  assert.match(article, /<dt>[^]*?data-lucide="package"[^]*?<span>Package<\/span><\/dt><dd><code>pump<\/code><\/dd>/);
+  assert.match(article, /<dt>[^]*?data-lucide="map-pin"[^]*?<span>Origin<\/span><\/dt><dd><code>Third-party \(library &lt;unsafe&gt;\)<\/code><\/dd>/);
+  assert.match(article, /<dt>[^]*?data-lucide="file-code-2"[^]*?<span>Module<\/span><\/dt><dd><code>pump\.&lt;package&gt;\.analytics<\/code><\/dd>/);
+  assert.match(article, /<dt>[^]*?data-lucide="square-function"[^]*?<span>Function<\/span><\/dt><dd><code>Class\.method<\/code><\/dd>/);
   assert.match(article, /Python signature validation disabled/);
   assert.match(article, /operator-readings-calculate">Calculate &lt;values&gt;<\/a>/);
   assert.match(article, /operator-readings-merge_values">Merge Values<\/a>/);
   assert.match(article, /class="function-metadata-grid"[^]*?aria-label="Returns"[^]*?aria-label="Errors"/);
   assert.ok(article.indexOf('aria-label="Errors"') > article.indexOf("Arguments"));
+
+  fn.source_origin = "project";
+  assert.match(renderCatalog(data, "functions").content, /<span>Origin<\/span><\/dt><dd><code>Project source code<\/code><\/dd>/);
 
   delete fn.entrypoint;
   fn.signature_validation_disabled = false;
