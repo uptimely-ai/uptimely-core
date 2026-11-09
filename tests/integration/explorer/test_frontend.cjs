@@ -351,8 +351,10 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.match(html, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
   const operator = html.match(/<article id="operator-readings-aggregate"[^]*?<\/article>/)[0];
   assert.match(operator, /profile-operator-header[^]*profile-operator-contract[^]*profile-operator-compute/);
-  assert.match(operator, /profile-operator-flow-node[^]*?data-lucide="square-function"/);
   assert.match(operator, /class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"/);
+  assert.doesNotMatch(operator, /profile-operator-flow-node/);
+  assert.ok(operator.indexOf("Input features") < operator.indexOf("profile-operator-compute"));
+  assert.ok(operator.indexOf("profile-operator-compute") < operator.indexOf("Output features"));
   assert.ok(!html.includes("<max>"));
 });
 

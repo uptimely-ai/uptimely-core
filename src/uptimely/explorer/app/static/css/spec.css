@@ -109,14 +109,15 @@
 .profile-operator-identity h4 { margin: 0; color: #f1f5f9; font: 600 13px var(--font-mono); overflow-wrap: anywhere; }
 .profile-operator-compute { padding: 12px 16px; border-top: 1px solid #1e293b; }
 .profile-operator-function { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
-.profile-operator-function-icon { width: 15px; height: 15px; color: #94a3b8; }
+.profile-operator-function-icon { flex: 0 0 20px; width: 20px; height: 20px; color: #94a3b8; }
 .profile-operator-function a { color: var(--operator-accent); font: 12px var(--font-mono); overflow-wrap: anywhere; text-decoration: underline; text-underline-offset: 3px; }
-.profile-operator-contract { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); margin: 0; }
+.profile-operator-contract { display: grid; grid-template-columns: minmax(0, 1fr); margin: 0; }
 .profile-operator-contract > div { min-width: 0; padding: 14px 16px; }
-.profile-operator-contract > div + div { border-left: 1px solid #1e293b; }
+.profile-operator-contract > div + div { border-top: 1px solid #1e293b; }
 .profile-operator-contract > .profile-operator-flow { display: flex; flex-direction: column; justify-content: center; padding: 14px 12px; }
 .profile-operator-flow dt { justify-content: center; }
 .profile-operator-contract .profile-operator-flow dd { align-items: center; justify-content: center; flex-wrap: nowrap; margin: 0; }
+.profile-operator-output { border-top: 1px solid #1e293b; }
 .profile-operator-flow-node { display: grid; width: 32px; height: 32px; place-items: center;
   border: 1px solid #334155; border-radius: 7px; background: #0f172a; color: #94a3b8; }
 .profile-operator-flow-arrow { color: #64748b; font: 18px/1 var(--font-body); }
@@ -168,9 +169,5 @@ a.feature-lineage-link:hover, a.feature-lineage-link:focus-visible { border-colo
   transition: opacity .12s ease; visibility: hidden; white-space: normal; }
 .profile-operator-engine-bind:hover::after, .profile-operator-engine-bind:focus::after { opacity: 1; visibility: visible; }
 @media (max-width: 480px) {
-  .profile-operator-contract { grid-template-columns: minmax(0, 1fr); }
-  .profile-operator-contract > div + div { border-left: 0; border-top: 1px solid #1e293b; }
   .profile-operator-contract > .profile-operator-flow { padding: 12px 16px; }
-  .profile-operator-flow dd { flex-direction: column; }
-  .profile-operator-flow-arrow { transform: rotate(90deg); }
 }

@@ -232,9 +232,9 @@ test("feature and function type displays use matching data type icons", () => {
   assert.match(featureOperator, /<td><code class="language-json">telemetry\.csv<\/code><\/td>/);
   assert.match(featureOperator, /<div class="profile-operator-function">\s*<i[^>]*class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
   assert.match(featureOperator, /profile-operator-merge-indicator/);
-  assert.match(featureOperator, /Input features[\s\S]*class="profile-operator-flow"[\s\S]*Output features/);
-  assert.match(featureOperator, /role="img" aria-label="Operator: Read Telemetry"><i[^>]*data-lucide="square-function"/);
-  assert.equal((featureOperator.match(/class="profile-operator-flow-arrow"/g) || []).length, 2);
+  assert.ok(featureOperator.indexOf("Input features") < featureOperator.indexOf("profile-operator-compute"));
+  assert.ok(featureOperator.indexOf("profile-operator-compute") < featureOperator.indexOf("Output features"));
+  assert.doesNotMatch(featureOperator, /profile-operator-flow-node|profile-operator-flow-arrow/);
   assert.match(featureContent, /data-category="float64" data-count="1"/);
   assert.match(featureContent, /data-lucide="hash"[^>]*><\/i><span>Temperature<\/span>/);
   assert.match(featureContext, /href="#feature-telemetry-temperature"[\s\S]*?data-lucide="hash"/);
