@@ -3,7 +3,7 @@ import pytest
 from examples.pump_analytics.functions import analytics
 from examples.pump_analytics.spec import dimension as pump_dimensions
 from examples.pump_analytics.spec import spec as pump_telemetry_spec
-from examples.pump_analytics.spec.profiles import constants, pump, telemetry
+from examples.pump_analytics.spec.profiles import constants, pump, pump_telemetry
 from support import examples as example_support
 
 from uptimely import spec
@@ -64,7 +64,7 @@ def test_pump_dimensions_are_declared_in_spec_order() -> None:
 
 def test_pump_profiles_are_declared_in_spec_order() -> None:
     expected = [
-        telemetry.Telemetry,
+        pump_telemetry.PumpTelemetry,
         pump.Pump,
         constants.Constants,
     ]
@@ -75,10 +75,10 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
     assert [type(profile) for profile in pump_telemetry_spec.python_spec.profiles] == expected
     assert [profile.id for profile in pump_telemetry_spec.python_spec.profiles] == [
         "pump_telemetry",
-        "pump_profile",
+        "pump",
         "constants",
     ]
-    assert telemetry.Telemetry.grain == [
+    assert pump_telemetry.PumpTelemetry.grain == [
         pump_dimensions.MACHINE_DIMENSION.resolution("machine"),
         pump_dimensions.MACHINE_TIMESTAMP.resolution("timestamp"),
     ]
@@ -127,7 +127,7 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert "facility_dimension" not in spec_definition.dimensions
     assert set(spec_definition.profiles) == {
         "pump_telemetry",
-        "pump_profile",
+        "pump",
         "constants",
     }
     assert spec_definition.profiles["pump_telemetry"].dimension_ids == [
@@ -157,7 +157,7 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert "aggregate" not in spec_definition.functions.by_kind("vectorize")
     assert len(spec_definition.functions.by_kind("vectorize")) == 8
 
-    pump_profile = spec_definition.profiles["pump_profile"]
+    pump_profile = spec_definition.profiles["pump"]
     collapse = pump_profile.assembly["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.compute.function == "aggregate"
@@ -172,7 +172,7 @@ def test_spec_from_profiles_python_api() -> None:
 
     assert set(spec_definition.profiles) == {
         "pump_telemetry",
-        "pump_profile",
+        "pump",
         "constants",
     }
     assert spec_definition.name == pump_telemetry_spec.python_spec.name
@@ -197,7 +197,7 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
         assert [
             key.model_dump() for key in spec_definition.profiles["pump_telemetry"].order
         ] == expected
-        assert spec_definition.profiles["pump_profile"].order == []
+        assert spec_definition.profiles["pump"].order == []
 
 
 def test_sources_and_transforms_python_spec() -> None:
