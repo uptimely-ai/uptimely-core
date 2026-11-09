@@ -45,11 +45,11 @@ const profileGrain = (config, grain) => grain.map(({ dimension, resolution }) =>
     resolution: resolutionDefinition?.id ?? resolution,
   };
 });
-const profileGrainMarkup = grain => grain.length
-  ? `<ul class="profile-summary-grain-list">${grain.map(({ dimension, resolution }) => `<li class="profile-summary-grain-path" aria-label="${escape(`${dimension} dimension at ${resolution} resolution`)}">
+const profileGrainMarkup = (grain, resolutionsOnly = false) => grain.length
+  ? `<ul class="profile-summary-grain-list${resolutionsOnly ? " profile-summary-grain-resolutions" : ""}">${grain.map(({ dimension, resolution }) => `<li class="profile-summary-grain-path" aria-label="${escape(`${dimension} dimension at ${resolution} resolution`)}">
       <span class="profile-summary-grain-badge profile-summary-grain-resolution">${icon("resolutions", "profile-summary-grain-icon")}<code>${escape(resolution)}</code></span>
-      <i class="profile-summary-grain-relation" data-lucide="at-sign" aria-hidden="true"></i>
-      <span class="profile-summary-grain-badge profile-summary-grain-dimension">${icon("dimensions", "profile-summary-grain-icon")}<strong>${escape(dimension)}</strong></span>
+      ${resolutionsOnly ? "" : `<i class="profile-summary-grain-relation" data-lucide="at-sign" aria-hidden="true"></i>
+      <span class="profile-summary-grain-badge profile-summary-grain-dimension">${icon("dimensions", "profile-summary-grain-icon")}<strong>${escape(dimension)}</strong></span>`}
     </li>`).join("")}</ul>`
   : '<span class="profile-summary-grain-empty">No grain defined</span>';
 const chip = (value, isType = false) => isType
@@ -190,8 +190,7 @@ function profileOverview(data) {
         <div class="profile-summary-size"><strong>${operatorCount}</strong>${icon("operators", "profile-summary-operator-icon")}</div>
       </div>
       <div class="profile-summary-grain" aria-label="Profile grain">
-        <span class="profile-summary-grain-label">Grain</span>
-        ${profileGrainMarkup(grain)}
+        ${profileGrainMarkup(grain, true)}
       </div>
     </a>`;
   });
@@ -262,7 +261,8 @@ function featureCards(config, invocations) {
   }).join("");
 }
 
-function resolutionHierarchy(resolutions) {
+function resolutionHierarchy(resolutions, highlightedResolutions = []) {
+  const highlighted = new Set(highlightedResolutions);
   const nodes = Object.entries(resolutions).map(([key, resolution]) => ({
     id: resolution.id ?? key,
     resolution,
@@ -282,14 +282,37 @@ function resolutionHierarchy(resolutions) {
     rendered.add(node);
     const { resolution } = node;
     const type = resolution.type || "unspecified";
+    const isHighlighted = highlighted.has(node.id);
     return `<li data-resolution-id="${escape(node.id)}" data-parent-resolution="${escape(resolution.parent || "")}">
-      <article class="dimension-resolution-card">
+      <article class="dimension-resolution-card${isHighlighted ? " profile-resolution-highlight" : ""}">
         <h3 class="dimension-resolution-id">${typedName(node.id, type)}</h3>
       </article>
       ${node.children.length ? `<ul class="dimension-resolution-children">${node.children.map(renderNode).join("")}</ul>` : ""}
     </li>`;
   };
   return `<ul aria-label="Resolution hierarchy" class="dimension-resolution-tree">${[...roots, ...nodes].map(node => renderNode(node)).join("")}</ul>`;
+}
+
+function profileGrainHierarchies(config, grain) {
+  if (!grain.length) return '<span class="profile-summary-grain-empty">No grain defined</span>';
+
+  const dimensions = new Map();
+  for (const { dimension, resolution } of grain) {
+    if (!dimensions.has(dimension)) dimensions.set(dimension, []);
+    const definition = config.dimensions[dimension]?.resolutions[resolution];
+    dimensions.get(dimension).push(definition?.id ?? resolution);
+  }
+
+  const hierarchies = [...dimensions].map(([id, highlightedResolutions]) => {
+    const dimension = config.dimensions[id];
+    if (!dimension) return "";
+    const name = dimension.name || id;
+    return `<section class="profile-grain-dimension" aria-label="${escape(`${name} resolution hierarchy`)}">
+      <h4 class="profile-grain-dimension-name">${icon("dimensions", "profile-detail-icon")}<span>${escape(name)}</span></h4>
+      ${resolutionHierarchy(dimension.resolutions, highlightedResolutions)}
+    </section>`;
+  }).join("");
+  return `<div class="profile-grain-hierarchies">${hierarchies}</div>`;
 }
 
 function dimensionCards(config) {
@@ -445,7 +468,7 @@ function profileCards(config, invocations) {
         <div class="space-y-6">
           <div class="profile-detail-grain">${subheading("Grain", "grain")}
             <p class="mt-2 text-sm leading-6 text-slate-400">A profile is identified by its grain.</p>
-            ${profileGrainMarkup(grain)}
+            ${profileGrainHierarchies(config, profile.grain)}
           </div>
           ${profile.scope || profile.order?.length ? `<div class="grid gap-6 ${profile.scope && profile.order?.length ? "md:grid-cols-2" : ""}" data-profile-context>
           ${profile.scope ? `<div class="min-w-0">${subheading("Scope", "scope")}<blockquote class="profile-scope-quote">${description(profile.scope)}</blockquote></div>` : ""}
