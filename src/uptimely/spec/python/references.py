@@ -98,7 +98,7 @@ class ProfileReference(Reference):
     @property
     def dataset(self) -> Reference:
         """Select the runtime dataset, retaining the portable document format."""
-        return Reference(kind=arg_types.DATAFRAME, value=f"{self.value}.dataframe")
+        return Reference(kind=arg_types.DATAFRAME, value=f"{self.value}.dataset")
 
     @property
     def grain(self) -> ProfileGrainReference:

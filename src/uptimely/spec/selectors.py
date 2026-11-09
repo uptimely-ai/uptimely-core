@@ -14,7 +14,7 @@ CURRENT_ID: typing.Final[str] = "@"
 ROW_CONTEXT_PREFIX: typing.Final[str] = f"{OPERATOR_PREFIX}{CURRENT_ID}.row_context."
 ROW_CONTEXT_ATTRIBUTES: typing.Final[tuple[str, ...]] = ("before", "after", "dimension")
 ID_SELECTOR: typing.Final[str] = ".id"
-DATAFRAME_SELECTOR: typing.Final[str] = ".dataframe"
+DATASET_SELECTOR: typing.Final[str] = ".dataset"
 PROFILE_GRAIN_IDS_SELECTOR: typing.Final[str] = ".grain.ids"
 STRUCTURAL_PREFIXES: typing.Final[tuple[str, ...]] = (
     FEATURE_PREFIX,
@@ -30,7 +30,7 @@ def structural_identifier(value: str, prefix: str) -> str:
 
 __all__ = [
     "CURRENT_ID",
-    "DATAFRAME_SELECTOR",
+    "DATASET_SELECTOR",
     "PROFILE_PREFIX",
     "PROFILE_GRAIN_IDS_SELECTOR",
     "DIMENSION_PREFIX",

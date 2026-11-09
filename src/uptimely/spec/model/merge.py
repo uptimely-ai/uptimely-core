@@ -26,7 +26,7 @@ DEFAULT_FUNCTION = functions.FunctionTemplate(
 DEFAULT_BINDING = binding.Binding(
     function=DEFAULT_FUNCTION.id,
     args={
-        "target": "$profiles.@.dataframe",
+        "target": "$profiles.@.dataset",
         "fragment": "$operators.@.fragment",
         "target_keys": "$profiles.@.grain.ids",
     },

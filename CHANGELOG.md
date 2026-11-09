@@ -10,6 +10,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- **Breaking (spec and Python API):** Spec version 7 renames profile dataset
+  argument selectors from `.dataframe` to `.dataset` and renames
+  `DATAFRAME_SELECTOR` to `DATASET_SELECTOR`. Function argument types remain
+  `dataframe`. Migrate version 6 bindings and rebuild generated plans and
+  Explorer snapshots.
 - Compiler now owns operator-to-invocation expansion, Spec dependency rules,
   feature selection, and schedule selection. **Breaking (compiler API):**
   `InvocationGraph` now accepts compiler-created nodes and dependency IDs rather

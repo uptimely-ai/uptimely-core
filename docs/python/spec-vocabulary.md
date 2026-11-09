@@ -96,7 +96,7 @@ recursive collection expressions `array[item_type]` and `object{str: value_type}
 
 `uptimely.spec.selectors` defines profile, feature, dimension, and operator
 reference prefixes, the current-resource marker, and selectors for identifiers,
-profile grain keys, dataframes, and current-operator row-context attributes.
+profile grain keys, datasets, and current-operator row-context attributes.
 
 ::: uptimely.spec.selectors
     options:
@@ -114,6 +114,6 @@ profile grain keys, dataframes, and current-operator row-context attributes.
         - STRUCTURAL_PREFIXES
         - CURRENT_ID
         - ID_SELECTOR
-        - DATAFRAME_SELECTOR
+        - DATASET_SELECTOR
 
 </div>

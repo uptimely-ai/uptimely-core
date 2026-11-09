@@ -146,7 +146,7 @@ Data-producing compute invocations are declared under `read`, `conform`,
 `expand`, and `collapse`. Each produces a fragment for the profile that
 declares it.
 `conform`, `expand`, and `collapse` take exactly one foreign/source dataframe
-through a `$profiles.<id>.dataframe` binding reference. The engine does not
+through a `$profiles.<id>.dataset` binding reference. The engine does not
 pass the accumulated target frame to these functions; each function transforms
 its foreign input into a fragment for the target profile. `read` takes no
 dataframe argument. Vectorize operations consume features from their own

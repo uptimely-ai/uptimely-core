@@ -412,7 +412,7 @@ def test_function_catalog_merges_and_deduplicates_each_kind(category: str) -> No
             if category == "conform"
             else "@"
         )
-        expected_args["dataset"] = f"$profiles.{source_id}.dataframe"
+        expected_args["dataset"] = f"$profiles.{source_id}.dataset"
     assert payload["profiles"]["first"]["assembly"]["first_mapping"]["compute"] == {
         "function": function_id,
         "args": expected_args,
@@ -522,7 +522,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
     )
     assert pump.to_model().name == "Machine"
     assert payload["name"] == "Pump analytics"
-    assert payload["spec_version"] == 6
+    assert payload["spec_version"] == 7
     assert "options" not in payload
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {

@@ -1,6 +1,6 @@
 # Spec
 
-**Current spec version: 6**
+**Current spec version: 7**
 
 The spec definition is a single JSON document describing profiles, feature
 dependencies, and function bindings. JSON is the shared format used by
@@ -58,7 +58,7 @@ For example, dimensions and profiles use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `6` | Spec format version; only `6` is supported. |
+| `spec_version` | integer | No | `7` | Spec format version; only `7` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
@@ -191,56 +191,6 @@ is available; a profile's grain declares what that profile actually selects.
   }
 }
 ```
-
-Version 4 replaced the entity-owned `datasets` structure with top-level
-`profiles`. Dimensions declare available resolutions; each profile must select
-its own grain explicitly. Entity-owned dimensions and descriptive
-`row_scope.grain` text do not determine the selected grain. The optional
-`category` and `scope` fields do not affect semantic validation or execution.
-Rebuild generated project artifacts after migration; version 3 is not supported.
-
-## Migrating from spec version 3
-
-Version 3 documents are rejected rather than parsed with compatibility rules.
-Migrate the source document, then rebuild its execution plan and Explorer
-snapshot:
-
-1. Move each entity-owned dataset to the top-level `profiles` object and give
-   each profile a globally unique ID. Remove the `entities` object and entity
-   references.
-2. Replace inherited entity dimensions with top-level dimension declarations.
-   Declare each available keyed resolution under its dimension, including its
-   dataframe `key`, logical `type`, and any same-dimension `parent`.
-3. Add an explicit `grain` to every profile that needs dimension keys. Each
-   entry selects a `dimension` and one of its `resolutions`; do not infer a
-   profile grain from an entity or from descriptive text. Use `[]` for a
-   dimensionless profile.
-4. Replace `row_scope` with an optional descriptive string `scope`. It is not
-   executable and does not filter rows or validate coverage. If `row_scope`
-   previously held grain or filtering rules, move those requirements into
-   explicit profile grains or application logic as appropriate.
-5. Change dataset selectors to profile selectors, such as
-   `$profiles.<id>.grain.ids` or `$profiles.@.grain.ids`, then export version 6
-   and rebuild all generated artifacts.
-
-## Migrating from spec version 4
-
-Version 4 documents are rejected rather than parsed with compatibility rules.
-Update every profile's `actions` object to `assembly`. Within each operator,
-rename `binding` to `compute` and the operator-level `features` object to
-`interface`. Remove the operator's `id` field; its ID is the key in `assembly`.
-Set `spec_version` to `6` (the default when omitted), then rebuild generated
-execution plans and Explorer snapshots.
-
-## Migrating from spec version 5
-
-Version 5 documents are rejected rather than parsed with compatibility rules.
-Set `spec_version` to `6` and rebuild generated plans and Explorer snapshots.
-Operators may now declare `merge` beside `compute`; version 6 does not infer
-custom merge behavior from older operator or assembly fields. Review vectorize
-implementations that returned fragments: they must now return the complete
-enriched target dataframe, preserving existing columns, values, rows, and row
-order while adding declared outputs. Rebuild saved plans after migrating.
 
 ### Feature and Operator Identifiers
 
@@ -514,7 +464,7 @@ An operator separates analytical requirements from its computation:
       "compute": {
         "function": "rolling_mean",
         "args": {
-          "dataset": "$profiles.@.dataframe",
+          "dataset": "$profiles.@.dataset",
           "column": "$features.bearing_temperature.id",
           "window": "8h",
           "output": "$features.temperature_mean.id"
@@ -573,7 +523,7 @@ override this default. The resolved binding is part of the build-time Spec and
 plan; changing it requires rebuilding. Runtime configuration does not select or
 change the merge function.
 
-When declared, `merge.args.target` must be `$profiles.@.dataframe` and
+When declared, `merge.args.target` must be `$profiles.@.dataset` and
 `merge.args.fragment` must be `$operators.@.fragment`. The target is nullable
 for the first merge. Python declarations use `ref.dataset()` and `ref.fragment()`.
 Merge bindings cannot reference features; assembly
@@ -592,8 +542,8 @@ uses the target profile's declared dimensions to determine join keys.
 | `$dimensions.<id>.resolutions.<resolution_id>.parent` | `string` or `null` | Parent resolution ID, if declared. |
 | `$profiles.<id>.grain.ids` | `array[string]` | Dataframe key names selected by that profile's grain. |
 | `$profiles.@.grain.ids` | `array[string]` | Dataframe key names selected by the operator's target profile. |
-| `$profiles.<id>.dataframe` | `dataframe` | Materialized table for that profile. |
-| `$profiles.@.dataframe` | `dataframe` | Current profile's input-ready table. |
+| `$profiles.<id>.dataset` | `dataframe` | Materialized table for that profile. |
+| `$profiles.@.dataset` | `dataframe` | Current profile's input-ready table. |
 | `$profiles.<id>.id` | `string` | Profile identifier string. |
 | `$features.@.id` | `string` | The sole vectorize output, or sole non-dimension collapse output. |
 
@@ -608,12 +558,12 @@ metadata with `$dimensions.<id>.resolutions.<resolution_id>.<property>`;
 Unsuffixed references remain supported; their template argument type determines
 whether a profile identifier is resolved to data. Prefer explicit selectors
 when writing new declarations. `.id` arguments require `string`, and
-`.dataframe` arguments require `dataframe`. Grain-key selectors require
+`.dataset` arguments require `dataframe`. Grain-key selectors require
 `array[string]`; their keys must be selected by the target and every referenced
 dataframe profile. Use only the listed forms for compute arguments.
 
 Merge arguments additionally support `$operators.@.fragment`, which supplies
-the current operator's staged fragment as a dataframe. `$profiles.@.dataframe`
+the current operator's staged fragment as a dataframe. `$profiles.@.dataset`
 in a merge binding supplies the current target, or null before initialization.
 
 In Python declarations, use `ref.profile().grain.ids` or

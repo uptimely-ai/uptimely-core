@@ -263,7 +263,7 @@ def _collapse_spec(target_resolution: str) -> model.Spec:
                         "maximum": {
                             "compute": {
                                 "function": "collapse",
-                                "args": {"data": "$profiles.source.dataframe"},
+                                "args": {"data": "$profiles.source.dataset"},
                             },
                             "interface": {
                                 "inputs": ["$features.temperature"],

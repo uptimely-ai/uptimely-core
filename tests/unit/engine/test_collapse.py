@@ -435,7 +435,7 @@ def test_collapse_consumes_expanded_features(
         compute=spec_model.Binding(
             function="expanded_values",
             args={
-                "dataset": "$profiles.expansion_input.dataframe",
+                "dataset": "$profiles.expansion_input.dataset",
                 "observation_ids_by_group": {"A": [1, 2], "B": [3, 4]},
             },
         ),
@@ -464,7 +464,7 @@ def test_collapse_consumes_expanded_features(
             compute=spec_model.Binding(
                 function="nested_maximum",
                 args={
-                    "dataset": "$profiles.observations.dataframe",
+                    "dataset": "$profiles.observations.dataset",
                     "columns": ["$features.value.id", "$features.expanded.id"],
                 },
             ),

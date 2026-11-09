@@ -20,7 +20,7 @@ METADATA_ATTRIBUTES = {
     selectors.DIMENSION_PREFIX: frozenset({"id", "name", "description", "key", "type", "parent"}),
 }
 VALUE_SELECTORS = {
-    selectors.PROFILE_PREFIX: frozenset({"id", "dataframe", "grain.ids"}),
+    selectors.PROFILE_PREFIX: frozenset({"id", "dataset", "grain.ids"}),
     selectors.FEATURE_PREFIX: frozenset({"id"}),
     selectors.DIMENSION_PREFIX: frozenset({"id"}),
 }
@@ -118,14 +118,14 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
     def is_profile_dataframe_reference(self) -> bool:
         """Whether this scalar selects a profile dataframe rather than metadata."""
         return self.prefix == selectors.PROFILE_PREFIX and (
-            self.selector is None or self.selector == "dataframe"
+            self.selector is None or self.selector == "dataset"
         )
 
     @property
     def is_current_profile_dataframe(self) -> bool:
         """Whether this value explicitly selects the current profile dataframe."""
         return self.root == (
-            f"{selectors.PROFILE_PREFIX}{selectors.CURRENT_ID}{selectors.DATAFRAME_SELECTOR}"
+            f"{selectors.PROFILE_PREFIX}{selectors.CURRENT_ID}{selectors.DATASET_SELECTOR}"
         )
 
     @property
@@ -154,7 +154,7 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
                 return None
             return arg_types.DATAFRAME
         if self.prefix == selectors.PROFILE_PREFIX:
-            if value.endswith(selectors.DATAFRAME_SELECTOR):
+            if value.endswith(selectors.DATASET_SELECTOR):
                 return arg_types.DATAFRAME
             if value.endswith(selectors.PROFILE_GRAIN_IDS_SELECTOR):
                 return arg_types.array_of(arg_types.STRING)
