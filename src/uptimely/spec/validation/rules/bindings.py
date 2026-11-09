@@ -87,14 +87,17 @@ def validate_binding_contracts(spec: spec_model.Spec) -> None:
             for name, argument in function.args.items():
                 if (
                     role == "merge"
-                    and name in {"dataset", "fragment"}
-                    and (
-                        not arg_types.is_dataframe(argument.type)
-                        or (name == "fragment" and argument.type != arg_types.DATAFRAME)
-                    )
+                    and name == "dataset"
+                    and argument.type != arg_types.OPTIONAL_DATAFRAME
                 ):
                     raise errors.SpecError(
-                        f"Merge {name} must declare a dataframe argument",
+                        "Merge dataset must allow null for initialization",
+                        code="invalid_merge_binding",
+                        path=(*spec.declaration_paths[key], role, "args", name),
+                    )
+                if role == "merge" and name == "fragment" and argument.type != arg_types.DATAFRAME:
+                    raise errors.SpecError(
+                        "Merge fragment must declare a non-nullable dataframe argument",
                         code="invalid_merge_binding",
                         path=(*spec.declaration_paths[key], role, "args", name),
                     )
