@@ -112,4 +112,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "dimensions": ["pump_id"],
         "output": "bearing_temperature_max",
     }
-    assert collapse_invocation["output_features"] == ["pump_id", "bearing_temperature_max"]
+    assert collapse_invocation["output_features"] == [
+        "pump_id",
+        "bearing_temperature_max",
+    ]

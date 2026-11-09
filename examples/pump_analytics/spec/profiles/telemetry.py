@@ -21,8 +21,8 @@ HYDRAULIC_POWER_SCALE = 1.0 / 36.0
 """Converts bar * m3/h into kW for the hydraulic-power numerator."""
 
 TELEMETRY_GRAIN = [
-    Grain(dimension.MACHINE, "machine"),
-    Grain(dimension.TIMESTAMP, "timestamp"),
+    Grain(dimension.MACHINE_DIMENSION, "machine"),
+    Grain(dimension.MACHINE_TIMESTAMP, "timestamp"),
 ]
 
 
@@ -121,7 +121,7 @@ class Telemetry(Profile):
     category = "Telemetry"
     grain = TELEMETRY_GRAIN
     scope = "Development telemetry selected by the read function"
-    order = (Order(dimension.TIMESTAMP, "timestamp", direction="asc"),)
+    order = (Order(dimension.MACHINE_TIMESTAMP, "timestamp", direction="asc"),)
     features = TelemetryFeatures()
 
     assembly = dict(
@@ -271,8 +271,8 @@ class Telemetry(Profile):
                     arguments=dict(
                         dataset=ref.dataset(),
                         feature=features.bearing_temperature,
-                        partition_by=[ref.dimension("machine").resolution("machine").key],
-                        order_by=ref.dimension("timestamp").resolution("timestamp").key,
+                        partition_by=[ref.dimension("machine_dimension").resolution("machine").key],
+                        order_by=ref.dimension("machine_timestamp").resolution("timestamp").key,
                         num_rows=ref.row_context("before"),
                         output=features.bearing_temperature_delta,
                     ),
@@ -289,8 +289,8 @@ class Telemetry(Profile):
                     arguments=dict(
                         dataset=ref.dataset(),
                         feature=features.vibration_rms,
-                        partition_by=[ref.dimension("machine").resolution("machine").key],
-                        order_by=ref.dimension("timestamp").resolution("timestamp").key,
+                        partition_by=[ref.dimension("machine_dimension").resolution("machine").key],
+                        order_by=ref.dimension("machine_timestamp").resolution("timestamp").key,
                         num_rows=ref.row_context("before"),
                         output=features.vibration_delta,
                     ),

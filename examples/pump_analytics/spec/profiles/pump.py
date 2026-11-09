@@ -45,7 +45,7 @@ class Pump(Profile):
     name = "Pump Summary"
     description = "One row per pump with collapsed condition and workflow inputs."
     category = "Machines"
-    grain = [Grain(dimension.MACHINE, "machine")]
+    grain = [Grain(dimension.MACHINE_DIMENSION, "machine")]
     scope = "Pump-level telemetry and external workflow inputs"
     features = PumpFeatures()
 

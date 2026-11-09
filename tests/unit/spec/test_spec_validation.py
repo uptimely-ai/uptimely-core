@@ -425,8 +425,8 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
     configuration["profiles"]["other_keys"] = {
         "name": "Other keys",
         "grain": [
-            {"dimension": "machine", "resolution": "plant"},
-            {"dimension": "timestamp", "resolution": "timestamp"},
+            {"dimension": "machine_dimension", "resolution": "machine_category"},
+            {"dimension": "machine_timestamp", "resolution": "timestamp"},
         ],
     }
     return configuration
@@ -468,7 +468,7 @@ def test_grain_key_selector_is_a_matching_key_declaration() -> None:
         (
             "$profiles.other_keys.grain.ids",
             "invalid_mapping_matching_key",
-            "plant",
+            "machine_category_id",
             None,
         ),
         (["$dimensions.missing.id"], "unknown_dimension_reference", "missing", 0),
@@ -610,7 +610,7 @@ def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Pat
     configuration["profiles"]["pump_telemetry"]["grain"] = [
         item
         for item in configuration["profiles"]["pump_telemetry"]["grain"]
-        if item["dimension"] != "machine"
+        if item["dimension"] != "machine_dimension"
     ]
     path = tmp_path / "invalid_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")

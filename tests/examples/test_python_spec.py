@@ -38,14 +38,28 @@ def test_aggregate_executes_independently() -> None:
 def test_pump_dimensions_are_declared_in_spec_order() -> None:
     inferred = pump_telemetry_spec.python_spec.to_model().dimensions
 
-    assert list(inferred) == ["machine", "timestamp"]
-    assert list(inferred["machine"].resolutions) == [
+    assert list(inferred) == ["machine_dimension", "machine_timestamp"]
+    assert list(inferred["machine_dimension"].resolutions) == [
         "machine",
+        "machine_series",
+        "machine_category",
+    ]
+    assert inferred["machine_dimension"].resolutions["machine"].parent == "machine_series"
+    assert inferred["machine_dimension"].resolutions["machine_series"].parent == "machine_category"
+    assert list(inferred["machine_timestamp"].resolutions) == [
+        "timestamp",
+        "minute",
+        "hour",
+        "day",
+    ]
+    assert inferred["machine_timestamp"].resolutions["timestamp"].parent == "hour"
+    assert inferred["machine_timestamp"].resolutions["hour"].parent == "day"
+    assert pump_dimensions.FACILITY_DIMENSION.id == "facility_dimension"
+    assert [resolution.id for resolution in pump_dimensions.FACILITY_DIMENSION.resolutions] == [
         "production_line",
         "plant",
     ]
-    assert inferred["machine"].resolutions["machine"].parent == "production_line"
-    assert inferred["machine"].resolutions["production_line"].parent == "plant"
+    assert pump_dimensions.FACILITY_DIMENSION.resolutions[0].parent == "plant"
 
 
 def test_pump_profiles_are_declared_in_spec_order() -> None:
@@ -65,11 +79,11 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         "constants",
     ]
     assert telemetry.Telemetry.grain == [
-        python_spec.Grain(pump_dimensions.MACHINE, "machine"),
-        python_spec.Grain(pump_dimensions.TIMESTAMP, "timestamp"),
+        python_spec.Grain(pump_dimensions.MACHINE_DIMENSION, "machine"),
+        python_spec.Grain(pump_dimensions.MACHINE_TIMESTAMP, "timestamp"),
     ]
     assert pump.Pump.grain == [
-        python_spec.Grain(pump_dimensions.MACHINE, "machine"),
+        python_spec.Grain(pump_dimensions.MACHINE_DIMENSION, "machine"),
     ]
 
 
@@ -110,21 +124,19 @@ def test_example_manifest_parses_complete_spec() -> None:
     spec_from_directory = spec.load_spec(SPEC_PATH.parent)
 
     assert spec_from_directory == spec_definition
-    assert spec_definition.dimensions["machine"].resolutions["machine"].parent == (
-        "production_line"
-    )
+    assert "facility_dimension" not in spec_definition.dimensions
     assert set(spec_definition.profiles) == {
         "pump_telemetry",
         "pump_profile",
         "constants",
     }
     assert spec_definition.profiles["pump_telemetry"].dimension_ids == [
-        "machine",
-        "timestamp",
+        "machine_dimension",
+        "machine_timestamp",
     ]
     assert spec_definition.profiles["pump_telemetry"].grain_reference_set == {
-        ("machine", "machine"),
-        ("timestamp", "timestamp"),
+        ("machine_dimension", "machine"),
+        ("machine_timestamp", "timestamp"),
     }
     assert spec_definition.grain_keys_by_profile["pump_telemetry"] == [
         "pump_id",
@@ -174,7 +186,13 @@ def test_example_timestamp_order_matches_python_declaration() -> None:
         profiles=pump_telemetry_spec.python_spec.profiles,
     )
     exported = spec.load_spec(SPEC_PATH)
-    expected = [{"dimension": "timestamp", "resolution": "timestamp", "direction": "asc"}]
+    expected = [
+        {
+            "dimension": "machine_timestamp",
+            "resolution": "timestamp",
+            "direction": "asc",
+        }
+    ]
     for spec_definition in (authored, exported):
         assert [
             key.model_dump() for key in spec_definition.profiles["pump_telemetry"].order

@@ -237,17 +237,27 @@ def test_spec_rejects_unsupported_version(tmp_path: pathlib.Path, version: objec
 
 def test_spec_rejects_dimension_parent_cycles(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["dimensions"]["machine"]["resolutions"]["plant"]["parent"] = "machine"
+    configuration["dimensions"]["machine_dimension"]["resolutions"]["machine_category"][
+        "parent"
+    ] = "machine"
 
     with pytest.raises(validation.SpecError) as error:
         spec.load_spec(_write_configuration(tmp_path, configuration, "cycle.json"))
 
     assert str(error.value) == (
-        "dimensions.machine.resolutions.machine.parent: Dimension resolution parent cycle: "
-        "machine.machine -> machine.production_line -> machine.plant -> machine.machine"
+        "dimensions.machine_dimension.resolutions.machine.parent: "
+        "Dimension resolution parent cycle: machine_dimension.machine -> "
+        "machine_dimension.machine_series -> machine_dimension.machine_category -> "
+        "machine_dimension.machine"
     )
     assert error.value.code == "dimension_resolution_parent_cycle"
-    assert error.value.path == ("dimensions", "machine", "resolutions", "machine", "parent")
+    assert error.value.path == (
+        "dimensions",
+        "machine_dimension",
+        "resolutions",
+        "machine",
+        "parent",
+    )
 
 
 def test_spec_errors_expose_stable_profile_identity_code_and_path() -> None:
