@@ -48,7 +48,7 @@ class InstalledImportsTest(unittest.TestCase):
             self.assertFalse(result.stderr, result.stderr)
         else:
             self.assertNotEqual(result.returncode, 0, result.stdout)
-            self.assertIn("uptimely: error:", result.stderr)
+            self.assertIn("ERROR    |", result.stderr)
         return result
 
     def test_environment_is_not_editable_or_using_the_checkout(self) -> None:
@@ -89,13 +89,20 @@ class InstalledImportsTest(unittest.TestCase):
                 self.assertTrue((frontend / "css" / "lineage.css").is_file())
                 plan = json.loads((build / "execution_plan.json").read_text(encoding="utf-8"))
                 self.assertTrue(plan["invocations"])
-                for package in {
+                packages = {
                     invocation["entrypoint"]: invocation["package"]
                     for invocation in plan["invocations"]
-                }.values():
-                    self.assertEqual(package["distribution"], "uptimely-core")
+                }
+                for entrypoint, package in packages.items():
+                    top_level_package = entrypoint.partition(":")[0].partition(".")[0]
+                    expected_distribution = {
+                        "examples": "uptimely-core",
+                        "polars": "polars",
+                        "uptimely": "uptimely-core",
+                    }[top_level_package]
+                    self.assertEqual(package["distribution"], expected_distribution)
                     self.assertEqual(
-                        package["version"], importlib.metadata.version("uptimely-core")
+                        package["version"], importlib.metadata.version(expected_distribution)
                     )
                 result = self.command("run", str(project), "--preview", "2")
                 self.assertIn("Engine processed", result.stdout)
@@ -185,7 +192,10 @@ class InstalledImportsTest(unittest.TestCase):
             "build", str(project), "--json-spec", str(source_path), succeeds=False
         )
         self.assertIn("uptimely_missing_runtime_dependency", result.stderr)
-        self.assertIn("available build package: uptimely-import-fixture==1.2.3", result.stderr)
+        self.assertIn(
+            "available build package: distribution='uptimely-import-fixture' version='1.2.3'",
+            result.stderr,
+        )
 
 
 if __name__ == "__main__":
