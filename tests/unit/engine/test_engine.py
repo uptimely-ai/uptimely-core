@@ -182,7 +182,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             operator_id="first",
             profile_id="telemetry",
             output_features=["id", "first"],
-            id_columns=["id"],
+            target_grain_keys=["id"],
         ),
         uptimely_plan.Invocation(
             id=read_second_id,
@@ -195,7 +195,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             operator_id="second",
             profile_id="telemetry",
             output_features=["id", "second"],
-            id_columns=["id"],
+            target_grain_keys=["id"],
         ),
     ]
 
@@ -217,7 +217,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
                 "dataset_keys": ["id"],
             },
             dependency_ids=[compute_id, *dependencies],
-            id_columns=["id"],
+            target_grain_keys=["id"],
             argument_types={
                 "dataset": "dataframe | null",
                 "fragment": "dataframe",
@@ -319,7 +319,7 @@ def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
                 invocations=[
                     copy.replace(
                         invocation,
-                        id_columns=[],
+                        target_grain_keys=[],
                         arguments=(
                             invocation.arguments | {"dataset_keys": []}
                             if invocation.role == "merge"
@@ -971,7 +971,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         function_id="combine",
         operator_id="load",
         profile_id="telemetry",
-        id_columns=["asset_id"],
+        target_grain_keys=["asset_id"],
         arguments={
             "dataset": "telemetry",
             "fragment": "$operators.@.fragment",
@@ -1536,7 +1536,7 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
         function_id="calculate",
         operator_id="calculate",
         profile_id="dataset",
-        id_columns=["key"],
+        target_grain_keys=["key"],
         output_features=["doubled"],
         row_order_relation="preserve",
         existing_data_relation="preserve",
@@ -1636,7 +1636,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
             "dataset_keys": ["asset_id"],
         },
         dependency_ids=[read_invocation.id],
-        id_columns=["asset_id"],
+        target_grain_keys=["asset_id"],
         column_types={},
         argument_types={
             "dataset": "dataframe | null",

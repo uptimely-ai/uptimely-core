@@ -40,12 +40,13 @@ and resolves each output to its merge invocation when present, otherwise compute
 Each invocation carries its binding `role` and `result` handling (`none`,
 `target`, or `fragment`) independently of its callable. It also carries
 the runtime metadata needed without consulting the Spec:
-`id_columns` lists target keys, `column_types` maps typed target columns to logical
-types, and `argument_types` maps declared argument names to their types. The
-compiler takes key types from canonical dimension declarations, ahead of any
-local feature metadata. These fields survive plan serialization. Saved plans
-without them must be rebuilt; loading reports a recompile error rather than
-running without key or type information.
+`target_grain_keys` lists target keys, `fragment_identifiers` lists available
+resolution identifiers for fragment joins, `column_types` maps typed target
+columns to logical types, and `argument_types` maps declared argument names to
+their types. The compiler takes key types from canonical dimension
+declarations, ahead of any local feature metadata. These fields survive plan
+serialization. Saved plans without them must be rebuilt; loading reports a
+recompile error rather than running without key or type information.
 Each invocation stores its portable return annotation and package provenance.
 The plan stays data-only; runtime entrypoint objects are created by the engine
 when execution starts.

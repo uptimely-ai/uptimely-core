@@ -1048,7 +1048,7 @@ test('invocation lanes use execution stages, not inferred dependency depths', ()
 	}
 });
 
-test('fragment assembly edges use merge function-kind styling', () => {
+test('fragment assembly edges use merge operator-label styling', () => {
 	const layout = lineageLayout('lineage/invocation_lineage.js', [
 		{ id: 'compute', label: 'Read values', function_id: 'read', role: 'compute', profile_id: 'data', stage: 1 },
 		{ id: 'merge', label: 'Join values', function_id: 'join', role: 'merge', profile_id: 'data', stage: 2 },

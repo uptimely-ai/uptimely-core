@@ -36,7 +36,7 @@ def _invocation(
         function_id="calculate",
         operator_id="calculate",
         profile_id="dataset",
-        id_columns=["key"],
+        target_grain_keys=["key"],
         output_features=output_features or [],
         column_types=column_types or {},
     )
@@ -81,7 +81,7 @@ def test_read_retains_dimension_identifiers_without_feature_outputs(validate: bo
     invocation = _invocation(
         output_features=["value"],
         column_types={"key": "string", "series": "string", "category": "string", "value": "float"},
-    ).__replace__(identifier_columns=["series", "category"])
+    ).__replace__(fragment_identifiers=["series", "category"])
     frame = pl.LazyFrame(
         {"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0], "extra": [1, 2]}
     )
@@ -99,7 +99,7 @@ def test_read_retains_dimension_identifiers_without_feature_outputs(validate: bo
 def test_read_validates_carried_identifier_types() -> None:
     invocation = _invocation(
         output_features=["value"], column_types={"series": "string"}
-    ).__replace__(identifier_columns=["series"])
+    ).__replace__(fragment_identifiers=["series"])
 
     with pytest.raises(ValueError, match="Output column series.*expected string"):
         fragment_module.Fragment.stage(
@@ -113,7 +113,7 @@ def test_read_validates_carried_identifier_types() -> None:
 @pytest.mark.parametrize("validate", [False, True])
 def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        identifier_columns=["series"],
+        fragment_identifiers=["series"],
         column_types={"series": "string", "value": "float"},
     )
     frame = pl.LazyFrame({"series": ["s1", "s2"], "value": [90.0, 80.0], "extra": [1, 2]})
@@ -128,7 +128,7 @@ def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
 
 def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        identifier_columns=["plant", "series"]
+        fragment_identifiers=["plant", "series"]
     )
     fragment = fragment_module.Fragment.stage(
         backend_module.PolarsBackend(),
@@ -142,7 +142,7 @@ def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
 
 def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        identifier_columns=["series"]
+        fragment_identifiers=["series"]
     )
 
     with pytest.raises(ValueError, match="duplicate dimension keys"):
@@ -156,7 +156,7 @@ def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() 
 
 def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        identifier_columns=["series"]
+        fragment_identifiers=["series"]
     )
     frame = pl.LazyFrame({"key": ["p1", "p2"], "value": [90.0, 80.0]})
 
@@ -170,7 +170,7 @@ def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
 
 def test_full_grain_fragment_retains_other_resolution_keys_without_changing_uniqueness() -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        identifier_columns=["key", "series"]
+        fragment_identifiers=["key", "series"]
     )
     frame = pl.LazyFrame({"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0]})
     backend = backend_module.PolarsBackend()

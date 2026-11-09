@@ -111,10 +111,10 @@ def _other_source(
 
 
 def _declaration(
-    identifier: str, category: str, function: abc.Callable[..., object] = _source
+    identifier: str, operator_kind: str, function: abc.Callable[..., object] = _source
 ) -> profile.Profile:
-    is_expand = category == "expand"
-    is_dimensional = category in {"conform", "expand"}
+    is_expand = operator_kind == "expand"
+    is_dimensional = operator_kind in {"conform", "expand"}
     module = __name__ if function is _source else f"{__name__}.alternate"
     declarations = [
         assembly.Operator(
@@ -126,13 +126,13 @@ def _declaration(
             compute=assembly.Binding(
                 function=ref.FunctionReference(
                     module=module,
-                    name=f"{category}_shared",
-                    returns="none" if category == "write" else "dataframe",
+                    name=f"{operator_kind}_shared",
+                    returns="none" if operator_kind == "write" else "dataframe",
                 ),
                 arguments={
                     **(
                         {"dataset": ref.profile().dataset}
-                        if category in {"write", "vectorize", "collapse"}
+                        if operator_kind in {"write", "vectorize", "collapse"}
                         else {}
                     ),
                     **(
@@ -394,22 +394,22 @@ def test_function_catalog_keeps_distinct_contracts_without_operator_kinds() -> N
 
 
 @pytest.mark.parametrize(
-    "category", ["read", "write", "vectorize", "collapse", "expand", "conform"]
+    "operator_kind", ["read", "write", "vectorize", "collapse", "expand", "conform"]
 )
-def test_function_catalog_merges_and_deduplicates_contracts(category: str) -> None:
-    first = _declaration("first", category)
-    second = _declaration("second", category)
+def test_function_catalog_merges_and_deduplicates_contracts(operator_kind: str) -> None:
+    first = _declaration("first", operator_kind)
+    second = _declaration("second", operator_kind)
     profiles = [first, second]
-    if category == "conform":
+    if operator_kind == "conform":
         profiles.append(_conform_source("first"))
         profiles.append(_conform_source("second"))
-    if category == "expand":
+    if operator_kind == "expand":
         profiles.insert(0, _mapping_source())
     spec_definition = _python_spec(profiles)
 
     catalog = spec_definition.function_catalog()
 
-    function_id = f"{category}_shared"
+    function_id = f"{operator_kind}_shared"
     assert catalog[function_id] == first.function_catalog()[function_id]
     assert catalog[function_id].entrypoint == f"{__name__}:{function_id}"
     expected_dataframe_inputs = {
@@ -419,17 +419,17 @@ def test_function_catalog_merges_and_deduplicates_contracts(category: str) -> No
         "collapse": 1,
         "expand": 1,
         "conform": 1,
-    }[category]
+    }[operator_kind]
     assert sum(arg.type == "dataframe" for arg in catalog[function_id].args.values()) == (
         expected_dataframe_inputs
     )
     assert catalog[function_id].args["columns"].type == "array[string]"
     payload = spec_definition.to_dict()
     assert payload["functions"][function_id] == {
-        "name": category.title() + " Shared",
+        "name": operator_kind.title() + " Shared",
         "description": None,
         "category": None,
-        "returns": "none" if category == "write" else "dataframe",
+        "returns": "none" if operator_kind == "write" else "dataframe",
         "entrypoint": f"{__name__}:{function_id}",
         "validate_signature": True,
         "args": {
@@ -445,9 +445,9 @@ def test_function_catalog_merges_and_deduplicates_contracts(category: str) -> No
     if expected_dataframe_inputs:
         source_id = (
             "shared_source"
-            if category == "expand"
+            if operator_kind == "expand"
             else "first_source"
-            if category == "conform"
+            if operator_kind == "conform"
             else "@"
         )
         expected_args["dataset"] = f"$profiles.{source_id}.dataset"
@@ -458,21 +458,21 @@ def test_function_catalog_merges_and_deduplicates_contracts(category: str) -> No
 
 
 @pytest.mark.parametrize(
-    "category", ["read", "write", "vectorize", "collapse", "expand", "conform"]
+    "operator_kind", ["read", "write", "vectorize", "collapse", "expand", "conform"]
 )
-def test_function_catalog_rejects_conflicting_entrypoints(category: str) -> None:
+def test_function_catalog_rejects_conflicting_entrypoints(operator_kind: str) -> None:
     profiles = [
-        _declaration("first", category),
-        _declaration("second", category, _other_source),
+        _declaration("first", operator_kind),
+        _declaration("second", operator_kind, _other_source),
     ]
-    if category == "conform":
+    if operator_kind == "conform":
         profiles.extend([_conform_source("first"), _conform_source("second")])
-    if category == "expand":
+    if operator_kind == "expand":
         profiles.insert(0, _mapping_source())
     spec_definition = _python_spec(profiles)
 
     with pytest.raises(
-        ValueError, match=f"Conflicting function definition for '{category}_shared'"
+        ValueError, match=f"Conflicting function definition for '{operator_kind}_shared'"
     ):
         spec_definition.to_dict()
 

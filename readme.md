@@ -110,7 +110,7 @@ import polars as pl
 import uptimely as up
 
 
-@up.function(returns="dataframe")
+@up.function
 def read_values() -> pl.DataFrame:
     return pl.DataFrame(
         {
@@ -120,12 +120,12 @@ def read_values() -> pl.DataFrame:
     )
 
 
-@up.function(returns="dataframe")
+@up.function
 def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
 
-@up.function(returns="none")
+@up.function
 def print_results(dataset: pl.DataFrame) -> None:
     print(dataset)
 

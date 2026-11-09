@@ -8,6 +8,9 @@ lock is not needed after loading.
 Builds validate Spec semantics once during compilation. Explorer rendering and
 staged and published bundle loading reuse that validation. Artifact, structural,
 and execution-plan checks still run.
+The source Spec remains authoritative for function contracts, binding roles,
+and optional categories. Rebuild after changing declarations to regenerate the
+portable plan and Explorer presentation snapshot.
 
 Standalone `load_build_bundle` and `read_build_bundle` validate Spec semantics by
 default. Pass `validate=False` only when the saved Spec has already been

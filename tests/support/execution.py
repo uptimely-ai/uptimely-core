@@ -42,7 +42,7 @@ def merge_fragment(
         function_id="read",
         operator_id="read",
         profile_id="dataset",
-        id_columns=list(main.id_columns),
+        target_grain_keys=list(main.id_columns),
         fragment_dimensions="target",
         column_types=dict(dimension_types or {}),
     )
@@ -73,6 +73,15 @@ def merge_fragment(
         broadcast_cardinality="m:1",
     )
     return fragment
+
+
+def _return_contract_from_invocation(
+    invocation: execution_plan.Invocation,
+) -> typing.Literal["dataframe", "none", "any"]:
+    """Derive a minimal function return contract from portable invocation metadata."""
+    if invocation.result != "none":
+        return "dataframe"
+    return "none" if invocation.is_sink else "any"
 
 
 class BundleFactory(typing.Protocol):
@@ -108,9 +117,9 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
         if invocation.profile_id is None:
             continue
         profile = profiles.setdefault(invocation.profile_id, {"grain": []})
-        if not profile.get("grain") and invocation.id_columns:
+        if not profile.get("grain") and invocation.target_grain_keys:
             profile["grain"] = []
-            for key in invocation.id_columns:
+            for key in invocation.target_grain_keys:
                 dimension_id = key
                 resolution_id = key
                 dimensions.setdefault(
@@ -128,7 +137,7 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
         function = functions.setdefault(invocation.function_id, {})
         function.setdefault(
             "returns",
-            {"escape": "any", "write": "none"}.get(invocation.operator_kind, "dataframe"),
+            _return_contract_from_invocation(invocation),
         )
         function.setdefault("entrypoint", invocation.entrypoint)
         function.setdefault(
@@ -182,8 +191,8 @@ def bundle_for_plan(
             invocations=[
                 copy.replace(
                     invocation,
-                    id_columns=(
-                        invocation.id_columns
+                    target_grain_keys=(
+                        invocation.target_grain_keys
                         or bundle_spec.grain_keys_by_profile[invocation.profile_id]
                     ),
                     column_types={

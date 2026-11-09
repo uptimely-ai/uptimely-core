@@ -167,6 +167,7 @@ Implementations aren't called during authoring; assembly checks callable
 parameter names and required arguments.
 
 ```python
+from uptimely import Binding, Feature, Interface, Operator, default_merge
 from uptimely.spec.python import function, ref
 
 
@@ -218,6 +219,43 @@ Use `up.default_merge()` for the builtin grain merge, or provide a custom bindin
 Changing an operator's merge binding requires rebuilding the project.
 The implementation module's package must be installed in the build and runtime
 environments; install a local project package in editable mode for development.
+
+### Migrating from function kinds
+
+The former `kind` argument on `@function` and `ref.function()` is no longer
+supported. A function now declares only its reusable argument and return
+contract; the operator's bindings and source/target profiles establish how it
+is used. Do not translate an old kind into a `category`: categories are
+descriptive function metadata, not execution instructions.
+
+For example, a dataframe-producing operation that returns a fragment must
+declare a merge explicitly:
+
+```python
+@function(returns="dataframe", category="aggregation")
+def aggregate_by_series(dataset, output): ...
+
+
+aggregate = Operator(
+    id="aggregate_by_series",
+    interface=Interface(outputs=[Feature(id="series_total")]),
+    compute=Binding(
+        function=ref.function(aggregate_by_series),
+        arguments={
+            "dataset": ref.profile("series").dataset,
+            "output": ref.feature("series_total").id,
+        },
+    ),
+    merge=default_merge(),
+)
+```
+
+By contrast, a compute binding without a merge must return the complete target
+dataframe; it is not implicitly joined. Operations that do not return a
+dataframe declare `returns="none"` or `returns="any"` according to whether the
+result is absent or intentionally ignored. These contracts and the operator's
+actual bindings determine the migration; a single old kind does not have a
+mechanical replacement.
 
 References such as `ref.feature("result").id` pass an identifier, not feature
 data, and may be used for output-name arguments. Declare produced features in
@@ -330,7 +368,8 @@ the declarations used in a profile's assembly.
 `uptimely.spec.python.functions` defines reusable callable contracts.
 Import `function` directly from `uptimely.spec.python` for
 `@function(returns="dataframe")`, or import the `functions` module for
-`@functions.function(returns="dataframe")`. The `kind` argument is removed.
+`@functions.function(returns="dataframe")`. Functions have no `kind` argument
+or field; use `category` only for descriptive grouping.
 The decorator does not prove implementation behavior; it declares the contract
 that Uptimely validates at its supported boundaries.
 
@@ -386,6 +425,22 @@ exported JSON. When a callable is referenced, the description defaults to the
 summary line of its docstring; pass `description=` to override it. Entrypoint
 strings have no default because the implementation is not imported while
 loading the spec.
+
+## Testing callable behavior
+
+There is no dedicated operator-contract test helper in the current public API.
+Use ordinary pytest tests to call analytical functions with safe fixture inputs
+and assert their expected values. To exercise binding resolution and runtime
+contracts together, execute a test build with `Engine.run(validate=True)` and
+stub or isolate readers, writers, and other side effects. Project builds inspect
+and compile declarations but do not execute analytical functions.
+
+Runtime validation checks declared input and dataframe contracts on the values
+actually used in that run. It does not establish business correctness or prove
+behavior for all possible inputs, so tests should still assert expected
+analytical results. Signature inspection is enabled by default; when disabled,
+declare both `args` and `returns` explicitly. Disabling inspection does not
+disable binding-name, dataframe-arity, or runtime contract checks.
 
 Use an entrypoint string when the implementation must not be imported while
 loading the Python spec:

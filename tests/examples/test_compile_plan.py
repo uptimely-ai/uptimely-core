@@ -21,7 +21,7 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
     for invocation in restored.invocations:
         grain_keys = document.grain_keys_by_profile[invocation.profile_id]
         profile = document.profiles[invocation.profile_id]
-        assert invocation.id_columns == grain_keys
+        assert invocation.target_grain_keys == grain_keys
         assert invocation.column_types == {
             **{
                 name: feature.type
@@ -31,7 +31,7 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
             **document.grain_key_types_by_profile[invocation.profile_id],
             **document.identifier_types_by_profile[invocation.profile_id],
         }
-        assert invocation.identifier_columns == list(
+        assert invocation.fragment_identifiers == list(
             document.identifier_types_by_profile[invocation.profile_id]
         )
         assert invocation.argument_types == {

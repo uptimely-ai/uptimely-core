@@ -21,16 +21,19 @@ By looking at the mcp example in source code, it is almost trivial to define you
 
 ## What the server exposes
 
-Vectorize and collapse functions return dimension-keyed dataframes. Their
-operator declare required and produced features, so execution includes the
+Operators declare required and produced features, so execution includes the
 prerequisites for a function **bound to features**, not just the raw function.
-The server therefore offers two layers:
+A function can be reused by operators with different binding roles and grain
+relationships. Optional function categories are descriptive metadata and do
+not determine execution. The server exposes both the reusable function
+contracts and their operator usages:
 
 Introspection over the saved spec and build:
 
-- `list_functions` — every catalog function id grouped by category
+- `list_functions` — every catalog function id, optional category, and declared return contract
 - `describe_function` — one function's entrypoint, declared arguments, and
-  resolved Python signature
+  resolved Python signature, plus each usage's binding role, execution form,
+  and grain relationships
 - `list_calculated_features` — a sorted list of calculated feature ids
 - `describe_feature` — one calculated feature's producing function, direct
   dependencies, and full transitive closure split into input and calculated

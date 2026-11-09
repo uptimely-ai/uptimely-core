@@ -75,7 +75,7 @@ DEBUG    | Merging into profile pump_profile
 ```
 
 Module prefixes identify where each message originates. Invocation start messages
-identify the operator, function, and function kind.
+identify the operator, function, binding role, and result handling.
 Structured logs use the invocation IDs from the saved plan. Newly compiled
 plans use [compact invocation IDs](../components/compiler.md#invocations);
 rebuild the project to adopt them.

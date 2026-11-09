@@ -72,9 +72,9 @@ Function details show documentation captured from implementation docstrings at
 build time when Python signature validation is enabled. NumPy-style Examples
 sections are displayed as a continuous block, including output and explanatory
 text; doctest prompts and directives are omitted. Each example uses the full
-available width. The source and function kind appear below the examples, using
-two-thirds and one-third of the available width when space permits; the
-source separates the entrypoint's top-level import name, full module path, and
+available width. The source appears below the examples, using two-thirds of
+the available width when space permits; it separates the entrypoint's top-level
+import name, full module path, and
 qualified function name. For a standalone module, the package field shows the
 same top-level import name as the module field. The module path uses dotted
 import notation.
@@ -83,6 +83,8 @@ third-party code, and other files inside the project directory as project source
 Origin is unknown when it cannot be verified, including when signature
 validation is disabled; editable distributions without file ownership records
 may also be unknown. Rebuild to update this information.
+Function categories group catalog entries; they do not classify a function's
+operator usages or determine execution roles.
 Used by operators links to each referencing operator, including merge bindings,
 grouped by profile. Return values and errors appear beneath the arguments.
 
@@ -115,7 +117,7 @@ categories, the menu remains a flat list.
 
 Lineage and topology offer interactive **2D** and **3D** views, zoom, reset,
 profile legends, and selectable node details. **Graph legend** is a collapsed visual key:
-expand it for profile-color chips and node or function-kind icons. It explains
+expand it for profile-color chips and node or binding-role icons. It explains
 the graph rather than filtering it; profile colors do not indicate run status.
 The operator key follows the operator visibility toggle. Selected-node details
 show the node name and icon above labeled sections for its definition, profile,
@@ -148,7 +150,7 @@ profile-colored rounded boxes; groups containing vectorize invocations have no
 border and match the spine's color and opacity. The spine enters and exits each box at its edges,
 rather than crossing behind its publishers, without implying an
 execution order or adding dependency arrows. Groups have no text labels.
-Cards use the same function-kind icons as the catalogs
+Cards use binding-role icons for compute and merge invocations
 instead of kind prefixes or publication descriptions.
 Merge and vectorize borders use their profile's mainframe color; off-spine
 computes and effects use neutral gray. The same role-based colors apply in 3D.
@@ -177,7 +179,7 @@ Highlighted paths are drawn above dimmed arrows so overlapping dependencies
 cannot hide the selected lineage.
 Feature lineage retains its existing full-lineage highlighting.
 Hovering an invocation shows its declared contribution: **Adds** for vectorize,
-**Publishes** for merge, and **Declared outputs** for other kinds. These labels
+**Publishes** for merge, and **Declared outputs** for other operator labels. These labels
 do not claim to describe the complete intermediate Dataset.
 The guide is schematic, not an
 additional dependency or a claim about publication order; only arrows represent
@@ -186,7 +188,7 @@ inferred dataset sizes or schemas. The context legend lists only profiles;
 selecting an invocation reveals compact notes on its Dataset role, plan markers,
 grouping, and direct versus full-lineage highlighting. The owning-operator link
 shows its humanized name and opens the operator declaration.
-In 3D, labels also include function-kind icons;
+In 3D, labels also include binding-role icons;
 merges use diamonds and vectorize uses cubes. That view remains a dependency
 graph rather than an accumulation layout.
 Feature lineage also offers
