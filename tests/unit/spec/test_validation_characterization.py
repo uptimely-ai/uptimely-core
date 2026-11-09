@@ -120,7 +120,7 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
         function = document.functions[operator.compute.function]
         argument = next(name for name, arg in function.args.items() if arg.type == "dataframe")
         operator.compute.args[argument] = spec.model.BindingArgument(
-            "$profiles.pump_profile.dataframe"
+            "$profiles.pump_profile.dataset"
         )
         expected_id = "alias"
         expected_code = "invalid_mapping_dataframe_input"
@@ -187,10 +187,10 @@ def test_document_validation_rejects_duplicate_output_producers() -> None:
 @pytest.mark.parametrize(
     ("argument_type", "argument_value"),
     [
-        ("array[string]", ["$features.discharge_pressure", "$profiles.@.dataframe"]),
+        ("array[string]", ["$features.discharge_pressure", "$profiles.@.dataset"]),
         (
             "object{str: string}",
-            {"nested": ["$features.discharge_pressure", "$profiles.@.dataframe"]},
+            {"nested": ["$features.discharge_pressure", "$profiles.@.dataset"]},
         ),
     ],
 )
@@ -211,7 +211,7 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
 
     assert str(error.value) == (
         "profiles.pump_telemetry.assembly."
-        "pressure_flow_efficiency.compute.args: Reference $profiles.@.dataframe "
+        "pressure_flow_efficiency.compute.args: Reference $profiles.@.dataset "
         "requires argument type dataframe, got string"
     )
     assert error.value.code == "invalid_binding_reference_type"

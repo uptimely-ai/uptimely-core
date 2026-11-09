@@ -544,10 +544,10 @@ def test_python_spec_merge_binding_export() -> None:
     validate_spec(spec_definition)
     model_operator = spec_definition.profiles["example"].assembly["read"]
 
-    assert spec_definition.spec_version == 6
+    assert spec_definition.spec_version == 7
     assert model_operator.merge is not None
     assert model_operator.merge.model_dump()["args"] == {
-        "target": "$profiles.@.dataframe",
+        "target": "$profiles.@.dataset",
         "fragment": "$operators.@.fragment",
     }
     assert spec_definition.functions["merge_frames"].kind == functions.MERGE

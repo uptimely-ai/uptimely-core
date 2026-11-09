@@ -225,7 +225,7 @@ current profile dataframe and feature identifiers, and returns `pressure_ratio`.
   <span class="cv-teal">"compute"</span>: {
     <span class="cv-teal">"function"</span>: <span class="cv-amber">"divide"</span>,
     <span class="cv-teal">"args"</span>: {
-      <span class="cv-teal">"dataset"</span>: <span>"$profiles.@.dataframe"</span>,
+      <span class="cv-teal">"dataset"</span>: <span>"$profiles.@.dataset"</span>,
       <span class="cv-teal">"numerator"</span>: <span class="cv-teal">"$features.pressure.id"</span>,
       <span class="cv-teal">"denominator"</span>: <span class="cv-violet">"$features.limit.id"</span>,
       <span class="cv-teal">"output"</span>: <span class="cv-amber">"$features.pressure_ratio.id"</span>

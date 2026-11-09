@@ -59,7 +59,7 @@ def make_spec(kind: functions.FunctionKindId = "vectorize") -> model.Spec:
     args = {} if kind in {"read", "escape"} else {"data": {"type": "dataframe"}}
     input_dataset = "source" if kind in {"collapse", "conform", "expand"} else "target"
     binding_args = (
-        {} if kind in {"read", "escape"} else {"data": f"$profiles.{input_dataset}.dataframe"}
+        {} if kind in {"read", "escape"} else {"data": f"$profiles.{input_dataset}.dataset"}
     )
     inputs = (
         []
@@ -474,7 +474,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             operator_inputs.validate_profile_reference,
             "vectorize",
             lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.missing.dataframe")}
+                {"data": model.BindingArgument("$profiles.missing.dataset")}
             ),
             "unknown profile",
         ),
@@ -578,7 +578,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             operator_contracts.validate_dataframe_argument_profile_source,
             "vectorize",
             lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.missing.dataframe")}
+                {"data": model.BindingArgument("$profiles.missing.dataset")}
             ),
             "unknown profile",
         ),
@@ -592,7 +592,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             operator_contracts.validate_foreign_profile_argument,
             "collapse",
             lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.target.dataframe")}
+                {"data": model.BindingArgument("$profiles.target.dataset")}
             ),
             "foreign source",
         ),
@@ -606,7 +606,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             operator_contracts.validate_dataframe_argument_feature_source,
             "conform",
             lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.target.dataframe")}
+                {"data": model.BindingArgument("$profiles.target.dataset")}
             ),
             "foreign source profile source",
         ),
@@ -626,7 +626,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             operator_contracts.validate_target_profile_input,
             "vectorize",
             lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.source.dataframe")}
+                {"data": model.BindingArgument("$profiles.source.dataset")}
             ),
             "consume its target",
         ),
@@ -634,7 +634,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             operator_contracts.validate_target_profile_only,
             "write",
             lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.source.dataframe")}
+                {"data": model.BindingArgument("$profiles.source.dataset")}
             ),
             "publish a foreign",
         ),
@@ -642,7 +642,7 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
             operator_contracts.validate_dimension_source,
             "collapse",
             lambda s: compute(s).compute.args.update(
-                {"data": model.BindingArgument("$profiles.target.dataframe")}
+                {"data": model.BindingArgument("$profiles.target.dataset")}
             ),
             "consume its source",
         ),

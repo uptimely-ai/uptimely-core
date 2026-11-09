@@ -46,7 +46,7 @@ def test_each_spec_rule_logs_its_check(
     [
         (
             operator_inputs.validate_profile_reference,
-            "$profiles.missing.dataframe",
+            "$profiles.missing.dataset",
             "Check referenced profile missing for spec operator compute in target profile target",
         ),
         (
@@ -256,7 +256,7 @@ def _add_merge_binding(document: spec.Spec) -> spec.model.Operator:
     operator.merge = spec.model.Binding(
         function="merge",
         args={
-            "target": "$profiles.@.dataframe",
+            "target": "$profiles.@.dataset",
             "fragment": "$operators.@.fragment",
         },
     )
@@ -275,7 +275,7 @@ def test_merge_operator_kind_is_validated_independently(document: spec.Spec) -> 
 
 def test_merge_target_is_validated_independently(document: spec.Spec) -> None:
     operator = _add_merge_binding(document)
-    operator.merge.args["target"] = spec.model.BindingArgument("$profiles.other.dataframe")
+    operator.merge.args["target"] = spec.model.BindingArgument("$profiles.other.dataset")
 
     with pytest.raises(errors.SpecError, match="current profile dataframe") as error:
         bindings.validate_merge_target(document)

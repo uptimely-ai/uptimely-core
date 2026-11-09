@@ -60,14 +60,14 @@ def test_argument_serialization_preserves_json_value(value: pydantic.JsonValue) 
 def test_argument_traversal_preserves_paths_order_and_duplicates() -> None:
     argument = model.BindingArgument(
         {
-            "nested": ["$features.pressure.id", {"data": "$profiles.@.dataframe"}, 7],
+            "nested": ["$features.pressure.id", {"data": "$profiles.@.dataset"}, 7],
             "duplicate": "$features.pressure",
             "empty": [],
         }
     )
     assert [(leaf.root, path) for leaf, path in argument.leaves_with_paths] == [
         ("$features.pressure.id", ("nested", 0)),
-        ("$profiles.@.dataframe", ("nested", 1, "data")),
+        ("$profiles.@.dataset", ("nested", 1, "data")),
         (7, ("nested", 2)),
         ("$features.pressure", ("duplicate",)),
     ]
@@ -85,10 +85,10 @@ def test_argument_traversal_preserves_paths_order_and_duplicates() -> None:
 def test_inferred_dependencies_exclude_metadata_and_deduplicate_after_resolution() -> None:
     argument = model.BindingArgument(
         [
-            "$profiles.@.dataframe",
+            "$profiles.@.dataset",
             "$profiles.telemetry",
-            "$profiles.source.dataframe",
-            "$profiles.source.dataframe",
+            "$profiles.source.dataset",
+            "$profiles.source.dataset",
             "$profiles.source.id",
             "$profiles.source.grain.ids",
             "$profiles.source.name",
@@ -103,7 +103,7 @@ def test_inferred_dependencies_exclude_metadata_and_deduplicate_after_resolution
     assert argument.inferred_feature_inputs == ("pressure",)
     binding = model.Binding(
         function="calculate",
-        args={"nested": argument, "again": "$profiles.source.dataframe"},
+        args={"nested": argument, "again": "$profiles.source.dataset"},
     )
     assert binding.profile_dependencies("telemetry") == ["telemetry", "source"]
     assert binding.inferred_feature_inputs == ("pressure",)
@@ -111,7 +111,7 @@ def test_inferred_dependencies_exclude_metadata_and_deduplicate_after_resolution
 
 def test_resolution_is_contextual_and_does_not_modify_bound_values() -> None:
     value = {
-        "current": "$profiles.@.dataframe",
+        "current": "$profiles.@.dataset",
         "source_keys": "$profiles.source.grain.ids",
         "output": "$features.@.id",
         "metadata": ["$features.pressure.unit", "$profiles.@.description"],
@@ -139,7 +139,7 @@ def test_resolution_is_contextual_and_does_not_modify_bound_values() -> None:
         grain_keys_by_profile,
         resources,
     ) == {"nested": argument.resolve("telemetry", "output", grain_keys_by_profile, resources)}
-    current = model.BindingArgument(["$profiles.@.dataframe", "$features.@"])
+    current = model.BindingArgument(["$profiles.@.dataset", "$features.@"])
     assert _resolve(current, "source", "second") == ["source", "second"]
     assert _resolve(current, "telemetry", None) == ["telemetry", "$features.@"]
     assert argument.root == value
@@ -152,6 +152,7 @@ def test_resolution_is_contextual_and_does_not_modify_bound_values() -> None:
         ("$profiles.missing.name", "Cannot resolve resource metadata"),
         ("$features.pressure.unsupported", "Unsupported resource selector"),
         ("$features.pressure.dataframe", "Unsupported resource selector"),
+        ("$profiles.telemetry.dataframe", "Unsupported resource selector"),
         ("$dimensions.pump.grain.ids", "Unsupported resource selector"),
         ("$dimensions.pump.resolutions.missing.key", "Cannot resolve resolution"),
         ("$dimensions.pump.resolutions.unit.unsupported", "Unsupported resource selector"),
@@ -210,7 +211,7 @@ def test_operator_resolves_compute_arguments_using_its_output_context() -> None:
 
 
 def test_cached_views_do_not_change_equality_copy_or_round_trip() -> None:
-    argument = model.BindingArgument({"columns": ["$features.pressure", "$profiles.@.dataframe"]})
+    argument = model.BindingArgument({"columns": ["$features.pressure", "$profiles.@.dataset"]})
     expected = model.BindingArgument(argument.model_dump())
     assert argument.profile_dependencies("telemetry") == ["telemetry"]
     assert argument.inferred_feature_inputs == ("pressure",)
@@ -232,8 +233,8 @@ def test_non_json_bound_values_are_rejected(value: object) -> None:
 @pytest.mark.parametrize(
     ("value", "expected"),
     [
-        ("$profiles.@.dataframe", "dataframe"),
-        ("$profiles.source.dataframe", "dataframe"),
+        ("$profiles.@.dataset", "dataframe"),
+        ("$profiles.source.dataset", "dataframe"),
         ("$profiles.@.grain.ids", "array[string]"),
         ("$profiles.source.id", "string"),
         ("$features.pressure.unit", "string"),
@@ -263,10 +264,10 @@ def test_selector_type_shortcuts(value: pydantic.JsonValue, expected: str | None
 @pytest.mark.parametrize(
     ("value", "dataset", "fragment", "feature", "grain"),
     [
-        ("$profiles.@.dataframe", True, False, False, False),
+        ("$profiles.@.dataset", True, False, False, False),
         ("$profiles.@", False, False, False, False),
         ("$profiles.@.id", False, False, False, False),
-        ("$profiles.source.dataframe", False, False, False, False),
+        ("$profiles.source.dataset", False, False, False, False),
         ("$operators.@.fragment", False, True, False, False),
         ("$operators.other.fragment", False, False, False, False),
         ("$features.@.id", False, False, True, False),

@@ -267,7 +267,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
   };
   data.catalogs.configuration.profiles.readings.assembly.calculate.merge = {
     function: "join",
-    args: { target: "$profiles.@.dataframe", fragment: "$operators.@.fragment", target_keys: ["id"] },
+    args: { target: "$profiles.@.dataset", fragment: "$operators.@.fragment", target_keys: ["id"] },
   };
   data.catalogs.configuration.functions.join = { name: "Join results", kind: "merge" };
   data.catalogs.function_groups.merge = { join: data.catalogs.configuration.functions.join };
@@ -373,7 +373,7 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   config.functions.external = { kind: "escape" };
   config.profiles.readings.assembly.aggregate = {
     compute: { function: "aggregate", args: {
-      dataset: "$profiles.source.dataframe",
+      dataset: "$profiles.source.dataset",
       options: { method: "<max>" },
       health_features: ["$features.bearing_temperature_delta", "$features.pressure_flow_efficiency"],
     } },
@@ -388,7 +388,7 @@ test("profile operator expose engineering contracts and inspectable bindings", a
     operator_id: "aggregate",
     phase: "compute",
     args: {
-      dataset: { value: "$profiles.source.dataframe", type: { engine: "DataFrame" } },
+      dataset: { value: "$profiles.source.dataset", type: { engine: "DataFrame" } },
       options: { value: { method: "<max>" }, type: { function: "dict" } },
       health_features: {
         value: ["bearing_temperature_delta", "pressure_flow_efficiency"],
@@ -409,7 +409,7 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.match(html, /Output features<\/dt><dd><code>&lt;Value&gt;<\/code>/);
   assert.match(html, /<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments<\/summary>/);
   assert.match(html, /<th scope="col">Argument<\/th><th scope="col">Spec value<\/th><th scope="col">Resolved value<\/th>/);
-  assert.match(html, /<span class="ui-badge profile-operator-argument-value"><code class="language-json">\$profiles\.source\.dataframe<\/code><\/span>/);
+  assert.match(html, /<span class="ui-badge profile-operator-argument-value"><code class="language-json">\$profiles\.source\.dataset<\/code><\/span>/);
   assert.match(html, /class="ui-badge profile-operator-argument-value"><code class="language-json">\[\n\s+\$features\.bearing_temperature_delta,\n\s+\$features\.pressure_flow_efficiency\n\s*\]<\/code><\/span>/);
   const aggregateTable = html.match(/<article id="operator-readings-aggregate"[^]*?<table class="ui-table">([^]*?)<\/table>/)[1];
   const optionsRow = [...aggregateTable.matchAll(/<tr>([\s\S]*?)<\/tr>/g)]
@@ -418,7 +418,7 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.match(html, /This value will be bound only during the engine execution\./);
   const datasetRow = [...aggregateTable.matchAll(/<tr>([\s\S]*?)<\/tr>/g)]
     .map(([, row]) => row).find(row => row.includes("<span>dataset</span>"));
-  assert.match(datasetRow, /<span class="ui-badge profile-operator-argument-value"><span class="profile-operator-engine-bind"[\s\S]*?<\/span><code class="language-json">\$profiles\.source\.dataframe<\/code><\/span>/);
+  assert.match(datasetRow, /<span class="ui-badge profile-operator-argument-value"><span class="profile-operator-engine-bind"[\s\S]*?<\/span><code class="language-json">\$profiles\.source\.dataset<\/code><\/span>/);
   assert.doesNotMatch(datasetRow, /<\/span><span class="profile-operator-engine-bind"/);
   assert.doesNotMatch(html, /Group by grain keys:|ui-badge--neutral">collapse/);
   assert.match(html, /Output features \(logical\)<\/dt><dd><code>&lt;logical&gt;<\/code>/);

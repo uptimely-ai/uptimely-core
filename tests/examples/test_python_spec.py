@@ -274,13 +274,13 @@ def test_sources_and_transforms_python_spec() -> None:
     expand = ds_model.assembly["expand_data"]
     assert expand.compute.function == "expand_data"
     assert expand.compute.model_dump()["args"] == {
-        "source": "$profiles.transformed_dataset.dataframe",
+        "source": "$profiles.transformed_dataset.dataset",
     }
     assert expand.input_features == ["input_1"]
     collapse = spec_definition.profiles["summary"].assembly["collapse_data"]
     assert collapse.compute.function == "aggregate"
     assert collapse.compute.model_dump()["args"] == {
-        "dataset": "$profiles.target.dataframe",
+        "dataset": "$profiles.target.dataset",
         "feature": "$features.input_2.id",
         "group_by": "$profiles.@.grain.ids",
         "output": "$features.collapsed_feature.id",

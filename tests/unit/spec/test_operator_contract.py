@@ -310,7 +310,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
             "interface": {"inputs": ["$features.id"], "outputs": []},
             "compute": {
                 "function": "write_ids",
-                "args": {"dataset": "$profiles.@.dataframe", "column": "$features.id.id"},
+                "args": {"dataset": "$profiles.@.dataset", "column": "$features.id.id"},
             },
         }
     path.write_text(json.dumps(configuration))

@@ -139,7 +139,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
         "compute": {
             "function": "expand_telemetry",
             "args": {
-                "source": "$profiles.pump_profile.dataframe",
+                "source": "$profiles.pump_profile.dataset",
             },
         },
         "interface": {
@@ -344,7 +344,7 @@ def test_expand_rejects_higher_dimensional_source(tmp_path: pathlib.Path) -> Non
         "compute": {
             "function": "expand_telemetry",
             "args": {
-                "source": "$profiles.pump_telemetry.dataframe",
+                "source": "$profiles.pump_telemetry.dataset",
             },
         },
         "interface": {
@@ -375,7 +375,7 @@ def test_conform_mapping_requires_matching_input_dimensions(tmp_path: pathlib.Pa
         "compute": {
             "function": "conform_telemetry",
             "args": {
-                "source": "$profiles.pump_telemetry.dataframe",
+                "source": "$profiles.pump_telemetry.dataset",
             },
         },
         "interface": {
@@ -411,7 +411,7 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
                 "compute": {
                     "function": "conform_with_keys",
                     "args": {
-                        "source": "$profiles.pump_profile.dataframe",
+                        "source": "$profiles.pump_profile.dataset",
                         "on": key_selector,
                     },
                 },
@@ -502,7 +502,7 @@ def test_matching_key_errors_point_to_the_declared_key(
 
 def test_escape_accepts_explicit_dataframe_arguments(tmp_path: pathlib.Path) -> None:
     configuration = _matching_key_configuration(
-        "$profiles.pump_profile.dataframe", key_type="dataframe"
+        "$profiles.pump_profile.dataset", key_type="dataframe"
     )
     function = configuration["functions"]["conform_with_keys"]
     function["kind"] = "escape"
@@ -528,7 +528,7 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
     target["assembly"]["conform_op"] = {
         "compute": {
             "function": "conform_telemetry",
-            "args": {"source": "$profiles.@.dataframe"},
+            "args": {"source": "$profiles.@.dataset"},
         },
         "interface": {
             "inputs": ["$features.bearing_temperature"],

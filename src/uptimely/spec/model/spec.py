@@ -18,7 +18,7 @@ from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
 
-SPEC_VERSION = 6
+SPEC_VERSION = 7
 type ProfileKey = str
 type OperatorKey = tuple[ProfileKey, str]
 type SpecPath = tuple[str | int, ...]
@@ -36,7 +36,7 @@ class Spec(base.StrictModel):
     """The complete JSON document with cached views of its declarations."""
 
     name: str | None = None
-    spec_version: typing.Literal[6] = SPEC_VERSION
+    spec_version: typing.Literal[7] = SPEC_VERSION
     source: SpecSource = pydantic.Field(
         default_factory=lambda: SpecSource(name="manual", generated=False)
     )

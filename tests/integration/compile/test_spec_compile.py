@@ -267,7 +267,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         compute=spec_model.Binding(
             function="conform_auxiliary",
             args={
-                "source": "$profiles.auxiliary_dataset.dataframe",
+                "source": "$profiles.auxiliary_dataset.dataset",
             },
         ),
         interface=spec_model.Interface(

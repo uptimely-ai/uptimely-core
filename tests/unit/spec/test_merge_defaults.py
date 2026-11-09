@@ -38,7 +38,7 @@ def test_fragment_operators_receive_builtin_bindings_and_catalog_entry() -> None
     assert operator.merge.function == default_function.id
     assert "merge_source" not in operator.model_dump()
     assert operator.merge.args == {
-        "target": spec_model.BindingArgument("$profiles.@.dataframe"),
+        "target": spec_model.BindingArgument("$profiles.@.dataset"),
         "fragment": spec_model.BindingArgument("$operators.@.fragment"),
         "target_keys": spec_model.BindingArgument("$profiles.@.grain.ids"),
     }

@@ -84,7 +84,7 @@ def test_structure_summary_counts_profiles_and_operator_once(
     caplog: pytest.LogCaptureFixture, level: int
 ) -> None:
     configuration = {
-        "spec_version": 6,
+        "spec_version": 7,
         "profiles": {
             "profile_1": {
                 "name": "First",
@@ -226,7 +226,7 @@ def test_canonical_model_rejects_file_loading_arguments() -> None:
         spec.Spec.model_validate({"json": str(SPEC_PATH)})
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, "6", True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, "7", True])
 def test_spec_rejects_unsupported_version(tmp_path: pathlib.Path, version: object) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["spec_version"] = version
@@ -327,7 +327,7 @@ def test_structural_references_compile_to_identifiers() -> None:
 def test_nested_selectors_resolve_without_changing_literal_values() -> None:
     args = {
         "nested": [
-            "$profiles.@.dataframe",
+            "$profiles.@.dataset",
             {"dataset": "$profiles.other.id", "feature": "$features.@.id"},
             "$dimensions.pump.id",
             "ordinary.id",
@@ -373,7 +373,7 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
     args = {
         "host_keys": "$profiles.@.grain.ids",
         "source_keys": "$profiles.source.grain.ids",
-        "source": "$profiles.source.dataframe",
+        "source": "$profiles.source.dataset",
     }
     grain_keys = {"telemetry": ["pump", "timestamp"], "source": ["pump"]}
 
