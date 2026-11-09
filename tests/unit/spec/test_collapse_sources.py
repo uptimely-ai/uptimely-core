@@ -31,7 +31,7 @@ def test_collapse_source_discovery_retains_invalid_candidates(
     inputs: list[str], message: str | None, ambiguous: bool
 ) -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
-    operator = document.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
+    operator = document.profiles["pump"].assembly["bearing_temperature_by_pump"]
     operator.interface.inputs = inputs
     if ambiguous:
         source_profile = document.profiles["pump_telemetry"]
@@ -42,7 +42,7 @@ def test_collapse_source_discovery_retains_invalid_candidates(
             message = "ambiguous input feature"
     original = document.model_copy(deep=True)
     facts = document.input_sources
-    key = ("pump_profile", "bearing_temperature_by_pump")
+    key = ("pump", "bearing_temperature_by_pump")
     source = facts[key]
 
     def validate_source() -> None:
@@ -66,17 +66,17 @@ def test_collapse_source_discovery_retains_invalid_candidates(
 def test_new_document_rediscovers_collapse_sources_after_edits() -> None:
     document = spec.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     validation.validate_spec(document)
-    operator = document.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
-    key = ("pump_profile", "bearing_temperature_by_pump")
+    operator = document.profiles["pump"].assembly["bearing_temperature_by_pump"]
+    key = ("pump", "bearing_temperature_by_pump")
     first = document.input_sources[key]
     assert first is not None
     assert first == "pump_telemetry"
-    target = document.profiles["pump_profile"]
+    target = document.profiles["pump"]
     target.features["local_source"] = spec.Feature(id="local_source")
     operator.interface.inputs = ["$features.local_source"]
     document = spec.Spec.model_validate(document.model_dump())
     second = document.input_sources[key]
     assert second is not None
-    assert second == "pump_profile"
+    assert second == "pump"
     with pytest.raises(ValueError, match="cannot use its target profile as source"):
         validation.validate_spec(document)

@@ -29,7 +29,7 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert data["scope"]["features"] == ["health_signal_normalized"]
     assert data["scope"]["is_scoped"]
     assert data["catalogs"]["configuration"]
-    assert data["catalogs"]["configuration"]["profiles"]["pump_profile"]["scope"] == (
+    assert data["catalogs"]["configuration"]["profiles"]["pump"]["scope"] == (
         "Pump-level telemetry and external workflow inputs"
     )
     assert data["graphs"]["feature_lineage"]["nodes"]

@@ -41,8 +41,8 @@ class PumpFeatures(FeatureSet):
 class Pump(Profile):
     """One observation per pump with collapsed telemetry and external inputs."""
 
-    id = "pump_profile"
-    name = "Pump Summary"
+    id = "pump"
+    name = "Pump"
     description = "One row per pump with collapsed condition and workflow inputs."
     category = "Machines"
     grain = [dimension.MACHINE_DIMENSION.resolution("machine")]

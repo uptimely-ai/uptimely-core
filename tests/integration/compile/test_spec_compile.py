@@ -123,7 +123,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     dataset["assembly"]["read_pump_telemetry"]["compute"]["args"].update(
         {
             "keys": "$profiles.@.grain.ids",
-            "source_keys": "$profiles.pump_profile.grain.ids",
+            "source_keys": "$profiles.pump.grain.ids",
         }
     )
     path = tmp_path / "dimension_keys.json"
@@ -135,7 +135,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
         item for item in plan.invocations if item.function_id == "read_pump_telemetry"
     )
     expected = definition.grain_keys_by_profile["pump_telemetry"]
-    expected_source = definition.grain_keys_by_profile["pump_profile"]
+    expected_source = definition.grain_keys_by_profile["pump"]
 
     assert invocation.arguments["keys"] == expected
     assert invocation.arguments["source_keys"] == expected_source
@@ -149,7 +149,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
 
 def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    operator = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
+    operator = configuration["profiles"]["pump"]["assembly"]["bearing_temperature_by_pump"]
     operator["compute"]["args"]["output"] = "$features.@.id"
     path = tmp_path / "collapse_feature_placeholder.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -242,7 +242,7 @@ def test_existing_invocation_ids_survive_unrelated_additions_and_reordering() ->
 
 def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None:
     definition = spec.load_spec(SPEC_PATH)
-    pump_profile = definition.profiles["pump_profile"]
+    pump_profile = definition.profiles["pump"]
     pump_profile = pump_profile
     read_mapping = definition.profiles["pump_telemetry"].assembly["read_pump_telemetry"]
 
@@ -341,7 +341,7 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
 
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
     spec_definition = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = spec_definition["profiles"]["pump_profile"]
+    dataset = spec_definition["profiles"]["pump"]
     operator = dataset["assembly"]["health_signal_normalized"]
     operator["interface"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}

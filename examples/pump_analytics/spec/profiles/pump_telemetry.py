@@ -111,7 +111,7 @@ class TelemetryFeatures(FeatureSet):
     )
 
 
-class Telemetry(Profile):
+class PumpTelemetry(Profile):
     """Process and condition readings at pump-and-timestamp grain."""
 
     id = "pump_telemetry"

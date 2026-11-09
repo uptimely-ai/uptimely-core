@@ -407,7 +407,7 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     assert len(spec_definition.functions.by_kind("vectorize")) == 8
-    collapse = spec_definition.profiles["pump_profile"].assembly["bearing_temperature_by_pump"]
+    collapse = spec_definition.profiles["pump"].assembly["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.compute.function == "aggregate"
     assert collapse.compute.args["feature"].root == "$features.bearing_temperature"
@@ -548,17 +548,13 @@ def test_spec_validation_rejects_cross_profile_feature_dependency(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     calculation = json.loads(
-        json.dumps(
-            configuration["profiles"]["pump_profile"]["assembly"]["health_signal_normalized"]
-        )
+        json.dumps(configuration["profiles"]["pump"]["assembly"]["health_signal_normalized"])
     )
     calculation["interface"]["outputs"] = ["$features.health_signal_normalized_copy"]
-    copied_feature = configuration["profiles"]["pump_profile"]["features"][
-        "health_signal_normalized"
-    ]
+    copied_feature = configuration["profiles"]["pump"]["features"]["health_signal_normalized"]
     configuration["profiles"]["pump_copy_profile"] = {
         "name": "Pump copy",
-        "grain": configuration["profiles"]["pump_profile"]["grain"],
+        "grain": configuration["profiles"]["pump"]["grain"],
         "features": {"health_signal_normalized_copy": copied_feature},
         "assembly": {"health_signal_normalized_copy": calculation},
     }

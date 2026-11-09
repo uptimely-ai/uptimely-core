@@ -71,7 +71,7 @@ def test_collapse_rules_report_their_own_fault_without_validating_bindings(
     tmp_path: pathlib.Path, load_from_file: bool, inputs: list[str], message: str
 ) -> None:
     configuration = _configuration()
-    operator = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
+    operator = configuration["profiles"]["pump"]["assembly"]["bearing_temperature_by_pump"]
     operator["interface"]["inputs"] = inputs
     operator["compute"]["args"]["unexpected"] = None
     if load_from_file:
@@ -94,7 +94,7 @@ def test_independent_rules_report_grouping_and_dimension_reference_faults() -> N
     configuration["profiles"]["pump_telemetry"]["grain"].remove(
         {"dimension": "machine_dimension", "resolution": "machine"}
     )
-    operator = configuration["profiles"]["pump_profile"]["assembly"]["bearing_temperature_by_pump"]
+    operator = configuration["profiles"]["pump"]["assembly"]["bearing_temperature_by_pump"]
     operator["compute"]["args"]["unexpected"] = "$dimensions.missing"
     document = spec.Spec.model_validate(configuration)
     with pytest.raises(ValueError, match="grouping keys must exist in source"):
@@ -119,9 +119,7 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
     else:
         function = document.functions[operator.compute.function]
         argument = next(name for name, arg in function.args.items() if arg.type == "dataframe")
-        operator.compute.args[argument] = spec.model.BindingArgument(
-            "$profiles.pump_profile.dataset"
-        )
+        operator.compute.args[argument] = spec.model.BindingArgument("$profiles.pump.dataset")
         expected_id = "alias"
         expected_code = "invalid_mapping_dataframe_input"
         validate = contracts_validation.validate_target_profile_input
@@ -165,7 +163,7 @@ def test_public_standalone_profile_id_validation_rejects_mismatched_keys() -> No
 
 def test_duplicate_ids_block_operator_cycle_validation() -> None:
     document = spec.Spec.model_validate(_configuration())
-    dataset = document.profiles["pump_profile"]
+    dataset = document.profiles["pump"]
     document.profiles["wrong"] = spec.Profile(id="different")
     operator = dataset.assembly["health_signal_normalized"]
     operator.interface.inputs.append("$features.health_signal_normalized")
@@ -313,20 +311,18 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     document.dimensions["machine_dimension"].resolutions[
         "machine_category"
     ].parent = "machine_category"
-    dataset = document.profiles["pump_profile"]
+    dataset = document.profiles["pump"]
     dataset.assembly["bearing_temperature_by_pump"].interface.inputs = ["$features.missing"]
     other = document.profiles["pump_telemetry"]
     other.assembly["pressure_flow_efficiency"].compute.function = "missing"
     other.assembly["recommended_flow_rate"].compute.args = {
         "unexpected": spec.model.BindingArgument(None)
     }
-    document.profiles["pump_profile_copy"] = dataset.model_copy(
-        update={"id": "pump_profile_copy"}, deep=True
-    )
+    document.profiles["pump_copy"] = dataset.model_copy(update={"id": "pump_copy"}, deep=True)
     original = document.model_copy(deep=True)
     profiles = document.profile_items
     assembly = document.operators
-    assert sum(item.id.startswith("pump_profile") for _, item in profiles) == 2
+    assert sum(item.id in {"pump", "pump_copy"} for _, item in profiles) == 2
     assert any(len(owners) > 1 for owners in document.feature_owners.values())
     assert any(item.compute.function not in document.functions for item in assembly)
     assert any(cycle for _, cycle in dimensions.iter_parent_cycles(document))
@@ -342,7 +338,7 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
 
 def test_duplicate_feature_ownership_retains_all_candidates() -> None:
     document = spec.Spec.model_validate(_configuration())
-    dataset = document.profiles["pump_profile"]
+    dataset = document.profiles["pump"]
     grain_keys = {
         document.dimensions[reference.dimension].resolutions[reference.resolution].key
         for reference in dataset.grain

@@ -4,9 +4,9 @@ from uptimely import Spec
 
 from .profiles.constants import Constants
 from .profiles.pump import Pump
-from .profiles.telemetry import Telemetry
+from .profiles.pump_telemetry import PumpTelemetry
 
 python_spec = Spec(
-    profiles=[Telemetry, Pump, Constants],
+    profiles=[PumpTelemetry, Pump, Constants],
     name="Pump analytics",
 )
