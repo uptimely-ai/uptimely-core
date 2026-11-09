@@ -45,6 +45,8 @@ Before making project-wide changes, consult the relevant guides:
   explicit error if the feature is requested without that dependency.
 - Preserve public re-exports from package `__init__.py` files.
   Relative imports of individual public symbols are allowed there.
+- Use Python classes over function modules
+- Separate stateless and stateful logic into different classes
 
 ## Documentation
 
