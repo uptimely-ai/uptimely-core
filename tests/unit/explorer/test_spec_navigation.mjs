@@ -291,9 +291,9 @@ test("feature details show metadata and direct used-by badges below the operator
   assert.deepEqual([...metadata.matchAll(/<dt>(.*?)<\/dt>/g)].map(match => match[1]),
     ["Role", "Data type", "Unit", "Profile"]);
   assert.match(metadata, /href="\?view=profiles#profile-telemetry"><i[^>]*data-lucide="layers-2"[^>]*><\/i><span>telemetry<\/span>/);
-  assert.match(raw, /aria-label="Used by">[\s\S]*?<span>Used by<\/span>[\s\S]*?href="\?view=features#feature-telemetry-adjusted">Adjusted temperature<\/a>/);
-  assert.match(raw, /aria-label="Used by">[\s\S]*?href="\?view=features#feature-telemetry-offset">Temperature offset<\/a>/);
-  const usedBy = raw.match(/<section class="mt-6" aria-label="Used by">[\s\S]*?<\/section>/)[0];
+  assert.match(raw, /aria-label="Used by feature">[\s\S]*?<span>Used by feature<\/span>[\s\S]*?href="\?view=features#feature-telemetry-adjusted">Adjusted temperature<\/a>/);
+  assert.match(raw, /aria-label="Used by feature">[\s\S]*?href="\?view=features#feature-telemetry-offset">Temperature offset<\/a>/);
+  const usedBy = raw.match(/<section class="mt-6" aria-label="Used by feature">[\s\S]*?<\/section>/)[0];
   assert.doesNotMatch(usedBy, /High temperature alarm|Depends on|<p/);
 
   const adjusted = card("adjusted");
@@ -306,7 +306,7 @@ test("feature details show metadata and direct used-by badges below the operator
   const ids = [...content.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length);
   assert.match(adjusted, /ui-badge--amber">Intermediate<\/span>/);
-  assert.match(adjusted, /aria-label="Producing operator">[\s\S]*<\/section>\s*<section class="mt-6" aria-label="Used by">[\s\S]*href="\?view=features#feature-telemetry-alarm">High temperature alarm<\/a>[\s\S]*<\/section>\s*<\/article>$/);
+  assert.match(adjusted, /aria-label="Producing operator">[\s\S]*<\/section>\s*<section class="mt-6" aria-label="Used by feature">[\s\S]*href="\?view=features#feature-telemetry-alarm">High temperature alarm<\/a>[\s\S]*<\/section>\s*<\/article>$/);
 
   const alarm = card("alarm");
   assert.match(alarm, /ui-badge--green">Output<\/span>/);
