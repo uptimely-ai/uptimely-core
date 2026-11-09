@@ -124,7 +124,8 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(profiles, /href="#profile-readings"[^]*?class="profile-summary-size"><strong>1<\/strong><i class="site-icon icon--operators profile-summary-operator-icon" data-lucide="sigma"/);
   assert.match(profiles, /href="#profile-daily"[^]*?class="profile-summary-size"><strong>3<\/strong><i class="site-icon icon--operators profile-summary-operator-icon" data-lucide="sigma"/);
   const profileOverview = profiles.slice(0, profiles.indexOf('<div class="space-y-8">'));
-  assert.match(profileOverview, /profile-summary-grain-path" aria-label="Machine dimension at machine resolution"[^]*?<span class="profile-summary-grain-badge profile-summary-grain-resolution">[^]*?icon--resolutions profile-summary-grain-icon" data-lucide="scan-square"[^]*?<code>machine<\/code><\/span>\s*<i class="profile-summary-grain-relation" data-lucide="at-sign"[^]*><\/i>\s*<span class="profile-summary-grain-badge profile-summary-grain-dimension">[^]*?icon--dimensions profile-summary-grain-icon" data-lucide="axis-3d"[^]*?<strong>Machine<\/strong><\/span>/);
+  assert.match(profileOverview, /profile-summary-grain-path" aria-label="Machine dimension at machine resolution"[^]*?<span class="profile-summary-grain-badge profile-summary-grain-resolution">[^]*?icon--resolutions profile-summary-grain-icon" data-lucide="scan-square"[^]*?<code>machine<\/code><\/span>/);
+  assert.doesNotMatch(profileOverview, /profile-summary-grain-relation|profile-summary-grain-dimension/);
   assert.match(profileOverview, /profile-summary-grain-icon/);
   assert.doesNotMatch(profileOverview, /<span>Dimension<\/span>|<span>Resolution<\/span>/);
   assert.doesNotMatch(profileOverview, /<code>readings<\/code>|<code>daily<\/code>|\b2 features\b/);
@@ -137,7 +138,7 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.doesNotMatch(profiles, />Profile details</);
   assert.match(profiles, /profile-detail-subheading[^>]*>[^]*?<span>Grain<\/span><\/h3>/);
   assert.match(profiles, /profile-detail-subheading[^>]*>[^]*?<span>Scope<\/span><\/h3>/);
-  assert.match(profiles, /profile-summary-grain-path" aria-label="Machine dimension at machine resolution"[^]*?<code>machine<\/code>[^]*?<strong>Machine<\/strong>/);
+  assert.match(profiles, /<h4 class="profile-grain-dimension-name"><i class="site-icon icon--dimensions profile-detail-icon" data-lucide="axis-3d" aria-hidden="true"><\/i><span>Machine<\/span><\/h4>[^]*?<ul aria-label="Resolution hierarchy" class="dimension-resolution-tree">[^]*?<li data-resolution-id="machine" data-parent-resolution="">\s*<article class="dimension-resolution-card profile-resolution-highlight">/);
   assert.doesNotMatch(profiles, /data-grain-dimension|profile-grain-label|profile-grain-fields/);
   assert.match(profiles, /data-type="string"/);
   assert.match(profiles, /data-lucide="hash" class="data-type-label-icon" data-type="float"/);

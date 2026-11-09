@@ -179,20 +179,37 @@ test("profile details show every declared operator in order including vectorized
   assert.match(vectorizedOnly, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
 });
 
-test("profile grain uses compact dimension and resolution badges", () => {
+test("profile detail grain uses the shared resolution hierarchy and highlights its resolution", () => {
   const { content } = renderCatalog({ catalogs: { summary: {}, configuration: {
-    functions: {}, dimensions: { machine: { name: "Machine", resolutions: {
-      unit: { key: "machine_id", type: "string" },
-    } } },
-    profiles: { sample: { grain: [{ dimension: "machine", resolution: "unit" }],
+    functions: {}, dimensions: {
+      machine: { name: "Machine", resolutions: {
+        unit: { key: "machine_id", type: "string" },
+        series: { key: "series_id", type: "string", parent: "unit" },
+      } },
+      time: { name: "Time", resolutions: { day: { key: "day", type: "date" } } },
+    },
+    profiles: { sample: { grain: [
+      { dimension: "machine", resolution: "series" }, { dimension: "time", resolution: "day" },
+    ],
       features: { machine_id: {} }, assembly: {} } },
   } } }, "profiles");
   assert.match(content, /A profile is identified by its grain\./);
-  const grain = content.match(/<div class="profile-detail-grain">[\s\S]*?<\/ul>/)[0];
-  assert.match(grain, /profile-summary-grain-badge profile-summary-grain-resolution[\s\S]*?<code>unit<\/code>/);
-  assert.match(grain, /profile-summary-grain-relation" data-lucide="at-sign"/);
-  assert.match(grain, /profile-summary-grain-badge profile-summary-grain-dimension[\s\S]*?<strong>Machine<\/strong>/);
-  assert.doesNotMatch(grain, /Data key|Data type|machine_id/);
+  const grain = content.match(/<div class="profile-grain-hierarchies">[\s\S]*?<\/div>/)[0];
+  assert.match(grain, /class="profile-grain-hierarchies"/);
+  assert.equal((grain.match(/class="profile-grain-dimension"/g) || []).length, 2);
+  assert.match(grain, /<h4 class="profile-grain-dimension-name"><i class="site-icon icon--dimensions profile-detail-icon" data-lucide="axis-3d" aria-hidden="true"><\/i><span>Machine<\/span><\/h4>/);
+  assert.match(grain, /aria-label="Resolution hierarchy"/);
+  assert.match(grain, /data-resolution-id="unit" data-parent-resolution=""/);
+  assert.match(grain, /data-resolution-id="series" data-parent-resolution="unit"[\s\S]*?<article class="dimension-resolution-card profile-resolution-highlight">/);
+  assert.match(grain, /data-resolution-id="day" data-parent-resolution=""[\s\S]*?<article class="dimension-resolution-card profile-resolution-highlight">/);
+  assert.doesNotMatch(grain, /machine_id|series_id/);
+});
+
+test("profile grain hierarchies use a responsive two-column layout", async () => {
+  const css = await readFile(new URL("../css/spec.css", root), "utf8");
+  assert.match(css, /\.profile-grain-hierarchies\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*280px\),\s*1fr\)\)/);
+  assert.match(css, /\.profile-grain-hierarchies\s*\{[^}]*margin-top:\s*24px/);
+  assert.match(css, /\.profile-grain-dimension-name\s*\{[^}]*font:\s*600 15px\/1\.5 var\(--font-body\)/);
 });
 
 test("feature and function type displays use matching data type icons", () => {
@@ -482,12 +499,13 @@ test("catalog overview navigation uses the appropriate label and profile cards s
   assert.doesNotMatch(content, /profile-summary-note/);
   assert.doesNotMatch(content, /<h2[^>]*>Profiles overview<\/h2>/);
   assert.equal((content.match(/class="profile-summary-card"/g) || []).length, 2);
-  assert.match(content, /<div class="profile-summary-grain" aria-label="Profile grain">\s*<span class="profile-summary-grain-label">Grain<\/span>\s*<span class="profile-summary-grain-empty">No grain defined<\/span>/);
+  assert.match(content, /<div class="profile-summary-grain" aria-label="Profile grain">\s*<span class="profile-summary-grain-empty">No grain defined<\/span>/);
   assert.doesNotMatch(content, /<h3>Large<\/h3>\s*<span class="profile-summary-grain-empty">No grain defined<\/span>/);
   assert.match(content, /href="#profile-small"[\s\S]*?class="profile-summary-size"><strong>1<\/strong><i class="site-icon icon--operators profile-summary-operator-icon" data-lucide="sigma"/);
   assert.match(content, /href="#profile-large"[\s\S]*?class="profile-summary-size"><strong>3<\/strong><i class="site-icon icon--operators profile-summary-operator-icon" data-lucide="sigma"/);
   assert.match(content, /relative profile size/);
-  assert.match(content, /profile-summary-grain-path" aria-label="Time dimension at day resolution"[^]*?<span class="profile-summary-grain-badge profile-summary-grain-resolution">[^]*?icon--resolutions profile-summary-grain-icon" data-lucide="scan-square"[^]*?<code>day<\/code><\/span>\s*<i class="profile-summary-grain-relation" data-lucide="at-sign"[^]*><\/i>\s*<span class="profile-summary-grain-badge profile-summary-grain-dimension">[^]*?icon--dimensions profile-summary-grain-icon" data-lucide="axis-3d"[^]*?<strong>Time<\/strong><\/span>/);
+  assert.match(content, /profile-summary-grain-path" aria-label="Time dimension at day resolution"[^]*?<span class="profile-summary-grain-badge profile-summary-grain-resolution">[^]*?icon--resolutions profile-summary-grain-icon" data-lucide="scan-square"[^]*?<code>day<\/code><\/span>/);
+  assert.doesNotMatch(content.match(/<div class="profile-summary-grain" aria-label="Profile grain">[\s\S]*?<\/div>/)[0], /profile-summary-grain-dimension|profile-summary-grain-relation/);
   assert.match(content, /profile-summary-grain-icon/);
   assert.doesNotMatch(content, /<span>Dimension<\/span>|<span>Resolution<\/span>/);
   const overview = content.slice(0, content.indexOf('<div class="space-y-8">'));

@@ -87,6 +87,7 @@
 .profile-summary-grain { margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e293b; }
 .profile-summary-grain-label { display: block; color: #94a3b8; font: 10px/1.5 var(--font-body); letter-spacing: .06em; text-transform: uppercase; }
 .profile-summary-grain-list { display: grid; gap: 5px; margin: 7px 0 0; padding: 0; list-style: none; }
+.profile-summary-grain-resolutions { display: flex; flex-wrap: wrap; }
 .profile-summary-grain-path { display: flex; min-width: 0; align-items: center; gap: 6px; color: #cbd5e1; font-size: 11px; }
 .profile-summary-grain-badge { display: inline-flex; min-width: 0; align-items: center; gap: 5px; padding: 3px 6px;
   border: 1px solid #334155; border-radius: 5px; background: #111d30; }
@@ -112,7 +113,11 @@
 .dimension-resolution-children > li::after { position: absolute; top: 36px; left: 0; width: 20px;
   border-top: 1px solid #334155; content: ""; }
 .dimension-resolution-card { padding: 12px 16px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; }
+.dimension-resolution-card.profile-resolution-highlight { border-color: #22d3ee; background: #083344; box-shadow: 0 0 0 1px #22d3ee; }
 .dimension-resolution-id { margin: 0; color: #f1f5f9; font: 600 14px/1.5 var(--font-mono); overflow-wrap: anywhere; }
+.profile-grain-hierarchies { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 24px; margin-top: 24px; }
+.profile-grain-dimension-name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px;
+  color: #e2e8f0; font: 600 15px/1.5 var(--font-body); }
 
 .profile-operator-list { display: grid; gap: 16px; margin-top: 12px; }
 .profile-operator { --operator-accent: var(--color-accent); min-width: 0; overflow: hidden; border: 1px solid #334155; border-radius: 10px; background: #0b1220; }
