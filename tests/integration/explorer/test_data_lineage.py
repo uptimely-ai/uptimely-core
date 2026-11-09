@@ -5,7 +5,7 @@ import pytest
 from uptimely import plan as execution_plan
 from uptimely import spec
 from uptimely.explorer.sections import data_lineage
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 
 
 @pytest.mark.parametrize(
@@ -17,7 +17,7 @@ from uptimely.spec import operator_kinds as functions
     ],
 )
 def test_transfer_tables_preserve_source_grain_and_shared_keys(
-    kind: functions.OperatorKindId,
+    kind: operator_kinds.OperatorKindId,
     source_dimensions: list[str],
     target_dimensions: list[str],
     row_counts: tuple[int, int],

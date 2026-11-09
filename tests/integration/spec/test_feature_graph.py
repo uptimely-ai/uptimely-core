@@ -7,7 +7,7 @@ from support import examples as example_support
 
 from uptimely import project, spec
 from uptimely.cli import cli
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -18,10 +18,10 @@ def test_graph_metadata_follows_function_capabilities(
 ) -> None:
     graph = spec.FeatureGraph(pump_bundle.spec_definition)
     original = graph._declared_features()
-    catalog = dict(functions.OPERATOR_KINDS)
+    catalog = dict(operator_kinds.OPERATOR_KINDS)
     catalog["read"] = dataclasses.replace(catalog["read"], is_source=False, is_transformer=True)
     catalog["collapse"] = dataclasses.replace(catalog["collapse"], dimension_change="preserve")
-    monkeypatch.setattr(functions, "OPERATOR_KINDS", catalog)
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", catalog)
     changed = graph._declared_features()
     checked = set()
     for key, operator in graph.spec.operator_items:

@@ -12,7 +12,7 @@ from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.library.merge import polars as merge_module
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -218,7 +218,7 @@ def test_fragment_stage_checks_structure_when_validation_is_disabled(
 
 @pytest.mark.parametrize("kind", ["write", "escape"])
 def test_fragment_stage_rejects_non_dataframe_invocations_without_loading(
-    kind: functions.OperatorKindId,
+    kind: operator_kinds.OperatorKindId,
 ) -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     invocation = copy.replace(plan.invocations[0], operator_kind=kind)

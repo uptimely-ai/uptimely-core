@@ -7,7 +7,7 @@ import itertools
 
 from uptimely import plan as plan_module
 from uptimely import spec
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 from uptimely.spec.model import base as model_base
 
 UNASSIGNED_DATASET_LABEL = "Unassigned"
@@ -49,7 +49,7 @@ class DataLineageStep:
     function: str
     function_label: str
     operator: str
-    kind: functions.OperatorKind
+    kind: operator_kinds.OperatorKind
     profile: str
     dataset: str | None
     grain: str
@@ -129,12 +129,12 @@ class _DataLineageBuilder:
         self.compact_datasets = {
             invocation.profile_id
             for invocation in invocations
-            if functions.OPERATOR_KINDS[invocation.operator_kind].dimension_change == "remove"
+            if operator_kinds.OPERATOR_KINDS[invocation.operator_kind].dimension_change == "remove"
         }
         self.compact_datasets.update(
             self.features[name].dataset.id
             for invocation in invocations
-            if functions.OPERATOR_KINDS[invocation.operator_kind].dimension_change == "add"
+            if operator_kinds.OPERATOR_KINDS[invocation.operator_kind].dimension_change == "add"
             for name in invocation.input_features
             if name in self.features
         )
@@ -188,7 +188,7 @@ class _DataLineageBuilder:
         columns: list[DataLineageColumn],
     ) -> list[DataLineageInput]:
         """Group cross-dataset inputs with their source dimensions."""
-        if functions.OPERATOR_KINDS[invocation.operator_kind].is_effect:
+        if operator_kinds.OPERATOR_KINDS[invocation.operator_kind].is_effect:
             return []
         source_columns: dict[str, list[DataLineageColumn]] = {}
         for column in columns:
@@ -233,7 +233,7 @@ class _DataLineageBuilder:
             name: dataclasses.replace(column, role="Input" if name in inputs else "Existing")
             for name, column in previous.items()
         }
-        if not functions.OPERATOR_KINDS[invocation.operator_kind].is_effect:
+        if not operator_kinds.OPERATOR_KINDS[invocation.operator_kind].is_effect:
             for column in columns:
                 if column.role == "Output":
                     current.pop(column.name, None)
@@ -244,7 +244,7 @@ class _DataLineageBuilder:
     def _step(self, invocation: plan_module.Invocation) -> DataLineageStep:
         """Assemble one invocation's schema, input tables, and dependencies."""
         profile = self.definition.profiles[invocation.profile_id]
-        kind = functions.OPERATOR_KINDS[invocation.operator_kind]
+        kind = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
         dataset = (
             self.definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
         )

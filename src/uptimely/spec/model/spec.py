@@ -8,8 +8,7 @@ import typing
 
 import pydantic
 
-from uptimely.spec import arg_types, selectors, semantics
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import arg_types, operator_kinds, selectors, semantics
 
 from . import base, binding_argument, merge
 from . import dimension as dimension_module
@@ -62,7 +61,7 @@ class Spec(base.StrictModel):
         return value
 
     @functools.cached_property
-    def operator_kinds(self) -> dict[OperatorKey, functions.OperatorKindId]:
+    def operator_kinds(self) -> dict[OperatorKey, operator_kinds.OperatorKindId]:
         """Derive per-operator policy labels from bindings and profile grain."""
         return semantics.Semantics(self).operator_kinds
 
@@ -129,7 +128,7 @@ class Spec(base.StrictModel):
 
     def _row_context_profile_key(self, key: OperatorKey) -> ProfileKey | None:
         """Resolve the profile whose observations an operator's context describes."""
-        definition = functions.OPERATOR_KINDS[self.operator_kinds[key]]
+        definition = operator_kinds.OPERATOR_KINDS[self.operator_kinds[key]]
         return (
             self.input_sources[key]
             if definition.dimension_change == "remove"

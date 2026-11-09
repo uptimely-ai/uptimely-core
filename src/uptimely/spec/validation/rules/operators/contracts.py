@@ -3,8 +3,7 @@
 import logging
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds as functions
-from uptimely.spec import selectors, semantics
+from uptimely.spec import operator_kinds, selectors, semantics
 from uptimely.spec.validation import errors
 
 logger = logging.getLogger(__name__)
@@ -64,7 +63,7 @@ def validate_dataframe_argument_count(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
-        definition = functions.OPERATOR_KINDS[spec.operator_kinds[key]]
+        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
         expected = definition.dataframe_inputs
         if definition.dataframe_input_scope != "foreign" or expected is None:
             continue
@@ -100,7 +99,7 @@ def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
     logger.debug("Check profile-scoped feature inputs have at most one source")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or functions.OPERATOR_KINDS[
+        if function is None or operator_kinds.OPERATOR_KINDS[
             spec.operator_kinds[key]
         ].feature_input_scope != ("dataframe"):
             continue
@@ -121,7 +120,7 @@ def validate_foreign_profile_argument(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
-        definition = functions.OPERATOR_KINDS[spec.operator_kinds[key]]
+        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
         if "target_as_foreign_input" in _dataframe_input_violations(spec, key, definition):
             name = spec.operator_dataframe_arguments[key][0][0]
             raise errors.SpecError(
@@ -139,7 +138,7 @@ def validate_dataframe_argument_feature_source(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
-        definition = functions.OPERATOR_KINDS[spec.operator_kinds[key]]
+        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
         arguments = spec.operator_dataframe_arguments[key]
         source = spec.input_sources[key]
         if (
@@ -166,7 +165,7 @@ def validate_dataframe_argument_features(spec: spec_model.Spec) -> None:
     logger.debug("Check feature inputs belong to profile arguments")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or functions.OPERATOR_KINDS[
+        if function is None or operator_kinds.OPERATOR_KINDS[
             spec.operator_kinds[key]
         ].feature_input_scope != ("dataframe"):
             continue
@@ -198,7 +197,8 @@ def validate_feature_input_scope(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and functions.OPERATOR_KINDS[spec.operator_kinds[key]].feature_input_scope == ("none")
+            and operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].feature_input_scope
+            == ("none")
             and operator.input_features
         ):
             raise errors.SpecError(
@@ -215,7 +215,7 @@ def validate_target_profile_input(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
-        definition = functions.OPERATOR_KINDS[spec.operator_kinds[key]]
+        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
         if "missing_target" in _dataframe_input_violations(spec, key, definition):
             raise errors.SpecError(
                 f"{spec.operator_kinds[key].capitalize()} operator must consume its target profile",
@@ -231,7 +231,7 @@ def validate_target_profile_only(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
-        definition = functions.OPERATOR_KINDS[spec.operator_kinds[key]]
+        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
         if "foreign_target_input" not in _dataframe_input_violations(spec, key, definition):
             continue
         foreign = sorted(
@@ -253,7 +253,7 @@ def validate_dimension_source(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
-        definition = functions.OPERATOR_KINDS[spec.operator_kinds[key]]
+        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
         source = spec.input_sources[key]
         if source is not None and "missing_source" in _dataframe_input_violations(
             spec, key, definition
@@ -269,8 +269,8 @@ def validate_dimension_source(spec: spec_model.Spec) -> None:
 def _dataframe_input_violations(
     spec: spec_model.Spec,
     key: spec_model.OperatorKey,
-    definition: functions.OperatorKind,
-) -> tuple[functions.DataFrameInputViolation, ...]:
+    definition: operator_kinds.OperatorKind,
+) -> tuple[operator_kinds.DataFrameInputViolation, ...]:
     source = spec.input_sources[key]
     return definition.dataframe_input_violations(
         target_profile_id=spec.operator_profile_keys[key],
@@ -290,7 +290,7 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if function is None:
             continue
-        change = functions.OPERATOR_KINDS[spec.operator_kinds[key]].dimension_change
+        change = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].dimension_change
         if change == "unrestricted":
             continue
         for source_key in spec.dataframe_argument_profiles[key]:
@@ -334,7 +334,7 @@ def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is None
-            or functions.OPERATOR_KINDS[spec.operator_kinds[key]].dimension_change != "add"
+            or operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].dimension_change != "add"
         ):
             continue
         lower = {

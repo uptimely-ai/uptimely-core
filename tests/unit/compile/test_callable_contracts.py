@@ -10,7 +10,7 @@ import pytest
 from uptimely import entrypoint
 from uptimely.compiler import validation
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 from uptimely.spec.validation import errors
 
 
@@ -77,7 +77,7 @@ def wrapped_dataframe(*args: object, **kwargs: object) -> object:
 def _function_template(
     *,
     arguments: dict[str, str] | None = None,
-    returns: functions.ReturnKind = "dataframe",
+    returns: operator_kinds.ReturnKind = "dataframe",
 ) -> spec_model.FunctionTemplate:
     return spec_model.FunctionTemplate(
         id="calculate",

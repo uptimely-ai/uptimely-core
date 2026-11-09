@@ -14,7 +14,7 @@ from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 from uptimely.spec.python import assembly, default_merge, dimension, feature, profile, ref
 
 
@@ -712,11 +712,11 @@ def test_fragment_dimension_policy_is_independent_of_expand_id(
 ) -> None:
     spec_definition = _broadcast_spec(read_group_limits, broadcast_group_limit, ["group"], False)
     plan = compiler.Compiler().compile(spec_definition)
-    definitions = dict(functions.OPERATOR_KINDS)
-    definitions[functions.EXPAND] = copy.replace(
-        definitions[functions.EXPAND], fragment_dimensions="target"
+    definitions = dict(operator_kinds.OPERATOR_KINDS)
+    definitions[operator_kinds.EXPAND] = copy.replace(
+        definitions[operator_kinds.EXPAND], fragment_dimensions="target"
     )
-    monkeypatch.setattr(functions, "OPERATOR_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     result = engine_for_plan(plan, spec_definition=spec_definition).run(validate=True)
 

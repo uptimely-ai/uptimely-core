@@ -5,7 +5,7 @@ import typing
 from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.explorer import common
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 from uptimely.spec.model import base
 
 
@@ -37,7 +37,7 @@ def invocation_lineage_payload(
     invocations_by_id = plan.invocations_by_id
     for invocation in sorted(plan.invocations, key=lambda item: item.id):
         function = spec_definition.functions[invocation.function_id]
-        kind = functions.OPERATOR_KINDS[invocation.operator_kind]
+        kind = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
         is_merge = invocation.role == "merge"
         profile = (
             spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None

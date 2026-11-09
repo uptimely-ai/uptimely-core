@@ -7,9 +7,8 @@ from collections import abc
 
 from uptimely import entrypoint, spec
 from uptimely import plan as plan_module
-from uptimely.spec import arg_types
+from uptimely.spec import arg_types, operator_kinds
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds as functions
 from uptimely.spec import validation as spec_validation
 from uptimely.spec.validation import errors
 
@@ -345,7 +344,7 @@ class Compiler:
                 dataset_publishers.setdefault(node.profile_id, []).append(node)
             if node.role != "compute":
                 continue
-            definition = functions.OPERATOR_KINDS[node.operator_kind]
+            definition = operator_kinds.OPERATOR_KINDS[node.operator_kind]
             producer = node
             if node.result == "fragment":
                 merge_node = by_binding.get((node.profile_id, node.operator_id, "merge"))
@@ -415,7 +414,7 @@ class Compiler:
         for node in invocations:
             if (
                 node.role == "compute"
-                and functions.OPERATOR_KINDS[node.operator_kind].is_sink
+                and operator_kinds.OPERATOR_KINDS[node.operator_kind].is_sink
                 and node.profile_id in selected_profiles
             ):
                 selected_nodes.add(node)

@@ -12,8 +12,7 @@ from collections.abc import Collection
 import graphable as graphable_
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds as functions
-from uptimely.spec import row_context
+from uptimely.spec import operator_kinds, row_context
 
 INVOCATION_LABEL_MAX_LENGTH = 24
 INVOCATION_HASH_LENGTH = 10
@@ -28,7 +27,7 @@ class InvocationNode:
     function_id: str
     profile_id: str
     operator_id: str
-    operator_kind: functions.OperatorKindId
+    operator_kind: operator_kinds.OperatorKindId
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
     output_features: tuple[str, ...] = ()

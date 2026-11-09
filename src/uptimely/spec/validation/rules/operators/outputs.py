@@ -4,7 +4,7 @@ import logging
 import warnings
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 from uptimely.spec.validation import errors
 
 logger = logging.getLogger(__name__)
@@ -17,7 +17,7 @@ def validate_output_presence(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and functions.OPERATOR_KINDS[spec.operator_kinds[key]].requires_feature_outputs
+            and operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].requires_feature_outputs
             and not operator.output_features
         ):
             raise ValueError(f"Operator {key[1]} must declare one or more features")
@@ -30,7 +30,7 @@ def validate_function_id(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and spec.operator_kinds[key] == functions.VECTORIZE
+            and spec.operator_kinds[key] == operator_kinds.VECTORIZE
             and not function.id.strip()
         ):
             raise ValueError("Every function must define a non-empty string id")
@@ -43,7 +43,7 @@ def validate_output_names(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and spec.operator_kinds[key] == functions.VECTORIZE
+            and spec.operator_kinds[key] == operator_kinds.VECTORIZE
             and any(not feature.strip() for feature in operator.output_features)
         ):
             raise ValueError("Every calculation must define a non-empty output feature name")
@@ -55,7 +55,11 @@ def validate_dimension_collision(spec: spec_model.Spec) -> None:
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         collisions = set(operator.output_features) & spec.grain_key_ids
-        if function is not None and spec.operator_kinds[key] == functions.VECTORIZE and collisions:
+        if (
+            function is not None
+            and spec.operator_kinds[key] == operator_kinds.VECTORIZE
+            and collisions
+        ):
             raise ValueError(
                 "Calculated feature names cannot duplicate profile grain keys: "
                 + ", ".join(sorted(collisions))
@@ -99,7 +103,7 @@ def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and not functions.OPERATOR_KINDS[spec.operator_kinds[key]].produces_features
+            and not operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].produces_features
             and operator.output_features
         ):
             raise ValueError(
@@ -114,7 +118,7 @@ def validate_output_feature(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is None
-            or not functions.OPERATOR_KINDS[spec.operator_kinds[key]].produces_features
+            or not operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].produces_features
         ):
             continue
         for feature in operator.output_features:
@@ -133,7 +137,7 @@ def validate_unique_producer(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is None
-            or not functions.OPERATOR_KINDS[spec.operator_kinds[key]].produces_features
+            or not operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].produces_features
         ):
             continue
         for feature in operator.output_features:
@@ -155,7 +159,7 @@ def validate_collapse_output(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and spec.operator_kinds[key] == functions.COLLAPSE
+            and spec.operator_kinds[key] == operator_kinds.COLLAPSE
             and not (set(operator.output_features) - set(spec.grain_keys_by_profile[key[0]]))
         ):
             raise ValueError(f"Collapse operator {key[1]} must produce a non-dimension feature")
@@ -167,13 +171,13 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or spec.operator_kinds[key] not in {
-            functions.VECTORIZE,
-            functions.COLLAPSE,
+            operator_kinds.VECTORIZE,
+            operator_kinds.COLLAPSE,
         }:
             continue
         count = (
             len(set(operator.output_features) - set(spec.grain_keys_by_profile[key[0]]))
-            if spec.operator_kinds[key] == functions.COLLAPSE
+            if spec.operator_kinds[key] == operator_kinds.COLLAPSE
             else len(operator.output_features)
         )
         if count > 1 and operator.compute.uses_current_feature:
@@ -192,7 +196,7 @@ def warn_unproduced_features(spec: spec_model.Spec) -> None:
             for feature, producers in profile.feature_producers.items()
             if any(
                 spec.functions.root.get(operator.compute.function) is not None
-                and functions.OPERATOR_KINDS[
+                and operator_kinds.OPERATOR_KINDS[
                     spec.operator_kinds[(key, operator_id)]
                 ].produces_features
                 for operator_id, operator in producers
