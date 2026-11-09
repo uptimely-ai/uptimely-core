@@ -9,7 +9,6 @@ from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.explorer import common
 from uptimely.explorer import graph_style as graph_style_module
-from uptimely.spec import operator_kinds
 
 from . import invocation_lineage
 
@@ -36,29 +35,37 @@ def _build_step(
     dataset = spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
     input_labels = [feature_labels.get(name, name) for name in invocation.input_features]
     output_labels = [feature_labels.get(name, name) for name in invocation.output_features]
-    kind = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
-    displayed_feature = (
-        ", ".join(output_labels)
-        if kind.is_effect or kind.is_transformer or kind.dimension_change == "remove"
-        else None
-    )
+    function = spec_definition.functions[invocation.function_id]
+    key = (invocation.profile_id, invocation.operator_id)
+    grain_relationships = [
+        {
+            "source_profile": (
+                spec_definition.profiles_by_key[source].id if source is not None else None
+            ),
+            "relationship": relationship,
+        }
+        for source, relationship in spec_definition.operator_grain_relationships[key].items()
+    ]
     is_merge = invocation.role == "merge"
     return {
         "position": position,
         "invocation_id": invocation.id,
         "operator_id": invocation.operator_id,
-        "phase": invocation.role,
         "role": invocation.role,
         "result": invocation.result,
         "function": invocation.function_id,
-        "operator_kind": invocation.operator_kind,
+        "operator_label": spec_definition.operator_kinds[key],
+        "execution_form": spec_definition.operator_execution_forms[key],
+        "binding_roles": list(spec_definition.operator_binding_roles[key]),
+        "grain_relationships": grain_relationships,
+        "function_returns": function.returns,
         "title": function_name,
         "function_label": function_name,
         "entrypoint": invocation.entrypoint,
         "profile": invocation.profile_id,
         "dataset": invocation.profile_id,
         "dataset_label": dataset.name,
-        "feature": displayed_feature,
+        "feature": ", ".join(output_labels) if output_labels else None,
         "input_features": input_labels,
         "output_features": output_labels,
         "input_feature_ids": invocation.input_features,
@@ -72,7 +79,7 @@ def _build_step(
         "merge_keys": (
             _display_value(invocation.arguments.get("dataset_keys")) if is_merge else None
         ),
-        "uncontrolled": kind.is_effect,
+        "uncontrolled": function.returns == "any",
         "row_context": invocation.row_context.to_dict() if invocation.row_context else None,
         "depends_on_invocations": [
             {
@@ -82,8 +89,13 @@ def _build_step(
                 )
                 or invocations_by_id[dependency_id].function_id,
                 "operator_id": invocations_by_id[dependency_id].operator_id,
-                "operator_kind": invocations_by_id[dependency_id].operator_kind,
-                "phase": invocations_by_id[dependency_id].role,
+                "operator_label": spec_definition.operator_kinds[
+                    (
+                        invocations_by_id[dependency_id].profile_id,
+                        invocations_by_id[dependency_id].operator_id,
+                    )
+                ],
+                "role": invocations_by_id[dependency_id].role,
             }
             for dependency_id in invocation.dependency_ids
         ],
@@ -171,7 +183,7 @@ def build_context(
         "stage_count": len(stages),
         "dependency_count": len(invocation_links),
         "max_parallel_invocations": max((len(stage["steps"]) for stage in stages), default=0),
-        "operator_kind_counts": list(plan.count_per_kind.items()),
+        "invocation_role_counts": list(plan.count_per_role.items()),
         "stages": stages,
         "invocation_lineage_data": invocation_lineage_data,
         "graph_style": graph_style,

@@ -1,7 +1,23 @@
 import { ExplorerLineage } from './lineage_components.js';
 import { initializeLineage } from './lineage_initializer.js';
 import { projectFeatureLineage } from './feature_projection.js';
-import { ICONS, KINDS, dataTypeIconName } from '../rendering/shared_markup.js';
+import { ICONS, dataTypeIconName } from '../rendering/shared_markup.js';
+
+function operatorIcon(node) {
+	if (node.function_returns === 'any') return 'arrow-up-right';
+	if (node.function_returns === 'none') return 'send';
+	const relationships = (node.grain_relationships || []).map(item => item.relationship);
+	if (relationships.includes('collapse')) return 'combine';
+	if (relationships.includes('expand')) return 'expand';
+	if (relationships.includes('same')) return 'table-properties';
+	return 'square-function';
+}
+
+function grainRelationships(values) {
+	return values?.length
+		? values.map(item => `${item.source_profile || 'unresolved'}: ${item.relationship}`).join(', ')
+		: 'not applicable';
+}
 
 export function initializeFeatureLineage(signal) {
 	const LINEAGE_LAYOUT_2D = Object.freeze({
@@ -26,11 +42,14 @@ export function initializeFeatureLineage(signal) {
 		if (node.is_operator === true) {
 			const entrypoint = node.entrypoint || null;
 			const features = Array.isArray(node.features) ? node.features : [];
-			const outputLabel = node.is_effect ? 'Declared logical outputs' : 'Produces';
+			const isEffect = node.function_returns === 'any';
+			const outputLabel = isEffect ? 'Declared logical outputs' : 'Produces';
 			const functionRows = [
 				['Function', node.function_name || node.function_id || 'n/a'],
 				['Function ID', node.function_id || 'n/a'],
-				['Operator kind', KINDS[node.operator_kind]?.label || node.operator_kind || 'n/a'],
+				['Binding roles', (node.binding_roles || []).join(', ') || 'n/a'],
+				['Execution form', node.execution_form || 'n/a'],
+				['Grain relationship', grainRelationships(node.grain_relationships)],
 			];
 			if (entrypoint) functionRows.push(['Entrypoint', entrypoint]);
 			ExplorerLineage.showDetails(nodeDetails, label, [
@@ -42,10 +61,10 @@ export function initializeFeatureLineage(signal) {
 					[outputLabel, features.length ? features.join(', ') : 'None'],
 				] },
 			],
-				node.is_effect
+				isEffect
 					? 'Declared feature dependencies only; outputs are not materialized as dataframe columns.'
 					: '', {
-					kind: 'Operator', icon: KINDS[node.operator_kind]?.icon || 'square-function',
+					kind: 'Operator', icon: operatorIcon(node),
 				});
 			return;
 		}

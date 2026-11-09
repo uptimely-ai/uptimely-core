@@ -399,21 +399,20 @@ class ExecutionPlan(_PlanModel):
         return features
 
     @functools.cached_property
-    def invocations_by_kind(self) -> dict[operator_kinds.OperatorKindId, list[Invocation]]:
-        """Return invocations grouped by derived operator label in declaration order."""
-        grouped: dict[operator_kinds.OperatorKindId, list[Invocation]] = {}
+    def invocations_by_role(self) -> dict[typing.Literal["compute", "merge"], list[Invocation]]:
+        """Return invocations grouped by their compute or merge binding role."""
+        grouped: dict[typing.Literal["compute", "merge"], list[Invocation]] = {}
         for invocation in self.invocations:
-            grouped.setdefault(invocation.operator_kind, []).append(invocation)
+            grouped.setdefault(invocation.role, []).append(invocation)
         return grouped
 
     @functools.cached_property
     def calculated_features(self) -> set[str]:
-        """Return distinct feature IDs produced by transformer invocations."""
+        """Return distinct feature IDs from compute invocations publishing targets."""
         return {
             feature
-            for kind, invocations in self.invocations_by_kind.items()
-            if operator_kinds.OPERATOR_KINDS[kind].is_transformer
-            for invocation in invocations
+            for invocation in self.invocations_by_role.get("compute", [])
+            if invocation.result == "target"
             for feature in invocation.output_features
         }
 
@@ -423,10 +422,10 @@ class ExecutionPlan(_PlanModel):
         return dict.fromkeys(invocation.entrypoint for invocation in self.invocations)
 
     @functools.cached_property
-    def count_per_kind(self) -> dict[operator_kinds.OperatorKindId, int]:
-        """Return invocation counts keyed by derived operator label, sorted by label."""
+    def count_per_role(self) -> dict[typing.Literal["compute", "merge"], int]:
+        """Return invocation counts keyed by binding role, sorted by role."""
         return {
-            kind: len(invocations) for kind, invocations in sorted(self.invocations_by_kind.items())
+            role: len(invocations) for role, invocations in sorted(self.invocations_by_role.items())
         }
 
 

@@ -7,7 +7,6 @@ import itertools
 
 from uptimely import plan as plan_module
 from uptimely import spec
-from uptimely.spec import operator_kinds
 from uptimely.spec.model import base as model_base
 
 UNASSIGNED_DATASET_LABEL = "Unassigned"
@@ -49,7 +48,12 @@ class DataLineageStep:
     function: str
     function_label: str
     operator: str
-    kind: operator_kinds.OperatorKind
+    binding_role: str
+    execution_form: str
+    operator_label: str
+    grain_relationships: list[dict[str, str | None]]
+    function_returns: str
+    has_dataframe_inputs: bool
     profile: str
     dataset: str | None
     grain: str
@@ -126,18 +130,18 @@ class _DataLineageBuilder:
                 dataset=definition.profiles_by_key[owner],
                 feature=feature,
             )
-        self.compact_datasets = {
-            invocation.profile_id
-            for invocation in invocations
-            if operator_kinds.OPERATOR_KINDS[invocation.operator_kind].dimension_change == "remove"
-        }
-        self.compact_datasets.update(
-            self.features[name].dataset.id
-            for invocation in invocations
-            if operator_kinds.OPERATOR_KINDS[invocation.operator_kind].dimension_change == "add"
-            for name in invocation.input_features
-            if name in self.features
-        )
+        self.compact_datasets = set()
+        for invocation in invocations:
+            key = (invocation.profile_id, invocation.operator_id)
+            relationships = definition.operator_grain_relationships[key]
+            if "collapse" in relationships.values():
+                self.compact_datasets.add(invocation.profile_id)
+            if "expand" in relationships.values():
+                self.compact_datasets.update(
+                    self.features[name].dataset.id
+                    for name in invocation.input_features
+                    if name in self.features
+                )
         self.accumulated: dict[str | None, dict[str, DataLineageColumn]] = {}
 
     def build(self) -> list[list[DataLineageStep]]:
@@ -188,7 +192,7 @@ class _DataLineageBuilder:
         columns: list[DataLineageColumn],
     ) -> list[DataLineageInput]:
         """Group cross-dataset inputs with their source dimensions."""
-        if operator_kinds.OPERATOR_KINDS[invocation.operator_kind].is_effect:
+        if self.definition.functions[invocation.function_id].returns == "any":
             return []
         source_columns: dict[str, list[DataLineageColumn]] = {}
         for column in columns:
@@ -233,7 +237,7 @@ class _DataLineageBuilder:
             name: dataclasses.replace(column, role="Input" if name in inputs else "Existing")
             for name, column in previous.items()
         }
-        if not operator_kinds.OPERATOR_KINDS[invocation.operator_kind].is_effect:
+        if self.definition.functions[invocation.function_id].returns == "dataframe":
             for column in columns:
                 if column.role == "Output":
                     current.pop(column.name, None)
@@ -244,14 +248,19 @@ class _DataLineageBuilder:
     def _step(self, invocation: plan_module.Invocation) -> DataLineageStep:
         """Assemble one invocation's schema, input tables, and dependencies."""
         profile = self.definition.profiles[invocation.profile_id]
-        kind = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
         dataset = (
             self.definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
         )
+        key = (invocation.profile_id, invocation.operator_id)
+        function_returns = self.definition.functions[invocation.function_id].returns
+        has_dataframe_inputs = bool(
+            self.definition.functions[invocation.function_id].arguments_by_type.get("dataframe", {})
+        )
+        relationships = self.definition.operator_grain_relationships[key]
         grain_keys = set(
             self.definition.grain_keys_by_profile[self.definition.profile_keys[profile.id]]
         )
-        input_role = "Declared input" if kind.is_effect else "Input"
+        input_role = "Declared input" if function_returns == "any" else "Input"
         columns = _dimension_columns(profile, self.definition.dimensions)
         columns.extend(
             self._feature_column(name, role)
@@ -276,7 +285,20 @@ class _DataLineageBuilder:
             if function is not None
             else invocation.function_id,
             operator=model_base.humanize_identifier(invocation.operator_id),
-            kind=kind,
+            binding_role=invocation.role,
+            execution_form=self.definition.operator_execution_forms[key],
+            operator_label=self.definition.operator_kinds[key],
+            grain_relationships=[
+                {
+                    "source_profile": (
+                        self.definition.profiles_by_key[source].id if source is not None else None
+                    ),
+                    "relationship": relationship,
+                }
+                for source, relationship in relationships.items()
+            ],
+            function_returns=function_returns,
+            has_dataframe_inputs=has_dataframe_inputs,
             profile=profile.id,
             dataset=invocation.profile_id,
             dataset_label=dataset_label,

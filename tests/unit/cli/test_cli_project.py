@@ -129,7 +129,7 @@ def test_project_build_examples(
     assert bundle.execution_plan.invocations
     assert set(bundle_files(root)) == {"build.json", "execution_plan.json", "spec.json"}
     explorer_data = json.loads((root / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
-    assert explorer_data["format_version"] == 2
+    assert explorer_data["format_version"] == 3
 
 
 def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None:

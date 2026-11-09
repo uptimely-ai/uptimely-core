@@ -58,9 +58,9 @@ stages cover every invocation and place dependencies earlier. It does not
 schedule or reorder them. Plans cache `invocations_by_id`
 and `execution_stages`, along with derived views: `function_ids`, `profile_ids`,
 `arguments` (invocation ID to bound arguments), `features` (output feature ID to
-producing invocations), `calculated_features`, `entrypoints`, and
-`invocations_by_kind`, and `count_per_kind` (invocation counts keyed and sorted by
-derived operator label). Output features include dimension outputs; the Spec
+producing invocations), `calculated_features`, `entrypoints`,
+`invocations_by_role`, and `count_per_role` (invocation counts keyed and sorted
+by binding role). Output features include dimension outputs; the Spec
 remains the source of feature metadata. Repeated reads reuse the same cached
 views. Each derived view is built independently, so using one does not eagerly
 materialize unrelated indexes. Treat the views and their nested containers as

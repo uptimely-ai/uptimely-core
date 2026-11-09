@@ -411,22 +411,22 @@ def test_plan_cached_views_are_independent() -> None:
         assert plan.profile_ids == {"pump_profile"}
         assert plan.arguments["opaque-read"] is plan.invocations[0].arguments
         assert plan.features["maximum"] == [plan.invocations[1]]
-        assert plan.calculated_features == set()
+        assert plan.calculated_features == {"plant", "pump", "maximum"}
         assert list(plan.entrypoints) == [
             "example.functions:load",
             "example.functions:maximum",
             "example.functions:save",
         ]
-        assert plan.invocations_by_kind["collapse"] == [plan.invocations[1]]
-        assert plan.count_per_kind == {"collapse": 1, "read": 1, "write": 1}
-        assert list(plan.count_per_kind) == ["collapse", "read", "write"]
+        assert plan.invocations_by_role["compute"] == plan.invocations
+        assert plan.count_per_role == {"compute": 3}
+        assert list(plan.count_per_role) == ["compute"]
         assert plan.execution_stages == [[invocation] for invocation in original.invocations]
         assert plan.execution_invocations == original.invocations
 
     assert counted.traversals > 1
     assert plan.execution_stages is plan.execution_stages
     assert plan.execution_invocations is plan.execution_invocations
-    assert plan.count_per_kind is plan.count_per_kind
+    assert plan.count_per_role is plan.count_per_role
     assert uptimely_plan.to_dict(plan) == uptimely_plan.to_dict(original)
     assert uptimely_plan.to_dict(plan) == uptimely_plan.to_dict(original)
 
@@ -528,14 +528,23 @@ def test_execution_invocations_follow_stages_not_declaration_order() -> None:
         stages=[],
     )
     assert empty.execution_invocations == []
-    assert empty.count_per_kind == {}
+    assert empty.count_per_role == {}
 
 
-def test_count_per_kind_rebuilt_on_plan_replacement() -> None:
+def test_count_per_role_rebuilt_on_plan_replacement() -> None:
     plan = _sample_plan()
-    previous = plan.count_per_kind
-    plan.invocations[0] = copy.replace(plan.invocations[0], operator_kind="write")
-    assert plan.count_per_kind is previous
+    previous = plan.count_per_role
+    plan.invocations[0] = copy.replace(
+        plan.invocations[0],
+        result="fragment",
+        fragment_dimensions="target",
+    )
+    plan.invocations[1] = copy.replace(
+        plan.invocations[1],
+        role="merge",
+        operator_id="read_pressure",
+    )
+    assert plan.count_per_role is previous
     plan = copy.replace(plan)
-    assert plan.count_per_kind == {"collapse": 1, "write": 2}
-    assert plan.count_per_kind is not previous
+    assert plan.count_per_role == {"compute": 2, "merge": 1}
+    assert plan.count_per_role is not previous

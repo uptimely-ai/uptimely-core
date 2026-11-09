@@ -1,8 +1,7 @@
 import { ExplorerLineage } from './lineage_components.js';
 import { initializeLineage } from './lineage_initializer.js';
-import { KINDS } from '../rendering/shared_markup.js';
 import {
-	drawDatasetMarkers, drawMainframeSpines, invocationColor, invocationContribution, invocationFlowDetails, invocationLabel, invocationRole, isDefaultMerge,
+	drawDatasetMarkers, drawMainframeSpines, invocationColor, invocationContribution, invocationFlowDetails, invocationIcon, invocationLabel, invocationRole, isDefaultMerge,
 	prepareInvocationLayout,
 } from './invocation_layout.js';
 
@@ -19,6 +18,12 @@ export function initializeInvocationLineage(signal) {
 		return Array.isArray(values) && values.length ? values.join(', ') : 'none';
 	}
 
+	function formatRelationships(values) {
+		return values?.length
+			? values.map(item => `${item.source_profile || 'unresolved'}: ${item.relationship}`).join(', ')
+			: 'not applicable';
+	}
+
 	function updateInvocationDetails(node, fullLineage = true) {
 		if (!node) {
 			ExplorerLineage.showDetails(invocationNodeDetails, 'No node selected', [],
@@ -27,9 +32,11 @@ export function initializeInvocationLineage(signal) {
 		}
 		const definitionRows = [
 			['Invocation ID', node.id],
-			['Phase', invocationRole(node) === 'merge' ? 'merge' : 'compute'],
+			['Binding role', node.role || 'n/a'],
 			['Stage', node.stage],
-			['Operator kind', KINDS[node.operator_kind]?.label || node.operator_kind || 'n/a'],
+			['Execution form', node.execution_form || 'n/a'],
+			['Grain relationship', formatRelationships(node.grain_relationships)],
+			['Derived label', node.operator_label || 'n/a'],
 			['Function ID', node.function_id || 'n/a'],
 		];
 		if (node.operator_id && node.profile_id) {
@@ -39,8 +46,8 @@ export function initializeInvocationLineage(signal) {
 				`?view=profiles#${encodeURIComponent(`operator-${node.profile_id}-${node.operator_id}`)}`]);
 		}
 		const outputRows = [
-			[node.is_effect ? 'Declared feature outputs' : 'Produces',
-				node.feature || (node.is_effect ? 'None' : 'n/a')],
+			[invocationRole(node) === 'effect' ? 'Declared feature outputs' : 'Produces',
+				node.feature || (invocationRole(node) === 'effect' ? 'None' : 'n/a')],
 		];
 		if (invocationRole(node) === 'merge') {
 			outputRows.push(
@@ -50,7 +57,7 @@ export function initializeInvocationLineage(signal) {
 			);
 			if (isDefaultMerge(node)) outputRows.push(['Binding', 'Automatically supplied default merge']);
 		}
-		if (node.is_effect && node.input_features?.length) {
+		if (invocationRole(node) === 'effect' && node.input_features?.length) {
 			outputRows.push(['Declared inputs', formatList(node.input_features)]);
 		}
 		ExplorerLineage.showDetails(invocationNodeDetails, invocationLabel(node), [
@@ -70,7 +77,7 @@ export function initializeInvocationLineage(signal) {
 			] },
 		],
 			invocationFlowDetails(node, scoped), {
-				kind: 'Invocation', icon: KINDS[node.operator_kind]?.icon || 'square-function',
+				kind: 'Invocation', icon: invocationIcon(node),
 				color: invocationColor(node),
 			});
 	}
@@ -134,7 +141,7 @@ export function initializeInvocationLineage(signal) {
 				}));
 				return ExplorerLineage.labeledMesh(mesh, invocationLabel(node), style,
 					ExplorerLineage.NODE_STYLE_3D.labelOffset, null,
-					KINDS[node.operator_kind]?.icon || 'square-function',
+					invocationIcon(node),
 					isDefaultMerge(node) ? 'sparkles' : null);
 			},
 		});
@@ -155,7 +162,7 @@ export function initializeInvocationLineage(signal) {
 					node, ctx, invocationLabel(node),
 					invocationColor(node), highlight, false,
 					{
-						iconName: KINDS[node.operator_kind]?.icon || 'square-function',
+						iconName: invocationIcon(node),
 						badgeIconName: isDefaultMerge(node) ? 'sparkles' : null,
 					}),
 			onSelect: updateSelection,

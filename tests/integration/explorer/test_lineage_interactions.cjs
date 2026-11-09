@@ -497,7 +497,9 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		element('graph-data').textContent = JSON.stringify({
 			nodes: ['before', 'selected', 'after', 'unrelated'].map((id, index) => ({
 				id, label: id, label_lines: [id], stage: index + 1,
-				function_id: id, operator_kind: 'read', entity: 'test', profile_id: id,
+				function_id: id, role: 'compute', result: 'fragment', function_returns: 'dataframe',
+				execution_form: 'compute', binding_roles: ['compute'], grain_relationships: [],
+				entity: 'test', profile_id: id,
 				profile_name: ({ before: 'Before', selected: 'Selected Profile', after: 'After', unrelated: 'Unrelated' })[id],
 			})),
 			links: [
@@ -536,6 +538,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 				Braces: [['path', { d: 'M1 2' }]],
 				Database: [['path', { d: 'M1 2' }]],
 				ArrowUpRight: [['path', { d: 'M1 2' }]],
+				SquareFunction: [['path', { d: 'M1 2' }]],
 			} },
 			SpriteText: class {
 				constructor(text) {
@@ -780,8 +783,9 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		assert.equal(graph2D.properties.get('zoom'), 2.5);
 		assert.equal(graph.fitCalls.length, fits3D);
 		node.is_operator = filename === 'lineage/feature_lineage.js';
-		node.is_effect = true;
+		node.function_returns = 'any';
 		node.features = ['result'];
+		node.feature = 'result';
 		node.input_features = ['source'];
 		graph.properties.get('onNodeClick')(node);
 		const details = element(filename === 'lineage/feature_lineage.js'
@@ -789,8 +793,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 		assert.ok(details.rows.some(([label]) => label === (
 			filename === 'lineage/feature_lineage.js' ? 'Declared logical outputs' : 'Declared feature outputs'
 		)));
-		node.operator_kind = 'escape';
-		node.is_effect = false;
+		node.function_returns = 'dataframe';
 		graph.properties.get('onNodeClick')(node);
 		assert.equal(details.children[0].children[1].children[1].textContent, 'selected');
 		assert.ok(details.rows.some(([label]) => label === 'Produces'));
@@ -891,7 +894,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 			{ id: 'result', profile_id: 'a_source', profile_name: 'Source profile', stage: 3 },
 			{ id: 'other', profile_id: 'b_isolated', profile_name: 'Isolated profile', stage: 1 },
 			{ id: 'missing', stage: 1 },
-		].map(node => ({ ...node, label: node.id, function_id: node.id, operator_kind: 'read' }));
+		].map(node => ({ ...node, label: node.id, function_id: node.id, role: 'compute' }));
 		const links = [
 			{ source: 'a', target: 'z_operator' },
 			{ source: 'z', target: 'a_operator' },
@@ -1047,8 +1050,8 @@ test('invocation lanes use execution stages, not inferred dependency depths', ()
 
 test('fragment assembly edges use merge function-kind styling', () => {
 	const layout = lineageLayout('lineage/invocation_lineage.js', [
-		{ id: 'compute', label: 'Read values', function_id: 'read', operator_kind: 'read', profile_id: 'data', stage: 1 },
-		{ id: 'merge', label: 'Join values', function_id: 'join', operator_kind: 'merge', profile_id: 'data', stage: 2, phase: 'merge' },
+		{ id: 'compute', label: 'Read values', function_id: 'read', role: 'compute', profile_id: 'data', stage: 1 },
+		{ id: 'merge', label: 'Join values', function_id: 'join', role: 'merge', profile_id: 'data', stage: 2 },
 	], [{ source: 'compute', target: 'merge', dependency_type: 'fragment' }]);
 	const link = layout.graph.properties.get('graphData').links[0];
 

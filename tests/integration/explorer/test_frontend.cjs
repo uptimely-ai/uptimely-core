@@ -187,6 +187,10 @@ test("function source and operator usage handle qualified, missing and escaped v
   assembly.calculate.interface.outputs = [];
   assembly.merge_values = { compute: { function: "other" }, merge: { function: "calculate" },
     interface: { inputs: [], outputs: [] } };
+  fn.operator_usages.push({
+    profile: "readings", operator: "merge_values", role: "merge",
+    execution_form: "compute + merge", grain_relationships: [],
+  });
 
   const html = renderCatalog(data, "functions").content;
   const article = html.slice(html.indexOf('<article id="function-calculate"'));
@@ -209,6 +213,7 @@ test("function source and operator usage handle qualified, missing and escaped v
   fn.doc.raises = [];
   assembly.calculate.compute.function = "other";
   delete assembly.merge_values.merge;
+  fn.operator_usages = [];
   const empty = renderCatalog(data, "functions").content;
   assert.doesNotMatch(empty, /class="function-source"/);
   assert.match(empty, /class="function-return-type">dataframe<\/p>/);
@@ -222,9 +227,13 @@ test("merge phases expose their invocation metadata and owning operator", async 
   const merge = {
     invocation_id: "invocation:merge:join:readings:calculate",
     operator_id: "calculate",
-    phase: "merge",
+    role: "merge",
+    result: "target",
+    execution_form: "compute + merge",
+    binding_roles: ["compute", "merge"],
+    grain_relationships: [],
+    function_returns: "dataframe",
     function: "join",
-    operator_kind: "merge",
     title: "Join results",
     function_label: "Join results",
     merge_dataset: "readings",
@@ -239,7 +248,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
     output_feature_ids: [],
     uncontrolled: false,
     row_context: null,
-    depends_on_invocations: [{ id: "read", function: "Read values", phase: "compute" }],
+    depends_on_invocations: [{ id: "read", function: "Read values", role: "compute" }],
     args: {
       target: { value: "readings", type: { function: "dataframe | null" } },
       fragment: { value: "$operators.calculate.fragment", type: { function: "dataframe" } },
@@ -251,8 +260,12 @@ test("merge phases expose their invocation metadata and owning operator", async 
   data.graphs.invocation_lineage = {
     nodes: [{
       id: merge.invocation_id,
-      phase: "merge",
-      operator_kind: "merge",
+      role: "merge",
+      result: "target",
+      function_returns: "dataframe",
+      execution_form: "compute + merge",
+      binding_roles: ["compute", "merge"],
+      grain_relationships: [],
       function_name: merge.function_label,
       operator_id: merge.operator_id,
       profile_id: "readings",
@@ -269,21 +282,23 @@ test("merge phases expose their invocation metadata and owning operator", async 
     function: "join",
     args: { dataset: "$profiles.@.dataset", fragment: "$operators.@.fragment", dataset_keys: ["id"] },
   };
+  data.catalogs.configuration.profiles.readings.assembly.calculate.execution_form = "compute + merge";
+  data.catalogs.configuration.profiles.readings.assembly.calculate.binding_roles = ["compute", "merge"];
   data.catalogs.configuration.functions.join = { name: "Join results", returns: "dataframe", category: "Joining" };
   data.catalogs.function_groups.Joining = { join: data.catalogs.configuration.functions.join };
 
   const stages = renderCatalog(data, "stages").content;
   const profiles = renderCatalog(data, "profiles").content;
   const topology = lineage(data, true).content;
-  assert.match(stages, /data-phase="merge"/);
+  assert.match(stages, /data-role="merge"/);
   assert.match(stages, /Merge dataset/);
   assert.match(stages, /Fragment source/);
   assert.match(stages, /Merge keys/);
   assert.match(profiles, /id="operator-readings-calculate"/);
-  assert.match(profiles, /profile-operator-merge-indicator/);
+  assert.match(profiles, /data-execution-form="compute \+ merge"/);
   assert.match(profiles, /data-lucide="git-merge"/);
-  assert.match(profiles, /The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset\./);
-  assert.match(topology, /"phase":"merge"/);
+  assert.match(profiles, /The resulting fragment is merged into this profile&#39;s dataset\. Grain relationships:/);
+  assert.match(topology, /"role":"merge"/);
   assert.match(topology, /"dependency_type":"fragment"/);
 });
 
@@ -372,7 +387,11 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   config.functions.aggregate = { name: "Maximum <reading>", returns: "dataframe" };
   config.functions.external = { returns: "any" };
   config.profiles.readings.assembly.aggregate = {
-    kind: "collapse",
+    operator_label: "Collapse",
+    execution_form: "compute",
+    binding_roles: ["compute"],
+    grain_relationships: [{ source_profile: "source", relationship: "collapse" }],
+    produces_target_features: true,
     compute: { function: "aggregate", args: {
       dataset: "$profiles.source.dataset",
       options: { method: "<max>" },
@@ -381,14 +400,18 @@ test("profile operator expose engineering contracts and inspectable bindings", a
     interface: { inputs: ["$features.raw"], outputs: ["$features.value"] },
   };
   config.profiles.readings.assembly.external = {
-    kind: "escape",
+    operator_label: "Escape",
+    execution_form: "compute",
+    binding_roles: ["compute"],
+    grain_relationships: [],
+    produces_target_features: false,
     compute: { function: "external", args: {} },
     interface: { inputs: [], outputs: ["$features.<logical>"] },
   };
   data.stages[0].steps.push({
     profile: "readings",
     operator_id: "aggregate",
-    phase: "compute",
+    role: "compute",
     args: {
       dataset: { value: "$profiles.source.dataset", type: { engine: "DataFrame" } },
       options: { value: { method: "<max>" }, type: { function: "dict" } },
@@ -405,7 +428,7 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.doesNotMatch(html, /profile-operator-kicker|>OPERATION</);
   assert.match(html, /<div class="profile-operator-list">/);
   assert.doesNotMatch(html, /<div class="profile-operator">/);
-  assert.match(html, /data-profile-operator="aggregate" data-operator-kind="collapse"/);
+  assert.match(html, /data-profile-operator="aggregate" data-execution-form="compute"/);
   assert.match(html, /href="\?view=functions#function-aggregate">Maximum &lt;reading&gt;<\/a>/);
   assert.match(html, /Input features<\/dt><dd><code>raw<\/code>/);
   assert.match(html, /Output features<\/dt><dd><code>&lt;Value&gt;<\/code>/);
@@ -425,8 +448,8 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.doesNotMatch(html, /Group by grain keys:|ui-badge--neutral">collapse/);
   assert.match(html, /Output features \(logical\)<\/dt><dd><code>&lt;logical&gt;<\/code>/);
   assert.match(html, /None declared/);
-  assert.match(html, /escape outputs are not materialized/);
-  assert.match(html, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
+  assert.match(html, /outputs are not materialized as dataframe columns/);
+  assert.match(html, /data-profile-operator="calculate" data-execution-form="compute"/);
   const operator = html.match(/<article id="operator-readings-aggregate"[^]*?<\/article>/)[0];
   assert.match(operator, /profile-operator-header[^]*profile-operator-contract[^]*profile-operator-compute/);
   assert.match(operator, /class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"/);
@@ -494,7 +517,7 @@ test("dashboard, Features charts and plan show visual components and counts", as
   assert.doesNotMatch(features, /<h2[^>]*>Features overview<\/h2>|data-stat=/);
   assert.match(features, /data-category="output" data-count="1"/);
   const plan = planOverview(data);
-  assert.match(plan, /Invocations by operator kind/);
+  assert.match(plan, /Invocations by binding role/);
   assert.match(plan, /Invocations by stage/);
   assert.doesNotMatch(plan, /Max parallel invocations|data-stat=/);
 });
@@ -519,9 +542,9 @@ test("lineage views expose original canvases, controls and script-safe graph dat
   assert.match(lineage(sampleData(), true).context, /id="invocation-node-details"/);
   const topologyData = sampleData();
   topologyData.graphs.invocation_lineage.nodes = [
-    { id: "first", profile_id: "readings", operator_kind: "merge" },
-    { id: "second", profile_id: "readings", operator_kind: "merge" },
-    { id: "third", operator_kind: "<custom>" },
+    { id: "first", profile_id: "readings", role: "merge" },
+    { id: "second", profile_id: "readings", role: "merge" },
+    { id: "third", role: "<custom>" },
   ];
   const topology = lineage(topologyData, true).context;
   assert.match(topology, /2 profiles<\/span>/);

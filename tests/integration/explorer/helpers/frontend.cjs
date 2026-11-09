@@ -10,10 +10,14 @@ function sampleData() {
     args: { value: { type: "float" } }, return_type: "DataFrame",
     doc: { params: { value: "<Input>" }, examples: ['print("<script>")'], raises: [] },
     entrypoint: "example:calculate",
+    operator_usages: [{
+      profile: "readings", operator: "calculate", role: "compute",
+      execution_form: "compute", grain_relationships: [],
+    }],
   };
   const column = { name: "value", label: "<Value>", role: "Output", type: "float" };
   return {
-    format_version: 2,
+    format_version: 3,
     project: { name: "<Test project>", spec_version: 7 },
     scope: { label: "all features", is_scoped: false },
     catalogs: {
@@ -25,7 +29,12 @@ function sampleData() {
               id: { name: "Machine ID", type: "string" },
               value: { name: "<Value>", type: "float" },
             },
-            assembly: { calculate: { kind: "vectorize", compute: { function: "calculate", args: {} }, interface: { inputs: [], outputs: ["$features.value"] } } },
+            assembly: { calculate: {
+              operator_label: "Vectorize", execution_form: "compute", binding_roles: ["compute"],
+              grain_relationships: [], source_status: "resolved", produces_target_features: true,
+              kind: "vectorize", compute: { function: "calculate", args: {} },
+              interface: { inputs: [], outputs: ["$features.value"] },
+            } },
             scope: "one row per machine <source>",
           },
         },
@@ -50,10 +59,11 @@ function sampleData() {
     },
     plan: { stage_count: 1, invocation_count: 1, function_count: 1, profile_count: 1,
       feature_count: 1, dependency_count: 0, max_parallel_invocations: 1,
-      operator_kind_counts: [["vectorize", 1]] },
+      invocation_role_counts: [["compute", 1]] },
     stages: [{ stage: 1, steps: [{
       title: "<Calculate>", function: "calculate", function_label: "Calculate",
-      operator_kind: "vectorize", profile: "readings", dataset: "readings",
+      binding_role: "compute", execution_form: "compute", grain_relationships: [],
+      function_returns: "dataframe", has_dataframe_inputs: true, profile: "readings", dataset: "readings",
       input_features: [], output_features: ["value"], depends_on_invocations: [],
       args: { value: { value: "<input>", type: { engine: "float" } } },
       returns: { type: { engine: "DataFrame" } }, row_context: null,
@@ -62,7 +72,9 @@ function sampleData() {
       number: 1, invocation_id: "calculate:readings", function_label: "Calculate",
       function: "calculate", profile: "readings", dataset: "readings", dataset_label: "Readings",
       operator: "<Calculate>", dependencies: [], columns: [column], main_columns: [column],
-      kind: { id: "vectorize" }, input_tables: [], row_count: 3,
+      binding_role: "compute", execution_form: "compute", grain_relationships: [],
+      function_returns: "dataframe", has_dataframe_inputs: true,
+      operator_label: "Vectorize", input_tables: [], row_count: 3,
     }]] },
   };
 }

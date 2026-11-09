@@ -25,7 +25,6 @@ export function features(configuration) {
   });
 }
 
-const SOURCE_FEATURE_KINDS = new Set(["read", "conform", "expand", "collapse"]);
 const featureReferenceId = reference => reference.startsWith("$features.")
   ? reference.slice("$features.".length)
   : null;
@@ -246,12 +245,15 @@ function functionOverview(data) {
 
 function featureCards(config, invocations) {
   return features(config).map(item => {
-    const role = SOURCE_FEATURE_KINDS.has(item.operator.kind) ? "Input"
-      : Object.values(item.profile.assembly).some(operator =>
-        operator.kind === "vectorize"
-        && operatorInputs(operator).some(reference =>
-          featureReferenceId(reference) === item.featureId))
-        ? "Intermediate" : "Output";
+    const functionReturns = config.functions[item.operator.compute.function]?.returns;
+    const role = functionReturns === "any" ? "External"
+      : item.operator.produces_target_features
+        ? Object.values(item.profile.assembly).some(operator =>
+          operator.produces_target_features
+          && operatorInputs(operator).some(reference =>
+            featureReferenceId(reference) === item.featureId))
+          ? "Intermediate" : "Output"
+        : "Input";
     const grainKeys = new Set(profileGrainKeys(config, item.profile));
     const producedFeatures = new Set(Object.values(item.profile.assembly).flatMap(operator =>
       operator.interface.outputs.map(featureReferenceId).filter(id => id && !grainKeys.has(id))));
@@ -277,7 +279,7 @@ function featureCards(config, invocations) {
         <div><dt>Profile</dt><dd><a class="feature-meta-profile" href="${href("profiles", `profile-${item.id}`)}">${icon("profiles", "feature-detail-icon")}<span>${escape(label(item.id, item.profile))}</span></a></dd></div>
       </dl>
       <p data-feature-description class="mt-4 text-sm leading-6 text-slate-400">${escape(item.feature.description || "No description provided.")}</p>
-      ${item.operator.kind === "escape" ? '<p class="mt-6 text-sm leading-6 text-violet-300">Declared logical output only; escape outputs are not materialized as dataframe columns.</p>' : ""}
+      ${functionReturns === "any" ? '<p class="mt-6 text-sm leading-6 text-violet-300">Declared logical output only; this output is not materialized as a dataframe column.</p>' : ""}
       <section class="mt-6" aria-label="Producing operator">
         ${subheading("Produced by operator", "assembly")}
         ${profileOperatorCards(config, item.id, item.profile, [[item.operatorId, item.operator]], invocations, `feature-${item.featureId}-operator`)}
@@ -383,10 +385,13 @@ export function schemaColumns(config, profile) {
   const producers = new Map();
   const producingOperators = new Map();
   for (const [operatorId, operator] of Object.entries(profile.assembly)) {
-    const kind = operator.kind;
+    const returns = config.functions[operator.compute.function]?.returns;
+    const color = returns === "any" ? "escape"
+      : operator.execution_form === "compute + merge" ? "teal"
+        : returns === "dataframe" ? "amber" : "neutral";
     for (const ref of operator.interface.outputs) {
       const id = ref.replace(/^\$features\./, "");
-      if (!producers.has(id)) producers.set(id, kind === "escape" ? "escape" : ["vectorize", "collapse"].includes(kind) ? "amber" : "teal");
+      if (!producers.has(id)) producers.set(id, color);
       if (!producingOperators.has(id)) producingOperators.set(id, new Set());
       producingOperators.get(id).add(operatorId);
     }
@@ -398,6 +403,36 @@ export function schemaColumns(config, profile) {
       return { id, ...feature, color, role: color === "teal" ? "Raw" : color === "escape" ? "External" : "Feature" };
     }),
   ].map(column => ({ ...column, operators: [...(producingOperators.get(column.id) || [])] }));
+}
+
+function operatorCard({ attributes, title, derivedLabel, hasMerge, relationships, role = null,
+  inputs, outputs, uncontrolled, functionId, functionName, argumentsMarkup, details = "" }) {
+  const grainRelationships = relationships?.map(item =>
+    `${item.source_profile || "unresolved"}: ${item.relationship}`).join(", ") || "not applicable";
+  const mergeTooltip = `The resulting fragment is merged into this profile's dataset. Grain relationships: ${grainRelationships}.`;
+  return `<article ${attributes} class="profile-operator">
+    <header class="profile-operator-header">
+      <div class="profile-operator-identity"><h4>${escape(title)}</h4>
+        <div class="mt-2 flex flex-wrap gap-2">${derivedLabel ? badge(derivedLabel, "neutral") : ""}${role ? badge(`${role === "merge" ? "Merge" : "Compute"} binding`, "neutral") : ""}</div>
+      </div>
+      ${hasMerge ? `<span class="profile-operator-merge-indicator" tabindex="0" title="${escape(mergeTooltip)}" aria-label="${escape(mergeTooltip)}">${kindIcon("merge", "profile-operator-icon")}</span>` : ""}
+    </header>
+    <dl class="profile-operator-contract">
+      <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${inputs}</dd></div>
+    </dl>
+    ${uncontrolled ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; these outputs are not materialized as dataframe columns. Dataframes are passed only through explicit arguments, and the return value is ignored.</div>' : ""}
+    <div class="profile-operator-compute">
+      <div class="profile-operator-function">
+        ${icon("functions", "profile-operator-function-icon")}
+        <a href="${href("functions", `function-${functionId}`)}">${escape(functionName)}</a>
+      </div>
+      ${argumentsMarkup}
+    </div>
+    <dl class="profile-operator-contract profile-operator-output">
+      <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${uncontrolled ? " (logical)" : ""}</dt><dd>${outputs}</dd></div>
+    </dl>
+    ${details}
+  </article>`;
 }
 
 function profileOperatorCards(config, profileId, profile, operators, invocations, idPrefix = "operator") {
@@ -461,30 +496,17 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
     const functionId = operator.compute.function;
     const fn = config.functions[functionId] || {};
     const computeInvocations = invocations.filter(invocation =>
-      invocation.profile === profileId && invocation.operator_id === id && invocation.phase === "compute"
+      invocation.profile === profileId       && invocation.operator_id === id && invocation.role === "compute"
       && Object.keys(invocation.args).length);
-    const hasMerge = Boolean(operator.merge);
-    const operatorName = operatorLabel(id, operator);
-    return `<article id="${escape(idPrefix)}-${escape(profileId)}-${escape(id)}" class="profile-operator" data-profile-operator="${escape(id)}" data-operator-kind="${escape(operator.kind)}">
-      <header class="profile-operator-header">
-        <div class="profile-operator-identity"><h4>${escape(operatorName)}</h4></div>
-        ${hasMerge ? `<span class="profile-operator-merge-indicator" title="The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset." aria-label="The resulting fragment produced from a foreign profile needs to be merged into this profile's dataset.">${kindIcon("merge", "profile-operator-icon")}</span>` : ""}
-      </header>
-      <dl class="profile-operator-contract">
-        <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${featureList(operatorInputs(operator))}</dd></div>
-      </dl>
-      ${operator.kind === "escape" ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</div>' : ""}
-      <div class="profile-operator-compute">
-        <div class="profile-operator-function">
-          ${icon("functions", "profile-operator-function-icon")}
-          <a href="${href("functions", `function-${functionId}`)}">${escape(fn.name || functionId)}</a>
-        </div>
-        ${resolvedArgumentDetails(id, operator, "Arguments", computeInvocations)}
-      </div>
-      <dl class="profile-operator-contract profile-operator-output">
-        <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${operator.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
-      </dl>
-    </article>`;
+    return operatorCard({
+      attributes: `id="${escape(idPrefix)}-${escape(profileId)}-${escape(id)}" data-profile-operator="${escape(id)}" data-execution-form="${escape(operator.execution_form)}"`,
+      title: operatorLabel(id, operator), derivedLabel: operator.operator_label,
+      hasMerge: operator.binding_roles?.includes("merge") === true,
+      relationships: operator.grain_relationships,
+      inputs: featureList(operatorInputs(operator)), outputs: featureList(operator.interface.outputs),
+      uncontrolled: fn.returns === "any", functionId, functionName: fn.name || functionId,
+      argumentsMarkup: resolvedArgumentDetails(id, operator, "Arguments", computeInvocations),
+    });
   }).join("")}</div>`;
 }
 
@@ -621,34 +643,43 @@ function functionCards(data) {
 }
 
 export function stageCards(data) {
+  const featureList = features => features?.length
+    ? features.map(feature => `<code>${escape(feature)}</code>`).join("")
+    : '<span class="profile-operator-empty">None declared</span>';
   return data.stages.map(stage => `<section id="stage-${stage.stage}" data-context-item>
     <div class="mb-3 flex items-center gap-3"><h2 class="rounded-lg bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">Stage ${stage.stage}</h2>
       <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">${stage.steps.length} invocation${stage.steps.length === 1 ? "" : "s"}</span></div>
-    <div class="grid grid-cols-1 gap-10">${stage.steps.map(step => `<div>
-      <h3 class="mb-2 break-words font-display text-lg font-semibold text-white">${escape(step.title)}</h3><article data-invocation-id="${escape(step.invocation_id)}" data-phase="${escape(step.phase)}">
-        <div class="mb-3 flex flex-wrap items-center gap-2">${badge(step.phase === "merge" ? "Merge phase" : "Compute phase", step.phase === "merge" ? "amber" : "neutral")}
-          <span class="font-mono text-xs text-slate-500">Operator: ${escape(step.operator_id)}</span></div>
-        <dl class="grid overflow-hidden rounded-lg border border-slate-800 bg-slate-950/55 font-mono text-xs md:grid-cols-[8rem_minmax(0,1fr)_minmax(0,1fr)_10rem]">
-          ${[["Operator kind", step.operator_kind, "text-amber-200"], ["Function", step.function_label, "text-white"],
-            [step.uncontrolled ? "Declared logical outputs" : "Profile feature output", step.feature || "None", "text-cyan-200"],
-            [step.uncontrolled ? "Python return (ignored)" : "Returns", step.returns.type.engine || "—", "text-lime-300"]].map(([title, value, color]) => `<div class="min-w-0 border-b border-slate-800 p-3 md:border-r">
-              <dt class="mb-1 uppercase tracking-wider text-slate-500">${title}</dt><dd class="break-all ${color}">${title.toLowerCase().includes("return") ? dataTypeLabel(value) : escape(value)}</dd></div>`).join("")}
-          <div class="min-w-0 p-3 md:col-span-4"><dt class="mb-1 uppercase tracking-wider text-slate-500">Depends on invocations</dt>
-            <dd class="flex flex-wrap gap-1.5">${step.depends_on_invocations.map(dep => `<span class="rounded-md bg-slate-950/70 px-2 py-1 text-slate-300">${escape(dep.function)}</span>`).join("") || '<span class="text-slate-400">No invocation dependencies</span>'}</dd></div>
-        </dl>
-        ${step.phase === "merge" ? `<dl class="mt-3 grid gap-2 rounded-lg border border-amber-900/50 bg-amber-950/15 p-3 font-mono text-xs sm:grid-cols-3">
-          ${[["Merge dataset", step.merge_dataset], ["Fragment source", step.fragment_source], ["Merge keys", step.merge_keys]].map(([title, value]) =>
-            `<div class="min-w-0"><dt class="mb-1 uppercase tracking-wider text-slate-500">${title}</dt><dd class="break-all text-amber-100">${display(value)}</dd></div>`).join("")}
-        </dl>` : ""}
-        ${step.dataset_label ? `<p class="mt-3 font-mono text-xs text-slate-500">Profile: ${escape(step.dataset_label)}</p>` : ""}
-        ${step.uncontrolled ? `<p class="mt-3 rounded-lg border border-violet-900/60 bg-violet-950/30 p-3 text-xs leading-5 text-violet-200">Uncontrolled external operation. Declared inputs: ${escape(step.input_features.join(", ") || "none")}. Declared outputs: ${escape(step.output_features.join(", ") || "none")}. These are logical dependencies only; dataframes are passed only through explicit arguments, and escape return values are ignored.</p>` : ""}
-        ${step.row_context !== null ? `<div class="mt-3 font-mono text-xs text-slate-400">Row context: ${display(step.row_context)}</div>` : ""}
-        ${Object.keys(step.args).length ? `<div class="ui-table-scroll mt-5" tabindex="0" role="region" aria-label="Argument bindings for ${escape(step.title)}"><table class="ui-table">
+    <div class="profile-operator-list">${stage.steps.map(step => {
+      const argumentsMarkup = Object.keys(step.args).length
+        ? `<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments</summary>
+          <div class="ui-table-scroll" tabindex="0" role="region" aria-label="Argument bindings for ${escape(step.title)}"><table class="ui-table">
           <caption class="sr-only">Argument bindings for ${escape(step.title)}</caption>
           <thead><tr>${["Argument", "Value"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
           <tbody>${Object.entries(step.args).map(([id, arg]) => `<tr><th scope="row">${typedName(id, arg.type.engine || arg.type.function || "—")}</th>
             <td><code>${display(arg.value)}</code></td></tr>`).join("")}</tbody>
-          </table></div>` : ""}</article></div>`).join("")}</div></section>`).join("");
+          </table></div></details>` : "";
+      const details = `<details class="profile-operator-bindings"><summary>Invocation details</summary>
+        <dl class="profile-operator-contract">
+          <div><dt>Profile</dt><dd><a href="${href("profiles", `profile-${step.profile}`)}">${escape(step.dataset_label || step.profile)}</a></dd></div>
+          <div><dt>Operator</dt><dd><a href="${href("profiles", `operator-${step.profile}-${step.operator_id}`)}">${escape(step.operator_id)}</a></dd></div>
+          <div><dt>${step.uncontrolled ? "Python return (ignored)" : "Returns"}</dt><dd>${dataTypeLabel(step.returns.type.engine || "—")}</dd></div>
+          <div><dt>Depends on invocations</dt><dd>${step.depends_on_invocations.map(dep =>
+            `<a href="#invocation-${escape(dep.id)}"><code>${escape(dep.function)}</code></a>`).join("") || '<span class="profile-operator-empty">No invocation dependencies</span>'}</dd></div>
+          ${step.role === "merge" ? [["Merge dataset", step.merge_dataset], ["Fragment source", step.fragment_source], ["Merge keys", step.merge_keys]].map(([title, value]) =>
+            `<div><dt>${title}</dt><dd><code>${display(value)}</code></dd></div>`).join("") : ""}
+          ${step.row_context != null ? `<div><dt>Row context</dt><dd><code>${display(step.row_context)}</code></dd></div>` : ""}
+        </dl>
+      </details>`;
+      return operatorCard({
+        attributes: `id="invocation-${escape(step.invocation_id)}" data-invocation-id="${escape(step.invocation_id)}" data-role="${escape(step.role)}"`,
+        title: step.title, derivedLabel: step.operator_label, role: step.role,
+        hasMerge: step.binding_roles?.includes("merge") === true || step.role === "merge",
+        relationships: step.grain_relationships,
+        inputs: featureList(step.input_features), outputs: featureList(step.output_features),
+        uncontrolled: step.uncontrolled, functionId: step.function, functionName: step.function_label,
+        argumentsMarkup, details,
+      });
+    }).join("")}</div></section>`).join("");
 }
 
 export function renderCatalog(data, view) {

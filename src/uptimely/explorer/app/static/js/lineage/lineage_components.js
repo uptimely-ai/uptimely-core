@@ -120,7 +120,7 @@ function datasetNodeObject(node, text, style) {
 			LineageConfig.NODE_STYLE_3D.sphereWidthSegments,
 			LineageConfig.NODE_STYLE_3D.sphereHeightSegments),
 		new THREE.MeshLambertMaterial({
-			color: node.phase === 'merge' ? node.mergeColor : node.datasetColor,
+			color: node.role === 'merge' ? node.mergeColor : node.datasetColor,
 		}),
 	);
 	return labeledMesh(mesh, text, style, LineageConfig.NODE_STYLE_3D.labelOffset,

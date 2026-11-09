@@ -23,7 +23,6 @@ from uptimely import entrypoint, spec
 from uptimely.project import build as project_build
 from uptimely.project import paths
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds
 
 logger = logging.getLogger(__name__)
 
@@ -99,6 +98,13 @@ def _build_details(snapshot: BuildSnapshot) -> dict[str, typing.Any]:
     }
 
 
+def _calculated_feature_producers(
+    spec_definition: spec_model.Spec,
+) -> dict[str, tuple[str, spec_model.Operator]]:
+    """Return dataframe outputs computed from their owning profile's dataset."""
+    return spec_definition.calculated_feature_producers
+
+
 def create_server(state: ServerState) -> fastmcp.FastMCP:
     """Create the MCP server with tools bound to the given server state."""
     mcp = fastmcp.FastMCP("uptimely")
@@ -122,8 +128,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
     def describe_function(function_id: str) -> str:
         """Describe a function's return contract, bindings, args, and signature status.
 
-        Escape functions include declared feature boundaries and their uncontrolled
-        execution semantics.
+        Operator usages identify their binding role and derived Spec relationships.
 
         Args:
             function_id: The function id from `list_functions`.
@@ -137,30 +142,34 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             if template.validate_signature
             else None
         )
-        escape_operators = [
+        operator_usages = [
             {
                 "profile": key[0],
                 "operator": key[1],
-                "inputs": snapshot.spec.operators_by_key[key].input_features,
-                "outputs": snapshot.spec.operators_by_key[key].output_features,
+                "role": role,
+                "execution_form": snapshot.spec.operator_execution_forms[key],
+                "grain_relationships": [
+                    {
+                        "source_profile": (
+                            snapshot.spec.profiles_by_key[source].id if source is not None else None
+                        ),
+                        "relationship": relationship,
+                    }
+                    for source, relationship in snapshot.spec.operator_grain_relationships[
+                        key
+                    ].items()
+                ],
             }
             for key in snapshot.spec.operators_by_function.get(function_id, [])
-            if snapshot.spec.operators_by_key[key].compute.function == function_id
-            and snapshot.spec.operator_kinds[key] == operator_kinds.ESCAPE
+            for role, binding in snapshot.spec.operators_by_key[key].bindings.items()
+            if binding.function == function_id
         ]
         return _to_json(
             {
                 "id": function_id,
                 "category": template.category,
                 "declared_returns": template.returns,
-                "escape_operators": escape_operators,
-                "execution_semantics": (
-                    "Uncontrolled external operation; declared feature inputs and outputs express "
-                    "logical dependencies only. Dataframes are passed only through explicitly "
-                    "bound dataframe arguments; the return value is ignored."
-                    if escape_operators
-                    else None
-                ),
+                "operator_usages": operator_usages,
                 "entrypoint": template.entrypoint,
                 "python_signature_validation": (
                     "enabled" if template.validate_signature else "disabled"
@@ -184,16 +193,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         The saved execution scope is reported by ``describe_build``.
         """
         spec_definition = state.load_snapshot().spec
-        payload = sorted(
-            {
-                feature_id
-                for feature_id, producers in spec_definition.feature_producers.items()
-                if any(
-                    spec_definition.operator_kinds[key] == operator_kinds.VECTORIZE
-                    for key in producers
-                )
-            }
-        )
+        payload = sorted(_calculated_feature_producers(spec_definition))
         return _to_json(payload)
 
     @mcp.tool()
@@ -209,12 +209,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             features needed to compute it.
         """
         spec_definition = state.load_snapshot().spec
-        by_feature = {
-            feature: (key[0], spec_definition.operators_by_key[key])
-            for feature, producers in spec_definition.feature_producers.items()
-            for key in producers
-            if spec_definition.operator_kinds[key] == operator_kinds.VECTORIZE
-        }
+        by_feature = _calculated_feature_producers(spec_definition)
         producer = by_feature.get(feature_id)
         if producer is None:
             raise ValueError(
@@ -268,16 +263,13 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             raise ValueError("max_rows must be a positive integer")
 
         snapshot = state.load_snapshot()
-        plan = snapshot.bundle.execution_plan
         config = state.config or _load_config(None, state.project_root)
         engine = uptimely_engine.Engine(snapshot.bundle, config)
         result = engine.run()
 
         expected_outputs = {
-            (invocation.profile_id, feature)
-            for invocation in plan.invocations
-            if invocation.operator_kind == operator_kinds.VECTORIZE
-            for feature in invocation.output_features
+            (profile_id, feature)
+            for feature, (profile_id, _) in _calculated_feature_producers(snapshot.spec).items()
         }
         actual_outputs = set(result.calculated_outputs)
         outputs_by_dataset: dict[str, list[str]] = {}

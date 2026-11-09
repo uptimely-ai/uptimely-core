@@ -29,7 +29,7 @@ test("Plan Overview uses the dashboard grid icon in navigation and title", () =>
   const markup = shell({ project: {}, scope: {} }, "plan", "", "");
   assert.match(markup, /href="\?view=plan"[^>]*>[\s\S]*?data-lucide="layout-grid"[\s\S]*?Overview/);
   const content = planOverview({
-    plan: { operator_kind_counts: [], invocation_count: 0, stage_count: 0 },
+    plan: { invocation_role_counts: [], invocation_count: 0, stage_count: 0 },
     stages: [],
   });
   assert.match(content, /<h1[^>]*>[\s\S]*?data-lucide="layout-grid"[\s\S]*?<span>Overview<\/span><\/h1>/);
@@ -47,8 +47,39 @@ test("resolutions use the scan square icon", () => {
   assert.match(icon("resolutions"), /data-lucide="scan-square"/);
 });
 
-test("vectorize uses the table properties icon", () => {
+test("operator-kind icon helper retains its compatibility mapping", () => {
   assert.match(kindIcon("vectorize"), /data-lucide="table-properties"/);
+});
+
+test("function usage groups named operators by profile without semantic metadata", () => {
+  const fn = { name: "Read", returns: "dataframe" };
+  const { content } = renderCatalog({ catalogs: {
+    summary: { function_count: 1 },
+    configuration: {
+      functions: { read: fn },
+      profiles: { telemetry: {
+        name: "Telemetry", grain: [], features: {},
+        assembly: {
+          load: {
+            name: "Load telemetry", compute: { function: "read" },
+            merge: { function: "read" },
+          },
+          refresh: {
+            name: "Refresh telemetry", compute: { function: "other" },
+            merge: { function: "read" },
+          },
+        },
+      } },
+    },
+    function_groups: { Uncategorized: { read: fn } },
+  } }, "functions");
+  const usage = content.match(/<section class="function-usage"[\s\S]*?<\/section>/)[0];
+  assert.equal((usage.match(/function-usage-item /g) || []).length, 1);
+  assert.match(usage, /href="\?view=profiles#profile-telemetry">Telemetry<\/a>/);
+  assert.match(usage, /href="\?view=profiles#operator-telemetry-load">Load telemetry<\/a>/);
+  assert.match(usage, /href="\?view=profiles#operator-telemetry-refresh">Refresh telemetry<\/a>/);
+  assert.equal((usage.match(/#operator-telemetry-load/g) || []).length, 1);
+  assert.doesNotMatch(usage, /function-usage-role|binding|compute \+ merge|not_applicable/);
 });
 
 test("function details keep source full-width and metadata responsive", async () => {
@@ -150,7 +181,10 @@ test("schema columns include every producing operator including grain and vector
 test("profile details show every declared operator in order including vectorized operator", () => {
   const kinds = ["read", "vectorize", "expand", "vectorize", "collapse", "escape", "write"];
   const assembly = Object.fromEntries(kinds.map((kind, index) => [`operator_${index}`, {
-    kind,
+    operator_label: kind,
+    execution_form: kind === "collapse" ? "compute + merge" : "compute",
+    binding_roles: kind === "collapse" ? ["compute", "merge"] : ["compute"],
+    grain_relationships: [],
     compute: { function: kind, args: { output: `$outputs.value_${index}` } },
     interface: { inputs: [], outputs: [] },
   }]));
@@ -160,14 +194,15 @@ test("profile details show every declared operator in order including vectorized
     profiles: { telemetry: { grain: [], features: {}, assembly } },
   };
   const stages = [{ steps: Object.keys(assembly).map((operator_id, index) => ({
-    profile: "telemetry", operator_id, phase: "compute",
+    profile: "telemetry", operator_id, role: "compute",
     args: { output: { type: { function: "string" }, value: `resolved_${index}` } },
   })) }];
   const render = () => renderCatalog({ catalogs: { summary: {}, configuration }, stages }, "profiles").content;
   const content = render();
   assert.deepEqual([...content.matchAll(/data-profile-operator="([^"]+)"/g)].map(match => match[1]),
     Object.keys(assembly));
-  assert.equal((content.match(/data-operator-kind="vectorize"/g) || []).length, 2);
+  assert.equal((content.match(/data-execution-form="compute"/g) || []).length, kinds.length - 1);
+  assert.equal((content.match(/data-execution-form="compute \+ merge"/g) || []).length, 1);
   assert.match(content, /<summary>Arguments<\/summary>/);
   assert.match(content, /<span class="ui-badge profile-operator-argument-value"><code class="language-json">\$outputs\.value_1<\/code><\/span>/);
   assert.match(content, /class="language-json">resolved_1<\/code>/);
@@ -179,7 +214,7 @@ test("profile details show every declared operator in order including vectorized
   assert.doesNotMatch(vectorizedOnly, /OPERATION|profile-operator-kicker/);
   assert.match(vectorizedOnly, /profile-operator-list/);
   assert.doesNotMatch(vectorizedOnly, /<div class="profile-operator">/);
-  assert.match(vectorizedOnly, /data-profile-operator="calculate" data-operator-kind="vectorize"/);
+  assert.match(vectorizedOnly, /data-profile-operator="calculate" data-execution-form="compute"/);
 });
 
 test("profile detail grain uses the shared resolution hierarchy and highlights its resolution", () => {
@@ -227,7 +262,13 @@ test("feature and function type displays use matching data type icons", () => {
       profiles: { telemetry: {
         grain: [], features: { temperature: { name: "Temperature", type: "float64" } },
         assembly: { load: {
-          kind: "read",
+          operator_label: "Read",
+          execution_form: "compute + merge",
+          binding_roles: ["compute", "merge"],
+          grain_relationships: [
+            { source_profile: "source", relationship: "collapse" },
+            { source_profile: null, relationship: "not_applicable" },
+          ],
           name: "Read Telemetry",
           compute: { function: "load", args: { source: "telemetry.csv" } },
           merge: { function: "merge" },
@@ -243,7 +284,7 @@ test("feature and function type displays use matching data type icons", () => {
       return_type: "pandas.DataFrame",
     } } },
   }, stages: [{ steps: [{
-    profile: "telemetry", operator_id: "load", phase: "compute",
+    profile: "telemetry", operator_id: "load", role: "compute",
     args: { source: { type: { function: "string" }, value: "telemetry.csv" } },
   }] }] };
   const { content: featureContent, context: featureContext } = renderCatalog(data, "features");
@@ -270,6 +311,10 @@ test("feature and function type displays use matching data type icons", () => {
   assert.match(featureOperator, /<td><code class="language-json">telemetry\.csv<\/code><\/td>/);
   assert.match(featureOperator, /<div class="profile-operator-function">\s*<i[^>]*class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
   assert.match(featureOperator, /profile-operator-merge-indicator/);
+  assert.match(featureOperator, /profile-operator-header[\s\S]*ui-badge[^>]*>Read<\/span>/);
+  assert.match(featureOperator, /tabindex="0" title="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
+  assert.match(featureOperator, /aria-label="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
+  assert.doesNotMatch(featureOperator, /<dt>Execution form<\/dt>|<dt>Grain relationship<\/dt>/);
   assert.ok(featureOperator.indexOf("Input features") < featureOperator.indexOf("profile-operator-compute"));
   assert.ok(featureOperator.indexOf("profile-operator-compute") < featureOperator.indexOf("Output features"));
   assert.doesNotMatch(featureOperator, /profile-operator-flow-node|profile-operator-flow-arrow/);
@@ -307,15 +352,24 @@ test("feature details show metadata and direct used-by badges below the operator
         alarm: { name: "High temperature alarm", type: "boolean" },
       },
       assembly: {
-        load: { kind: "read", compute: { function: "read" }, interface: {
-          inputs: [], outputs: ["$features.raw"],
-        } },
-        normalize: { kind: "vectorize", compute: { function: "vectorize" }, interface: {
-          inputs: ["$features.raw"], outputs: ["$features.adjusted", "$features.offset"],
-        } },
-        flag: { kind: "vectorize", compute: { function: "vectorize" }, interface: {
-          inputs: ["$features.adjusted"], outputs: ["$features.alarm"],
-        } },
+        load: {
+          operator_label: "Read", execution_form: "compute", binding_roles: ["compute"],
+          grain_relationships: [], produces_target_features: false,
+          kind: "read", compute: { function: "read" },
+          interface: { inputs: [], outputs: ["$features.raw"] },
+        },
+        normalize: {
+          operator_label: "Vectorize", execution_form: "compute", binding_roles: ["compute"],
+          grain_relationships: [], produces_target_features: true,
+          kind: "vectorize", compute: { function: "vectorize" },
+          interface: { inputs: ["$features.raw"], outputs: ["$features.adjusted", "$features.offset"] },
+        },
+        flag: {
+          operator_label: "Vectorize", execution_form: "compute", binding_roles: ["compute"],
+          grain_relationships: [], produces_target_features: true,
+          kind: "vectorize", compute: { function: "vectorize" },
+          interface: { inputs: ["$features.adjusted"], outputs: ["$features.alarm"] },
+        },
       },
     } },
   } } }, "features");
@@ -340,6 +394,7 @@ test("feature details show metadata and direct used-by badges below the operator
   assert.match(operatorBox, /profile-operator-header[\s\S]*profile-operator-contract[\s\S]*profile-operator-compute/);
   assert.match(operatorBox, /Output features<\/dt><dd><code>Adjusted temperature<\/code><code>Temperature offset<\/code>/);
   assert.match(operatorBox, /Input features<\/dt><dd><code>Raw temperature<\/code>/);
+  assert.doesNotMatch(operatorBox, /profile-operator-merge-indicator|Execution form|Grain relationship/);
   assert.match(card("offset"), /id="feature-offset-operator-telemetry-normalize"/);
   const ids = [...content.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length);
@@ -518,7 +573,7 @@ test("Stages overview shows only the invocations-by-stage chart", () => {
     catalogs: { summary: {}, configuration: {} },
     plan: {
       stage_count: 1, invocation_count: 2, max_parallel_invocations: 2,
-      dependency_count: 1, operator_kind_counts: [["read", 2]],
+      dependency_count: 1, invocation_role_counts: [["compute", 2]],
     },
     stages: [{ stage: 1, steps: [] }],
   }, "stages");
@@ -589,7 +644,7 @@ test("catalog overview navigation uses the appropriate label and profile cards s
       summary: { feature_buckets: {}, feature_count: 0 },
       function_groups: {},
     },
-    plan: { operator_kind_counts: [] },
+    plan: { invocation_role_counts: [] },
     stages: [],
   };
   const { content, context } = renderCatalog(data, "profiles");
@@ -620,7 +675,7 @@ test("catalog overviews use the shared dashboard icon and summary panels", () =>
       summary: { feature_buckets: {}, feature_count: 0 },
       function_groups: {},
     },
-    plan: { operator_kind_counts: [] },
+    plan: { invocation_role_counts: [] },
     stages: [],
   };
   for (const view of ["features", "functions", "dimensions", "stages"]) {
@@ -821,9 +876,52 @@ test("lineage groups have additional horizontal spacing without changing spacing
   assert.match(lineage, /\.lineage-buttons \{[^}]*gap: 4px;/);
 });
 
+test("stage cards share compact operator styling and retain invocation details", () => {
+  const step = {
+    invocation_id: "read", operator_id: "load", profile: "telemetry", dataset_label: "Telemetry",
+    title: "Load telemetry", function: "load", function_label: "Load telemetry",
+    role: "compute", operator_label: "read", binding_roles: ["compute", "merge"],
+    grain_relationships: [{ source_profile: "source", relationship: "same" }],
+    input_features: [], output_features: ["Temperature"],
+    args: {}, returns: { type: { engine: "DataFrame" } },
+    row_context: null, depends_on_invocations: [],
+  };
+  const content = stageCards({ stages: [
+    { stage: 1, steps: [step] },
+    { stage: 2, steps: [{
+      ...step, invocation_id: "merge", role: "merge", title: "Merge telemetry",
+      function: "merge", function_label: "Merge telemetry", input_features: ["Temperature"],
+      merge_dataset: "$profiles.telemetry.dataset", fragment_source: "$outputs.read",
+      merge_keys: ["pump_id"], row_context: { keys: ["pump_id"] },
+      depends_on_invocations: [{ id: "read", function: "Load telemetry" }],
+    }] },
+    { stage: 3, steps: [{
+      ...step, invocation_id: "effect", uncontrolled: true, binding_roles: ["compute"],
+      operator_label: "escape", input_features: ["Temperature"], output_features: ["Notification"],
+    }] },
+  ] });
+  assert.equal((content.match(/class="profile-operator"/g) || []).length, 3);
+  assert.equal((content.match(/<summary>Invocation details<\/summary>/g) || []).length, 3);
+  assert.doesNotMatch(content, /<details[^>]*\bopen\b|Execution form|md:grid-cols|<dt>Grain relationship/);
+  assert.match(content, /profile-operator-header[\s\S]*ui-badge[^>]*>read<\/span>/);
+  assert.match(content, /title="[^"]*Grain relationships: source: same\."/);
+  assert.match(content, /href="\?view=functions#function-merge">Merge telemetry<\/a>/);
+  assert.match(content, /href="\?view=profiles#operator-telemetry-load">load<\/a>/);
+  assert.match(content, /href="#invocation-read"><code>Load telemetry<\/code>/);
+  assert.match(content, /<dt>Merge keys<\/dt><dd><code>\[&quot;pump_id&quot;\]<\/code>/);
+  assert.match(content, /<dt>Row context<\/dt>/);
+  assert.match(content, /Input features<\/dt><dd><code>Temperature<\/code>/);
+  assert.match(content, /Output features \(logical\)<\/dt><dd><code>Notification<\/code>/);
+  assert.match(content, /Python return \(ignored\)/);
+  assert.match(content, /return value is ignored/);
+  const ids = [...content.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
+  assert.equal(new Set(ids).size, ids.length);
+});
+
 test("stage argument bindings prefix names with type icons and preserve typed values", () => {
   const content = stageCards({ stages: [{ stage: 1, steps: [{
-    title: "Binding", operator_kind: "vectorize", function_label: "Calculate",
+    title: "Binding", role: "compute", execution_form: "compute",
+    grain_relationships: [], function_label: "Calculate",
     feature: "score", returns: { type: { engine: "float" } },
     depends_on_invocations: [], row_context: null,
     args: { input: { value: "<unsafe>", type: {

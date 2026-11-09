@@ -21,7 +21,7 @@ from uptimely.run import store as run_store
 
 def _snapshot(name: str = "Example project") -> dict[str, object]:
     return {
-        "format_version": 2,
+        "format_version": 3,
         "project": {"name": name, "spec_version": 3},
         "scope": {"label": "all features", "features": None, "is_scoped": False},
         "catalogs": {

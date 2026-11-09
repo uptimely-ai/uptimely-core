@@ -13,7 +13,7 @@ import docstring_parser
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds, selectors
+from uptimely.spec import selectors
 
 __all__ = [
     "ExplorerContext",
@@ -77,14 +77,13 @@ def _feature_data(
     seen_inputs: set[tuple[str, str]] = set()
     for key, operator in spec_definition.operator_items:
         dataset = spec_definition.profiles_by_key[key[0]]
-        kind = operator_kinds.OPERATOR_KINDS[spec_definition.operator_kinds[key]]
         for feature_id in operator.output_features:
             metadata = dataset.features.get(feature_id)
             feature = (
                 metadata.model_dump(mode="json", exclude_none=True) if metadata is not None else {}
             )
             feature["id"] = feature_id
-            if kind.is_transformer:
+            if spec_definition.operator_produces_target_features[key]:
                 calculated_features.append(
                     {
                         **feature,
@@ -182,23 +181,35 @@ def _build_context(
         category = function.get("category") or "Uncategorized"
         function_groups.setdefault(category, {})[function_id] = function
         function["declared_returns"] = function["returns"]
-        function["escape_operators"] = []
-        function["operator_usage_count"] = 0
+        function["operator_usages"] = []
     for key, operator in spec_definition.operator_items:
-        kind_id = spec_definition.operator_kinds[key]
-        configuration["profiles"][key[0]]["assembly"][key[1]]["kind"] = kind_id
-        function = function_definitions[operator.compute.function]
-        function["operator_usage_count"] = function.get("operator_usage_count", 0) + 1
-        if operator.merge is not None:
-            merge_function = function_definitions[operator.merge.function]
-            merge_function["operator_usage_count"] += 1
-        if operator_kinds.OPERATOR_KINDS[kind_id].is_effect:
-            function["escape_operators"].append(
+        relationships = [
+            {
+                "source_profile": (
+                    spec_definition.profiles_by_key[source].id if source is not None else None
+                ),
+                "relationship": relationship,
+            }
+            for source, relationship in spec_definition.operator_grain_relationships[key].items()
+        ]
+        operator_data = configuration["profiles"][key[0]]["assembly"][key[1]]
+        operator_data["operator_label"] = spec_definition.operator_kinds[key]
+        operator_data["execution_form"] = spec_definition.operator_execution_forms[key]
+        operator_data["binding_roles"] = list(spec_definition.operator_binding_roles[key])
+        operator_data["grain_relationships"] = relationships
+        operator_data["source_status"] = spec_definition.operator_source_statuses[key]
+        operator_data["produces_target_features"] = (
+            spec_definition.operator_produces_target_features[key]
+        )
+        for role, binding in operator.bindings.items():
+            function = function_definitions[binding.function]
+            function["operator_usages"].append(
                 {
                     "profile": key[0],
                     "operator": operator.id,
-                    "inputs": operator.input_features,
-                    "outputs": operator.output_features,
+                    "role": role,
+                    "execution_form": spec_definition.operator_execution_forms[key],
+                    "grain_relationships": relationships,
                 }
             )
     for function in function_definitions.values():
@@ -254,11 +265,7 @@ def _build_context(
     }
     function_buckets = {category: len(group) for category, group in function_groups.items()}
     profile_count = len(spec_definition.profiles)
-    operator_count = sum(
-        1
-        for key, _ in spec_definition.operator_items
-        if operator_kinds.OPERATOR_KINDS[spec_definition.operator_kinds[key]].is_source
-    )
+    operator_count = len(spec_definition.operator_items)
     summary = ExplorerSummary(
         profile_count=profile_count,
         operator_count=operator_count,
@@ -275,12 +282,24 @@ def _build_context(
     dependencies = [
         {
             "function": operator.compute.function,
-            "kind": spec_definition.operator_kinds[key],
+            "operator_label": spec_definition.operator_kinds[key],
+            "execution_form": spec_definition.operator_execution_forms[key],
+            "binding_roles": list(spec_definition.operator_binding_roles[key]),
+            "grain_relationships": [
+                {
+                    "source_profile": (
+                        spec_definition.profiles_by_key[source].id if source is not None else None
+                    ),
+                    "relationship": relationship,
+                }
+                for source, relationship in spec_definition.operator_grain_relationships[
+                    key
+                ].items()
+            ],
             "feature": feature,
             "dependencies": operator.input_features,
         }
         for key, operator in spec_definition.operator_items
-        if spec_definition.operator_kinds[key] in {operator_kinds.ESCAPE, operator_kinds.VECTORIZE}
         for feature in operator.output_features
     ]
     generated_at = (
