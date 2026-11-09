@@ -253,6 +253,38 @@ def test_merge_binding_requires_two_dataframe_argument_slots(document: spec.Spec
     assert error.value.code == "invalid_binding_arity"
 
 
+def test_compute_dataframe_arity_counts_slots_not_profile_ids(document: spec.Spec) -> None:
+    key, operator = document.operator_items[0]
+    function = document.functions[operator.compute.function]
+    function.args = {
+        name: spec.model.Argument(id=name, type="dataframe") for name in ("first", "second")
+    }
+    operator.compute.args = {
+        name: spec.model.BindingArgument("$profiles.target.dataset") for name in ("first", "second")
+    }
+
+    with pytest.raises(
+        errors.SpecError, match="compute binding has invalid dataframe arity: 2"
+    ) as error:
+        bindings.validate_binding_contracts(document)
+
+    assert error.value.code == "invalid_binding_arity"
+    assert error.value.path == (*document.declaration_paths[key], "compute", "args")
+
+
+def test_merge_dataset_must_be_nullable_for_initialization(document: spec.Spec) -> None:
+    _add_merge_binding(document)
+    document.functions["merge"].args["dataset"] = spec.model.Argument(
+        id="dataset", type="dataframe"
+    )
+
+    with pytest.raises(errors.SpecError, match="dataset must allow null") as error:
+        bindings.validate_binding_contracts(document)
+
+    assert error.value.code == "invalid_merge_binding"
+    assert error.value.path[-3:] == ("merge", "args", "dataset")
+
+
 def test_merge_dataset_is_validated_independently(document: spec.Spec) -> None:
     operator = _add_merge_binding(document)
     operator.merge.args["dataset"] = spec.model.BindingArgument("$profiles.other.dataset")

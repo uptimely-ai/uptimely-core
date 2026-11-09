@@ -26,6 +26,14 @@ def typed_dataframe(frame: DataFrame | LazyFrame) -> DataFrame | LazyFrame:
     return frame
 
 
+def optional_dataframe(frame: DataFrame | None) -> DataFrame:
+    return frame or DataFrame()
+
+
+def required_dataframe(frame: DataFrame) -> DataFrame:
+    return frame
+
+
 def untyped_dataframe(frame):
     return frame
 
@@ -227,6 +235,27 @@ def test_typed_and_untyped_callables_satisfy_supported_contracts() -> None:
     )
     validation.validation_callable_signature(
         validation.CallableValidationContext(function, _signature("untyped_dataframe"))
+    )
+
+
+def test_optional_dataframe_contract_requires_nullable_implementation() -> None:
+    function = _function_template(arguments={"frame": "dataframe | null"})
+
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(function, _signature("optional_dataframe"))
+    )
+
+    with pytest.raises(errors.SpecError, match="declares argument type dataframe \\| null"):
+        validation.validation_callable_signature(
+            validation.CallableValidationContext(function, _signature("required_dataframe"))
+        )
+
+
+def test_nullable_implementation_accepts_nonnullable_dataframe_contract() -> None:
+    function = _function_template(arguments={"frame": "dataframe"})
+
+    validation.validation_callable_signature(
+        validation.CallableValidationContext(function, _signature("optional_dataframe"))
     )
 
 

@@ -190,6 +190,12 @@ def _supports_argument_type(annotation: object, declared_type: str) -> bool:
     """Return whether a supported annotation accepts the declared argument type."""
     if annotation in (typing.Any, object):
         return True
+    if declared_type in {arg_types.DATAFRAME, arg_types.OPTIONAL_DATAFRAME}:
+        names = _annotation_names(annotation)
+        dataframe_names = {"DataFrame", "LazyFrame"}
+        accepts_dataframe = bool(names & dataframe_names) or not names & _KNOWN_ANNOTATION_NAMES
+        accepts_none = bool(names & {"None", "NoneType"})
+        return accepts_dataframe and (declared_type == arg_types.DATAFRAME or accepts_none)
     origin = typing.get_origin(annotation)
     if origin is typing.Annotated:
         return _supports_argument_type(typing.get_args(annotation)[0], declared_type)
