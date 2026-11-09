@@ -253,8 +253,8 @@ function featureCards(config, invocations) {
         ${subheading("Produced by operator", "assembly")}
         ${profileOperatorCards(config, item.id, item.profile, [[item.operatorId, item.operator]], invocations, `feature-${item.featureId}-operator`)}
       </section>
-      <section class="mt-6" aria-label="Used by">
-        ${subheading("Used by", "output")}
+      <section class="mt-6" aria-label="Used by feature">
+        ${subheading("Used by feature", "output")}
         <div class="feature-lineage-links">${linkedFeatures(consumers).join("") || '<span class="feature-lineage-empty">None declared</span>'}</div>
       </section>
     </article>`;
