@@ -140,10 +140,11 @@ class Engine:
             started = time.perf_counter()
             try:
                 logger.debug(
-                    "Executing operator %s, function %s (%s)",
+                    "Executing operator %s, function %s (role=%s, result=%s)",
                     invocation.operator_id,
                     invocation.function_id,
-                    invocation.operator_kind,
+                    invocation.role,
+                    invocation.result,
                     extra={"invocation_id": invocation.id, "profile_id": invocation.profile_id},
                 )
                 invocation_executor.execute(invocation)

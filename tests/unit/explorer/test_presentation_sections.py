@@ -95,6 +95,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         result="fragment",
         id=read_id,
         operator_kind="read",
+        fragment_dimensions="target",
         entrypoint="example:read",
         function_id="read",
         operator_id="source",

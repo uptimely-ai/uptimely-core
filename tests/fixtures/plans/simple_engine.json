@@ -1,5 +1,5 @@
 {
-  "plan_version": 10,
+  "plan_version": 11,
   "required_backend": "polars",
   "invocations": [
     {
@@ -31,6 +31,7 @@
       "result": "fragment",
       "produces_features": true,
       "is_sink": false,
+      "dataframe_input_scope": "none",
       "fragment_dimensions": "target",
       "row_count_relation": "unrestricted",
       "key_relation": "unrestricted",
@@ -79,6 +80,7 @@
       "result": "target",
       "produces_features": true,
       "is_sink": false,
+      "dataframe_input_scope": "target",
       "fragment_dimensions": "not_applicable",
       "row_count_relation": "same",
       "key_relation": "identical",
@@ -125,6 +127,7 @@
       "result": "target",
       "produces_features": false,
       "is_sink": false,
+      "dataframe_input_scope": "unrestricted",
       "fragment_dimensions": "not_applicable",
       "row_count_relation": "unrestricted",
       "key_relation": "unrestricted",
@@ -167,6 +170,7 @@
       "result": "none",
       "produces_features": false,
       "is_sink": true,
+      "dataframe_input_scope": "unrestricted",
       "fragment_dimensions": "not_applicable",
       "row_count_relation": "unrestricted",
       "key_relation": "unrestricted",

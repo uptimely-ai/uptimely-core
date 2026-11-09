@@ -43,6 +43,7 @@ def merge_fragment(
         operator_id="read",
         profile_id="dataset",
         id_columns=list(main.id_columns),
+        fragment_dimensions="target",
         column_types=dict(dimension_types or {}),
     )
     if fragment.invocation is not None:

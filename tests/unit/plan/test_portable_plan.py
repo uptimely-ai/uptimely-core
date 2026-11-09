@@ -17,6 +17,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 role="compute",
                 result="target",
                 operator_kind="read",
+                dataframe_input_scope="none",
                 entrypoint="example.functions:load",
                 function_id="load",
                 operator_id="read_pressure",
@@ -36,6 +37,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 role="compute",
                 result="target",
                 operator_kind="collapse",
+                dataframe_input_scope="foreign",
                 entrypoint="example.functions:maximum",
                 function_id="maximum",
                 operator_id="pressure_by_pump",
@@ -153,6 +155,7 @@ def test_invocation_rejects_legacy_dataset_id_without_an_alias(
         "output_types",
         "produces_features",
         "is_sink",
+        "dataframe_input_scope",
         "fragment_dimensions",
         "row_count_relation",
         "key_relation",
@@ -205,7 +208,7 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "invocations",
         "stages",
     }
-    assert payload["plan_version"] == 10
+    assert payload["plan_version"] == 11
     assert "phase" not in payload["invocations"][0]
     assert not hasattr(plan.invocations[0], "phase")
     assert {"function_id", "operator_id"} <= set(payload["invocations"][0])
@@ -265,12 +268,14 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["callables"] = payload.pop("invocations")
 
     with pytest.raises(
-        ValueError, match=r"Unsupported plan version: 1\. Supported version is 10\."
+        ValueError, match=r"Unsupported plan version: 1\. Supported version is 11\."
     ):
         uptimely_plan.from_dict(payload)
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, "10", "unsupported", None, True])
+@pytest.mark.parametrize(
+    "version", [0, 1, 2, 3, 4, 5, 6, 7, 8, 9, 10, "11", "unsupported", None, True]
+)
 def test_plan_rejects_unsupported_versions(version: object) -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = version

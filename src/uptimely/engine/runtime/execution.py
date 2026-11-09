@@ -11,7 +11,7 @@ from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import merge as merge_module
-from uptimely.spec import arg_types, operator_kinds
+from uptimely.spec import arg_types
 
 from . import bindings as bindings_module
 from . import state as state_module
@@ -40,26 +40,21 @@ class InvocationExecutor:
 
     def execute(self, invocation: plan_module.Invocation) -> None:
         """Execute one invocation, validating before side effects and state updates."""
-        definition = operator_kinds.OPERATOR_KINDS.get(invocation.operator_kind)
-        if definition is None:
-            raise ValueError(f"Unsupported invocation function kind: {invocation.operator_kind}")
         if invocation.role == "merge":
             self._execute_merge(invocation)
             return
-        if definition.is_effect:
+        if self.validate and (invocation.result != "none" or invocation.is_sink):
+            self.check_input_requirements(invocation)
+        if invocation.result == "none":
             self._invoke(invocation)
             return
-        if self.validate:
-            self.check_input_requirements(invocation)
         if invocation.result == "fragment":
             self._execute_dataframe_operator(invocation)
         elif invocation.result == "target":
-            if definition.dataframe_input_scope == "target":
+            if invocation.dataframe_input_scope == "target":
                 self._execute_column_operator(invocation)
             else:
                 self._execute_target_operator(invocation)
-        else:
-            self._invoke(invocation)
 
     def check_input_requirements(self, invocation: plan_module.Invocation) -> None:
         """Check input scope and feature availability before execution.
@@ -68,8 +63,7 @@ class InvocationExecutor:
             ValueError: A source reference is invalid or required features are
                 unavailable or ambiguous.
         """
-        definition = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
-        if definition.dataframe_input_scope == "foreign":
+        if invocation.dataframe_input_scope == "foreign":
             argument_name = self._check_foreign_dataframe_argument(invocation)
             source_id = self._check_foreign_source_reference(invocation, argument_name)
             source = self._check_foreign_source_available(source_id)
@@ -299,9 +293,9 @@ class InvocationExecutor:
         Raises:
             ValueError: The result violates the vectorized dataframe contract.
         """
-        description = f"Vectorize result {invocation.function_id}"
+        description = f"Target transform result {invocation.function_id}"
         context = (
-            f"vectorize result from operator {invocation.operator_id}, "
+            f"target transform result from operator {invocation.operator_id}, "
             f"function {invocation.function_id}, invocation {invocation.id}, "
             f"profile {invocation.profile_id}"
         )
@@ -323,7 +317,7 @@ class InvocationExecutor:
         missing_outputs = sorted(set(output_features) - frame_columns)
         if missing_outputs:
             raise ValueError(
-                f"Vectorize operator {invocation.operator_id} is missing output columns: "
+                f"Operator {invocation.operator_id} is missing output columns: "
                 + ", ".join(missing_outputs)
             )
 
@@ -338,7 +332,7 @@ class InvocationExecutor:
         collisions = sorted(set(output_features) & existing_features)
         if collisions:
             raise ValueError(
-                f"Vectorize operator {invocation.operator_id} cannot replace existing "
+                f"Operator {invocation.operator_id} cannot replace existing "
                 "columns: " + ", ".join(collisions)
             )
 
@@ -348,7 +342,7 @@ class InvocationExecutor:
         missing_existing = sorted(existing_columns - frame_columns)
         if missing_existing:
             raise ValueError(
-                f"Vectorize operator {invocation.operator_id} must preserve existing "
+                f"Operator {invocation.operator_id} must preserve existing "
                 "columns: " + ", ".join(missing_existing)
             )
 
@@ -366,10 +360,9 @@ class InvocationExecutor:
             )
 
         if preserve_data:
-            definition = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
             if (
-                definition.row_order_relation == "preserve"
-                or definition.existing_data_relation == "preserve"
+                invocation.row_order_relation == "preserve"
+                or invocation.existing_data_relation == "preserve"
             ):
                 existing_names = self.backend.column_names(comparison_frame)
                 logger.debug(
@@ -379,7 +372,7 @@ class InvocationExecutor:
                 )
                 if not self.backend.same_data(comparison_frame, frame, existing_names):
                     raise ValueError(
-                        f"Vectorize operator {invocation.operator_id} must preserve existing "
+                        f"Operator {invocation.operator_id} must preserve existing "
                         "column values and row order"
                     )
             column_types = {

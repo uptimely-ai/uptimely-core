@@ -117,7 +117,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     ]
     assert executions == [
         f"Executing operator {invocation.operator_id}, "
-        f"function {invocation.function_id} ({invocation.operator_kind})"
+        f"function {invocation.function_id} (role={invocation.role}, result={invocation.result})"
         for invocation in engine.plan.execution_invocations
     ]
     assert caplog.messages.count("Merging into profile telemetry") == 1
@@ -176,6 +176,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             role="compute",
             result="fragment",
             operator_kind="read",
+            fragment_dimensions="target",
             entrypoint="test:read_first",
             function_id="read_first",
             operator_id="first",
@@ -188,6 +189,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             role="compute",
             result="fragment",
             operator_kind="read",
+            fragment_dimensions="target",
             entrypoint="test:read_second",
             function_id="read_second",
             operator_id="second",
@@ -634,6 +636,7 @@ def test_executor_validates_inputs_against_current_runtime_state(
         role="compute",
         result="target",
         operator_kind="vectorize",
+        dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -952,6 +955,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         role="compute",
         result="fragment",
         operator_kind="read",
+        fragment_dimensions="target",
         entrypoint="test:read",
         function_id="load",
         operator_id="load",
@@ -1000,6 +1004,7 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         role="compute",
         result="target",
         operator_kind="vectorize",
+        dataframe_input_scope="target",
         entrypoint="test:consume",
         function_id="consume",
         operator_id="consume",
@@ -1340,6 +1345,7 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
     invocation = copy.replace(
         _plan().invocations[1],
         operator_kind="expand",
+        dataframe_input_scope="foreign",
         argument_types={"source": "dataframe"},
         arguments={"source": "source"},
         input_features=["reading"],
@@ -1428,7 +1434,8 @@ def test_vectorize_requires_an_accumulated_target() -> None:
         id="vectorize",
         role="compute",
         result="target",
-        operator_kind="vectorize",
+        operator_kind="read",
+        dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -1452,6 +1459,7 @@ def test_column_projection_failure_preserves_published_state(
         role="compute",
         result="target",
         operator_kind="vectorize",
+        dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -1523,12 +1531,15 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
         role="compute",
         result="target",
         operator_kind="vectorize",
+        dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
         profile_id="dataset",
         id_columns=["key"],
         output_features=["doubled"],
+        row_order_relation="preserve",
+        existing_data_relation="preserve",
         arguments={"dataset": "dataset"},
         argument_types={"dataset": "dataframe"},
     )
@@ -1601,6 +1612,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         role="compute",
         result="fragment",
         operator_kind="read",
+        fragment_dimensions="target",
         entrypoint="test:read",
         function_id="load",
         operator_id="load",
@@ -1637,6 +1649,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         role="compute",
         result="target",
         operator_kind="vectorize",
+        dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="reading_plus_one",

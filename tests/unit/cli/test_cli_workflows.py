@@ -834,7 +834,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": 10,
+                "plan_version": 11,
                 "required_backend": "polars",
                 "invocations": [],
                 "stages": [],

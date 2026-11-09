@@ -32,6 +32,7 @@ class InvocationNode:
     result: typing.Literal["none", "target", "fragment"]
     produces_features: bool = False
     is_sink: bool = False
+    dataframe_input_scope: operator_kinds.DataFrameInputScope = "unrestricted"
     fragment_dimensions: typing.Literal["target", "subset", "not_applicable"] = "not_applicable"
     row_count_relation: typing.Literal["same", "unrestricted"] = "unrestricted"
     key_relation: typing.Literal["identical", "unrestricted"] = "unrestricted"

@@ -720,7 +720,13 @@ def test_fragment_dimension_policy_is_independent_of_expand_id(
 
     result = engine_for_plan(plan, spec_definition=spec_definition).run(validate=True)
 
-    assert "missing dimension columns: id" in next(iter(result.failures.values()))
+    assert not result.failures
+    assert result.datasets["observations"].sort("id").select("group", "id").rows() == [
+        ("A", 1),
+        ("A", 2),
+        ("B", 3),
+        ("B", 4),
+    ]
 
 
 def test_expand_rejects_multirow_dimensionless_fragment(
