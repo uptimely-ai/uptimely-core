@@ -414,12 +414,6 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       </header>
       <dl class="profile-operator-contract">
         <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${featureList(operatorInputs(operator))}</dd></div>
-        <div class="profile-operator-flow"><dt class="sr-only">Operator</dt><dd>
-          <span class="profile-operator-flow-arrow" aria-hidden="true">&rarr;</span>
-          <span class="profile-operator-flow-node" title="${escape(operatorName)}" role="img" aria-label="${escape(`Operator: ${operatorName}`)}">${icon("functions", "profile-operator-icon")}</span>
-          <span class="profile-operator-flow-arrow" aria-hidden="true">&rarr;</span>
-        </dd></div>
-        <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
       </dl>
       ${fn.kind === "escape" ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; escape outputs are not materialized as dataframe columns.</div>' : ""}
       <div class="profile-operator-compute">
@@ -429,6 +423,9 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
         </div>
         ${resolvedArgumentDetails(id, operator, "Arguments", computeInvocations)}
       </div>
+      <dl class="profile-operator-contract profile-operator-output">
+        <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${fn.kind === "escape" ? " (logical)" : ""}</dt><dd>${featureList(operator.interface.outputs)}</dd></div>
+      </dl>
     </article>`;
   }).join("")}</div>`;
 }
