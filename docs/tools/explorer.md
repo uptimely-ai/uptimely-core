@@ -88,8 +88,11 @@ grouped by profile. Return values and errors appear beneath the arguments.
 
 Dimension details label the selected dimension above its title. The Resolution
 levels section uses compact cards connected by tree branches. Each card shows
-the resolution ID and its data key with a data-type icon (or type text when no
-icon is available).
+the resolution name, or its ID when no name is provided, with a data-type icon.
+The context menu lists resolutions beneath their dimension, from coarse parent
+levels to finer child levels. Selecting a resolution highlights its hierarchy
+card and limits Used by profiles to profiles whose grain uses that exact
+resolution. Selecting the dimension shows usage across all its resolutions.
 
 Profile details show a Produced schema table with one row per declared column, listing
 its role, data type, unit, and producing operator from top to bottom. Features

@@ -6,6 +6,7 @@ import pytest
 
 from uptimely.spec import model
 from uptimely.spec.python import Profile, Resolution, Spec
+from uptimely.spec.python import dimension as dimension_api
 from uptimely.spec.python.dimension import Dimension
 from uptimely.spec.validation import errors, validate_spec
 from uptimely.spec.validation.rules import profiles as profile_rules
@@ -13,6 +14,22 @@ from uptimely.spec.validation.rules import row_context as row_context_rules
 from uptimely.spec.validation.rules.operators import contracts
 
 Document = dict[str, typing.Any]
+
+
+def test_resolution_display_name_survives_python_and_document_serialization() -> None:
+    resolution = dimension_api.Resolution(
+        id="pump", key="pump_id", type="string", name="Individual pump"
+    )
+    dimension = dimension_api.Dimension(id="machine", resolutions=[resolution])
+    parsed = dimension.to_model()
+
+    assert dimension.resolution("pump").name == "Individual pump"
+    assert parsed.resolutions["pump"].name == "Individual pump"
+    serialized = parsed.model_dump(exclude_none=True)
+    assert serialized["resolutions"]["pump"]["name"] == "Individual pump"
+    document = _document()
+    document["dimensions"]["machine"]["resolutions"]["pump"]["name"] = "Individual pump"
+    assert _validate(document).dimensions["machine"].resolutions["pump"].name == ("Individual pump")
 
 
 def _document() -> Document:

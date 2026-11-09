@@ -33,6 +33,8 @@ const operatorInputs = operator => operator.interface.inputs || [];
 const label = (id, value) => value.name || id;
 const operatorLabel = (id, operator) => operator.name || id.replace(/[_-]+/g, " ").replace(/\b\w/g, character => character.toUpperCase());
 const description = value => `<p class="mt-4 text-sm leading-6 text-slate-400">${escape(value || "No description provided.")}</p>`;
+const dimensionResolutionTarget = (dimensionId, resolutionId) =>
+  `dimension-resolution-${dimensionId}-${resolutionId}`;
 const itemTitle = (id, item, tag = "h2", size = "text-2xl", type = null, showId = true) => `<${tag} class="break-words font-display ${size} font-semibold text-white">${type === null ? escape(label(id, item)) : typedName(label(id, item), type)}</${tag}>${item.name && showId ? `<p class="mt-1 font-mono text-xs text-slate-500">${escape(id)}</p>` : ""}`;
 const subheading = (title, iconKey = null) => iconKey
   ? `<h3 class="ui-section-title profile-detail-subheading">${icon(iconKey, "profile-detail-icon")}<span>${escape(title)}</span></h3>`
@@ -42,7 +44,7 @@ const profileGrain = (config, grain) => grain.map(({ dimension, resolution }) =>
   const resolutionDefinition = dimensionDefinition?.resolutions[resolution];
   return {
     dimension: dimensionDefinition?.name || dimension,
-    resolution: resolutionDefinition?.id ?? resolution,
+    resolution: label(resolutionDefinition?.id ?? resolution, resolutionDefinition || {}),
   };
 });
 const profileGrainMarkup = (grain, resolutionsOnly = false) => grain.length
@@ -57,6 +59,24 @@ const chip = (value, isType = false) => isType
   : `<span class="inline-flex items-center gap-1.5 rounded-md bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">${escape(value)}</span>`;
 const chips = values => `<div class="mt-3 flex flex-wrap gap-2">${values.map(value =>
   chip(value)).join("")}</div>`;
+
+function orderedResolutions(resolutions) {
+  const entries = Object.entries(resolutions).map(([key, resolution]) => ({
+    id: resolution.id ?? key, resolution,
+  }));
+  const byId = new Map(entries.map(entry => [entry.id, entry]));
+  const visited = new Set();
+  const ordered = [];
+  const visit = entry => {
+    if (visited.has(entry.id)) return;
+    visited.add(entry.id);
+    const parent = byId.get(entry.resolution.parent);
+    if (parent) visit(parent);
+    ordered.push(entry);
+  };
+  entries.forEach(visit);
+  return ordered;
+}
 
 const contextLinks = {
   features(data) {
@@ -91,7 +111,17 @@ const contextLinks = {
   dimensions(data) {
     return Object.entries(data.catalogs.configuration.dimensions).map(([key, item]) => {
       const id = item.id ?? key;
-      return contextLink(`dimension-${id}`, label(id, item), "dimensions");
+      const resolutions = orderedResolutions(item.resolutions).map(({ id: resolutionId, resolution }) => {
+        return contextLink(
+          dimensionResolutionTarget(id, resolutionId), label(resolutionId, resolution), "resolutions",
+        );
+      }).join("");
+      return `<div class="dimension-context-group">
+        ${contextLink(`dimension-${id}`, label(id, item), "dimensions")}
+        <div class="dimension-context-resolutions" role="group" aria-label="${escape(`${label(id, item)} resolutions`)}">
+          ${resolutions}
+        </div>
+      </div>`;
     }).join("");
   },
 };
@@ -261,7 +291,7 @@ function featureCards(config, invocations) {
   }).join("");
 }
 
-function resolutionHierarchy(resolutions, highlightedResolutions = []) {
+function resolutionHierarchy(resolutions, highlightedResolutions = [], dimensionId = null) {
   const highlighted = new Set(highlightedResolutions);
   const nodes = Object.entries(resolutions).map(([key, resolution]) => ({
     id: resolution.id ?? key,
@@ -283,9 +313,9 @@ function resolutionHierarchy(resolutions, highlightedResolutions = []) {
     const { resolution } = node;
     const type = resolution.type || "unspecified";
     const isHighlighted = highlighted.has(node.id);
-    return `<li data-resolution-id="${escape(node.id)}" data-parent-resolution="${escape(resolution.parent || "")}">
+    return `<li${dimensionId === null ? "" : ` id="${escape(dimensionResolutionTarget(dimensionId, node.id))}"`} data-resolution-id="${escape(node.id)}" data-parent-resolution="${escape(resolution.parent || "")}">
       <article class="dimension-resolution-card${isHighlighted ? " profile-resolution-highlight" : ""}">
-        <h3 class="dimension-resolution-id">${typedName(node.id, type)}</h3>
+        <h3 class="dimension-resolution-id">${typedName(label(node.id, resolution), type)}</h3>
       </article>
       ${node.children.length ? `<ul class="dimension-resolution-children">${node.children.map(renderNode).join("")}</ul>` : ""}
     </li>`;
@@ -321,7 +351,11 @@ function dimensionCards(config) {
     const usages = Object.entries(config.profiles || {}).flatMap(([profileId, profile]) => {
       const resolutions = profile.grain
         .filter(grain => grain.dimension === key)
-        .map(grain => grain.resolution);
+        .map(grain => {
+          const resolution = item.resolutions[grain.resolution];
+          const resolutionId = resolution?.id ?? grain.resolution;
+          return { id: resolutionId, name: label(resolutionId, resolution || {}) };
+        });
       return resolutions.length ? [{ id: profileId, profile, resolutions }] : [];
     });
     return `<article id="dimension-${escape(id)}" data-context-item class="min-w-0">
@@ -329,16 +363,17 @@ function dimensionCards(config) {
     <section class="dimension-levels" aria-label="Resolution levels">
       ${subheading("Resolution levels", "resolutions")}
       <p class="dimension-levels-description">Resolution levels, from parent to child.</p>
-      ${resolutionHierarchy(item.resolutions)}
+      ${resolutionHierarchy(item.resolutions, [], id)}
     </section>
     <section class="function-usage dimension-usage" aria-label="Profile usage">
       ${subheading("Used by profiles", "profiles")}
-      ${usages.length ? `<ul class="function-usage-list">${usages.map(({ id: profileId, profile, resolutions }) =>
-        `<li class="function-usage-item function-detail-box">
+      <ul class="function-usage-list" data-dimension-usage-list${usages.length ? "" : " hidden"}>${usages.map(({ id: profileId, profile, resolutions }) =>
+        `<li class="function-usage-item function-detail-box" data-dimension-profile-usage>
           <a class="function-usage-profile" href="${href("profiles", `profile-${profileId}`)}">${escape(label(profileId, profile))}</a>
           <ul>${resolutions.map(resolution =>
-            `<li><span class="function-usage-feature">${icon("resolutions", "profile-summary-grain-icon")} <code>${escape(resolution)}</code></span></li>`).join("")}</ul>
-        </li>`).join("")}</ul>` : '<p class="function-usage-empty">Not used by any profile.</p>'}
+            `<li data-usage-resolution="${escape(resolution.id)}"><span class="function-usage-feature">${icon("resolutions", "profile-summary-grain-icon")} <code>${escape(resolution.name)}</code></span></li>`).join("")}</ul>
+        </li>`).join("")}</ul>
+      <p class="function-usage-empty" data-dimension-usage-empty${usages.length ? " hidden" : ""}>Not used by any profile.</p>
     </section>
     <p data-dimension-description class="mt-4 text-sm leading-6 text-slate-400">${escape(item.description || "No description provided.")}</p></article>`;
   }).join("");

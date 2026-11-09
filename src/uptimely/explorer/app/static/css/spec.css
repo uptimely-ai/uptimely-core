@@ -102,6 +102,9 @@
   font: 600 11px/18px var(--font-body); letter-spacing: .12em; text-transform: uppercase; }
 .dimension-levels { margin-top: 24px; }
 .dimension-levels-description { max-width: 640px; margin: 12px 0 24px; color: #94a3b8; font-size: 13px; line-height: 1.7; }
+.dimension-context-group + .dimension-context-group { margin-top: 8px; }
+.dimension-context-resolutions { margin-left: 20px; }
+.dimension-context-resolutions a { padding: 7px 10px; font-size: inherit; }
 .dimension-resolution-tree, .dimension-resolution-children { margin: 0; padding: 0; list-style: none; }
 .dimension-resolution-tree { max-width: 560px; }
 .dimension-resolution-tree > li + li { margin-top: 16px; }
@@ -113,7 +116,8 @@
 .dimension-resolution-children > li::after { position: absolute; top: 36px; left: 0; width: 20px;
   border-top: 1px solid #334155; content: ""; }
 .dimension-resolution-card { padding: 12px 16px; border: 1px solid #334155; border-radius: 8px; background: #0f172a; }
-.dimension-resolution-card.profile-resolution-highlight { border-color: #22d3ee; background: #083344; box-shadow: 0 0 0 1px #22d3ee; }
+.dimension-resolution-card.profile-resolution-highlight,
+.dimension-resolution-card.dimension-resolution-selected { border-color: #22d3ee; background: #083344; box-shadow: 0 0 0 1px #22d3ee; }
 .dimension-resolution-id { margin: 0; color: #f1f5f9; font: 600 14px/1.5 var(--font-mono); overflow-wrap: anywhere; }
 .profile-grain-hierarchies { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 280px), 1fr)); gap: 24px; margin-top: 24px; }
 .profile-grain-dimension-name { display: flex; align-items: center; gap: 8px; margin: 0 0 8px;
