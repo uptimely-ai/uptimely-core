@@ -362,6 +362,13 @@ class Spec(base.StrictModel):
         }
 
     @functools.cached_property
+    def operator_grain_relationships(
+        self,
+    ) -> dict[OperatorKey, dict[ProfileKey | None, semantics.GrainRelationship]]:
+        """Return source-to-target grain relationships for each operator."""
+        return semantics.Semantics(self).operator_grain_relationships
+
+    @functools.cached_property
     def dataframe_argument_grain_keys(self) -> dict[OperatorKey, frozenset[str]]:
         """Return dataframe keys available from each operator's referenced profiles."""
         return {

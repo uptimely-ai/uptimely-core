@@ -3,7 +3,7 @@
 import logging
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds, selectors, semantics
+from uptimely.spec import selectors
 from uptimely.spec.validation import errors
 
 logger = logging.getLogger(__name__)
@@ -56,29 +56,6 @@ def validate_dataframe_argument_profile_source(spec: spec_model.Spec) -> None:
                 )
 
 
-def validate_dataframe_argument_count(spec: spec_model.Spec) -> None:
-    """Require operator to consume the foreign profile count in their kind contract."""
-    logger.debug("Check foreign profile input counts match function kinds")
-    for key, operator in spec.operator_items:
-        function = spec.functions.root.get(operator.compute.function)
-        if function is None:
-            continue
-        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
-        expected = definition.dataframe_inputs
-        if definition.dataframe_input_scope != "foreign" or expected is None:
-            continue
-        if len(spec.operator_dataframe_arguments[key]) != expected or (
-            len(spec.dataframe_argument_profile_ids[key]) != expected
-        ):
-            raise errors.SpecError(
-                f"{spec.operator_kinds[key].capitalize()} operator "
-                f"must consume exactly "
-                f"{expected} foreign profile(s)",
-                code="invalid_mapping_dataframe_input",
-                path=(*spec.operator_paths[key], "compute", "args"),
-            )
-
-
 def validate_matching_keys(spec: spec_model.Spec) -> None:
     """Require matching keys on every participating profile."""
     logger.debug("Check matching keys exist on every participating profile")
@@ -95,37 +72,37 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
 
 
 def validate_input_feature_source_count(spec: spec_model.Spec) -> None:
-    """Require profile-scoped feature inputs to belong to at most one profile."""
-    logger.debug("Check profile-scoped feature inputs have at most one source")
+    """Require dataframe-producing feature inputs to belong to one source profile."""
+    logger.debug("Check dataframe-producing feature inputs have at most one source")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or operator_kinds.OPERATOR_KINDS[
-            spec.operator_kinds[key]
-        ].feature_input_scope != ("dataframe"):
+        if function is None or function.returns != "dataframe" or not operator.input_features:
             continue
         profile_ids = {owner for _, owners in spec.input_candidates[key] for owner in owners}
         if len(profile_ids) > 1:
             raise errors.SpecError(
-                f"{spec.operator_kinds[key].capitalize()} operator "
-                f"inputs must belong to one source profile",
+                f"Operator {key[1]} feature inputs must belong to one source profile",
                 code="invalid_mapping_dataframe_input",
                 path=(*spec.operator_paths[key], "interface", "inputs"),
             )
 
 
 def validate_foreign_profile_argument(spec: spec_model.Spec) -> None:
-    """Reject the target profile when a kind requires a foreign profile input."""
-    logger.debug("Check foreign profile arguments do not reference the target")
+    """Require a bound dataframe to match a foreign feature-input source."""
+    logger.debug("Check dataframe arguments match foreign feature-input sources")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None:
+        if function is None or function.returns != "dataframe":
             continue
-        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
-        if "target_as_foreign_input" in _dataframe_input_violations(spec, key, definition):
-            name = spec.operator_dataframe_arguments[key][0][0]
+        source = spec.input_sources[key]
+        arguments = spec.operator_dataframe_arguments[key]
+        if source is not None and source != key[0] and arguments:
+            name, _, source_id = arguments[0]
+            if source_id == source:
+                continue
             raise errors.SpecError(
-                f"{spec.operator_kinds[key].capitalize()} operator "
-                f"must reference a foreign source profile",
+                f"Operator {key[1]} dataframe argument {name} must reference a foreign "
+                f"source profile {source}",
                 code="invalid_mapping_dataframe_input",
                 path=(*spec.operator_paths[key], "compute", "args", name),
             )
@@ -136,38 +113,34 @@ def validate_dataframe_argument_feature_source(spec: spec_model.Spec) -> None:
     logger.debug("Check feature sources match profile arguments")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None:
+        if function is None or function.returns != "dataframe":
             continue
-        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
         arguments = spec.operator_dataframe_arguments[key]
         source = spec.input_sources[key]
-        if (
-            definition.feature_input_scope != "dataframe"
-            or definition.dataframe_inputs is None
-            or len(arguments) != definition.dataframe_inputs
-            or not arguments
-            or source is None
-        ):
+        if not arguments or source is None:
             continue
-        name, _, source_id = arguments[0]
-        if source_id in spec.profiles and source_id != source:
-            raise errors.SpecError(
-                f"{spec.operator_kinds[key].capitalize()} operator "
-                f"must reference its foreign source profile "
-                f"{source}",
-                code="invalid_mapping_dataframe_input",
-                path=(*spec.operator_paths[key], "compute", "args", name),
-            )
+        for name, _, source_id in arguments:
+            if source_id != source:
+                scope = "foreign source" if source != key[0] else "target"
+                raise errors.SpecError(
+                    f"Operator {key[1]} dataframe argument {name} must reference its {scope} "
+                    f"profile {source}",
+                    code="invalid_mapping_dataframe_input",
+                    path=(*spec.operator_paths[key], "compute", "args", name),
+                )
 
 
 def validate_dataframe_argument_features(spec: spec_model.Spec) -> None:
-    """Require profile-scoped feature inputs to belong to the operator's profile inputs."""
+    """Require declared feature inputs to exist in the bound dataframe profile."""
     logger.debug("Check feature inputs belong to profile arguments")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or operator_kinds.OPERATOR_KINDS[
-            spec.operator_kinds[key]
-        ].feature_input_scope != ("dataframe"):
+        if (
+            function is None
+            or function.returns != "dataframe"
+            or not operator.input_features
+            or not spec.dataframe_argument_profiles[key]
+        ):
             continue
         unavailable = sorted(
             feature
@@ -183,148 +156,48 @@ def validate_dataframe_argument_features(spec: spec_model.Spec) -> None:
         )
         if unavailable:
             raise errors.SpecError(
-                f"{spec.operator_kinds[key].capitalize()} operator "
-                f"inputs must belong to its profile inputs: " + ", ".join(unavailable),
+                f"Operator {key[1]} inputs must belong to its profile inputs: "
+                + ", ".join(unavailable),
                 code="invalid_mapping_feature_inputs",
                 path=(*spec.operator_paths[key], "interface", "inputs"),
             )
 
 
 def validate_feature_input_scope(spec: spec_model.Spec) -> None:
-    """Reject feature inputs for kinds that do not accept feature dependencies."""
-    logger.debug("Check function kinds permit declared feature inputs")
+    """Reject feature inputs when a dataframe computation has no source binding."""
+    logger.debug("Check dataframe-producing functions have bindings for feature inputs")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].feature_input_scope
-            == ("none")
+            and function.returns == "dataframe"
+            and not spec.operator_dataframe_arguments[key]
             and operator.input_features
         ):
             raise errors.SpecError(
-                f"Kind {spec.operator_kinds[key]} cannot declare feature inputs",
+                f"Operator {key[1]} cannot declare feature inputs without a dataframe source",
                 code="invalid_mapping_feature_inputs",
                 path=(*spec.operator_paths[key], "interface", "inputs"),
             )
 
 
-def validate_target_profile_input(spec: spec_model.Spec) -> None:
-    """Require target-scoped operator to consume their target profile."""
-    logger.debug("Check target-scoped operator consume their target profile")
-    for key, operator in spec.operator_items:
-        function = spec.functions.root.get(operator.compute.function)
-        if function is None:
-            continue
-        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
-        if "missing_target" in _dataframe_input_violations(spec, key, definition):
-            raise errors.SpecError(
-                f"{spec.operator_kinds[key].capitalize()} operator must consume its target profile",
-                code="invalid_mapping_dataframe_input",
-                path=(*spec.operator_paths[key], "compute", "args"),
-            )
-
-
-def validate_target_profile_only(spec: spec_model.Spec) -> None:
-    """Reject foreign profile inputs on target-scoped operator."""
-    logger.debug("Check target-scoped operator do not consume foreign profiles")
-    for key, operator in spec.operator_items:
-        function = spec.functions.root.get(operator.compute.function)
-        if function is None:
-            continue
-        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
-        if "foreign_target_input" not in _dataframe_input_violations(spec, key, definition):
-            continue
-        foreign = sorted(
-            spec.dataframe_argument_profile_ids[key] - {spec.operator_profile_keys[key]}
-        )
-        if foreign:
-            raise errors.SpecError(
-                f"{spec.operator_kinds[key].capitalize()} operator "
-                f"cannot publish a foreign profile: " + ", ".join(foreign),
-                code="invalid_mapping_dataframe_input",
-                path=(*spec.operator_paths[key], "compute", "args"),
-            )
-
-
-def validate_dimension_source(spec: spec_model.Spec) -> None:
-    """Require dimension-reducing operator to consume their inferred source."""
-    logger.debug("Check dimension-reducing operator consume their inferred source")
-    for key, operator in spec.operator_items:
-        function = spec.functions.root.get(operator.compute.function)
-        if function is None:
-            continue
-        definition = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]]
-        source = spec.input_sources[key]
-        if source is not None and "missing_source" in _dataframe_input_violations(
-            spec, key, definition
-        ):
-            raise errors.SpecError(
-                f"{spec.operator_kinds[key].capitalize()} operator "
-                f"must consume its source profile {source}",
-                code="invalid_mapping_dataframe_input",
-                path=(*spec.operator_paths[key], "compute", "args"),
-            )
-
-
-def _dataframe_input_violations(
-    spec: spec_model.Spec,
-    key: spec_model.OperatorKey,
-    definition: operator_kinds.OperatorKind,
-) -> tuple[operator_kinds.DataFrameInputViolation, ...]:
-    source = spec.input_sources[key]
-    return definition.dataframe_input_violations(
-        target_profile_id=spec.operator_profile_keys[key],
-        argument_profile_ids=tuple(
-            source_id for _, _, source_id in spec.operator_dataframe_arguments[key]
-        ),
-        resolved_profile_ids=spec.dataframe_argument_profile_ids[key],
-        inferred_profile_id=source,
-    )
-
-
 def validate_dimension_change(spec: spec_model.Spec) -> None:
-    """Require profile sources and targets to follow their declared grain policy."""
-    logger.debug("Check source and target dimensions follow function-kind policies")
-    spec_semantics = semantics.Semantics(spec)
+    """Reject dataframe sources with unresolved or unrelated target grains."""
+    logger.debug("Check dataframe source and target grain relationships")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None:
-            continue
-        change = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].dimension_change
-        if change == "unrestricted":
+        if function is None or function.returns != "dataframe":
             continue
         for source_key in spec.dataframe_argument_profiles[key]:
-            relationship = spec_semantics.operator_grain_relationships[key].get(
-                source_key, "not_applicable"
-            )
-            valid = (
-                relationship
-                == {
-                    "preserve": "same",
-                    "add": "expand",
-                    "remove": "collapse",
-                }[change]
-            )
-            if valid:
+            relationship = spec.operator_grain_relationships[key].get(source_key)
+            if relationship in {"same", "expand", "collapse"}:
                 continue
-            if change == "preserve":
-                message = (
-                    f"{spec.operator_kinds[key].capitalize()} operator "
-                    f"inputs must preserve "
-                    "target dimensionality"
-                )
-                path = (*spec.operator_paths[key], "compute", "args")
-            elif change == "remove":
-                message = (
-                    f"{spec.operator_kinds[key].capitalize()} operator "
-                    f"source must have strictly higher "
-                    "dimensionality than its target"
-                )
-                path = (*spec.operator_paths[key], "interface", "inputs")
-            else:
-                message = EXPAND_INPUT_ERROR
-                path = (*spec.operator_paths[key], "compute", "args")
-            raise errors.SpecError(message, code="invalid_mapping_dimensions", path=path)
+            raise errors.SpecError(
+                f"Operator {key[1]} source profile {source_key} has an "
+                f"{relationship or 'unresolved'} grain relationship to target {key[0]}",
+                code="invalid_mapping_dimensions",
+                path=(*spec.operator_paths[key], "compute", "args"),
+            )
 
 
 def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
@@ -332,20 +205,15 @@ def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
     logger.debug("Check dimensional expansion inputs come from lower-dimensional sources")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if (
-            function is None
-            or operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].dimension_change != "add"
-        ):
+        if function is None or function.returns != "dataframe":
             continue
         lower = {
             source
             for source in spec.dataframe_argument_profiles[key]
-            if (
-                spec.grain_refines(source, spec.operator_profile_keys[key])
-                and spec.profiles_by_key[source].grain_reference_set
-                != spec.profiles_by_key[spec.operator_profile_keys[key]].grain_reference_set
-            )
+            if spec.operator_grain_relationships[key].get(source) == "expand"
         }
+        if not lower:
+            continue
         if not any(
             owner in lower
             for feature in operator.input_features
