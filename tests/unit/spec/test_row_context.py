@@ -13,8 +13,7 @@ from support import execution as execution_support
 from uptimely import compiler, row_context, spec
 from uptimely import plan as uptimely_plan
 from uptimely.explorer import presentation
-from uptimely.spec import arg_types
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import arg_types, operator_kinds
 from uptimely.spec.python import (
     assembly,
     binding_conversion,
@@ -385,11 +384,13 @@ def test_directional_context_requires_dataset_order():
     _spec(authoring.all_rows(), ordered=False)
 
 
-@pytest.mark.parametrize("kind", [kind for kind in functions.OPERATOR_KINDS if kind != "merge"])
+@pytest.mark.parametrize(
+    "kind", [kind for kind in operator_kinds.OPERATOR_KINDS if kind != "merge"]
+)
 @pytest.mark.parametrize("dimension_change", ["preserve", "remove"])
 def test_row_context_dataset_selection_follows_dimension_contract(
-    kind: functions.OperatorKindId,
-    dimension_change: functions.DimensionChange,
+    kind: operator_kinds.OperatorKindId,
+    dimension_change: operator_kinds.DimensionChange,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     configuration = _spec().model_dump()
@@ -407,9 +408,9 @@ def test_row_context_dataset_selection_follows_dimension_contract(
     }
     document = spec.Spec.model_validate(configuration)
     document.operator_kinds[("summary", "result")] = kind
-    definitions = dict(functions.OPERATOR_KINDS)
+    definitions = dict(operator_kinds.OPERATOR_KINDS)
     definitions[kind] = dataclasses.replace(definitions[kind], dimension_change=dimension_change)
-    monkeypatch.setattr(functions, "OPERATOR_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     key = ("summary", "result")
     expected_source = "observations" if dimension_change == "remove" else "summary"

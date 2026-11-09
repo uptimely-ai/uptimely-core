@@ -2,7 +2,7 @@
 
 import dataclasses
 
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 
 
 @dataclasses.dataclass
@@ -14,14 +14,14 @@ class GraphStyle:
     feature_color: str = "#6ebcf4"
     function_colors: dict[str, str] = dataclasses.field(
         default_factory=lambda: {
-            functions.READ: "#4c78a8",
-            functions.ESCAPE: "#a78bfa",
-            functions.VECTORIZE: "#f58518",
-            functions.COLLAPSE: "#e45756",
-            functions.CONFORM: "#72b7b2",
-            functions.EXPAND: "#b279a2",
-            functions.WRITE: "#ff9da6",
-            functions.MERGE: "#facc15",
+            operator_kinds.READ: "#4c78a8",
+            operator_kinds.ESCAPE: "#a78bfa",
+            operator_kinds.VECTORIZE: "#f58518",
+            operator_kinds.COLLAPSE: "#e45756",
+            operator_kinds.CONFORM: "#72b7b2",
+            operator_kinds.EXPAND: "#b279a2",
+            operator_kinds.WRITE: "#ff9da6",
+            operator_kinds.MERGE: "#facc15",
         }
     )
     background_color: str = "#101820"

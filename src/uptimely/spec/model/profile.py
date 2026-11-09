@@ -7,9 +7,8 @@ import typing
 
 import pydantic
 
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds, selectors
 from uptimely.spec import row_context as uptimely_row_context
-from uptimely.spec import selectors
 
 from . import base, binding, binding_argument, merge
 from . import dimension as dimension_module
@@ -102,7 +101,7 @@ class Operator(base.StrictModel):
     def resolve_args(
         self,
         function_id: str,
-        operator_kind: functions.OperatorKindId,
+        operator_kind: operator_kinds.OperatorKindId,
         profile_id: str,
         grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]],
         resources: binding_argument.BindingResources,
@@ -113,7 +112,7 @@ class Operator(base.StrictModel):
         """Resolve arguments from the binding selected by its execution role."""
         if role == "compute":
             selected_binding = self.compute
-            kind = functions.OPERATOR_KINDS[operator_kind]
+            kind = operator_kinds.OPERATOR_KINDS[operator_kind]
             output_features = [
                 feature
                 for feature in self.output_features

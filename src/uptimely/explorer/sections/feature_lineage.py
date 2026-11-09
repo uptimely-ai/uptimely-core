@@ -4,7 +4,7 @@ import dataclasses
 import typing
 
 from uptimely.explorer import common, graph_style
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 from uptimely.spec.feature_graph import models
 
 if typing.TYPE_CHECKING:
@@ -52,7 +52,7 @@ def _node_data(
             function_id=reference.function.id,
             function_name=reference.function.name,
             operator_kind=reference.operator_kind,
-            is_effect=functions.OPERATOR_KINDS[reference.operator_kind].is_effect,
+            is_effect=operator_kinds.OPERATOR_KINDS[reference.operator_kind].is_effect,
             type="python_function",
             entrypoint=reference.function.entrypoint,
             info={"description": reference.function.description},

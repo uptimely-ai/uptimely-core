@@ -8,7 +8,7 @@ import typing
 import pydantic
 
 from uptimely import spec
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 from uptimely.spec import row_context as uptimely_row_context
 
 PLAN_VERSION = 9
@@ -23,7 +23,7 @@ class _InvocationNode(typing.Protocol):
     operator_id: str
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
-    operator_kind: functions.OperatorKindId
+    operator_kind: operator_kinds.OperatorKindId
     output_features: tuple[str, ...]
     input_features: tuple[str, ...]
     row_context: uptimely_row_context.RowContext | None
@@ -71,7 +71,7 @@ class Invocation(_PlanModel):
     id: NonEmptyString
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
-    operator_kind: functions.OperatorKindId
+    operator_kind: operator_kinds.OperatorKindId
     entrypoint: NonEmptyString
     function_id: NonEmptyString
     operator_id: NonEmptyString
@@ -192,7 +192,7 @@ class Invocation(_PlanModel):
             raise ValueError("Only compute invocations may have result='fragment'")
         if (
             self.role == "compute"
-            and self.operator_kind == functions.COLLAPSE
+            and self.operator_kind == operator_kinds.COLLAPSE
             and not self.output_features
         ):
             raise ValueError("Collapse must declare output_features")
@@ -354,9 +354,9 @@ class ExecutionPlan(_PlanModel):
         return features
 
     @functools.cached_property
-    def invocations_by_kind(self) -> dict[functions.OperatorKindId, list[Invocation]]:
+    def invocations_by_kind(self) -> dict[operator_kinds.OperatorKindId, list[Invocation]]:
         """Return invocations grouped by derived operator label in declaration order."""
-        grouped: dict[functions.OperatorKindId, list[Invocation]] = {}
+        grouped: dict[operator_kinds.OperatorKindId, list[Invocation]] = {}
         for invocation in self.invocations:
             grouped.setdefault(invocation.operator_kind, []).append(invocation)
         return grouped
@@ -367,7 +367,7 @@ class ExecutionPlan(_PlanModel):
         return {
             feature
             for kind, invocations in self.invocations_by_kind.items()
-            if functions.OPERATOR_KINDS[kind].is_transformer
+            if operator_kinds.OPERATOR_KINDS[kind].is_transformer
             for invocation in invocations
             for feature in invocation.output_features
         }
@@ -378,7 +378,7 @@ class ExecutionPlan(_PlanModel):
         return dict.fromkeys(invocation.entrypoint for invocation in self.invocations)
 
     @functools.cached_property
-    def count_per_kind(self) -> dict[functions.OperatorKindId, int]:
+    def count_per_kind(self) -> dict[operator_kinds.OperatorKindId, int]:
         """Return invocation counts keyed by derived operator label, sorted by label."""
         return {
             kind: len(invocations) for kind, invocations in sorted(self.invocations_by_kind.items())

@@ -23,7 +23,7 @@ from uptimely import entrypoint, spec
 from uptimely.project import build as project_build
 from uptimely.project import paths
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 
 logger = logging.getLogger(__name__)
 
@@ -146,7 +146,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             }
             for key in snapshot.spec.operators_by_function.get(function_id, [])
             if snapshot.spec.operators_by_key[key].compute.function == function_id
-            and snapshot.spec.operator_kinds[key] == functions.ESCAPE
+            and snapshot.spec.operator_kinds[key] == operator_kinds.ESCAPE
         ]
         return _to_json(
             {
@@ -189,7 +189,8 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 feature_id
                 for feature_id, producers in spec_definition.feature_producers.items()
                 if any(
-                    spec_definition.operator_kinds[key] == functions.VECTORIZE for key in producers
+                    spec_definition.operator_kinds[key] == operator_kinds.VECTORIZE
+                    for key in producers
                 )
             }
         )
@@ -212,7 +213,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
             feature: (key[0], spec_definition.operators_by_key[key])
             for feature, producers in spec_definition.feature_producers.items()
             for key in producers
-            if spec_definition.operator_kinds[key] == functions.VECTORIZE
+            if spec_definition.operator_kinds[key] == operator_kinds.VECTORIZE
         }
         producer = by_feature.get(feature_id)
         if producer is None:
@@ -275,7 +276,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
         expected_outputs = {
             (invocation.profile_id, feature)
             for invocation in plan.invocations
-            if invocation.operator_kind == functions.VECTORIZE
+            if invocation.operator_kind == operator_kinds.VECTORIZE
             for feature in invocation.output_features
         }
         actual_outputs = set(result.calculated_outputs)

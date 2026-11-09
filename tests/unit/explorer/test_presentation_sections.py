@@ -11,8 +11,7 @@ from uptimely.explorer import common
 from uptimely.explorer.sections import data_lineage, feature_lineage, invocation_lineage
 from uptimely.explorer.sections import plan as plan_render
 from uptimely.explorer.sections import spec as spec_render
-from uptimely.spec import model
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import model, operator_kinds
 from uptimely.spec.feature_graph import feature_graph, models
 
 
@@ -402,7 +401,7 @@ def test_main_columns_replace_outputs_in_order_without_materializing_escape() ->
     ],
 )
 def test_kind_capabilities_preserve_presentation_contracts(
-    kind_id: functions.OperatorKindId,
+    kind_id: operator_kinds.OperatorKindId,
     card_feature: str | None,
     topology_feature: str | None,
     effect: bool,
@@ -413,7 +412,7 @@ def test_kind_capabilities_preserve_presentation_contracts(
         {
             "functions": {
                 "calculate": {
-                    "returns": functions.OPERATOR_KINDS[kind_id].returns,
+                    "returns": operator_kinds.OPERATOR_KINDS[kind_id].returns,
                     "entrypoint": "example:calculate",
                 }
             },
@@ -494,11 +493,11 @@ def test_presentation_follows_changed_capabilities_not_kind_names(
         invocations=[invocation],
         stages=[["calculate"]],
     )
-    catalog = dict(functions.OPERATOR_KINDS)
+    catalog = dict(operator_kinds.OPERATOR_KINDS)
     catalog["read"] = copy.replace(
         catalog["read"], is_effect=True, is_transformer=True, dimension_change="remove"
     )
-    monkeypatch.setattr(functions, "OPERATOR_KINDS", catalog)
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", catalog)
 
     context = plan_render.build_context(compiled, definition)
     card = context["stages"][0]["steps"][0]

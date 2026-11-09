@@ -11,7 +11,7 @@ from uptimely import plan as compiler_plan
 from uptimely.compiler import compiler as compiler_module
 from uptimely.compiler import validation
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
@@ -423,9 +423,11 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
 def test_feature_subset_retains_sink_roles_independent_of_operator_kind(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    definitions = dict(functions.OPERATOR_KINDS)
-    definitions[functions.ESCAPE] = dataclasses.replace(definitions[functions.ESCAPE], is_sink=True)
-    monkeypatch.setattr(functions, "OPERATOR_KINDS", types.MappingProxyType(definitions))
+    definitions = dict(operator_kinds.OPERATOR_KINDS)
+    definitions[operator_kinds.ESCAPE] = dataclasses.replace(
+        definitions[operator_kinds.ESCAPE], is_sink=True
+    )
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     path = tmp_path / "sink_spec.json"
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
@@ -440,11 +442,11 @@ def test_feature_index_uses_operator_kind_output_contract(
     path = tmp_path / "feature_contract_spec.json"
     path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
     document = spec.load_spec(path)
-    definitions = dict(functions.OPERATOR_KINDS)
-    definitions[functions.ESCAPE] = dataclasses.replace(
-        definitions[functions.ESCAPE], produces_features=False
+    definitions = dict(operator_kinds.OPERATOR_KINDS)
+    definitions[operator_kinds.ESCAPE] = dataclasses.replace(
+        definitions[operator_kinds.ESCAPE], produces_features=False
     )
-    monkeypatch.setattr(functions, "OPERATOR_KINDS", types.MappingProxyType(definitions))
+    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
     monkeypatch.setattr(compiler_module.spec_validation, "validate_spec", lambda _spec: None)
 
     plan = compiler.Compiler().compile(document)

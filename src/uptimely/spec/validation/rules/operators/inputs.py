@@ -3,8 +3,7 @@
 import logging
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds as functions
-from uptimely.spec import selectors
+from uptimely.spec import operator_kinds, selectors
 from uptimely.spec.validation import errors
 
 logger = logging.getLogger(__name__)
@@ -17,7 +16,7 @@ def validate_source_feature(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is not None
-            and spec.operator_kinds[key] == functions.COLLAPSE
+            and spec.operator_kinds[key] == operator_kinds.COLLAPSE
             and not (spec.input_candidates[key])
         ):
             raise ValueError(f"Collapse {operator.id} must reference a source feature")
@@ -28,7 +27,7 @@ def validate_feature_owner(spec: spec_model.Spec) -> None:
     logger.debug("Check collapse source features have exactly one owner")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or spec.operator_kinds[key] != functions.COLLAPSE:
+        if function is None or spec.operator_kinds[key] != operator_kinds.COLLAPSE:
             continue
         for feature, owners in spec.input_candidates[key]:
             if not owners:
@@ -44,7 +43,7 @@ def validate_source_count(spec: spec_model.Spec) -> None:
     logger.debug("Check collapse source features belong to one profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or spec.operator_kinds[key] != functions.COLLAPSE:
+        if function is None or spec.operator_kinds[key] != operator_kinds.COLLAPSE:
             continue
         source_ids = {owners[0] for _, owners in spec.input_candidates[key] if len(owners) == 1}
         if len(source_ids) != 1:
@@ -62,7 +61,7 @@ def validate_source_target(spec: spec_model.Spec) -> None:
         source = spec.input_sources[key]
         if (
             function is not None
-            and spec.operator_kinds[key] == functions.COLLAPSE
+            and spec.operator_kinds[key] == operator_kinds.COLLAPSE
             and source == key[0]
         ):
             raise ValueError(f"Collapse {operator.id} cannot use its target profile as source")
@@ -73,7 +72,7 @@ def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
     logger.debug("Check collapse grouping dimensions exist in the source")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or spec.operator_kinds[key] != functions.COLLAPSE:
+        if function is None or spec.operator_kinds[key] != operator_kinds.COLLAPSE:
             continue
         source = spec.input_sources[key]
         if source is None:
@@ -92,7 +91,7 @@ def validate_source_features(spec: spec_model.Spec) -> None:
     logger.debug("Check collapse input features belong to the source profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or spec.operator_kinds[key] != functions.COLLAPSE:
+        if function is None or spec.operator_kinds[key] != operator_kinds.COLLAPSE:
             continue
         source = spec.input_sources[key]
         if source is not None:
@@ -109,7 +108,7 @@ def validate_source_dimensions(spec: spec_model.Spec) -> None:
     logger.debug("Check collapse dimension references belong to the source profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or spec.operator_kinds[key] != functions.COLLAPSE:
+        if function is None or spec.operator_kinds[key] != operator_kinds.COLLAPSE:
             continue
         source = spec.input_sources[key]
         referenced = set(operator.dimensions_references)
@@ -142,7 +141,8 @@ def validate_input_scope(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if (
             function is None
-            or functions.OPERATOR_KINDS[spec.operator_kinds[key]].feature_input_scope != "target"
+            or operator_kinds.OPERATOR_KINDS[spec.operator_kinds[key]].feature_input_scope
+            != "target"
         ):
             continue
         for feature in operator.input_features:

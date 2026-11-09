@@ -9,7 +9,7 @@ from uptimely import plan as plan_module
 from uptimely import spec
 from uptimely.explorer import common
 from uptimely.explorer import graph_style as graph_style_module
-from uptimely.spec import operator_kinds as functions
+from uptimely.spec import operator_kinds
 
 from . import invocation_lineage
 
@@ -36,7 +36,7 @@ def _build_step(
     dataset = spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
     input_labels = [feature_labels.get(name, name) for name in invocation.input_features]
     output_labels = [feature_labels.get(name, name) for name in invocation.output_features]
-    kind = functions.OPERATOR_KINDS[invocation.operator_kind]
+    kind = operator_kinds.OPERATOR_KINDS[invocation.operator_kind]
     displayed_feature = (
         ", ".join(output_labels)
         if kind.is_effect or kind.is_transformer or kind.dimension_change == "remove"
