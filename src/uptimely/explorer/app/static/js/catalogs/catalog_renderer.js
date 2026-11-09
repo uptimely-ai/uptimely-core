@@ -479,16 +479,16 @@ function functionMetadata(fn) {
 
   return `<div class="function-metadata-grid">
     ${returns ? `<section class="function-metadata-entry" aria-label="Returns">
-      <h4 class="function-metadata-title">${icon("return-arrow")}<span>Returns</span></h4>
+      ${subheading("Returns", "return-arrow")}
       <div class="function-metadata-card function-detail-box">
-        ${fn.return_type ? `<p>${badge(fn.return_type)}</p>` : ""}
+        ${fn.return_type ? `<p class="function-return-type">${escape(fn.return_type)}</p>` : ""}
         ${fn.doc?.returns ? `<p class="function-metadata-description">${escape(fn.doc.returns)}</p>` : ""}
       </div>
     </section>` : ""}
-    ${errors.length ? `<section class="function-metadata-entry" aria-label="Errors">
-      <h4 class="function-metadata-title">${icon("info")}<span>Errors</span></h4>
+    ${errors.length ? `<section class="function-metadata-entry" aria-label="Error handling">
+      ${subheading("Error handling", "errors")}
       <div class="function-metadata-card function-detail-box">
-        <ul>${errors.map(error => `<li><span class="font-mono text-amber-300">${escape(error.type || "Error")}</span>${error.description ? ` — ${escape(error.description)}` : ""}</li>`).join("")}</ul>
+        <ul>${errors.map(error => `<li><span class="function-error-type">${escape(error.type || "Error")}</span>${error.description ? `<p class="function-metadata-description">${escape(error.description)}</p>` : ""}</li>`).join("")}</ul>
       </div>
     </section>` : ""}
   </div>`;
