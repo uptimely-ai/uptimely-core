@@ -467,8 +467,8 @@ test("catalog overview navigation uses the appropriate label and profile cards s
   assert.equal((content.match(/class="profile-summary-card"/g) || []).length, 2);
   assert.match(content, /<div class="profile-summary-grain" aria-label="Profile grain">\s*<span class="profile-summary-grain-label">Grain<\/span>\s*<span class="profile-summary-grain-empty">No grain defined<\/span>/);
   assert.doesNotMatch(content, /<h3>Large<\/h3>\s*<span class="profile-summary-grain-empty">No grain defined<\/span>/);
-  assert.match(content, /href="#profile-small"[\s\S]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>1<\/strong><span>operator<\/span>/);
-  assert.match(content, /href="#profile-large"[\s\S]*?class="profile-summary-meter"[^]*?class="profile-summary-size"><strong>3<\/strong><span>operators<\/span>/);
+  assert.match(content, /href="#profile-small"[\s\S]*?class="profile-summary-size"><strong>1<\/strong><i class="site-icon icon--operators profile-summary-operator-icon" data-lucide="sigma"/);
+  assert.match(content, /href="#profile-large"[\s\S]*?class="profile-summary-size"><strong>3<\/strong><i class="site-icon icon--operators profile-summary-operator-icon" data-lucide="sigma"/);
   assert.match(content, /relative profile size/);
   assert.match(content, /profile-summary-grain-path" aria-label="Time dimension at day resolution"[^]*?<span class="profile-summary-grain-badge profile-summary-grain-resolution">[^]*?icon--resolutions profile-summary-grain-icon" data-lucide="scan-square"[^]*?<code>day<\/code><\/span>\s*<i class="profile-summary-grain-relation" data-lucide="at-sign"[^]*><\/i>\s*<span class="profile-summary-grain-badge profile-summary-grain-dimension">[^]*?icon--dimensions profile-summary-grain-icon" data-lucide="axis-3d"[^]*?<strong>Time<\/strong><\/span>/);
   assert.match(content, /profile-summary-grain-icon/);
@@ -593,12 +593,14 @@ test("lineage and topology reset controls use accessible icon-only buttons", () 
   }
 });
 
-test("feature lineage exposes a pressed accessible function-icon toggle beside dimension controls", () => {
+test("feature lineage uses distinct feature and operator icons beside dimension controls", () => {
   const { context } = lineage({
     graphs: { feature_lineage: { nodes: [], links: [] }, feature_style: {} },
   }, false);
   assert.match(context, /class="lineage-control-groups">[\s\S]*data-dimension="3d"[\s\S]*class="ui-button lineage-operator-toggle"/);
-  assert.match(context, /<button class="ui-button lineage-operator-toggle" id="show-operators" type="button" aria-label="Show operators" title="Show operators" aria-pressed="true" aria-controls="lineage"><i[^>]*data-lucide="square-function" aria-hidden="true"><\/i><\/button>/);
+  assert.match(context, /class="lineage-legend-item"><i[^>]*data-lucide="variable" aria-hidden="true"><\/i><span>Feature<\/span>/);
+  assert.match(context, /id="operator-legend"><i[^>]*data-lucide="sigma" aria-hidden="true"><\/i><span>Operator<\/span>/);
+  assert.match(context, /<button class="ui-button lineage-operator-toggle" id="show-operators" type="button" aria-label="Show operators" title="Show operators" aria-pressed="true" aria-controls="lineage"><i[^>]*data-lucide="sigma" aria-hidden="true"><\/i><\/button>/);
   assert.doesNotMatch(context, /type="checkbox"|>Show operators</);
 });
 

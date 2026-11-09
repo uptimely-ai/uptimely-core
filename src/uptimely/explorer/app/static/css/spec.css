@@ -66,7 +66,7 @@
 .profile-summary-scale { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .profile-summary-size { display: flex; flex: 0 0 auto; align-items: baseline; gap: 5px; color: #94a3b8; }
 .profile-summary-size strong { color: #f8fafc; font: 600 18px/1 var(--font-body); }
-.profile-summary-size span { font-size: 10px; }
+.profile-summary-operator-icon { width: 12px; height: 12px; color: #94a3b8; }
 .profile-summary-meter { flex: 1; height: 6px; overflow: hidden; border-radius: 4px; background: #1e293b; }
 .profile-summary-meter span { display: block; height: 100%; border-radius: inherit; background: #22d3ee; }
 .profile-summary-grain { margin-top: 12px; padding-top: 10px; border-top: 1px solid #1e293b; }

@@ -116,7 +116,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 		querySelectorAll: () => links,
 	};
 	const title = { ...createElement(), textContent: 'Features' };
-	const heading = createCatalogHeading('Features', 'sigma');
+	const heading = createCatalogHeading('Features', 'variable');
 	const description = { ...createElement(), textContent: '' };
 	const document = {
 		title: 'Spec features',
@@ -171,7 +171,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 	assert.equal(title.textContent, 'Features');
 	assert.equal(description.textContent.trim(), '');
 	assert.equal(description.hidden, true);
-	assert.equal(heading.querySelector('[data-lucide]').attributes['data-lucide'], 'sigma');
+	assert.equal(heading.querySelector('[data-lucide]').attributes['data-lucide'], 'variable');
 	assert.equal(heading.attributes.title, undefined);
 });
 }

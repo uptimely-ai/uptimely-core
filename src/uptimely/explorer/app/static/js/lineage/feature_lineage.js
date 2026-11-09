@@ -51,11 +51,11 @@ export function initializeFeatureLineage(signal) {
 		}
 		const dataType = node.data_type || node.type || 'unknown';
 		ExplorerLineage.showDetails(nodeDetails, label, [
-			{ title: 'Definition', icon: 'sigma', rows: [
+			{ title: 'Definition', icon: 'variable', rows: [
 				['Feature ID', node.feature_id || node.id], ['Data type', dataType, dataType],
 			] },
 			profileSection,
-		], '', { kind: 'Feature', icon: dataTypeIconName(dataType) || 'sigma', color: node.datasetColor });
+		], '', { kind: 'Feature', icon: dataTypeIconName(dataType) || 'variable', color: node.datasetColor });
 	}
 
 	function createLineage2D(lineageContainer, graphData, updateSelection, style, highlight) {

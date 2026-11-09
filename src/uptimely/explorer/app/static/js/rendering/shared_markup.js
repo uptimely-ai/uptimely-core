@@ -13,7 +13,7 @@ const ICONS = {
   home: "house", menu: "menu", "collapse-navigation": "panel-left-close",
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
   execution: "play", info: "info", logs: "scroll-text", preview: "table-properties",
-  overview: "layout-grid", features: "sigma",
+  overview: "layout-grid", features: "variable", operators: "sigma",
   profiles: "layers-2", datasets: "table-2",
   dimensions: "axis-3d", resolutions: "scan-square", functions: "square-function",
   grain: "rows-3", scope: "filter", order: "list-ordered",
