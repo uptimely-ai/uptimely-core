@@ -20,7 +20,7 @@ export const ICONS = {
   grain: "rows-3", scope: "filter", order: "list-ordered",
   schema: "table-2", assembly: "blocks", key: "key-round", "data-type": "braces",
   input: "arrow-right-to-line", output: "arrow-right-from-line", "engine-bind": "circle-play",
-  "return-arrow": "arrow-right",
+  "return-arrow": "arrow-right", errors: "triangle-alert",
   intermediate: "workflow", dependencies: "git-branch",
   invocations: "square-function", "feature-lineage": "diagram-flow-horizontal", "invocation-lineage": "layout-arrow-right",
   "data-lineage": "monitor-play", stages: "list-ordered", reset: "scan-search",

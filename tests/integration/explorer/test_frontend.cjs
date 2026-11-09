@@ -55,12 +55,16 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   functionMetadataData.catalogs.function_groups.vectorize.calculate.doc.returns = "Calculated <values>.";
   functionMetadataData.catalogs.function_groups.vectorize.calculate.doc.raises = [
     { type: "ValueError", description: "Invalid <value>." },
+    { type: "RuntimeError", description: null },
   ];
   const functionMetadata = renderCatalog(functionMetadataData, "functions").content;
   const functionArticle = functionMetadata.slice(functionMetadata.indexOf('<article id="function-calculate"'));
-  assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Returns">\s*<h4 class="function-metadata-title">[^]*?data-lucide="arrow-right"[^]*?<span>Returns<\/span><\/h4>\s*<div class="function-metadata-card function-detail-box">\s*<p><span class="ui-badge[^>]*>DataFrame<\/span><\/p>[^]*?Calculated &lt;values&gt;\./);
+  assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Returns">\s*<h3 class="ui-section-title profile-detail-subheading">[^]*?data-lucide="arrow-right"[^]*?<span>Returns<\/span><\/h3>\s*<div class="function-metadata-card function-detail-box">\s*<p class="function-return-type">DataFrame<\/p>\s*<p class="function-metadata-description">Calculated &lt;values&gt;\.<\/p>/);
   assert.doesNotMatch(functionArticle.match(/<section class="function-metadata-entry" aria-label="Returns">[^]*?<\/section>/)[0], /data-type-label-icon|data-lucide="table-2"/);
-  assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Errors">\s*<h4 class="function-metadata-title">[^]*?data-lucide="info"[^]*?<span>Errors<\/span><\/h4>\s*<div class="function-metadata-card function-detail-box">[^]*?ValueError<\/span> — Invalid &lt;value&gt;\./);
+  functionMetadataData.catalogs.function_groups.vectorize.calculate.return_type = "list<value>";
+  assert.match(renderCatalog(functionMetadataData, "functions").content, /<p class="function-return-type">list&lt;value&gt;<\/p>/);
+  assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Error handling">\s*<h3 class="ui-section-title profile-detail-subheading">[^]*?data-lucide="triangle-alert"[^]*?<span>Error handling<\/span><\/h3>\s*<div class="function-metadata-card function-detail-box">[^]*?<span class="function-error-type">ValueError<\/span><p class="function-metadata-description">Invalid &lt;value&gt;\.<\/p>/);
+  assert.match(functionArticle, /<li><span class="function-error-type">RuntimeError<\/span><\/li>/);
   assert.match(functionArticle, /<section class="function-source" aria-label="Source">[^]*?data-lucide="code-xml"[^]*?<span>Source<\/span>[^]*?<dt>[^]*?data-lucide="package"[^]*?<span>Package<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="file-code-2"[^]*?<span>Module<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="square-function"[^]*?<span>Function<\/span><\/dt><dd><code>calculate<\/code>/);
   assert.match(functionArticle, /<dt>[^]*?data-lucide="map-pin"[^]*?<span>Origin<\/span><\/dt><dd><code>Unknown<\/code><\/dd>/);
   assert.match(functionArticle, /<pre class="function-detail-box mt-3 min-h-40/);
@@ -187,8 +191,8 @@ test("function source and operator usage handle qualified, missing and escaped v
   assert.match(article, /Python signature validation disabled/);
   assert.match(article, /operator-readings-calculate">Calculate &lt;values&gt;<\/a>/);
   assert.match(article, /operator-readings-merge_values">Merge Values<\/a>/);
-  assert.match(article, /class="function-metadata-grid"[^]*?aria-label="Returns"[^]*?aria-label="Errors"/);
-  assert.ok(article.indexOf('aria-label="Errors"') > article.indexOf("Arguments"));
+  assert.match(article, /class="function-metadata-grid"[^]*?aria-label="Returns"[^]*?aria-label="Error handling"/);
+  assert.ok(article.indexOf('aria-label="Error handling"') > article.indexOf("Arguments"));
 
   fn.source_origin = "project";
   assert.match(renderCatalog(data, "functions").content, /<span>Origin<\/span><\/dt><dd><code>Project source code<\/code><\/dd>/);

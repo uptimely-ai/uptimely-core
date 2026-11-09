@@ -56,6 +56,9 @@ test("function detail grids stack on narrow screens and share space when wide", 
   assert.match(css, /\.function-kind-graphic:only-child\s*\{\s*grid-column:\s*2/);
   assert.match(css, /\.function-metadata-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*220px\),\s*1fr\)\)/);
   assert.match(css, /\.function-example\s*\{[^}]*min-width:\s*0/);
+  assert.match(css, /\.function-metadata-card p,\s*\.function-metadata-card li\s*\{[^}]*margin:\s*0/);
+  assert.match(css, /\.function-metadata-card ul\s*\{[^}]*margin:\s*0/);
+  assert.match(css, /\.function-error-type\s*\{[^}]*color:\s*#fca5a5/);
 });
 
 test("data type icons normalize common aliases and composed types", () => {
@@ -252,7 +255,7 @@ test("feature and function type displays use matching data type icons", () => {
   assert.doesNotMatch(featureLink, /data-lucide="sigma"/);
   const functionContent = renderCatalog(data, "functions").content;
   const returnMetadata = functionContent.match(/<section class="function-metadata-entry" aria-label="Returns">[\s\S]*?<\/section>/)[0];
-  assert.match(returnMetadata, /<span class="ui-badge[^>]*>pandas\.DataFrame<\/span>/);
+  assert.match(returnMetadata, /<p class="function-return-type">pandas\.DataFrame<\/p>/);
   assert.doesNotMatch(returnMetadata, /data-type-label-icon|data-lucide="table-2"/);
   const argumentTable = functionContent.match(/<table class="ui-table function-arguments-table">[\s\S]*?<\/table>/)[0];
   assert.match(argumentTable, /<th scope="col">Argument<\/th><th scope="col">Description<\/th>/);
