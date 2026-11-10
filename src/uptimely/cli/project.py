@@ -7,8 +7,9 @@ import time
 
 import polars as pl
 
+from uptimely import project
 from uptimely.cli import common
-from uptimely.project import build as project_build
+from uptimely.project import BuildBundle, BuildLockError, ProjectBuildError
 from uptimely.project.build import source as build_source
 
 logger = logging.getLogger(__name__)
@@ -51,7 +52,7 @@ def configure_build_parser(parser: argparse.ArgumentParser) -> None:
 
 
 def _log_build_details(
-    bundle: project_build.BuildBundle,
+    bundle: BuildBundle,
     root: pathlib.Path,
     args: argparse.Namespace,
     duration: float,
@@ -102,7 +103,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     started = time.perf_counter()
     with common.apply_log_level(args.log_level):
         try:
-            bundle = project_build.build_project(
+            bundle = project.build(
                 root,
                 python_spec=args.python_spec,
                 json_spec=args.json_spec,
@@ -113,8 +114,8 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 _log_build_details(bundle, root, args, duration)
             logger.info("Build files created to %s", bundle.root)
         except (
-            project_build.BuildLockError,
-            project_build.ProjectBuildError,
+            BuildLockError,
+            ProjectBuildError,
             OSError,
             ValueError,
         ) as error:

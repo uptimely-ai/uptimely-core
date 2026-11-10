@@ -18,6 +18,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Rename `project.build_project()` to `project.build()`. The project root is
+  optional and defaults to the current working directory.
 - Python authoring exposes `from uptimely import merge` and `merge.default()`;
   `default_merge()` remains available as a compatibility alias.
 

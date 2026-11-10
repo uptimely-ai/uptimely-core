@@ -12,7 +12,6 @@ from support import examples as example_support
 from uptimely import compiler, project
 from uptimely.cli import cli, explorer
 from uptimely.explorer import server as explorer_server
-from uptimely.project import build as project_build
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
@@ -110,7 +109,7 @@ def test_explorer_serves_packaged_frontend_without_building(
         assert host == "127.0.0.1"
         assert port == 0
 
-    monkeypatch.setattr(project_build, "load_spec_source", fail)
+    monkeypatch.setattr(project, "load_spec_source", fail)
     monkeypatch.setattr(compiler.Compiler, "compile", fail)
     monkeypatch.setattr(explorer_server.uvicorn, "run", serve_and_check_assets)
     monkeypatch.setattr(
@@ -196,7 +195,7 @@ def test_explorer_build_option_builds_before_serving(
 ) -> None:
     events: list[str] = []
 
-    def build(root: pathlib.Path) -> project_build.BuildBundle:
+    def build(root: pathlib.Path) -> project.BuildBundle:
         events.append("build")
         assert root == built_project
         return project.load_build_bundle(root)
@@ -204,7 +203,7 @@ def test_explorer_build_option_builds_before_serving(
     def serve(*args: object) -> None:
         events.append("serve")
 
-    monkeypatch.setattr(project_build, "build_project", build)
+    monkeypatch.setattr(project, "build", build)
     monkeypatch.setattr(explorer, "serve_explorer", serve)
     arguments = (
         ["explorer", "serve", str(built_project)]
@@ -223,10 +222,10 @@ def test_explorer_build_failure_does_not_serve(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    def fail_build(root: pathlib.Path) -> project_build.BuildBundle:
-        raise project_build.ProjectBuildError("generation", "invalid source")
+    def fail_build(root: pathlib.Path) -> project.BuildBundle:
+        raise project.ProjectBuildError("generation", "invalid source")
 
-    monkeypatch.setattr(project_build, "build_project", fail_build)
+    monkeypatch.setattr(project, "build", fail_build)
     monkeypatch.setattr(
         explorer,
         "serve_explorer",

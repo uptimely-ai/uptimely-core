@@ -202,8 +202,8 @@ def _cleanup_staging_root(staging_root: pathlib.Path) -> None:
         raise errors.ProjectBuildError("staging cleanup", str(error)) from error
 
 
-def build_project(
-    project_root: str | pathlib.Path,
+def build(
+    project_root: str | pathlib.Path = ".",
     python_spec: str | None = None,
     json_spec: build_source.JsonSourceInput = None,
     features: feature_selection.FeatureSelection = None,
@@ -211,7 +211,7 @@ def build_project(
     """Build and publish a spec, execution plan, and Explorer snapshot.
 
     Args:
-        project_root: Root directory of the analytics project.
+        project_root: Root directory of the analytics project; defaults to the current directory.
         python_spec: Optional ``module:attribute`` containing a ``PythonSpec``.
         json_spec: Optional explicit spec JSON path.
         features: Optional output features to compile with their dependencies.
@@ -223,7 +223,7 @@ def build_project(
         BuildLockError: Another builder or active bundle reader holds the lock.
         ProjectBuildError: Source loading, compilation, generation, or publication fails.
     """
-    root = pathlib.Path(project_root).resolve()
+    root = pathlib.Path(project_root or ".").resolve()
     try:
         selected_features = feature_selection.normalize_features(features)
     except (ValueError, TypeError) as error:

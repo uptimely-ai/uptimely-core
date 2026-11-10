@@ -167,7 +167,7 @@ context. This is alternative to the previous CLI example:
 ```python
 from uptimely import Engine, project
 
-bundle = project.build_project(".")
+bundle = project.build()
 result = Engine(bundle).run()
 ```
 

@@ -78,7 +78,7 @@ def test_example_setup_reuses_artifacts_without_building_or_compiling(
         pytest.fail("Unchanged example setup must reuse saved artifacts")
 
     monkeypatch.setattr(compiler.Compiler, "compile", unexpected_work)
-    monkeypatch.setattr(project, "build_project", unexpected_work)
+    monkeypatch.setattr(project, "build", unexpected_work)
     plan = bundle.execution_plan
     copied_root = example_support.copy_example_project(tmp_path / "project")
 
@@ -127,7 +127,7 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, example_projects: pathlib.Path
 ) -> None:
     features = ("bearing_temperature_max",)
-    original_build = project.build_project
+    original_build = project.build
     build_calls = 0
 
     def build(
@@ -140,7 +140,7 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
         build_calls += 1
         return original_build(project_root, json_spec=json_spec, features=features)
 
-    monkeypatch.setattr(project, "build_project", build)
+    monkeypatch.setattr(project, "build", build)
 
     first = example_support.example_bundle(features=features)
     second = example_support.example_bundle(features=features)
@@ -158,7 +158,7 @@ def test_shared_examples_are_built_once_under_concurrent_requests(
 ) -> None:
     examples_root = tmp_path / "examples"
     builds: list[pathlib.Path] = []
-    monkeypatch.setattr(project, "build_project", builds.append)
+    monkeypatch.setattr(project, "build", builds.append)
 
     with futures.ThreadPoolExecutor(max_workers=4) as executor:
         list(executor.map(example_support.prepare_example_projects, [examples_root] * 4))
@@ -177,13 +177,13 @@ def test_failed_example_build_can_be_retried(
     def fail_build(project_root: pathlib.Path) -> None:
         raise RuntimeError("Example build failed")
 
-    monkeypatch.setattr(project, "build_project", fail_build)
+    monkeypatch.setattr(project, "build", fail_build)
     with pytest.raises(RuntimeError, match="Example build failed"):
         example_support.prepare_example_projects(examples_root)
     assert not (tmp_path / ".examples-ready").exists()
 
     builds: list[pathlib.Path] = []
-    monkeypatch.setattr(project, "build_project", builds.append)
+    monkeypatch.setattr(project, "build", builds.append)
     example_support.prepare_example_projects(examples_root)
 
     assert builds == [examples_root / "pump_analytics"]

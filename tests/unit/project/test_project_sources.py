@@ -170,10 +170,24 @@ def test_complete_build_validates_spec_semantics_once(
     caplog.set_level(logging.DEBUG, logger="uptimely")
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
-        bundle = project.build_project(tmp_path, json_spec=path)
+        bundle = project.build(tmp_path, json_spec=path)
 
     check.assert_called_once()
     assert caplog.messages.count("Check spec version is an integer") == 1
     assert bundle.spec_path.is_file()
     assert (tmp_path / project.EXPLORER_DATA_FILE).is_file()
     assert project.load_build_bundle(tmp_path).spec_definition == bundle.spec_definition
+
+
+@pytest.mark.parametrize("project_root", [None, ""])
+def test_build_defaults_to_current_directory(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, project_root: str | None
+) -> None:
+    spec_path = tmp_path / project.SPEC_JSON_ENTRY_FILE
+    spec_path.parent.mkdir(parents=True)
+    spec_path.write_bytes(FIXTURE_SPEC.read_bytes())
+    monkeypatch.chdir(tmp_path)
+
+    bundle = project.build() if project_root is None else project.build(project_root)
+
+    assert bundle.project_root == tmp_path.resolve()

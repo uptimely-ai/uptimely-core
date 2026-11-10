@@ -19,8 +19,7 @@ import fastmcp
 import polars as pl
 
 from uptimely import engine as uptimely_engine
-from uptimely import entrypoint, spec
-from uptimely.project import build as project_build
+from uptimely import entrypoint, project, spec
 from uptimely.project import paths
 from uptimely.spec import model as spec_model
 
@@ -31,7 +30,7 @@ logger = logging.getLogger(__name__)
 class BuildSnapshot:
     """A validated bundle and its parsed source model from the same read."""
 
-    bundle: project_build.BuildBundle
+    bundle: project.BuildBundle
     spec: spec_model.Spec
 
 
@@ -50,7 +49,7 @@ class ServerState:
         if reload:
             self.snapshot = None
 
-        with project_build.read_build_bundle(self.project_root) as bundle:
+        with project.read_build_bundle(self.project_root) as bundle:
             try:
                 spec_definition = spec.load_spec(bundle.spec_path)
             except (
@@ -60,7 +59,7 @@ class ServerState:
                 TypeError,
                 ValueError,
             ) as error:
-                raise project_build.BuildError(
+                raise project.BuildError(
                     "invalid",
                     f"cannot load saved spec: {error}",
                     self.project_root.resolve(),

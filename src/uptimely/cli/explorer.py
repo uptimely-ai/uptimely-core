@@ -8,7 +8,6 @@ from uptimely import project
 from uptimely.cli import common
 from uptimely.explorer import export as explorer_export
 from uptimely.explorer import server as explorer_server
-from uptimely.project import build as project_build
 
 logger = logging.getLogger(__name__)
 
@@ -100,7 +99,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
 
     try:
         if args.build:
-            bundle = project_build.build_project(project_root)
+            bundle = project.build(project_root)
             logger.info("Build files created to %s", bundle.root)
         bundle = project.load_build_bundle(project_root)
         scope = (

@@ -17,7 +17,6 @@ from uptimely import engine as engine_module
 from uptimely import plan as execution_plan
 from uptimely import project as project_module
 from uptimely.cli import cli
-from uptimely.project import build as project_build
 from uptimely.run import recording
 
 PROJECT = example_support.EXAMPLES_ROOT / "pump_analytics"
@@ -340,7 +339,7 @@ def test_engine_cli_builds_before_running(
             plan_version=execution_plan.PLAN_VERSION,
         )
 
-    monkeypatch.setattr(project_build, "build_project", build)
+    monkeypatch.setattr(project_module, "build", build)
     monkeypatch.setattr(engine_module.Engine, "run", run)
 
     invoke(
@@ -363,9 +362,9 @@ def test_engine_cli_does_not_run_after_build_failure(
     command: tuple[str, ...],
 ) -> None:
     def fail_build(root: pathlib.Path) -> project_module.BuildBundle:
-        raise project_build.ProjectBuildError("generation", "invalid source")
+        raise project_module.ProjectBuildError("generation", "invalid source")
 
-    monkeypatch.setattr(project_build, "build_project", fail_build)
+    monkeypatch.setattr(project_module, "build", fail_build)
     monkeypatch.setattr(
         engine_module.Engine,
         "run",

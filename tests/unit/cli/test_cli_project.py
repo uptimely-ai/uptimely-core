@@ -348,7 +348,7 @@ def test_failed_build_prints_trace_without_summary_and_preserves_logging(
         logging.getLogger("uptimely.project.build").warning("build warning")
         raise ValueError("injected failure")
 
-    monkeypatch.setattr(cli.project.project_build, "build_project", fail_build)
+    monkeypatch.setattr(cli.project.project, "build", fail_build)
 
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch, "--project-root", str(tmp_path), "--log-level", "debug")
@@ -403,7 +403,7 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
     source = copy_project_spec(root)
     source_spec = spec.load_spec(source)
 
-    bundle = project_build.build_project(
+    bundle = project_build.build(
         root,
         features=["pump_health_score", "pump_health_score"],
     )
@@ -426,7 +426,7 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
     assert len({invocation.id for invocation in bundle.execution_plan.invocations}) == len(
         bundle.execution_plan.invocations
     )
-    full_bundle = project_build.build_project(root)
+    full_bundle = project_build.build(root)
     assert full_bundle.manifest.features is None
 
 
@@ -463,7 +463,7 @@ def test_project_build_compiles_once_and_prepares_the_compiled_plan(
         project_build.presentation, "build_presentation_data", prepare_compiled_plan
     )
 
-    project_build.build_project(root)
+    project_build.build(root)
 
     assert len(compiled) == 1
     assert len(plans) == 1
@@ -559,7 +559,7 @@ def test_snapshot_publication_failure_preserves_previous_snapshot(
     monkeypatch.setattr(project_build.os, "replace", fail_snapshot_replace)
 
     with pytest.raises(project.ProjectBuildError, match="Explorer snapshot publication failed"):
-        project_build.build_project(root)
+        project_build.build(root)
 
     assert project.load_build_bundle(root).manifest.build_version == project.BUILD_VERSION
     assert snapshot.read_text(encoding="utf-8") == "previous snapshot"
@@ -623,7 +623,7 @@ def test_project_build_fails_while_bundle_lock_is_held(
         project.build_lock(root, exclusive=exclusive),
         pytest.raises(project.BuildLockError, match="active build lock"),
     ):
-        project_build.build_project(root)
+        project_build.build(root)
 
     assert project.load_build_bundle(root).manifest.features is None
 
@@ -639,7 +639,7 @@ def test_read_build_bundle_holds_lock_for_consumer_lifetime(
     with project.read_build_bundle(root) as bundle:
         assert bundle.root == built_bundle.root
         with pytest.raises(project.BuildLockError, match="active build lock"):
-            project_build.build_project(root)
+            project_build.build(root)
 
     assert project.load_build_bundle(root).manifest.features is None
 
@@ -649,9 +649,9 @@ def test_project_build_rejects_invalid_scope(tmp_path: pathlib.Path) -> None:
     copy_project_spec(root)
 
     with pytest.raises(project.ProjectBuildError, match="at least one output feature"):
-        project_build.build_project(root, features=[])
+        project_build.build(root, features=[])
     with pytest.raises(project.ProjectBuildError, match="Unknown output feature"):
-        project_build.build_project(root, features=["not-a-feature"])
+        project_build.build(root, features=["not-a-feature"])
     assert not (root / project.BUILD_OUTPUT_DIR).exists()
 
 
