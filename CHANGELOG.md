@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- `Engine` can be constructed without an explicit runtime configuration; it uses
+  the default engine settings.
 - Profiles can declare `relations` as additional dimension resolutions without
   changing their grain. Relation columns are retained during fragment assembly and
   shown in Explorer's profile schema rather than its feature catalog or lineage.
