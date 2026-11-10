@@ -58,27 +58,28 @@ def test_project_build_forwards_source_and_feature_options(
     project: project_module.Project,
 ) -> None:
     source = project.root / project_module.SPEC_JSON_ENTRY_FILE
-    with mock.patch.object(builder, "build", autospec=True) as build:
+    with mock.patch.object(builder, "ProjectBuilder", autospec=True) as builder_class:
         result = project.build(
             python_spec="spec.spec:python_spec", json_spec=source, features=["reading"]
         )
 
-    build.assert_called_once_with(
-        project.root,
+    builder_class.assert_called_once_with(project.root)
+    builder_class.return_value.build.assert_called_once_with(
         python_spec="spec.spec:python_spec",
         json_spec=source,
         features=["reading"],
     )
-    assert result is build.return_value
+    assert result is builder_class.return_value.build.return_value
 
 
 @pytest.mark.parametrize("validate", [False, True])
 def test_project_load_forwards_validation(project: project_module.Project, validate: bool) -> None:
-    with mock.patch.object(bundle, "load_build_bundle", autospec=True) as load:
+    with mock.patch.object(bundle, "BundleStore", autospec=True) as store_class:
         result = project.load_build_bundle(validate=validate)
 
-    load.assert_called_once_with(project.root, validate=validate)
-    assert result is load.return_value
+    store_class.assert_called_once_with(project.root)
+    store_class.return_value.load.assert_called_once_with(validate=validate)
+    assert result is store_class.return_value.load.return_value
 
 
 @pytest.mark.parametrize("validate", [False, True])

@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- `ProjectBuilder` and `BundleStore` in `uptimely.project.build` provide reusable
+  root-bound build orchestration and bundle loading. `Project` delegates to them.
 - `Project` provides root-bound build and bundle-loading operations. Import it
   from `uptimely` and use `Project().build()` to build the current directory.
 - `Engine` can be constructed without an explicit runtime configuration; it uses

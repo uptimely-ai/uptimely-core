@@ -191,7 +191,9 @@ def test_project_build_persists_source_origin(
     pump_bundle.spec_definition.functions[
         "ratio"
     ].entrypoint = "source_provenance_fixture:calculate"
-    monkeypatch.setattr(builder, "_load_spec_definition", lambda *args: pump_bundle.spec_definition)
+    monkeypatch.setattr(
+        builder.ProjectBuilder, "_load_spec_definition", lambda *args: pump_bundle.spec_definition
+    )
 
     project.build(tmp_path)
 

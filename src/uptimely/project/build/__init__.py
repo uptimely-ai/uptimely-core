@@ -1,7 +1,7 @@
 """Build, load, and validate active project build bundles."""
 
-from uptimely.project.build.builder import build
-from uptimely.project.build.bundle import load_build_bundle, read_build_bundle
+from uptimely.project.build.builder import ProjectBuilder, build
+from uptimely.project.build.bundle import BundleStore, load_build_bundle, read_build_bundle
 from uptimely.project.build.errors import BuildError, BuildLockError, ProjectBuildError
 from uptimely.project.build.features import FeatureSelection
 from uptimely.project.build.locking import build_lock
@@ -19,6 +19,8 @@ from uptimely.project.build.source import (
 )
 
 __all__ = [
+    "ProjectBuilder",
+    "BundleStore",
     "BuildArtifactPaths",
     "BuildBundle",
     "BuildError",

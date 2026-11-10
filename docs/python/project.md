@@ -20,6 +20,12 @@ context. Use `project.load_build_bundle()` when a lock is not needed after
 loading. The existing module-level build and bundle-loading functions remain
 available.
 
+Internally, `ProjectBuilder` orchestrates source loading, compilation, artifact
+generation, and publication. `BundleStore` loads and validates active or staged
+bundles and holds reader locks for locked reads. Both classes live in
+`uptimely.project.build` and retain only root-bound context, not the latest build
+result. `BuildBundle` remains the data returned by a successful build or load.
+
 Builds validate Spec semantics once during compilation. Explorer rendering and
 staged and published bundle loading reuse that validation. Artifact, structural,
 and execution-plan checks still run.
@@ -53,3 +59,11 @@ imports to `uptimely.plan`.
         - load_build_bundle
         - read_build_bundle
         - load_spec_source
+
+::: uptimely.project.build
+    options:
+      heading_level: 2
+      show_root_heading: false
+      members:
+        - ProjectBuilder
+        - BundleStore

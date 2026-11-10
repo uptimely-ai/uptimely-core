@@ -594,8 +594,8 @@ def test_snapshot_readers_observe_complete_old_or_new_data(
 
     monkeypatch.setattr(project_build.os, "replace", pause_before_replace)
     writer = threading.Thread(
-        target=project_build._publish_explorer_snapshot,
-        args=(tmp_path, replacement),
+        target=project_build.ProjectBuilder(tmp_path)._publish_explorer_snapshot,
+        args=(replacement,),
     )
     writer.start()
     try:
