@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics, source
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, default_merge, ref
+from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 
 
 class PumpSeriesFeatures(FeatureSet):
@@ -45,7 +45,7 @@ class PumpSeries(Profile):
                     schema={"max_capacity": "float"},
                 ),
             ),
-            merge=default_merge(),
+            merge=merge.default(),
         ),
         Operator(
             id="bearing_temperature_max",
@@ -65,6 +65,6 @@ class PumpSeries(Profile):
                     filter_value="",
                 ),
             ),
-            merge=default_merge(),
+            merge=merge.default(),
         ),
     ]

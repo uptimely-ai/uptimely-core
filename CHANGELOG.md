@@ -16,6 +16,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Python authoring exposes `from uptimely import merge` and `merge.default()`;
+  `default_merge()` remains available as a compatibility alias.
+
 - Operator interfaces now contain only feature dependencies and outputs.
   Identifiers and relations stay in profile schema and assembly metadata;
   Python authoring no longer adds identifier outputs or infers key inputs.
@@ -36,7 +39,7 @@ While the version is `0.x`, minor releases may include breaking changes.
   grain relationships, execution forms, and compute/merge roles are derived
   from Spec declarations, not function categories. A dataframe result without
   a merge is a complete target; fragments require an explicit merge such as
-  `default_merge()`. Disabling signature inspection requires explicit `args`
+  `merge.default()`. Disabling signature inspection requires explicit `args`
   and `returns`. Spec version 8, plan version 12, and Explorer snapshot version
   3 replace their previous formats. Migrate each operator based on its bindings
   and target behavior, then rebuild bundles and Explorer snapshots; old

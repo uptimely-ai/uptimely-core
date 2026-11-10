@@ -3,7 +3,7 @@
 from examples.pump_analytics.functions import analytics, capacity, external_workflow, source
 from examples.pump_analytics.spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, default_merge, ref
+from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 from uptimely.spec import feature_types
 
 
@@ -85,7 +85,7 @@ class Pump(Profile):
                     schema={"max_capacity": "float"},
                 ),
             ),
-            merge=default_merge(),
+            merge=merge.default(),
         ),
         Operator(
             id="expand_series_capacity",
@@ -104,7 +104,7 @@ class Pump(Profile):
                     rename={"max_capacity_series": features.series_max_capacity},
                 ),
             ),
-            merge=default_merge(),
+            merge=merge.default(),
         ),
         Operator(
             id="expand_category_capacity",
@@ -123,7 +123,7 @@ class Pump(Profile):
                     rename={"max_capacity_category": features.category_max_capacity},
                 ),
             ),
-            merge=default_merge(),
+            merge=merge.default(),
         ),
         Operator(
             id="resolve_max_capacity",
@@ -166,7 +166,7 @@ class Pump(Profile):
                     filter_value="",
                 ),
             ),
-            merge=default_merge(),
+            merge=merge.default(),
         ),
         Operator(
             id="health_signal_normalized",
