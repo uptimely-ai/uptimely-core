@@ -36,6 +36,7 @@ const featureReferenceId = reference => reference.startsWith("$features.")
   : null;
 const operatorInputs = operator => operator.interface.inputs || [];
 const label = (id, value) => value.name || id;
+const humanizeCategory = category => category.replace(/[_-]+/g, " ").replace(/\b\w/g, character => character.toUpperCase());
 const operatorLabel = (id, operator) => operator.name || id.replace(/[_-]+/g, " ").replace(/\b\w/g, character => character.toUpperCase());
 const description = value => `<p class="mt-4 text-sm leading-6 text-slate-400">${escape(value || "No description provided.")}</p>`;
 const dimensionResolutionTarget = (dimensionId, resolutionId) =>
@@ -105,7 +106,7 @@ const contextLinks = {
   },
   functions(data) {
     return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length)
-      .map(([category, items]) => group(category,
+      .map(([category, items]) => group(humanizeCategory(category),
         Object.entries(items).map(([id, item]) =>
           contextLink(`function-${id}`, label(id, item), "functions")))).join("");
   },
@@ -245,7 +246,7 @@ function functionOverview(data) {
     <div class="catalog-charts lg:grid-cols-2">${distribution("Functions by category", groups.map(([category, items]) => {
       const count = Object.keys(items).length;
       return [category, count, count ? `#functions-${encodeURIComponent(category)}` : null];
-    }), { total: data.catalogs.summary.function_count })}
+    }), { total: data.catalogs.summary.function_count, labelFormatter: humanizeCategory })}
       ${distribution("Functions by return type", [...returnTypeCounts], { typeLabels: true, returnTypeLabels: true })}</div></section>`;
 }
 

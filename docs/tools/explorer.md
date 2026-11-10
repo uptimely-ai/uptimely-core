@@ -84,7 +84,8 @@ Origin is unknown when it cannot be verified, including when signature
 validation is disabled; editable distributions without file ownership records
 may also be unknown. Rebuild to update this information.
 Function categories group catalog entries; they do not classify a function's
-operator usages or determine execution roles.
+operator usages or determine execution roles. Category labels are humanized for
+display; their original values are retained for navigation and data attributes.
 Used by operators links to each referencing operator, including merge bindings,
 grouped by profile. Return values and errors appear beneath the arguments.
 

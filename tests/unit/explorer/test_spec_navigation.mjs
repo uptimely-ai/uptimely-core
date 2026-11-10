@@ -120,11 +120,11 @@ test("typed names put the icon before the name without visible type text", () =>
 
 test("function context uses declared categories and neutral callable icons", () => {
   const context = catalogContext({ catalogs: { function_groups: {
-    "Data loading": { load: { name: "Load data" }, fetch: { name: "Fetch data" } },
+    "Data_loading": { load: { name: "Load data" }, fetch: { name: "Fetch data" } },
     Uncategorized: { score: { name: "Score" } },
     Empty: {},
   } } }, "functions");
-  assert.match(context, /context-group-label"><span>Data loading<\/span><span class="context-link-count">2<\/span>/);
+  assert.match(context, /context-group-label"><span>Data Loading<\/span><span class="context-link-count">2<\/span>/);
   assert.match(context, /context-group-label"><span>Uncategorized<\/span><span class="context-link-count">1<\/span>/);
   for (const id of ["load", "fetch", "score"]) {
     assert.match(context, new RegExp(`href="#function-${id}"[\\s\\S]*?data-lucide="square-function"`));
