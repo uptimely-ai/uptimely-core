@@ -30,7 +30,6 @@ from .paths import (
     SPEC_JSON_ENTRY_FILE,
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
-    resolve_path,
 )
 from .project import Project
 
@@ -62,6 +61,5 @@ __all__ = [
     "build",
     "load_build_bundle",
     "load_spec_source",
-    "resolve_path",
     "read_build_bundle",
 ]

@@ -66,7 +66,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     if args.preview is not None and args.preview <= 0:
         parser.error("--preview must be a positive integer")
     root = common.resolve_project_root(args, parser)
-    config = project.resolve_path(args.config, root, project.CONFIG_FILE)
+    config = project.Project(root).resolve_path(args.config, project.CONFIG_FILE)
     with common.apply_log_level(args.log_level):
         logger.info("Start Uptimely engine run")
         try:
