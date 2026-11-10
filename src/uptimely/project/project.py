@@ -18,6 +18,18 @@ class Project:
         """
         self.root = pathlib.Path(root).resolve()
 
+    def resolve_path(self, path: pathlib.Path | None, default: pathlib.Path) -> pathlib.Path:
+        """Preserve an explicit path or place a default beneath the project root.
+
+        Args:
+            path: Explicit path to preserve, including relative paths.
+            default: Default project-relative path.
+
+        Returns:
+            The explicit path or the default path joined to this project's root.
+        """
+        return path if path is not None else self.root / default
+
     def build(
         self,
         *,

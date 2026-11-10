@@ -31,10 +31,13 @@ Standalone `load_build_bundle` and `read_build_bundle` validate Spec semantics b
 default. Pass `validate=False` only when the saved Spec has already been
 validated and has not changed; all other bundle checks remain enabled.
 
-Project path constants and `resolve_path` are defined in
-`uptimely.project.paths` and exported by `uptimely.project`. Import them from
-`uptimely.project.paths`; the former `uptimely.project_paths` forwarding module
-has been removed.
+`project.resolve_path(path, default)` preserves an explicit path unchanged,
+including relative paths. If `path` is `None`, it joins `default` to the root
+stored by `Project`. The module-level `resolve_path` function has been removed.
+
+Project path constants are defined in `uptimely.project.paths` and exported by
+`uptimely.project`. Import them from `uptimely.project.paths`. The former
+`uptimely.project_paths` forwarding module has been removed.
 
 Portable execution-plan models and serialization live in `uptimely.plan`. The
 former `uptimely.execution_plan` forwarding package has been removed; update
@@ -50,4 +53,3 @@ imports to `uptimely.plan`.
         - load_build_bundle
         - read_build_bundle
         - load_spec_source
-        - resolve_path
