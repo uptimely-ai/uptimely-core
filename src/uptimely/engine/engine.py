@@ -24,7 +24,7 @@ class Engine:
     def __init__(
         self,
         bundle: build_models.BuildBundle,
-        config: config_module.Config | config_module.EngineConfig,
+        config: config_module.Config | config_module.EngineConfig | None = None,
         parameters: abc.Mapping[str, object] | None = None,
     ) -> None:
         """Prepare an engine using bundle resources and runtime configuration."""
@@ -36,11 +36,11 @@ class Engine:
         if isinstance(config, config_module.Config):
             self.config = config.engine
             configured_parameters = config.params.root
+            if parameters is not None:
+                configured_parameters = config_module.Params.model_validate(dict(parameters)).root
         else:
-            self.config = config
+            self.config = config_module.EngineConfig() if config is None else config
             configured_parameters = self._load_parameters(bundle, parameters)
-        if parameters is not None and isinstance(config, config_module.Config):
-            configured_parameters = config_module.Params.model_validate(dict(parameters)).root
         self.parameters = configured_parameters
         self.backend = backend_module.create_backend(self.config.backend)
         self.check_plan_backend()

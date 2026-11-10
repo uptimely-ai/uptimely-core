@@ -1204,6 +1204,15 @@ def test_engine_selects_dataframe_backend_from_config(
     assert isinstance(engine.backend, uptimely_engine.PolarsBackend)
 
 
+def test_engine_uses_default_config_when_omitted(
+    bundle_for_plan: execution_support.BundleFactory,
+) -> None:
+    engine = uptimely_engine.Engine(bundle_for_plan(_plan()))
+
+    assert engine.config == uptimely_engine.EngineConfig()
+    assert isinstance(engine.backend, uptimely_engine.PolarsBackend)
+
+
 def test_engine_rejects_spec_paths_instead_of_compiling() -> None:
     with pytest.raises(ValueError, match="bundle must be a BuildBundle"):
         uptimely_engine.Engine("spec.json", uptimely_engine.EngineConfig())  # type: ignore[arg-type]
