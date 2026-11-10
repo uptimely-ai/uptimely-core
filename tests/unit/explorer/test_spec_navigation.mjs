@@ -994,6 +994,15 @@ test("main menu sections have noninteractive titles and separator styling", asyn
   assert.match(styles, /\.site-nav\.labels-hidden \.site-nav-group-title \{[\s\S]*?clip-path: inset\(50%\)/);
 });
 
+test("desktop context menu scrolls its links without an outer scrollbar", async () => {
+  const styles = await readFile(new URL("../css/base.css", root), "utf8");
+  assert.match(styles, /\.site-context \{[^}]*overflow-y: hidden;/);
+  assert.match(styles, /\.site-context \.context-links \{[^}]*overflow-y: auto;/);
+  const mobile = styles.slice(styles.indexOf("@media (max-width: 640px)"));
+  assert.match(mobile, /\.site-menus > \.site-context \{[^}]*overflow-y: auto;/);
+  assert.match(mobile, /\.site-nav \.site-nav-pages, \.site-context \.context-links \{ overflow: visible; \}/);
+});
+
 test("main menu preserves link order and marks only the current page active", () => {
   const markup = shell({ project: {}, scope: {} }, "preview", "", "");
   const groups = [...markup.matchAll(/<section class="site-nav-group"[^>]*>([\s\S]*?)<\/section>/g)];
