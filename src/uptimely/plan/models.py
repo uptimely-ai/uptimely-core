@@ -11,7 +11,7 @@ from uptimely import spec
 from uptimely.spec import operator_kinds
 from uptimely.spec import row_context as uptimely_row_context
 
-PLAN_VERSION = 12
+PLAN_VERSION = 13
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
@@ -97,8 +97,8 @@ class Invocation(_PlanModel):
     output_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     input_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     row_context: uptimely_row_context.RowContext | None = None
-    target_grain_keys: list[NonEmptyString] = pydantic.Field(default_factory=list)
-    fragment_identifiers: list[NonEmptyString] = pydantic.Field(default_factory=list)
+    target_identifiers: list[NonEmptyString] = pydantic.Field(default_factory=list)
+    fragment_keys: list[NonEmptyString] = pydantic.Field(default_factory=list)
     output_types: dict[NonEmptyString, NonEmptyString | None] = pydantic.Field(default_factory=dict)
     column_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     argument_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
@@ -142,25 +142,25 @@ class Invocation(_PlanModel):
                 f"used by operator {node.operator_id}"
             )
         profile_key = spec_definition.profile_keys[node.profile_id]
-        target_grain_keys = spec_definition.grain_keys_by_profile[profile_key]
+        target_identifiers = spec_definition.identifiers_by_profile[profile_key]
         operator = spec_definition.profiles[node.profile_id].assembly[node.operator_id]
         arguments = operator.resolve_args(
             role=node.role,
             function_id=node.function_id,
             operator_kind=node.operator_kind,
             profile_id=node.profile_id,
-            grain_keys_by_profile=spec_definition.grain_keys_by_profile,
+            identifiers_by_profile=spec_definition.identifiers_by_profile,
             resources=spec_definition.binding_resources,
-            id_columns=target_grain_keys,
+            identifiers=target_identifiers,
         )
         profile = spec_definition.profiles[node.profile_id]
         column_types = {
             feature_id: feature.type
             for feature_id, feature in profile.features.items()
             if feature.type is not None
-        } | spec_definition.grain_key_types_by_profile[profile_key]
-        identifier_types = spec_definition.identifier_types_by_profile[profile_key]
-        column_types |= identifier_types
+        } | spec_definition.identifier_types_by_profile[profile_key]
+        key_types = spec_definition.key_types_by_profile[profile_key]
+        column_types |= key_types
         output_types = {
             feature_id: column_types.get(feature_id) for feature_id in node.output_features
         }
@@ -186,8 +186,8 @@ class Invocation(_PlanModel):
             arguments=arguments,
             dependency_ids=dependency_ids,
             row_context=node.row_context,
-            target_grain_keys=list(target_grain_keys),
-            fragment_identifiers=list(identifier_types),
+            target_identifiers=list(target_identifiers),
+            fragment_keys=list(key_types),
             output_types=output_types,
             column_types=column_types,
             argument_types={key: argument.type for key, argument in function.args.items()},
@@ -213,8 +213,8 @@ class Invocation(_PlanModel):
         """Require valid role/result combinations and distinct invocation outputs."""
         if len(set(self.output_features)) != len(self.output_features):
             raise ValueError("Invocation output_features must be unique")
-        if len(set(self.fragment_identifiers)) != len(self.fragment_identifiers):
-            raise ValueError("Invocation fragment_identifiers must be unique")
+        if len(set(self.fragment_keys)) != len(self.fragment_keys):
+            raise ValueError("Invocation fragment_keys must be unique")
         if self.role == "merge" and self.result != "target":
             raise ValueError("Merge invocations must have result='target'")
         if self.result == "fragment" and self.role != "compute":
@@ -227,7 +227,7 @@ class Invocation(_PlanModel):
 class ExecutionPlan(_PlanModel):
     """Portable invocations and the compiler-selected execution schedule."""
 
-    plan_version: typing.Literal[12]
+    plan_version: typing.Literal[13]
     required_backend: NonEmptyString
     invocations: list[Invocation]
     stages: list[Stage]

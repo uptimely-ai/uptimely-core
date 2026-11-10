@@ -14,7 +14,7 @@ from uptimely import project
 
 @pytest.mark.parametrize("dataset_lazy", [False, True])
 @pytest.mark.parametrize("fragment_lazy", [False, True])
-def test_custom_pump_merge_full_joins_on_dataset_keys(
+def test_custom_pump_merge_full_joins_on_dataset_identifiers(
     dataset_lazy: bool, fragment_lazy: bool
 ) -> None:
     dataset: pl.DataFrame | pl.LazyFrame = pl.DataFrame(

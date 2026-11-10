@@ -9,9 +9,36 @@ from support import examples as example_support
 from uptimely import plan as execution_plan
 from uptimely import project
 from uptimely.cli import cli
+from uptimely.explorer.sections import spec as explorer_spec
+from uptimely.spec.feature_graph import feature_graph
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLE_ROOT = example_support.EXAMPLES_ROOT / "pump_analytics"
+
+
+def test_telemetry_relations_are_identifiers_not_features(pump_bundle: project.BuildBundle) -> None:
+    document = pump_bundle.spec_definition
+    telemetry = document.profiles["pump_telemetry"]
+    relations = {"machine_series_id", "machine_category_id", "minute", "hour", "day"}
+    assert len(telemetry.relations) == 5
+    assert not relations.intersection(telemetry.features)
+    invocation = next(
+        invocation
+        for invocation in pump_bundle.execution_plan.invocations
+        if invocation.profile_id == "pump_telemetry"
+        and invocation.operator_id == "read_pump_telemetry"
+        and invocation.role == "compute"
+    )
+    assert invocation.target_identifiers == ["pump_id", "timestamp"]
+    assert relations.issubset(invocation.fragment_keys)
+    assert not relations.intersection(invocation.output_features)
+    for key, operator in document.operator_items:
+        assert not document.key_ids.intersection(operator.input_features)
+        assert not document.key_ids_by_profile[key[0]].intersection(operator.output_features)
+    raw, calculated, _ = explorer_spec._feature_data(document)
+    assert not relations.intersection(item["id"] for item in [*raw, *calculated])
+    graph = feature_graph.FeatureGraph(document)
+    assert not relations.intersection(item.name for item in graph.feature_nodes)
 
 
 def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.BuildBundle) -> None:
@@ -19,20 +46,20 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
     restored = execution_plan.from_dict(execution_plan.to_dict(pump_bundle.execution_plan))
 
     for invocation in restored.invocations:
-        grain_keys = document.grain_keys_by_profile[invocation.profile_id]
+        grain_keys = document.identifiers_by_profile[invocation.profile_id]
         profile = document.profiles[invocation.profile_id]
-        assert invocation.target_grain_keys == grain_keys
+        assert invocation.target_identifiers == grain_keys
         assert invocation.column_types == {
             **{
                 name: feature.type
                 for name, feature in profile.features.items()
                 if feature.type is not None
             },
-            **document.grain_key_types_by_profile[invocation.profile_id],
             **document.identifier_types_by_profile[invocation.profile_id],
+            **document.relation_types_by_profile[invocation.profile_id],
         }
-        assert invocation.fragment_identifiers == list(
-            document.identifier_types_by_profile[invocation.profile_id]
+        assert invocation.fragment_keys == list(
+            document.key_types_by_profile[invocation.profile_id]
         )
         assert invocation.argument_types == {
             name: argument.type
@@ -118,7 +145,4 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "filter_column": "",
         "filter_value": "",
     }
-    assert collapse_invocation["output_features"] == [
-        "pump_id",
-        "bearing_temperature_max",
-    ]
+    assert collapse_invocation["output_features"] == ["bearing_temperature_max"]

@@ -295,9 +295,9 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
 
     model = Example().to_model()
 
-    assert model.features["machine_id"].type == "string"
-    assert model.features["machine_id"].description == "Machine key"
-    assert model.assembly["values"].output_features == ["machine_id", "value"]
+    assert "machine_id" not in model.features
+    assert model.identifier_types({"machine": identifier.to_model()}) == {"machine_id": "string"}
+    assert model.assembly["values"].output_features == ["value"]
 
 
 def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:

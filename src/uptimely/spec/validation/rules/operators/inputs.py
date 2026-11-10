@@ -9,6 +9,23 @@ from uptimely.spec.validation import errors
 logger = logging.getLogger(__name__)
 
 
+def validate_feature_only_interfaces(spec: spec_model.Spec) -> None:
+    """Keep identifier and relation columns outside feature dependency interfaces."""
+    logger.debug("Check operator interfaces contain features, not identifiers or relations")
+    for key, operator in spec.operator_items:
+        for field in ("inputs", "outputs"):
+            for index, reference in enumerate(getattr(operator.interface, field)):
+                column = reference.removeprefix(selectors.FEATURE_PREFIX)
+                keys = spec.key_ids if field == "inputs" else spec.key_ids_by_profile[key[0]]
+                if column in keys:
+                    raise errors.SpecError(
+                        f"Operator {operator.id} interface {field} must contain only features; "
+                        f"{column} is an identifier or relation declared by profile schema",
+                        code="interface_key_reference",
+                        path=(*spec.declaration_paths[key], "interface", field, index),
+                    )
+
+
 def validate_source_feature(spec: spec_model.Spec) -> None:
     """Require collapse to reference a source feature."""
     logger.debug("Check collapse operator reference source features")
@@ -70,11 +87,11 @@ def validate_grouping_dimensions(spec: spec_model.Spec) -> None:
         if source is None:
             continue
         target_profile = spec.profiles_by_key[key[0]]
-        dataset_keys = set(spec.grain_keys_by_profile[key[0]])
+        dataset_identifiers = set(spec.identifiers_by_profile[key[0]])
         target_dimensions = {reference.dimension for reference in target_profile.grain}
         source_keys = spec.local_features[source]
         source_dimensions = spec.dimensions_by_profile[source]
-        if not dataset_keys <= source_keys or not target_dimensions <= source_dimensions:
+        if not dataset_identifiers <= source_keys or not target_dimensions <= source_dimensions:
             raise ValueError(f"Collapse {operator.id} grouping keys must exist in source {source}")
 
 
@@ -117,7 +134,7 @@ def validate_source_dimensions(spec: spec_model.Spec) -> None:
 def validate_input_feature(spec: spec_model.Spec) -> None:
     """Require an explicit input feature to be declared."""
     logger.debug("Check operator input feature declarations")
-    feature_names = spec.grain_key_ids | spec.feature_owners.keys()
+    feature_names = spec.feature_owners.keys()
     for operator in spec.operators:
         for feature in operator.input_features:
             if feature not in feature_names:
@@ -163,7 +180,7 @@ def _is_collapse_compute(
 def validate_feature_reference(spec: spec_model.Spec) -> None:
     """Require a structural feature reference to be declared."""
     logger.debug("Check spec operator feature selectors name declared features or current")
-    feature_names = spec.grain_key_ids | spec.feature_owners.keys()
+    feature_names = spec.key_ids | spec.feature_owners.keys()
     for (target_profile_id, _), operator in spec.operator_items:
         for feature in operator.feature_selectors:
             logger.debug(

@@ -196,10 +196,10 @@ def test_engine_cli_reports_processed_profiles(
 
     output = capsys.readouterr().out
     assert "Scope:" not in output
-    assert "Processed profile pump: 10 features" in output
+    assert "Processed profile pump: 9 features" in output
     assert "Profile: pump\n" in output
     assert "Profile: pump_telemetry\n" in output
-    assert output.index("Processed profile pump: 10 features") < output.index("Profile: pump\n")
+    assert output.index("Processed profile pump: 9 features") < output.index("Profile: pump\n")
     assert "shape:" not in output
     assert (
         "Executing operator read_constants, function read_file (role=compute, result=fragment)"
@@ -241,7 +241,7 @@ def test_engine_cli_reports_scoped_saved_build(
 
     output = capsys.readouterr().out
     assert "Scope:" not in output
-    assert "Processed profile pump: 10 features" in output
+    assert "Processed profile pump: 9 features" in output
 
 
 def test_engine_rejects_missing_parameter(
@@ -312,7 +312,7 @@ def test_engine_merges_fragments_by_profile_grain_keys(
     operation = next(
         operation for operation in engine.plan.invocations if operation.profile_id == "pump"
     )
-    grain_keys = engine.spec_definition.grain_keys_by_profile[operation.profile_id]
+    grain_keys = engine.spec_definition.identifiers_by_profile[operation.profile_id]
     main = execution_support.dataset(
         existing,
         grain_keys,
@@ -427,7 +427,7 @@ def test_engine_assembly_rejects_duplicate_keys_on_either_side(
         ["key"],
         backend=engine.backend,
     )
-    with pytest.raises(ValueError, match="duplicate dimension keys"):
+    with pytest.raises(ValueError, match="duplicate identifiers"):
         execution_support.merge_fragment(main, fragment_module.Fragment(fragment, ("key",)))
 
 
@@ -447,7 +447,7 @@ def test_engine_validates_required_fragment_columns_and_types(
         for item in engine.plan.invocations
         if item.profile_id == "pump" and item.operator_kind == "collapse"
     )
-    grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.profile_id]
+    grain_keys = engine.spec_definition.identifiers_by_profile[invocation.profile_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
     columns: dict[str, list[object]] = {name: [f"{name}-1"] for name in grain_keys}
     columns[output] = ["wrong type" if invalid_column == "output" else 1.5]
@@ -472,7 +472,7 @@ def test_engine_validates_required_fragment_columns_and_types(
     with pytest.raises(ValueError, match=expected):
         execution_support.merge_fragment(
             main,
-            fragment_module.Fragment(result, main.id_columns, invocation),
+            fragment_module.Fragment(result, main.identifiers, invocation),
         )
 
 
@@ -488,7 +488,7 @@ def test_engine_assembly_rejects_feature_collisions(
         for item in engine.plan.invocations
         if item.profile_id == "pump" and item.operator_kind == "collapse"
     )
-    grain_keys = engine.spec_definition.grain_keys_by_profile[invocation.profile_id]
+    grain_keys = engine.spec_definition.identifiers_by_profile[invocation.profile_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
     keys = {name: [f"{name}-1"] for name in grain_keys}
     result = pl.DataFrame({**keys, output: [1.5]})
@@ -504,7 +504,7 @@ def test_engine_assembly_rejects_feature_collisions(
     with pytest.raises(ValueError, match=f"overlap.*{output}"):
         execution_support.merge_fragment(
             main,
-            fragment_module.Fragment(result, main.id_columns, invocation),
+            fragment_module.Fragment(result, main.identifiers, invocation),
         )
 
 
@@ -512,10 +512,10 @@ def test_engine_assembly_rejects_feature_collisions(
     ("fragment", "message"),
     [
         (None, "must return a Polars DataFrame or LazyFrame"),
-        (pl.LazyFrame({"plant": ["PLANT-01"]}), "missing dimension columns"),
+        (pl.LazyFrame({"plant": ["PLANT-01"]}), "missing identifier columns"),
         (
             pl.LazyFrame({"pump_id": ["PUMP-101", "PUMP-101"]}),
-            "duplicate dimension keys",
+            "duplicate identifiers",
         ),
     ],
 )
@@ -534,13 +534,13 @@ def test_engine_rejects_invalid_fragments(
 
     main = execution_support.dataset(
         None,
-        engine.spec_definition.grain_keys_by_profile[operation.profile_id],
+        engine.spec_definition.identifiers_by_profile[operation.profile_id],
         backend=engine.backend,
     )
     with pytest.raises(ValueError, match=message):
         execution_support.merge_fragment(
             main,
-            fragment_module.Fragment(fragment, main.id_columns, operation),
+            fragment_module.Fragment(fragment, main.identifiers, operation),
         )
 
 

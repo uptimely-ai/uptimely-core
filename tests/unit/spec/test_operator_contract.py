@@ -71,7 +71,6 @@ def _spec() -> spec.Spec:
                         interface=assembly.Interface(
                             inputs=[],
                             outputs=[
-                                feature.Feature(id="id", type="integer"),
                                 feature.Feature(id="value", type="integer"),
                             ],
                         ),
@@ -147,7 +146,7 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     ("shape", "message"),
     [
         ("missing", "missing output columns: result"),
-        ("keys", "missing dimension columns: id"),
+        ("keys", "missing identifier columns: id"),
         ("rows", "must preserve existing column values and row order"),
         ("type", "Output column result has type String; expected integer"),
         ("scalar", "must be a Polars DataFrame or LazyFrame"),
@@ -293,19 +292,14 @@ def test_implicit_dimensions_have_runtime_type_validation(
 
 
 @pytest.mark.parametrize("with_sink", [False, True])
-def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
+def test_identifier_binding_needs_no_interface_or_feature_metadata(
     tmp_path: pathlib.Path, with_sink: bool, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
     configuration = json.loads(path.read_text())
     dataset = configuration["profiles"]["observations"]
-    del dataset["features"]["id"]
-    dataset["assembly"]["read_values"]["interface"]["outputs"] = [
-        "$features.id",
-        "$features.value",
-    ]
-    dataset["assembly"]["result"]["interface"]["inputs"].append("$features.id")
+    assert "id" not in dataset["features"]
     if with_sink:
         configuration["functions"]["write_ids"] = {
             "returns": "none",
@@ -313,7 +307,7 @@ def test_dimension_inputs_do_not_need_duplicate_feature_metadata(
             "args": {"dataset": {"type": "dataframe"}, "column": {"type": "string"}},
         }
         dataset["assembly"]["write_ids"] = {
-            "interface": {"inputs": ["$features.id"], "outputs": []},
+            "interface": {"inputs": ["$features.value"], "outputs": []},
             "compute": {
                 "function": "write_ids",
                 "args": {"dataset": "$profiles.@.dataset", "column": "$features.id.id"},

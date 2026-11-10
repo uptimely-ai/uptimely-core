@@ -17,13 +17,13 @@ from uptimely.spec import model as spec_model
 
 def dataset(
     dataframe: object | None,
-    id_columns: typing.Sequence[str] = (),
+    identifiers: typing.Sequence[str] = (),
     *,
     backend: backend_module.DataFrameBackend | None = None,
 ) -> dataset_module.Dataset:
     """Create an independent physical accumulator for runtime tests."""
     adapter = backend if backend is not None else backend_module.PolarsBackend()
-    return dataset_module.Dataset(adapter, id_columns, dataframe)
+    return dataset_module.Dataset(adapter, identifiers, dataframe)
 
 
 def merge_fragment(
@@ -42,7 +42,7 @@ def merge_fragment(
         function_id="read",
         operator_id="read",
         profile_id="dataset",
-        target_grain_keys=list(main.id_columns),
+        target_identifiers=list(main.identifiers),
         fragment_dimensions="target",
         column_types=dict(dimension_types or {}),
     )
@@ -117,9 +117,9 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
         if invocation.profile_id is None:
             continue
         profile = profiles.setdefault(invocation.profile_id, {"grain": []})
-        if not profile.get("grain") and invocation.target_grain_keys:
+        if not profile.get("grain") and invocation.target_identifiers:
             profile["grain"] = []
-            for key in invocation.target_grain_keys:
+            for key in invocation.target_identifiers:
                 dimension_id = key
                 resolution_id = key
                 dimensions.setdefault(
@@ -191,9 +191,9 @@ def bundle_for_plan(
             invocations=[
                 copy.replace(
                     invocation,
-                    target_grain_keys=(
-                        invocation.target_grain_keys
-                        or bundle_spec.grain_keys_by_profile[invocation.profile_id]
+                    target_identifiers=(
+                        invocation.target_identifiers
+                        or bundle_spec.identifiers_by_profile[invocation.profile_id]
                     ),
                     column_types={
                         **{
@@ -203,7 +203,7 @@ def bundle_for_plan(
                             ].features.items()
                             if feature.type is not None
                         },
-                        **bundle_spec.grain_key_types_by_profile[invocation.profile_id],
+                        **bundle_spec.identifier_types_by_profile[invocation.profile_id],
                         **invocation.column_types,
                     },
                     argument_types={

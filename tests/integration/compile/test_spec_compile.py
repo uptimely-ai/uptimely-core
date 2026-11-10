@@ -133,8 +133,8 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     invocation = next(
         item for item in plan.invocations if item.function_id == "read_pump_telemetry"
     )
-    expected = definition.grain_keys_by_profile["pump_telemetry"]
-    expected_source = definition.grain_keys_by_profile["pump"]
+    expected = definition.identifiers_by_profile["pump_telemetry"]
+    expected_source = definition.identifiers_by_profile["pump"]
 
     assert invocation.arguments["keys"] == expected
     assert invocation.arguments["source_keys"] == expected_source
@@ -562,9 +562,8 @@ def test_compiler_feature_subset_contains_requested_output_and_ancestors() -> No
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
         compiler.Compiler().compile(document, features=["missing"])
-    grain_key_output = next(
-        feature for feature in document.grain_key_ids if feature in document.feature_producers
-    )
+    assert not document.identifier_ids.intersection(document.feature_producers)
+    grain_key_output = next(iter(document.identifier_ids))
     with pytest.raises(
         ValueError,
         match=rf"Unknown output feature\(s\): {grain_key_output}",

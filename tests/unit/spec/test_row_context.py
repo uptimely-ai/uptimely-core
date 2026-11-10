@@ -68,7 +68,6 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                         interface=assembly.Interface(
                             inputs=[],
                             outputs=[
-                                feature.Feature(id="timestamp", type=dimension_type),
                                 feature.Feature(id="temperature", type="integer"),
                             ],
                         ),
@@ -147,9 +146,9 @@ def test_row_context_references_resolve_scalar_extents(
         function_id=model.compute.function,
         operator_kind="vectorize",
         profile_id="observations",
-        grain_keys_by_profile={},
+        identifiers_by_profile={},
         resources={},
-        id_columns=[],
+        identifiers=[],
     ) == {attribute: expected_value}
     assert list(model.model_dump()) == ["interface", "row_context", "compute", "merge"]
 
@@ -577,7 +576,6 @@ def test_collapse_functions_execute_without_row_context(
                 interface=assembly.Interface(
                     inputs=[],
                     outputs=[
-                        feature.Feature(id="timestamp", type="datetime"),
                         feature.Feature(id="temperature", type="integer"),
                     ],
                 ),

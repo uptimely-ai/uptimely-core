@@ -55,7 +55,8 @@ class Profile:
     groups are flattened in insertion order. Subclasses replace inherited
     assemblies unless they explicitly include the base assembly.
     A ProfileFeatures instance may group feature declarations referenced by
-    assembly outputs.
+    assembly outputs. Relations declare resolutions linking to other profiles
+    without changing the observation grain.
     """
 
     id: str
@@ -65,6 +66,7 @@ class Profile:
     scope: str | None = None
     features: feature_module.FeatureSet | None = None
     grain: abc.Sequence[dimension_module.Resolution] = ()
+    relations: abc.Sequence[dimension_module.Resolution] = ()
     order: abc.Sequence[Order] = ()
     assembly: (
         abc.Sequence[assembly.Operator] | abc.Mapping[str, abc.Sequence[assembly.Operator]]
@@ -76,18 +78,37 @@ class Profile:
         return references.ProfileReference(kind="string", value=f"$profiles.{self.id}").dataset
 
     @property
+    def identifiers(self) -> list[str]:
+        """Return only the selected grain columns identifying profile rows."""
+        return list(self.identifier_types)
+
+    @property
+    def identifier_types(self) -> dict[str, str]:
+        """Return logical types for the selected grain identifiers."""
+        return {
+            resolution.key: resolution.type
+            for item in self.grain
+            for _, resolution in [self._selected_resolution(item)]
+        }
+
+    @property
+    def relation_types(self) -> dict[str, str]:
+        """Return logical types for declared relation columns."""
+        return {
+            resolution.key: resolution.type
+            for item in self.relations
+            for _, resolution in [self._selected_resolution(item)]
+        }
+
+    @property
     def keys(self) -> list[str]:
-        """Return all resolution keys for the dimensions used by this profile."""
+        """Return identifiers and relations in declaration order."""
         return list(self.key_types)
 
     @property
     def key_types(self) -> dict[str, str]:
-        """Return all resolution key types without changing the declared grain."""
-        return {
-            resolution.key: resolution.type
-            for item in self.grain
-            for resolution in self._selected_resolution(item)[0].resolutions
-        }
+        """Return logical types for identifiers and relations together."""
+        return self.identifier_types | self.relation_types
 
     def __init__(
         self,
@@ -103,6 +124,7 @@ class Profile:
         category: str | None = None,
         scope: str | None = None,
         grain: abc.Sequence[dimension_module.Resolution] | None = None,
+        relations: abc.Sequence[dimension_module.Resolution] | None = None,
         order: abc.Sequence[Order] | None = None,
     ) -> None:
         if id is not None:
@@ -137,6 +159,12 @@ class Profile:
             if any(not isinstance(item, dimension_module.Resolution) for item in grain):
                 raise TypeError("Profile grain must contain resolution declarations")
             self.grain = tuple(grain)
+        if relations is not None:
+            if not isinstance(relations, abc.Sequence) or isinstance(relations, (str, bytes)):
+                raise TypeError("Profile relations must be a sequence")
+            if any(not isinstance(item, dimension_module.Resolution) for item in relations):
+                raise TypeError("Profile relations must contain resolution declarations")
+            self.relations = tuple(relations)
         if order is not None:
             self.order = tuple(order)
         self.assembly = self._flatten_assembly(self.assembly if assembly is None else assembly)
@@ -199,8 +227,10 @@ class Profile:
     def to_model(self) -> spec_model.Profile:
         """Build the canonical profile, rejecting duplicate feature producers."""
         grain = self._grain()
-        selected_resolutions = [self._selected_resolution(item)[1] for item in self.grain]
-        operators = self._operator_models(selected_resolutions)
+        operators = {
+            name: self._operator_model(name, declaration)
+            for name, declaration in self._assembly_by_id.items()
+        }
         return spec_model.Profile(
             id=self.id,
             name=self.name,
@@ -208,8 +238,13 @@ class Profile:
             category=self.category,
             scope=self.scope,
             grain=grain,
+            relations=[
+                spec_model.Grain(dimension=dimension.id, resolution=resolution.id)
+                for item in self.relations
+                for dimension, resolution in [self._selected_resolution(item)]
+            ],
             order=[key.to_model() for key in self.order],
-            features=self._feature_metadata(self.grain),
+            features=self._feature_metadata(),
             assembly=operators,
         )
 
@@ -218,10 +253,10 @@ class Profile:
     ) -> tuple[dimension_module.Dimension, dimension_module.Resolution]:
         """Resolve a profile grain item to its owning dimension and declaration."""
         if not isinstance(item, dimension_module.Resolution):
-            raise TypeError("Profile grain must contain resolution declarations")
+            raise TypeError("Profile grain and relations must contain resolution declarations")
         if item.dimension is None:
             raise ValueError(
-                f"Profile '{self.id}' grain resolutions must be selected through "
+                f"Profile '{self.id}' grain and relation resolutions must be selected through "
                 "Dimension.resolution()"
             )
         if item not in item.dimension.resolutions:
@@ -253,28 +288,8 @@ class Profile:
             references.append(reference)
         return references
 
-    def _operator_models(
-        self, resolutions: abc.Sequence[spec_model.Resolution]
-    ) -> dict[str, spec_model.Operator]:
-        """Convert operators and add profile-key outputs to source operators."""
-        operators_by_id: dict[str, spec_model.Operator] = {}
-        for operator_id, declaration in self._assembly_by_id.items():
-            operator_model = self._operator_model(operator_id, declaration)
-            if self._publishes_grain(declaration):
-                key_outputs = [
-                    f"{selectors.FEATURE_PREFIX}{resolution.key}"
-                    for resolution in resolutions
-                    if f"{selectors.FEATURE_PREFIX}{resolution.key}"
-                    not in operator_model.interface.outputs
-                ]
-                operator_model.interface.outputs[:0] = key_outputs
-            operators_by_id[operator_id] = operator_model
-        return operators_by_id
-
-    def _feature_metadata(
-        self, grain: abc.Sequence[dimension_module.Resolution]
-    ) -> dict[str, spec_model.Feature]:
-        """Collect output metadata and selected grain keys, rejecting duplicate producers."""
+    def _feature_metadata(self) -> dict[str, spec_model.Feature]:
+        """Collect feature output metadata, rejecting duplicate producers."""
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
         for name, declaration in self._assembly_by_id.items():
@@ -287,31 +302,19 @@ class Profile:
                     )
                 producers[identifier] = name
                 features[identifier] = metadata.to_model()
-            if self._publishes_grain(declaration):
-                for item in grain:
-                    _, resolution = self._selected_resolution(item)
-                    if resolution.key not in features:
-                        features[resolution.key] = spec_model.Feature(
-                            id=resolution.key,
-                            name=model_base.humanize_identifier(resolution.key),
-                            type=resolution.type,
-                            description=item.dimension.description,
-                        )
         return features
-
-    def _publishes_grain(self, declaration: assembly.Operator) -> bool:
-        """Include grain outputs when a dataframe computation initializes this profile."""
-        binding = declaration.compute.to_model()
-        return declaration.compute.reference.returns == "dataframe" and not any(
-            argument.is_current_profile_dataframe
-            or argument.root in (f"$profiles.{self.id}", f"$profiles.{self.id}.dataset")
-            for argument in binding.args.values()
-        )
 
     def _operator_model(self, name: str, declaration: assembly.Operator) -> spec_model.Operator:
         """Convert an operator and add its profile location to declaration errors."""
         try:
-            return declaration.to_model()
+            operator = declaration.to_model()
+            if declaration.interface.inputs is None:
+                operator.interface.inputs = [
+                    reference
+                    for reference in operator.interface.inputs
+                    if reference.removeprefix(selectors.FEATURE_PREFIX) not in self.keys
+                ]
+            return operator
         except TypeError as error:
             raise TypeError(f"Profile '{self.id}', operator '{name}': {error}") from error
         except ValueError as error:

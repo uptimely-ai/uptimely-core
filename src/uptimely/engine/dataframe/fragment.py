@@ -27,24 +27,34 @@ def _log_validation(invocation: plan_module.Invocation, message: str, *args: obj
 
 @dataclasses.dataclass(frozen=True)
 class Fragment:
-    """Data contributed to a dataset, with explicit grain and merge identifiers.
+    """Data contributed to a dataset, with its own identifiers and relations.
 
     A fragment may come from a source, another dataset, or a calculation at the
     target grain. Staging loads, validates, and projects its dataframe before merging.
-    Dimensions define uniqueness; identifiers also include other carried resolution
-    keys. Invocation metadata is retained only as provenance.
+    Identifiers define uniqueness; keys also include carried relations.
+    Invocation metadata is retained only as provenance.
     """
 
     dataframe: object
-    dimensions: tuple[str, ...]
+    identifiers: tuple[str, ...]
     invocation: plan_module.Invocation | None = None
-    identifiers: tuple[str, ...] = ()
+    relations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
-        """Always include carried grain keys among the fragment identifiers."""
+        """Keep identifiers and relations distinct and ordered."""
+        object.__setattr__(self, "identifiers", tuple(dict.fromkeys(self.identifiers)))
         object.__setattr__(
-            self, "identifiers", tuple(dict.fromkeys([*self.dimensions, *self.identifiers]))
+            self,
+            "relations",
+            tuple(
+                dict.fromkeys(column for column in self.relations if column not in self.identifiers)
+            ),
         )
+
+    @property
+    def keys(self) -> tuple[str, ...]:
+        """Return this fragment's identifiers and relations together."""
+        return (*self.identifiers, *self.relations)
 
     @classmethod
     def stage(
@@ -66,7 +76,7 @@ class Fragment:
             comparison_frame: Current accumulated data for preservation checks.
 
         Returns:
-            A fragment containing only carried keys and declared output columns.
+            A fragment containing only carried keys and declared outputs.
 
         Raises:
             ValueError: The invocation does not declare a fragment result or
@@ -86,26 +96,27 @@ class Fragment:
                 f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
             )
         columns = set(backend.column_names(dataframe))
-        dimensions = tuple(invocation.target_grain_keys)
-        keys = dict.fromkeys([*dimensions, *invocation.fragment_identifiers])
-        identifiers = tuple(key for key in keys if key in columns)
-        if invocation.fragment_dimensions == "subset" and not set(dimensions).issubset(columns):
-            dimensions = identifiers
+        identifiers = tuple(invocation.target_identifiers)
+        available_keys = dict.fromkeys([*identifiers, *invocation.fragment_keys])
+        keys = tuple(column for column in available_keys if column in columns)
+        if invocation.fragment_dimensions == "subset" and not set(identifiers).issubset(columns):
+            identifiers = keys
+        relations = tuple(column for column in keys if column not in identifiers)
         outputs = [
-            key for key in invocation.output_features if key not in invocation.target_grain_keys
+            key for key in invocation.output_features if key not in invocation.target_identifiers
         ]
-        for key in identifiers:
-            if key not in dimensions and key not in outputs:
+        for key in keys:
+            if key not in identifiers and key not in outputs:
                 outputs.append(key)
-        cls(dataframe, dimensions, invocation, identifiers).validate_invocation_result(
+        cls(dataframe, identifiers, invocation, relations).validate_invocation_result(
             backend,
             invocation,
             output_features=outputs,
             comparison_frame=comparison_frame,
             validate_content=validate,
         )
-        columns = list(dict.fromkeys([*dimensions, *outputs]))
-        return cls(backend.select(dataframe, columns), dimensions, invocation, identifiers)
+        columns = list(dict.fromkeys([*identifiers, *outputs]))
+        return cls(backend.select(dataframe, columns), identifiers, invocation, relations)
 
     def validate_invocation_result(
         self,
@@ -135,14 +146,14 @@ class Fragment:
             raise ValueError(
                 f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
             )
-        self._validate_dimension_columns(backend, invocation)
+        self._validate_identifier_columns(backend, invocation)
         expected_outputs = (
             list(output_features)
             if output_features is not None
             else [
                 output
                 for output in invocation.output_features
-                if output not in invocation.target_grain_keys
+                if output not in invocation.target_identifiers
             ]
         )
         if not validate_content:
@@ -162,48 +173,48 @@ class Fragment:
         else:
             _log_validation(invocation, "Skipping fragment row-count preservation (not required)")
 
-        self._validate_unique_dimension_keys(backend, invocation)
+        self._validate_unique_identifiers(backend, invocation)
         self._validate_output_columns(backend, invocation, expected_outputs)
-        _log_validation(invocation, "Check fragment dimension and output types")
+        _log_validation(invocation, "Check fragment identifier and output types")
         self._validate_column_types(
             backend,
             invocation,
-            [*self.dimensions, *expected_outputs],
+            [*self.identifiers, *expected_outputs],
         )
         if invocation.key_relation == "identical":
             _log_validation(
                 invocation,
-                "Check fragment dimension-key preservation for columns %s",
-                self.dimensions,
+                "Check fragment identifier preservation for columns %s",
+                self.identifiers,
             )
             if comparison_frame is None or not backend.same_keys(
-                comparison_frame, self.dataframe, self.dimensions
+                comparison_frame, self.dataframe, self.identifiers
             ):
                 raise ValueError(
                     f"Operator {invocation.operator_id} must preserve the profile grain keys"
                 )
         else:
-            _log_validation(
-                invocation, "Skipping fragment dimension-key preservation (not required)"
-            )
+            _log_validation(invocation, "Skipping fragment identifier preservation (not required)")
 
-    def _validate_dimension_columns(
+    def _validate_identifier_columns(
         self,
         backend: backend_module.DataFrameBackend,
         invocation: plan_module.Invocation,
     ) -> None:
-        _log_validation(invocation, "Check fragment required dimension columns %s", self.dimensions)
-        missing = sorted(set(self.dimensions) - set(backend.column_names(self.dataframe)))
+        _log_validation(
+            invocation, "Check fragment required identifier columns %s", self.identifiers
+        )
+        missing = sorted(set(self.identifiers) - set(backend.column_names(self.dataframe)))
         if missing:
             raise ValueError(
-                f"Fragment {invocation.function_id} is missing dimension columns: "
+                f"Fragment {invocation.function_id} is missing identifier columns: "
                 + ", ".join(missing)
             )
 
     def _validate_dimensionless_row_count(
         self, backend: backend_module.DataFrameBackend, invocation: plan_module.Invocation
     ) -> None:
-        if self.dimensions:
+        if self.identifiers:
             _log_validation(
                 invocation, "Skipping fragment dimensionless row count (data has dimensions)"
             )
@@ -211,26 +222,24 @@ class Fragment:
         _log_validation(invocation, "Check fragment dimensionless row count is at most one")
         if backend.row_count(self.dataframe) > 1:
             raise ValueError(
-                f"Fragment {invocation.function_id} contains duplicate dimension keys "
+                f"Fragment {invocation.function_id} contains duplicate identifiers "
                 "(dimensionless profile frames allow at most one row)"
             )
 
-    def _validate_unique_dimension_keys(
+    def _validate_unique_identifiers(
         self,
         backend: backend_module.DataFrameBackend,
         invocation: plan_module.Invocation,
     ) -> None:
-        if not self.dimensions:
-            _log_validation(
-                invocation, "Skipping fragment dimension-key uniqueness (no dimensions)"
-            )
+        if not self.identifiers:
+            _log_validation(invocation, "Skipping fragment identifier uniqueness (no dimensions)")
             return
         _log_validation(
-            invocation, "Check fragment dimension-key uniqueness for columns %s", self.dimensions
+            invocation, "Check fragment identifier uniqueness for columns %s", self.identifiers
         )
-        keys = backend.select(self.dataframe, self.dimensions)
+        keys = backend.select(self.dataframe, self.identifiers)
         if backend.is_duplicated(keys):
-            raise ValueError(f"Fragment {invocation.function_id} contains duplicate dimension keys")
+            raise ValueError(f"Fragment {invocation.function_id} contains duplicate identifiers")
 
     def _validate_output_columns(
         self,

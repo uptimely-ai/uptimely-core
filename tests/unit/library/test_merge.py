@@ -103,7 +103,7 @@ def test_merge_by_grain_matches_parent_keys_without_expanding_target_scope(lazy:
         target, fragment = target.lazy(), fragment.lazy()
 
     result = merge.merge_by_grain(
-        target, fragment, ["pump"], identifier_columns=["series"], broadcast_cardinality="m:1"
+        target, fragment, ["pump"], key_columns=["series"], broadcast_cardinality="m:1"
     )
     if lazy:
         result = result.collect()
@@ -121,7 +121,7 @@ def test_parent_merge_uses_all_matching_identifiers() -> None:
     fragment = pl.DataFrame({"plant": ["A", "B"], "series": ["s1", "s1"], "capacity": [90.0, 80.0]})
 
     result = merge.merge_by_grain(
-        target, fragment, ["pump", "plant"], identifier_columns=["plant", "series"]
+        target, fragment, ["pump", "plant"], key_columns=["plant", "series"]
     )
 
     assert result["capacity"].to_list() == [90.0, 80.0]
@@ -131,10 +131,10 @@ def test_parent_merge_requires_a_dataset_with_matching_keys() -> None:
     fragment = pl.DataFrame({"series": ["s1"], "capacity": [90.0]})
 
     with pytest.raises(ValueError, match="requires the accumulated"):
-        merge.merge_by_grain(None, fragment, ["pump"], identifier_columns=["series"])
+        merge.merge_by_grain(None, fragment, ["pump"], key_columns=["series"])
     with pytest.raises(ValueError, match="Matching keys are missing from the dataset: series"):
         merge.merge_by_grain(
-            pl.DataFrame({"pump": ["p1"]}), fragment, ["pump"], identifier_columns=["series"]
+            pl.DataFrame({"pump": ["p1"]}), fragment, ["pump"], key_columns=["series"]
         )
 
 
@@ -144,7 +144,7 @@ def test_parent_merge_rejects_duplicate_source_identifiers_when_cardinality_is_c
             pl.DataFrame({"pump": ["p1"], "series": ["s1"]}),
             pl.DataFrame({"series": ["s1", "s1"], "capacity": [90.0, 80.0]}),
             ["pump"],
-            identifier_columns=["series"],
+            key_columns=["series"],
             broadcast_cardinality="m:1",
         )
 
@@ -168,7 +168,7 @@ def test_full_grain_merge_coalesces_other_resolution_keys(lazy: bool) -> None:
         target,
         fragment,
         ["pump"],
-        identifier_columns=["pump", "series", "category"],
+        key_columns=["pump", "series", "category"],
         join_cardinality="1:1",
     )
     if lazy:

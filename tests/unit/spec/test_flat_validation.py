@@ -101,8 +101,6 @@ def make_spec(kind: operator_kinds.OperatorKindId = "vectorize") -> model.Spec:
                         "compute": {"function": "read"},
                         "interface": {
                             "outputs": [
-                                "$features.machine",
-                                *(["$features.time"] if len(source_grain) > 1 else []),
                                 "$features.s",
                             ]
                         },
@@ -123,8 +121,6 @@ def make_spec(kind: operator_kinds.OperatorKindId = "vectorize") -> model.Spec:
                         "compute": {"function": "read"},
                         "interface": {
                             "outputs": [
-                                "$features.machine",
-                                *(["$features.time"] if len(target_grain) > 1 else []),
                                 "$features.x",
                             ]
                         },
@@ -237,7 +233,7 @@ def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
     before = spec.model_dump()
     key = ("target", "compute")
     assert [feature for feature, _ in spec.input_candidates[key]] == [
-        feature for feature in inputs if feature not in spec.grain_key_ids
+        feature for feature in inputs if feature not in spec.identifier_ids
     ]
     assert spec.input_sources[key] is None
     assert spec.model_dump() == before

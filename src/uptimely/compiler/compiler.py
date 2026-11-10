@@ -404,7 +404,7 @@ class Compiler:
     ) -> invocation_graph.InvocationGraph:
         """Select requested outputs, their prerequisites, and matching sinks."""
         logger.debug("Check selected output features have producers")
-        selectable_features = feature_producers.keys() - spec_definition.grain_key_ids
+        selectable_features = feature_producers.keys() - spec_definition.key_ids
         missing = sorted(set(features) - selectable_features)
         if missing:
             raise ValueError("Unknown output feature(s): " + ", ".join(missing))

@@ -178,7 +178,7 @@ def validate_selector_metadata(spec: spec_model.Spec) -> None:
                 try:
                     argument.resolve(
                         profile_id,
-                        grain_keys_by_profile=spec.grain_keys_by_profile,
+                        identifiers_by_profile=spec.identifiers_by_profile,
                         resources=spec.binding_resources,
                         row_context=operator.row_context,
                     )

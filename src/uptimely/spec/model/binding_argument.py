@@ -256,7 +256,7 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         self,
         current_profile_id: str,
         feature_id: str | None = None,
-        grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
+        identifiers_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
         resources: BindingResources | None = None,
         *,
         row_context: row_context_values.RowContext | None = None,
@@ -266,7 +266,7 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         Args:
             current_profile_id: Profile containing the operator.
             feature_id: The operator's sole output feature, when unambiguous.
-            grain_keys_by_profile: Profile grain keys available to selectors.
+            identifiers_by_profile: Profile grain keys available to selectors.
             resources: Declared profile, feature, and dimension metadata.
             row_context: Observation requirements declared by the current operator.
 
@@ -281,7 +281,7 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
                 key: child.resolve(
                     current_profile_id,
                     feature_id,
-                    grain_keys_by_profile,
+                    identifiers_by_profile,
                     resources,
                     row_context=row_context,
                 )
@@ -292,7 +292,7 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
                 child.resolve(
                     current_profile_id,
                     feature_id,
-                    grain_keys_by_profile,
+                    identifiers_by_profile,
                     resources,
                     row_context=row_context,
                 )
@@ -307,12 +307,12 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         if self.is_grain_reference:
             profile_id = self.profile_id(current_profile_id)
             if (
-                grain_keys_by_profile is None
+                identifiers_by_profile is None
                 or profile_id is None
-                or profile_id not in grain_keys_by_profile
+                or profile_id not in identifiers_by_profile
             ):
                 raise ValueError(f"Cannot resolve grain keys for profile {profile_id}")
-            return list(grain_keys_by_profile[profile_id])
+            return list(identifiers_by_profile[profile_id])
         if self.is_metadata_reference:
             return self._resolve_metadata(current_profile_id, resources)
         return (

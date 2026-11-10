@@ -12,7 +12,7 @@ const pages = moduleUrl((await readFile(new URL("rendering/page_renderer.js", ro
 const catalog = (await readFile(new URL("catalogs/catalog_renderer.js", root), "utf8"))
   .replace("../rendering/shared_markup.js", shared)
   .replace("../rendering/page_renderer.js", pages);
-const { catalogContext, renderCatalog, schemaColumns, stageCards } = await import(moduleUrl(catalog));
+const { catalogContext, renderCatalog, schemaColumns, stageCards, features } = await import(moduleUrl(catalog));
 const { initializeCatalog } = await import(moduleUrl(
   await readFile(new URL("catalogs/catalog_navigation.js", root), "utf8"),
 ));
@@ -176,6 +176,40 @@ test("schema columns include every producing operator including grain and vector
     ["machine_id", ["load"]], ["temperature", ["load"]],
     ["score", ["calculate", "revise"]], ["orphan", []],
   ]);
+});
+
+test("grain keys and relations have distinct schema roles and use resolution types", () => {
+  const config = {
+    dimensions: { time: { resolutions: {
+      timestamp: { key: "timestamp", type: "datetime" },
+      hour: { key: "hour", type: "datetime" },
+    } } },
+    functions: { read: { returns: "dataframe" } },
+    profiles: { telemetry: {
+      grain: [{ dimension: "time", resolution: "timestamp" }],
+      relations: [{ dimension: "time", resolution: "hour" }],
+      features: { pressure: { type: "float" } },
+      assembly: { read: {
+        compute: { function: "read", args: {} },
+        interface: { outputs: ["$features.timestamp", "$features.hour", "$features.pressure"] },
+      } },
+    } },
+  };
+  assert.deepEqual(features(config).map(item => item.featureId), ["pressure"]);
+  const columns = schemaColumns(config, config.profiles.telemetry);
+  assert.deepEqual(columns.map(({ id, type, role }) => ({ id, type, role })), [
+    { id: "timestamp", type: "datetime", role: "ID" },
+    { id: "hour", type: "datetime", role: "Relation" },
+    { id: "pressure", type: "float", role: "Feature" },
+  ]);
+  assert.deepEqual(columns[1].operators, ["read"]);
+  const { content } = renderCatalog({
+    catalogs: { summary: {}, configuration: config },
+  }, "profiles");
+  const table = content.match(/<table data-dataset-schema="telemetry"[\s\S]*?<\/table>/)[0];
+  assert.match(table, /data-schema-column="timestamp"[\s\S]*?>ID<\/span>/);
+  assert.match(table, /data-schema-column="hour"[\s\S]*?>Relation<\/span>/);
+  assert.doesNotMatch(table, />Dimension<\/span>/);
 });
 
 test("profile details show every declared operator in order including vectorized operator", () => {

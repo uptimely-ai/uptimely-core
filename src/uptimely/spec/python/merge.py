@@ -12,13 +12,13 @@ def default_merge() -> assembly.Binding:
             args={
                 "dataset": "dataframe | null",
                 "fragment": "dataframe",
-                "dataset_keys": "array[string]",
+                "dataset_identifiers": "array[string]",
             },
             description="Merge a fragment into the dataset by grain keys.",
         ),
         arguments={
             "dataset": ref.dataset(),
             "fragment": ref.fragment(),
-            "dataset_keys": ref.profile().grain.ids,
+            "dataset_identifiers": ref.profile().grain.ids,
         },
     )

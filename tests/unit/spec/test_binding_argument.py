@@ -40,8 +40,8 @@ def _resolve(
     profile_id: str = "telemetry",
     feature_id: str | None = "output",
 ) -> object:
-    grain_keys_by_profile, resources = _context()
-    return argument.resolve(profile_id, feature_id, grain_keys_by_profile, resources)
+    identifiers_by_profile, resources = _context()
+    return argument.resolve(profile_id, feature_id, identifiers_by_profile, resources)
 
 
 @pytest.mark.parametrize("value", [None, True, False, 0, 1.5, "literal", [], {}, {"x": [1, None]}])
@@ -132,13 +132,13 @@ def test_resolution_is_contextual_and_does_not_modify_bound_values() -> None:
         "literal": value["literal"],
     }
     binding = model.Binding(function="calculate", args={"nested": argument})
-    grain_keys_by_profile, resources = _context()
+    identifiers_by_profile, resources = _context()
     assert binding.resolve_args(
         "telemetry",
         "output",
-        grain_keys_by_profile,
+        identifiers_by_profile,
         resources,
-    ) == {"nested": argument.resolve("telemetry", "output", grain_keys_by_profile, resources)}
+    ) == {"nested": argument.resolve("telemetry", "output", identifiers_by_profile, resources)}
     current = model.BindingArgument(["$profiles.@.dataset", "$features.@"])
     assert _resolve(current, "source", "second") == ["source", "second"]
     assert _resolve(current, "telemetry", None) == ["telemetry", "$features.@"]
@@ -182,12 +182,12 @@ def test_nested_pydantic_values_are_resolved_by_binding() -> None:
         column: str
 
     raw = {"config": Config(column="$features.pressure")}
-    grain_keys_by_profile, resources = _context()
+    identifiers_by_profile, resources = _context()
     binding = model.Binding(function="calculate", args={"value": raw})
 
     assert binding.resolve_args(
         "telemetry",
-        grain_keys_by_profile=grain_keys_by_profile,
+        identifiers_by_profile=identifiers_by_profile,
         resources=resources,
     ) == {"value": {"config": {"column": "pressure"}}}
 
@@ -198,15 +198,15 @@ def test_operator_resolves_compute_arguments_using_its_output_context() -> None:
         compute=model.Binding(function="calculate", args={"output": "$features.@"}),
         interface=model.Interface(outputs=["$features.pressure"]),
     )
-    grain_keys_by_profile, resources = _context()
+    identifiers_by_profile, resources = _context()
 
     assert operator.resolve_args(
         function_id="calculate",
         operator_kind="vectorize",
         profile_id="telemetry",
-        grain_keys_by_profile=grain_keys_by_profile,
+        identifiers_by_profile=identifiers_by_profile,
         resources=resources,
-        id_columns=["pump", "time"],
+        identifiers=["pump", "time"],
     ) == {"output": "pressure"}
 
 

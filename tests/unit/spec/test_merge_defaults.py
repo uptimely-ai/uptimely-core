@@ -44,7 +44,7 @@ def test_default_merge_helper_returns_an_explicit_binding() -> None:
     assert operator.merge.args == {
         "dataset": spec_model.BindingArgument("$profiles.@.dataset"),
         "fragment": spec_model.BindingArgument("$operators.@.fragment"),
-        "dataset_keys": spec_model.BindingArgument("$profiles.@.grain.ids"),
+        "dataset_identifiers": spec_model.BindingArgument("$profiles.@.grain.ids"),
     }
     assert "merge_by_grain" in document.functions
     assert document.functions["merge_by_grain"].returns == "dataframe"

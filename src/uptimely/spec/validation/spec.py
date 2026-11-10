@@ -27,6 +27,7 @@ type Validator = collections.abc.Callable[[spec_model.Spec], None]
 
 REFERENCE_CHECKS: tuple[Validator, ...] = (
     profile_identity.validate_profile_ids,
+    profiles.validate_relations,
     features.validate_feature_ownership,
     dimensions.validate_parent,
     dimensions.validate_parent_cycle,
@@ -36,6 +37,7 @@ REFERENCE_CHECKS: tuple[Validator, ...] = (
     functions.validate_function_contracts,
     operator_outputs.validate_compute_function_exists,
     operator_outputs.validate_merge_function_exists,
+    operator_inputs.validate_feature_only_interfaces,
     operator_inputs.validate_input_feature,
     operator_inputs.validate_feature_reference,
     operator_inputs.validate_dimension_reference,

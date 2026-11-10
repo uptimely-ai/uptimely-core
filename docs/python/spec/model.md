@@ -14,16 +14,22 @@ arguments when first accessed. Use `document.profiles["telemetry"]` or
 These dictionaries reference the original declarations, not copies. Selected
 grain-key features are included in `features`; the top-level dimension catalog
 remains `document.dimensions`, where each dimension exposes its resolutions.
-Use `document.grain_keys_by_profile` and
-`document.grain_key_types_by_profile` for the dataframe keys and types selected
+Use `document.identifiers_by_profile` and
+`document.identifier_types_by_profile` for the dataframe keys and types selected
 by each profile.
 
-For all resolution identifiers of a profile's grain dimensions, use
-`profile.keys(document.dimensions)` and `profile.key_types(document.dimensions)`.
+For profile identifiers selected by the grain, use
+`profile.identifiers(document.dimensions)` and
+`profile.identifier_types(document.dimensions)`.
 The methods take the owning document's dimension catalog because document-model
 grain entries contain references rather than dimension objects. They preserve
 declaration order and do not change the selected grain.
-`document.identifier_types_by_profile` caches the per-profile type mappings.
+Use `profile.relation_types(document.dimensions)` or
+`document.relation_types_by_profile` for related-profile columns and their types.
+`profile.keys(document.dimensions)`, `profile.key_types(document.dimensions)`,
+and `document.key_types_by_profile` combine identifiers and explicitly
+declared relations. Unselected dimension resolutions are
+not implicitly included.
 
 `document.operators` is an ordered list of the original canonical `Operator` objects.
 Use `for operator in document.operators` to traverse it. Operator IDs are profile-scoped,
@@ -168,7 +174,7 @@ references, not from grain keys or descriptive metadata.
 Context-dependent views live on the Spec rather than wrapper objects:
 `dimensions_by_profile` uses profile keys;
 `input_candidates`, `input_sources`, `operator_dataframe_arguments`, `dataframe_argument_profiles`,
-`dataframe_argument_profile_ids`, `dataframe_argument_grain_keys`, and `matching_profile_keys`
+`dataframe_argument_profile_ids`, `dataframe_argument_identifiers`, and `matching_profile_keys`
 use operator keys. Unresolved and ambiguous resources remain
 visible to validators. `declaration_paths` preserves operator dictionary keys for
 binding diagnostics; `operator_paths` preserves model IDs for contract diagnostics.

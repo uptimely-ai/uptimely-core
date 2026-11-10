@@ -57,8 +57,8 @@ class Merge:
                 merge_module.merge_by_grain,
                 self.dataset.dataframe,
                 self.fragment.dataframe,
-                self.dataset.id_columns,
-                identifier_columns=self.fragment.identifiers,
+                self.dataset.identifiers,
+                key_columns=self.fragment.keys,
                 join_cardinality=join_cardinality,
                 broadcast_cardinality=broadcast_cardinality,
             )
@@ -80,7 +80,7 @@ class Merge:
         logger.debug("Check fragment feature collisions")
         fragment_columns = set(self.backend.column_names(self.fragment.dataframe))
         existing_columns = set(self.backend.column_names(self.dataset.dataframe))
-        collisions = sorted((fragment_columns - set(self.fragment.identifiers)) & existing_columns)
+        collisions = sorted((fragment_columns - set(self.fragment.keys)) & existing_columns)
         if collisions:
             raise ValueError(
                 "Fragment feature columns overlap the accumulated profile frame: "

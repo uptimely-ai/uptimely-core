@@ -34,19 +34,19 @@ def _patch_callables(monkeypatch: pytest.MonkeyPatch, callables: dict[str, objec
     def merge_by_grain_entrypoint(
         dataset: merge_module.DataFrame | None,
         fragment: merge_module.DataFrame,
-        dataset_keys: collections.abc.Sequence[str],
+        dataset_identifiers: collections.abc.Sequence[str],
         fragment_keys: collections.abc.Sequence[str] | None = None,
         *,
-        identifier_columns: collections.abc.Sequence[str] = (),
+        key_columns: collections.abc.Sequence[str] = (),
         join_cardinality: str = "m:m",
         broadcast_cardinality: str = "m:m",
     ) -> merge_module.DataFrame:
         return merge_module.merge_by_grain(
             dataset,
             fragment,
-            dataset_keys,
+            dataset_identifiers,
             fragment_keys,
-            identifier_columns=identifier_columns,
+            key_columns=key_columns,
             join_cardinality=join_cardinality,
             broadcast_cardinality=broadcast_cardinality,
         )
@@ -153,14 +153,14 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
     def custom_merge(
         dataset: pl.DataFrame | None,
         fragment: pl.DataFrame,
-        dataset_keys: list[str],
+        dataset_identifiers: list[str],
     ) -> pl.DataFrame:
         merge_inputs.append((dataset.columns if dataset is not None else None, fragment.columns))
         if dataset is not None and merge_failure == "exception":
             raise RuntimeError("custom merge failed")
         if dataset is not None and merge_failure == "incomplete":
             return fragment
-        return merge_module.merge_by_grain(dataset, fragment, dataset_keys)
+        return merge_module.merge_by_grain(dataset, fragment, dataset_identifiers)
 
     def write(dataset: pl.DataFrame) -> None:
         assert dataset.columns == ["id", "first", "second"]
@@ -182,7 +182,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             operator_id="first",
             profile_id="telemetry",
             output_features=["id", "first"],
-            target_grain_keys=["id"],
+            target_identifiers=["id"],
         ),
         uptimely_plan.Invocation(
             id=read_second_id,
@@ -195,7 +195,7 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             operator_id="second",
             profile_id="telemetry",
             output_features=["id", "second"],
-            target_grain_keys=["id"],
+            target_identifiers=["id"],
         ),
     ]
 
@@ -214,14 +214,14 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             arguments={
                 "dataset": "telemetry",
                 "fragment": "$operators.@.fragment",
-                "dataset_keys": ["id"],
+                "dataset_identifiers": ["id"],
             },
             dependency_ids=[compute_id, *dependencies],
-            target_grain_keys=["id"],
+            target_identifiers=["id"],
             argument_types={
                 "dataset": "dataframe | null",
                 "fragment": "dataframe",
-                "dataset_keys": "array[string]",
+                "dataset_identifiers": "array[string]",
             },
         )
 
@@ -319,9 +319,9 @@ def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
                 invocations=[
                     copy.replace(
                         invocation,
-                        target_grain_keys=[],
+                        target_identifiers=[],
                         arguments=(
-                            invocation.arguments | {"dataset_keys": []}
+                            invocation.arguments | {"dataset_identifiers": []}
                             if invocation.role == "merge"
                             else invocation.arguments
                         ),
@@ -349,7 +349,7 @@ def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
 @pytest.mark.parametrize(
     ("invalid", "message"),
     [
-        ("key", "missing dimension columns"),
+        ("key", "missing identifier columns"),
         ("output", "missing output columns"),
         ("type", "expected string"),
     ],
@@ -446,7 +446,7 @@ def test_validation_is_opt_in_for_eager_and_lazy_frames(
 
     checked = runtime.run(validate=True)
     message = {
-        "duplicates": "duplicate dimension keys",
+        "duplicates": "duplicate identifiers",
         "types": "expected string",
         "row_count": "must preserve existing column values and row order",
         "keys": "must preserve existing column values and row order",
@@ -530,7 +530,7 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
     executor.execute(merge)
     main = state.datasets["telemetry"]
     source = main.fragments[read.operator_id]
-    assert main.id_columns == ("asset_id",)
+    assert main.identifiers == ("asset_id",)
     assert not hasattr(main, "dataset")
     assert source.dataframe.columns == ["asset_id", "reading"]
 
@@ -971,16 +971,16 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         function_id="combine",
         operator_id="load",
         profile_id="telemetry",
-        target_grain_keys=["asset_id"],
+        target_identifiers=["asset_id"],
         arguments={
             "dataset": "telemetry",
             "fragment": "$operators.@.fragment",
-            "dataset_keys": ["asset_id"],
+            "dataset_identifiers": ["asset_id"],
         },
         argument_types={
             "dataset": "dataframe | null",
             "fragment": "dataframe",
-            "dataset_keys": "array[string]",
+            "dataset_identifiers": "array[string]",
         },
         dependency_ids=[read_id],
     )
@@ -1125,7 +1125,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
             assembly.Operator(
                 id="external_operator",
                 interface=assembly.Interface(
-                    inputs=[ref.feature("asset_id")],
+                    inputs=[],
                     outputs=[],
                 ),
                 compute=assembly.Binding(
@@ -1536,7 +1536,7 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
         function_id="calculate",
         operator_id="calculate",
         profile_id="dataset",
-        target_grain_keys=["key"],
+        target_identifiers=["key"],
         output_features=["doubled"],
         row_order_relation="preserve",
         existing_data_relation="preserve",
@@ -1633,15 +1633,15 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         arguments={
             "dataset": "telemetry",
             "fragment": "$operators.@.fragment",
-            "dataset_keys": ["asset_id"],
+            "dataset_identifiers": ["asset_id"],
         },
         dependency_ids=[read_invocation.id],
-        target_grain_keys=["asset_id"],
+        target_identifiers=["asset_id"],
         column_types={},
         argument_types={
             "dataset": "dataframe | null",
             "fragment": "dataframe",
-            "dataset_keys": "array[string]",
+            "dataset_identifiers": "array[string]",
         },
     )
     vectorize_invocation = uptimely_plan.Invocation(

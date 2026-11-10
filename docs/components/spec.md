@@ -145,6 +145,7 @@ represents a dimensionless profile.
 | `category` | string or null | No | `null` | Optional free-form grouping label. |
 | `scope` | string or null | No | `null` | Free-form descriptive metadata; it does not affect semantic validation or execution. |
 | `grain` | array of objects | No | `[]` | Ordered dimension-resolution references defining row detail. |
+| `relations` | array of objects | No | `[]` | Resolutions relating observations to foreign profiles without contributing to row identity. |
 | `order` | array of objects | No | `[]` | Logical ordering by selected grain references. |
 | `features` | object | No | `{}` | Feature metadata keyed by identifier. |
 | `assembly` | object | No | `{}` | Operators keyed by identifier, unique within this profile. |
@@ -156,6 +157,23 @@ one dimension, and selected dataframe keys must be distinct. Different
 dimensions remain independent axes, so a profile may select separate sales
 time and measurement time dimensions. The dimension registry describes what
 is available; a profile's grain declares what that profile actually selects.
+
+`relations` uses the same dimension-resolution reference shape as `grain`.
+It may include several resolutions of one dimension or resolutions from other
+dimensions. Relation columns must be distinct from each other, grain keys, and
+declared features. They do not change the profile's grain or imply a particular
+join or foreign-key constraint. The engine retains these keys when a fragment
+carries them; declaring a relation does not calculate or load its values.
+Explorer labels grain resolutions **ID**, and lists related-profile columns
+as **Relation**, not as features. Identifiers define the profile grain;
+keys collectively means identifiers and relations.
+
+In Python, declare resolutions directly:
+
+```python
+grain = [machine.resolution("pump")]
+relations = [machine.resolution("fleet")]
+```
 
 ```json
 "dimensions": {
@@ -274,7 +292,7 @@ The built-in engine supports these feature types:
 Declare feature types explicitly: a tabular result's general type does not
 describe the types of its individual columns.
 
-Non-dimension feature identifiers must be globally unique and have exactly
+Feature identifiers must be globally unique and have exactly
 one producer. Dimension columns can recur across profiles.
 
 Feature and dimension registries describe the columns expected in tabular
@@ -362,7 +380,7 @@ builtin merge binding:
   "args": {
     "dataset": "$profiles.@.dataset",
     "fragment": "$operators.@.fragment",
-    "dataset_keys": "$profiles.@.grain.ids"
+    "dataset_identifiers": "$profiles.@.grain.ids"
   }
 }
 ```
@@ -474,18 +492,24 @@ An operator separates analytical requirements from its computation:
 Input and output lists contain distinct `$features.<id>` references, without
 selectors. Inputs establish feature dependencies even when not passed as
 arguments.
+Identifiers and relations must not appear in either list: declare them through
+profile `grain` and `relations`. They are schema and assembly columns, not
+feature-lineage dependencies. Python authoring does not inject them into outputs
+and excludes them from inferred feature inputs. Explicit key references in an
+interface are rejected.
 Conversely, passing a feature identifier is not a declaration that its data
 must exist. Declare every consumed feature in `inputs`.
 
 Outputs reference the owning profile's feature registry and are the only
 declaration of features produced by an operator. Compute arguments may use
 feature references to pass identifiers, including output names; those arguments
-do not infer inputs or outputs. Profile dimension keys are required in every
+do not infer inputs or outputs. Profile identifiers are required in every
 returned table, even when omitted from `outputs`.
 A write operator declares empty outputs and explicitly lists its required inputs.
-Data-producing operators require at least one output. Vectorize outputs cannot
-redeclare profile dimensions. Collapse must produce at least one non-dimension
-feature. There is no binding-level `return` field.
+Data-producing operators require at least one feature output, except source
+readers that only supply profile identifiers or relations. No operator can
+redeclare identifiers or relations as feature outputs. Collapse must produce at
+least one feature. There is no binding-level `return` field.
 
 Each `read`, `conform`, `collapse`, or `expand` result is a fragment containing
 the target dataset's complete dimension keys and that operator's declared
@@ -527,7 +551,7 @@ uses the target profile's declared dimensions to determine join keys.
 | `$profiles.<id>.dataset` | `dataframe` | Materialized table for that profile. |
 | `$profiles.@.dataset` | `dataframe` | Current profile's input-ready table. |
 | `$profiles.<id>.id` | `string` | Profile identifier string. |
-| `$features.@.id` | `string` | The sole vectorize output, or sole non-dimension collapse output. |
+| `$features.@.id` | `string` | The sole vectorize or collapse feature output. |
 
 These selectors apply to compute and merge argument values; they are not a general
 replacement for the references elsewhere in the document. For example,

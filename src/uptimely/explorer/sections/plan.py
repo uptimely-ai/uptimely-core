@@ -77,7 +77,7 @@ def _build_step(
             _display_value(invocation.arguments.get("fragment")) if is_merge else None
         ),
         "merge_keys": (
-            _display_value(invocation.arguments.get("dataset_keys")) if is_merge else None
+            _display_value(invocation.arguments.get("dataset_identifiers")) if is_merge else None
         ),
         "uncontrolled": function.returns == "any",
         "row_context": invocation.row_context.to_dict() if invocation.row_context else None,

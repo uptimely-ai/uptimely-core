@@ -53,7 +53,7 @@ export function initializeInvocationLineage(signal) {
 			outputRows.push(
 				['Merge dataset', node.merge_dataset ?? node.arguments?.dataset],
 				['Fragment source', node.fragment_source ?? node.arguments?.fragment],
-				['Merge keys', formatList(node.merge_keys ?? node.arguments?.dataset_keys)],
+				['Merge keys', formatList(node.merge_keys ?? node.arguments?.dataset_identifiers)],
 			);
 			if (isDefaultMerge(node)) outputRows.push(['Binding', 'Automatically supplied default merge']);
 		}

@@ -97,7 +97,7 @@ def test_runtime_validation_failure_does_not_replace_accumulator(invalid: str) -
         if invalid == "duplicates"
         else pl.DataFrame({"id": [1], "value": [3]})
     )
-    with pytest.raises(ValueError, match="duplicate dimension keys|overlap"):
+    with pytest.raises(ValueError, match="duplicate identifiers|overlap"):
         execution_support.merge_fragment(
             main,
             fragment_module.Fragment(contribution, ("id",)),
@@ -112,7 +112,7 @@ def test_fragment_preserves_raw_data_until_validation_and_projects_declared_outp
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     invocation = plan.invocations[0]
     main = execution_support.dataset(None, ["asset_id"])
-    fragment = fragment_module.Fragment(data, main.id_columns, invocation)
+    fragment = fragment_module.Fragment(data, main.identifiers, invocation)
 
     projected = execution_support.merge_fragment(main, fragment)
 
@@ -170,11 +170,11 @@ def test_fragment_stage_loads_once_and_returns_merge_ready_data(
     staged = fragment_module.Fragment.stage(backend, invocation, load, validate=validate)
 
     assert events == ["load", "validate"]
-    assert staged.dimensions == ("asset_id",)
+    assert staged.identifiers == ("asset_id",)
     assert staged.invocation is invocation
     assert backend.column_names(staged.dataframe) == ["asset_id", "reading"]
     assert backend.column_names(raw) == ["asset_id", "reading", "extra"]
-    main = dataset_module.Dataset(backend, invocation.target_grain_keys)
+    main = dataset_module.Dataset(backend, invocation.target_identifiers)
     assert main.merge(staged) is staged
     result = main.dataframe.collect() if lazy else main.dataframe
     assert result.to_dicts() == [{"asset_id": "A", "reading": 2}]
@@ -198,7 +198,7 @@ def test_fragment_stage_propagates_loader_failure() -> None:
     ("dataframe", "message"),
     [
         (object(), "must return a Polars DataFrame or LazyFrame"),
-        (pl.DataFrame({"reading": [2]}), "missing dimension columns: asset_id"),
+        (pl.DataFrame({"reading": [2]}), "missing identifier columns: asset_id"),
         (pl.DataFrame({"asset_id": ["A"]}), "missing output columns: reading"),
     ],
 )
@@ -253,14 +253,14 @@ def test_fragment_stage_does_not_collect_lazy_result_without_validation(
     assert staged.dataframe.collect_schema().names() == ["asset_id", "reading"]
 
 
-def test_dataset_requires_only_physical_id_columns() -> None:
+def test_dataset_requires_only_physical_identifiers() -> None:
     columns = ["asset_id"]
     data = pl.DataFrame({"asset_id": [1], "reading": [2], "extra": [3]})
     main = dataset_module.Dataset(backend_module.PolarsBackend(), columns)
     columns.append("other")
     fragment = fragment_module.Fragment(data, ("asset_id",))
 
-    assert main.id_columns == ("asset_id",)
+    assert main.identifiers == ("asset_id",)
     assert not hasattr(main, "dataset")
     assert not hasattr(main, "validator")
     assert main.merge(fragment, fragment_id="source") is fragment
@@ -309,7 +309,7 @@ def test_runtime_validation_uses_column_types_from_invocation() -> None:
 
     fragment = fragment_module.Fragment(
         pl.DataFrame({"asset_id": [1], "reading": [2]}),
-        main.id_columns,
+        main.identifiers,
         plan.invocations[0],
     )
     with pytest.raises(ValueError, match="expected string"):
@@ -336,8 +336,8 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
         plan.invocations[0],
         fragment_dimensions="subset",
         output_features=["new"],
-        target_grain_keys=["group", "id"],
-        fragment_identifiers=["group"],
+        target_identifiers=["group", "id"],
+        fragment_keys=["group"],
     )
     frame = pl.LazyFrame({"group": ["A"], "new": [1]})
     fragment = fragment_module.Fragment.stage(
@@ -346,7 +346,7 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
         lambda: frame,
     )
 
-    assert fragment.dimensions == ("group",)
+    assert fragment.identifiers == ("group",)
     assert fragment.dataframe.collect().to_dicts() == [{"group": "A", "new": 1}]
 
 
@@ -358,15 +358,15 @@ def test_failed_merge_preserves_retained_fragments_and_other_datasets() -> None:
     valid = pl.DataFrame({"asset_id": ["A"], "reading": [1]})
     retained = execution_support.merge_fragment(
         main,
-        fragment_module.Fragment(valid, main.id_columns, invocation),
+        fragment_module.Fragment(valid, main.identifiers, invocation),
     )
     accumulated = main.dataframe
     invalid = pl.DataFrame({"asset_id": ["A", "A"], "reading": [2, 3]})
 
-    with pytest.raises(ValueError, match="duplicate dimension keys"):
+    with pytest.raises(ValueError, match="duplicate identifiers"):
         execution_support.merge_fragment(
             main,
-            fragment_module.Fragment(invalid, main.id_columns, invocation),
+            fragment_module.Fragment(invalid, main.identifiers, invocation),
         )
 
     assert main.dataframe is accumulated
