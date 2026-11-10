@@ -1,10 +1,24 @@
 # Projects
 
-`uptimely.project` resolves project paths, loads project specifications, and
-builds or reads validated active build bundles. `read_build_bundle` holds a
-reader lock for the duration of its context; use `load_build_bundle` when a
-lock is not needed after loading.
-Call `build()` to build the current directory, or pass a project root explicitly.
+`Project` stores a resolved project root and builds or reads validated active
+build bundles. Import it from `uptimely` or `uptimely.project`.
+
+```python
+from uptimely import Engine, Project
+
+project = Project()  # Current directory, resolved when the object is created.
+bundle = project.build()
+result = Engine(bundle).run()
+```
+
+Pass a path to `Project("path/to/project")` to work with another directory.
+Construction does not load or build anything. Each build or load returns a fresh
+bundle rather than caching the latest build on the project object.
+
+`project.read_build_bundle()` holds a reader lock for the duration of its
+context. Use `project.load_build_bundle()` when a lock is not needed after
+loading. The existing module-level build and bundle-loading functions remain
+available.
 
 Builds validate Spec semantics once during compilation. Explorer rendering and
 staged and published bundle loading reuse that validation. Artifact, structural,
@@ -31,6 +45,7 @@ imports to `uptimely.plan`.
       heading_level: 2
       show_root_heading: false
       members:
+        - Project
         - build
         - load_build_bundle
         - read_build_bundle

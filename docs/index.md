@@ -165,8 +165,9 @@ The engine takes the built bundle, which contains the plan and its runtime
 context. This is alternative to the previous CLI example:
 
 ```python
-from uptimely import Engine, project
+from uptimely import Engine, Project
 
+project = Project()
 bundle = project.build()
 result = Engine(bundle).run()
 ```

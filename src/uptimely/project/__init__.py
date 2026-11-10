@@ -32,8 +32,10 @@ from .paths import (
     SPEC_SOURCE_DIR,
     resolve_path,
 )
+from .project import Project
 
 __all__ = [
+    "Project",
     "BUILD_EXECUTION_PLAN_FILE",
     "BUILD_MANIFEST_FILE",
     "BUILD_OUTPUT_DIR",
