@@ -40,7 +40,7 @@ and resolves each output to its merge invocation when present, otherwise compute
 Each invocation carries its binding `role` and `result` handling (`none`,
 `target`, or `fragment`) independently of its callable. It also carries
 the runtime metadata needed without consulting the Spec:
-`target_grain_keys` lists target keys, `fragment_identifiers` lists available
+`target_identifiers` lists profile identifier keys, `fragment_keys` lists available
 resolution identifiers for fragment joins, `column_types` maps typed target
 columns to logical types, and `argument_types` maps declared argument names to
 their types. The compiler takes key types from canonical dimension

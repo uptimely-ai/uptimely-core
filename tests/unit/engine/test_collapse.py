@@ -154,7 +154,7 @@ def _spec(*, lazy=False, empty=False):
                 id="read_values",
                 interface=assembly.Interface(
                     inputs=[],
-                    outputs=[feature.Feature(id=name) for name in ("group", "id", "value")],
+                    outputs=[feature.Feature(id="value")],
                 ),
                 compute=assembly.Binding(
                     function=ref.function(read_values),
@@ -512,7 +512,7 @@ def test_collapse_consumes_expanded_features(
         ("expression", "must return a Polars DataFrame or LazyFrame"),
         ("series", "must return a Polars DataFrame or LazyFrame"),
         ("dictionary", "must return a Polars DataFrame or LazyFrame"),
-        ("duplicate", "duplicate dimension keys"),
+        ("duplicate", "duplicate identifiers"),
     ],
 )
 def test_collapse_rejects_invalid_returns(

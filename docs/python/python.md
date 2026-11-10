@@ -108,13 +108,33 @@ Dimensions have stable IDs and declare one or more keyed resolutions. A profile'
 dataframe column used by that profile. Optional dimension names are
 human-readable labels generated from IDs when omitted.
 
-Profile instances expose `profile.keys` and `profile.key_types`: all resolution
-key columns for the dimensions used by their grain, and their logical types.
-These include unselected resolutions without changing the grain or declaring
-additional features. Dimensionless profiles return an empty list and dictionary.
+Declare relationships to other profiles with `relations`, a list of resolutions selected
+with the same `dimension.resolution("resolution_id")` helper. Unlike `grain`,
+relations do not define row identity and can include multiple resolutions of a
+dimension. They may support merging, grouping, or filtering; they do not declare
+a foreign-key constraint. Explorer shows relations in the profile schema,
+not among features. Do not also declare them as `Feature` objects.
+
+Profile instances expose `profile.identifiers` and `profile.identifier_types`:
+only the columns selected by `grain` and their logical types.
+`profile.relation_types` separately maps declared relation columns to their types.
+`profile.keys` and `profile.key_types` combine identifiers and relations.
+Unselected resolutions are excluded. A profile without grain has no identifiers,
+but can still have relations and therefore keys. Explorer labels identifiers
+**ID** and related-profile columns **Relation** in the schema.
+
+Datasets and fragments use the same terminology: `identifiers` identify their own
+rows, `relations` link to another grain, and `keys` combines both. These roles
+depend on perspective: `machine_series_id` can identify a series-level fragment
+while being a relation in the pump-level dataset receiving it. A full pump-level
+fragment instead has `pump_id` as its identifier and can carry `machine_series_id`
+as a relation.
+
+Relation columns are retained when present in source fragments; the declaration
+does not generate their values or require every fragment to carry them.
 
 `up.Spec` accepts the profile declarations only. It infers dimension and
-resolution definitions from each profile's grain, requires repeated declarations
+resolution definitions from each profile's grain and relations, requires repeated declarations
 to agree, rejects unresolved resolutions and conflicting metadata, and emits
 deterministic output. A profile's missing ID is inferred from its name, and a
 missing name is humanized from its ID. If both are omitted, the profile class
@@ -135,6 +155,13 @@ dependencies instead; an empty input list disables inference. `Interface`
 validates feature references and rejects repeated input or output IDs when
 constructed. It checks them again during conversion, so later mutations of its
 collections cannot bypass those checks.
+
+Interfaces contain features only. Declare identifiers with `Profile.grain` and
+relations with `Profile.relations`, not in `Interface.inputs` or `outputs`.
+Spec conversion excludes these keys from inferred inputs and never adds
+identifier outputs. Explicit identifier or relation entries in an interface are
+rejected during semantic validation. Keys remain available for dataframe
+validation and merge assembly independently of feature lineage.
 
 `Binding` owns a function reference and its reusable contract metadata,
 callable argument validation (`bound_arguments()`), and conversion (`to_model()` and

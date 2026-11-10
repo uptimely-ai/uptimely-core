@@ -7,7 +7,7 @@ import typing
 from collections import abc
 
 from .. import model as spec_model
-from .. import serialization
+from .. import selectors, serialization
 from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
@@ -60,12 +60,12 @@ def to_model(
     for declaration in declarations:
         if isinstance(declaration, profile_module.Profile):
             canonical = declaration.to_model()
-            for item in declaration.grain:
+            for item in (*declaration.grain, *declaration.relations):
                 dimension_declaration = item.dimension
                 if dimension_declaration is None:
                     raise ValueError(
-                        f"Profile '{declaration.id}' grain resolutions must be selected "
-                        "through Dimension.resolution()"
+                        f"Profile '{declaration.id}' grain and relation resolutions "
+                        "must be selected through Dimension.resolution()"
                     )
                 dimension = dimension_declaration.to_model()
                 existing = dimension_values.get(dimension.id)
@@ -74,9 +74,9 @@ def to_model(
                 dimension_values.setdefault(dimension.id, dimension)
         elif isinstance(declaration, spec_model.Profile):
             canonical = declaration
-            if canonical.grain:
+            if canonical.grain or canonical.relations:
                 raise ValueError(
-                    f"Profile '{canonical.id}' has grain references but no dimension "
+                    f"Profile '{canonical.id}' has grain or relation references but no dimension "
                     "declarations to infer"
                 )
         else:
@@ -105,7 +105,7 @@ def to_model(
     elif not isinstance(functions, (spec_model.FunctionCatalog, dict)):
         raise TypeError("functions must be a FunctionCatalog or dictionary")
 
-    return spec_model.Spec.model_validate(
+    document = spec_model.Spec.model_validate(
         {
             "name": name,
             "source": {"name": "python_api", "generated": True},
@@ -114,3 +114,15 @@ def to_model(
             "profiles": profile_values,
         }
     )
+    for declaration in declarations:
+        if not isinstance(declaration, profile_module.Profile):
+            continue
+        for operator in declaration._assembly_by_id.values():
+            if operator.interface.inputs is None:
+                interface = document.profiles[declaration.id].assembly[operator.id].interface
+                interface.inputs = [
+                    reference
+                    for reference in interface.inputs
+                    if reference.removeprefix(selectors.FEATURE_PREFIX) not in document.key_ids
+                ]
+    return document

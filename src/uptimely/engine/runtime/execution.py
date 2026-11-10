@@ -168,12 +168,20 @@ class InvocationExecutor:
         dataset = (
             current
             if current is not None
-            else dataset_module.Dataset(self.backend, invocation.target_grain_keys)
+            else dataset_module.Dataset(
+                self.backend,
+                invocation.target_identifiers,
+                relations=[
+                    column
+                    for column in invocation.fragment_keys
+                    if column not in invocation.target_identifiers
+                ],
+            )
         )
         logger.debug("Merging into profile %s", dataset_id)
         arguments = self.bindings.resolve_args(invocation, staged_fragment=fragment.dataframe)
         if invocation.entrypoint == "uptimely.library.merge.polars:merge_by_grain":
-            arguments["identifier_columns"] = fragment.identifiers
+            arguments["key_columns"] = fragment.keys
         result = merge_module.Merge(dataset, fragment).execute(
             functools.partial(self._invoke, invocation, arguments=arguments),
             description=(
@@ -216,7 +224,7 @@ class InvocationExecutor:
         )
         calculated_outputs = {
             (dataset_id, output): self.backend.select(
-                frame, [*invocation.target_grain_keys, output]
+                frame, [*invocation.target_identifiers, output]
             )
             for output in output_features
         }
@@ -240,16 +248,16 @@ class InvocationExecutor:
             )
 
         frame_columns = set(self.backend.column_names(frame))
-        missing_dimensions = sorted(set(invocation.target_grain_keys) - frame_columns)
-        if missing_dimensions:
+        missing_identifiers = sorted(set(invocation.target_identifiers) - frame_columns)
+        if missing_identifiers:
             raise ValueError(
-                f"Target result from {invocation.function_id} is missing dimension columns: "
-                + ", ".join(missing_dimensions)
+                f"Target result from {invocation.function_id} is missing identifier columns: "
+                + ", ".join(missing_identifiers)
             )
         output_features = [
             output
             for output in invocation.output_features
-            if output not in invocation.target_grain_keys
+            if output not in invocation.target_identifiers
         ]
         missing_outputs = sorted(set(output_features) - frame_columns)
         if missing_outputs:
@@ -258,9 +266,18 @@ class InvocationExecutor:
                 + ", ".join(missing_outputs)
             )
 
-        columns = list(dict.fromkeys([*invocation.target_grain_keys, *output_features]))
+        relations = [
+            column
+            for column in invocation.fragment_keys
+            if column not in invocation.target_identifiers and column in frame_columns
+        ]
+        columns = list(
+            dict.fromkeys([*invocation.target_identifiers, *relations, *output_features])
+        )
         target = self.backend.select(frame, columns)
-        dataset = dataset_module.Dataset(self.backend, invocation.target_grain_keys)
+        dataset = dataset_module.Dataset(
+            self.backend, invocation.target_identifiers, relations=relations
+        )
         dataset.validate_frame(
             target,
             description=f"Target result for profile {dataset_id}",
@@ -269,7 +286,7 @@ class InvocationExecutor:
         )
         calculated_outputs = {
             (dataset_id, output): self.backend.select(
-                target, [*invocation.target_grain_keys, output]
+                target, [*invocation.target_identifiers, output]
             )
             for output in output_features
         }
@@ -309,19 +326,19 @@ class InvocationExecutor:
         if not self.backend.is_frame(frame):
             raise ValueError(f"{description} must be a Polars DataFrame or LazyFrame")
         logger.debug(
-            "Check required dimension columns %s for %s", invocation.target_grain_keys, context
+            "Check required identifier columns %s for %s", invocation.target_identifiers, context
         )
         frame_columns = set(self.backend.column_names(frame))
-        missing_dimensions = sorted(set(invocation.target_grain_keys) - frame_columns)
-        if missing_dimensions:
+        missing_identifiers = sorted(set(invocation.target_identifiers) - frame_columns)
+        if missing_identifiers:
             raise ValueError(
-                f"{description} is missing dimension columns: " + ", ".join(missing_dimensions)
+                f"{description} is missing identifier columns: " + ", ".join(missing_identifiers)
             )
 
         output_features = [
             output
             for output in invocation.output_features
-            if output not in invocation.target_grain_keys
+            if output not in invocation.target_identifiers
         ]
         logger.debug("Check declared output columns %s exist in %s", output_features, context)
         missing_outputs = sorted(set(output_features) - frame_columns)
@@ -332,7 +349,7 @@ class InvocationExecutor:
             )
 
         existing_columns = set(self.backend.column_names(comparison_frame))
-        existing_features = existing_columns - set(invocation.target_grain_keys)
+        existing_features = existing_columns - set(invocation.target_identifiers)
         logger.debug(
             "Check output columns %s do not replace existing feature columns %s in %s",
             output_features,
@@ -387,7 +404,7 @@ class InvocationExecutor:
                     )
             column_types = {
                 name: invocation.column_types[name]
-                for name in [*invocation.target_grain_keys, *output_features]
+                for name in [*invocation.target_identifiers, *output_features]
                 if name in invocation.column_types
             }
             logger.debug(

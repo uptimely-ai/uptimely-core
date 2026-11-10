@@ -118,11 +118,11 @@ class _DataLineageBuilder:
         self.producers = {
             feature: max(producers, key=lambda item: self.numbers[item.id])
             for feature, producers in plan.features.items()
-            if feature not in definition.grain_key_ids
+            if feature not in definition.identifier_ids
         }
         self.features: dict[str, _FeatureSource] = {}
         for feature_id, feature in definition.features.items():
-            if feature_id in definition.grain_key_ids:
+            if feature_id in definition.identifier_ids:
                 continue
             owner = definition.feature_owners[feature_id][-1]
             self.features[feature_id] = _FeatureSource(
@@ -206,7 +206,7 @@ class _DataLineageBuilder:
 
         tables = []
         profile_key = self.definition.profile_keys[profile.id]
-        dataset_keys = set(self.definition.grain_keys_by_profile[profile_key])
+        dataset_identifiers = set(self.definition.identifiers_by_profile[profile_key])
         for source_id, inputs in source_columns.items():
             source = self.features[inputs[0].name]
             tables.append(
@@ -217,10 +217,10 @@ class _DataLineageBuilder:
                     columns=inputs,
                     join_dimensions=[
                         key
-                        for key in self.definition.grain_keys_by_profile[
+                        for key in self.definition.identifiers_by_profile[
                             self.definition.profile_keys[source.profile.id]
                         ]
-                        if key in dataset_keys
+                        if key in dataset_identifiers
                     ],
                     row_count=1 if source_id in self.compact_datasets else 3,
                 )
@@ -258,7 +258,7 @@ class _DataLineageBuilder:
         )
         relationships = self.definition.operator_grain_relationships[key]
         grain_keys = set(
-            self.definition.grain_keys_by_profile[self.definition.profile_keys[profile.id]]
+            self.definition.identifiers_by_profile[self.definition.profile_keys[profile.id]]
         )
         input_role = "Declared input" if function_returns == "any" else "Input"
         columns = _dimension_columns(profile, self.definition.dimensions)
@@ -303,7 +303,7 @@ class _DataLineageBuilder:
             dataset=invocation.profile_id,
             dataset_label=dataset_label,
             grain=", ".join(
-                self.definition.grain_keys_by_profile[self.definition.profile_keys[profile.id]]
+                self.definition.identifiers_by_profile[self.definition.profile_keys[profile.id]]
             ),
             color=self.colors[invocation.id],
             columns=columns,

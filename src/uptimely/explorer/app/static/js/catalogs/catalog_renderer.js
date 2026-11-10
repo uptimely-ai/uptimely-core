@@ -6,17 +6,23 @@ export function profiles(configuration) {
   }));
 }
 
-const profileGrainKeys = (configuration, profile) => profile.grain.map(({ dimension, resolution }) =>
+const profileIdentifiers = (configuration, profile) => profile.grain.map(({ dimension, resolution }) =>
   configuration.dimensions[dimension]?.resolutions[resolution]?.key).filter(Boolean);
+
+const profileRelationColumns = (configuration, profile) => (profile.relations || []).map(({ dimension, resolution }) =>
+  configuration.dimensions[dimension]?.resolutions[resolution]?.key).filter(Boolean);
+const profileKeys = (configuration, profile) => new Set([
+  ...profileIdentifiers(configuration, profile), ...profileRelationColumns(configuration, profile),
+]);
 
 export function features(configuration) {
   return profiles(configuration).flatMap(item => {
     const produced = new Map();
-    const grainKeys = new Set(profileGrainKeys(configuration, item.profile));
+    const keys = profileKeys(configuration, item.profile);
     for (const [operatorId, operator] of Object.entries(item.profile.assembly)) {
       for (const reference of operator.interface.outputs) {
         const id = reference.replace(/^\$features\./, "");
-        if (!grainKeys.has(id)) {
+        if (!keys.has(id)) {
           produced.set(id, { ...item, featureId: id, feature: item.profile.features[id], operatorId, operator });
         }
       }
@@ -254,9 +260,9 @@ function featureCards(config, invocations) {
             featureReferenceId(reference) === item.featureId))
           ? "Intermediate" : "Output"
         : "Input";
-    const grainKeys = new Set(profileGrainKeys(config, item.profile));
+    const keys = profileKeys(config, item.profile);
     const producedFeatures = new Set(Object.values(item.profile.assembly).flatMap(operator =>
-      operator.interface.outputs.map(featureReferenceId).filter(id => id && !grainKeys.has(id))));
+      operator.interface.outputs.map(featureReferenceId).filter(id => id && !keys.has(id))));
     const linkedFeatures = featureIds => [...new Set(featureIds)]
       .filter(id => id !== item.featureId)
       .map(id => {
@@ -381,7 +387,12 @@ function dimensionCards(config) {
 }
 
 export function schemaColumns(config, profile) {
-  const grainKeys = new Set(profileGrainKeys(config, profile));
+  const identifiers = new Set(profileIdentifiers(config, profile));
+  const relationColumns = new Set(profileRelationColumns(config, profile));
+  const resolutionMetadata = new Map([...profile.grain, ...(profile.relations || [])].map(({ dimension, resolution }) => {
+    const metadata = config.dimensions[dimension]?.resolutions[resolution];
+    return [metadata?.key, metadata];
+  }));
   const producers = new Map();
   const producingOperators = new Map();
   for (const [operatorId, operator] of Object.entries(profile.assembly)) {
@@ -397,8 +408,9 @@ export function schemaColumns(config, profile) {
     }
   }
   return [
-    ...[...grainKeys].map(id => ({ id, ...profile.features[id], role: "Dimension", color: "dimension" })),
-    ...Object.entries(profile.features).filter(([id]) => !grainKeys.has(id)).map(([id, feature]) => {
+    ...[...identifiers].map(id => ({ ...resolutionMetadata.get(id), id, ...profile.features[id], role: "ID", color: "dimension" })),
+    ...[...relationColumns].map(id => ({ ...resolutionMetadata.get(id), id, role: "Relation", color: "dimension" })),
+    ...Object.entries(profile.features).filter(([id]) => !identifiers.has(id) && !relationColumns.has(id)).map(([id, feature]) => {
       const color = producers.get(id) || "neutral";
       return { id, ...feature, color, role: color === "teal" ? "Raw" : color === "escape" ? "External" : "Feature" };
     }),

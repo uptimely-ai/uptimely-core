@@ -90,7 +90,7 @@ def test_traversal_retains_duplicate_declarations_and_feature_owners() -> None:
     locations = model.profile_items
     assert sum(item.id in {"pump", "pump_copy"} for _, item in locations) == 2
     feature_id = next(
-        feature_id for feature_id in pump_profile.features if feature_id not in model.grain_key_ids
+        feature_id for feature_id in pump_profile.features if feature_id not in model.identifier_ids
     )
     assert len(model.feature_owners[feature_id]) == 2
 
@@ -209,6 +209,7 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
 ) -> None:
     configuration = _escape_configuration()
     dataset_config = configuration["profiles"]["pump_telemetry"]
+    dataset_config["assembly"]["escape_first"]["interface"]["inputs"].remove("$features.pump_id")
     dataset_config["features"]["external_result"] = {"type": "float"}
     dataset_config["features"]["external_followup"] = {"type": "float"}
     dataset_config["assembly"]["escape_first"]["interface"]["outputs"] = [
@@ -227,7 +228,6 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
     assert assembly["escape_first"].input_features == [
         "bearing_temperature",
         "health_signal_normalized",
-        "pump_id",
     ]
     assert assembly["escape_first"].output_features == ["external_result"]
     assert assembly["escape_second"].input_features == []
@@ -556,7 +556,7 @@ def test_operator_rejects_explicit_source(tmp_path: pathlib.Path, operator_id: s
                 "inputs": ["$features.bearing_temperature"],
                 "outputs": ["$features.pump_id"],
             },
-            "must produce a non-dimension feature",
+            "interface outputs must contain only features; pump_id",
         ),
         ("features", ["bearing_temperature_max"], "features"),
     ],
@@ -604,7 +604,7 @@ def test_collapse_inferred_dimensions_must_exist_in_source(tmp_path: pathlib.Pat
     ]
     path = tmp_path / "invalid_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    with pytest.raises(ValueError, match="produced by multiple operators"):
+    with pytest.raises(ValueError, match="Matching key pump_id is not in the grain"):
         spec.load_spec(path)
 
 
@@ -681,5 +681,5 @@ def test_collapse_dimensions_alone_do_not_identify_input_dataset(
     collapse["interface"]["inputs"] = ["$features.pump_id"]
     path = tmp_path / "dimension_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
-    with pytest.raises(ValueError, match="must reference a source feature"):
+    with pytest.raises(ValueError, match="interface inputs must contain only features; pump_id"):
         spec.load_spec(path)

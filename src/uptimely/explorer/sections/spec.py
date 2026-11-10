@@ -78,6 +78,8 @@ def _feature_data(
     for key, operator in spec_definition.operator_items:
         dataset = spec_definition.profiles_by_key[key[0]]
         for feature_id in operator.output_features:
+            if feature_id in spec_definition.key_ids_by_profile[key[0]]:
+                continue
             metadata = dataset.features.get(feature_id)
             feature = (
                 metadata.model_dump(mode="json", exclude_none=True) if metadata is not None else {}
@@ -301,6 +303,7 @@ def _build_context(
         }
         for key, operator in spec_definition.operator_items
         for feature in operator.output_features
+        if feature not in spec_definition.key_ids_by_profile[key[0]]
     ]
     generated_at = (
         datetime.datetime.now().astimezone().isoformat(timespec="seconds")

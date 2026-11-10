@@ -71,7 +71,7 @@ def invocation_lineage_payload(
                 "arguments": invocation.arguments,
                 "merge_dataset": invocation.arguments.get("dataset") if is_merge else None,
                 "fragment_source": invocation.arguments.get("fragment") if is_merge else None,
-                "merge_keys": invocation.arguments.get("dataset_keys") if is_merge else None,
+                "merge_keys": invocation.arguments.get("dataset_identifiers") if is_merge else None,
                 "operator_id": invocation.operator_id,
                 "operator_name": base.humanize_identifier(invocation.operator_id),
                 "profile": invocation.profile_id,

@@ -26,14 +26,14 @@ A plan is one JSON object. Its root fields are:
 
 | Field | JSON type | Meaning |
 | --- | --- | --- |
-| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `12`. |
+| `plan_version` | integer | Portable plan format version, independent of `spec_version` and `build_version`. The current and only supported version is `13`. |
 | `required_backend` | string | Dataframe backend required by the plan. The built-in compiler currently sets this to `polars`. |
 | `invocations` | array of objects | Operations to execute and their declared inputs and dependencies. |
 | `stages` | array of arrays of strings | Invocation identifiers grouped by dependency order. |
 
 All root fields are required. Unknown fields and unsupported versions are
 rejected. Earlier plan versions are not converted. Rebuild generated bundles
-from their source Specs to create version 12 plans.
+from their source Specs to create version 13 plans.
 
 ## Invocation metadata
 
@@ -101,8 +101,8 @@ engine-owned runtime accumulators, not invocation declaration metadata.
 | `arguments` | object | Resolved arguments passed to the function. Runtime storage placeholders remain unresolved. |
 | `input_features` | array of strings | Features declared as inputs to the operation. |
 | `output_features` | array of strings | Features produced by the operation. |
-| `target_grain_keys` | array of strings | Target profile grain keys, in declaration order. |
-| `fragment_identifiers` | array of strings | All profile resolution keys available to identify staged fragment rows. |
+| `target_identifiers` | array of strings | Columns identifying target dataset rows, in grain order. |
+| `fragment_keys` | array of strings | Candidate identifier and relation columns retained when present in a fragment. |
 | `output_types` | object | Declared output columns mapped to logical types, or null when no type is declared. |
 | `fragment_dimensions` | string | Whether a fragment must have the target grain, may carry a subset, or is not applicable. |
 | `row_count_relation` | string | Whether result rows must preserve the existing row count or are unrestricted. |
@@ -190,8 +190,8 @@ format of their IDs.
 
 Plans earlier than version 10 are not supported.
 Rebuild from the source Spec with `uptimely build PROJECT_ROOT`.
-Plans lacking invocation runtime metadata (`target_grain_keys`,
-`fragment_identifiers`, `output_types`, preservation policies,
+Plans lacking invocation runtime metadata (`target_identifiers`,
+`fragment_keys`, `output_types`, preservation policies,
 `column_types`, and `argument_types`) must likewise be rebuilt.
 
 The engine returns results: `result.datasets` contains final profile frames,

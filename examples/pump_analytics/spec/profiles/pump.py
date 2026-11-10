@@ -66,6 +66,10 @@ class Pump(Profile):
     description = "One row per pump with collapsed condition and workflow inputs."
     category = "Machines"
     grain = [dimension.MACHINE_DIMENSION.resolution("machine")]
+    relations = [
+        dimension.MACHINE_DIMENSION.resolution("machine_series"),
+        dimension.MACHINE_DIMENSION.resolution("machine_category"),
+    ]
     scope = "Pump-level telemetry and external workflow inputs"
     features = PumpFeatures()
 
@@ -203,7 +207,7 @@ class Pump(Profile):
                 arguments={
                     "dataset": ref.dataset(),
                     "fragment": ref.fragment(),
-                    "dataset_keys": ref.profile().grain.ids,
+                    "dataset_identifiers": ref.profile().grain.ids,
                 },
             ),
         ),

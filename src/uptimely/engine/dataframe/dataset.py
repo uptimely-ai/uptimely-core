@@ -16,14 +16,24 @@ class Dataset:
     def __init__(
         self,
         backend: backend_module.DataFrameBackend,
-        id_columns: abc.Sequence[str],
+        identifiers: abc.Sequence[str],
         dataframe: object | None = None,
+        *,
+        relations: abc.Sequence[str] = (),
     ) -> None:
         """Create a physical accumulator with explicit identifier columns."""
         self.backend = backend
-        self.id_columns = tuple(id_columns)
+        self.identifiers = tuple(identifiers)
+        self.relations = tuple(
+            dict.fromkeys(column for column in relations if column not in self.identifiers)
+        )
         self.dataframe = dataframe
         self.fragments: dict[str, fragment_module.Fragment] = {}
+
+    @property
+    def keys(self) -> tuple[str, ...]:
+        """Return this dataset's identifiers and relations together."""
+        return (*self.identifiers, *self.relations)
 
     def validate_accumulated_frame(
         self,
@@ -69,7 +79,7 @@ class Dataset:
         self._validate_frame_structure(frame, description)
         if validate_content:
             self._validate_dimensionless_row_count(frame, description)
-            self._validate_unique_dimension_keys(frame, description)
+            self._validate_unique_identifiers(frame, description)
             self._validate_declared_types(frame, column_types, description)
 
     def _validate_frame_structure(self, frame: object, description: str) -> None:
@@ -77,14 +87,14 @@ class Dataset:
         if not self.backend.is_frame(frame):
             raise ValueError(f"{description} must be a Polars DataFrame or LazyFrame")
         logger.debug(
-            "Check dataset required dimension columns %s for %s", self.id_columns, description
+            "Check dataset required identifier columns %s for %s", self.identifiers, description
         )
-        missing = sorted(set(self.id_columns) - set(self.backend.column_names(frame)))
+        missing = sorted(set(self.identifiers) - set(self.backend.column_names(frame)))
         if missing:
-            raise ValueError(f"{description} is missing dimension columns: " + ", ".join(missing))
+            raise ValueError(f"{description} is missing identifier columns: " + ", ".join(missing))
 
     def _validate_dimensionless_row_count(self, frame: object, description: str) -> None:
-        if self.id_columns:
+        if self.identifiers:
             logger.debug(
                 "Skipping dataset dimensionless row count for %s (data has dimensions)", description
             )
@@ -92,24 +102,24 @@ class Dataset:
         logger.debug("Check dataset dimensionless row count is at most one for %s", description)
         if self.backend.row_count(frame) > 1:
             raise ValueError(
-                f"{description} contains duplicate dimension keys "
+                f"{description} contains duplicate identifiers "
                 "(dimensionless profile frames allow at most one row)"
             )
 
-    def _validate_unique_dimension_keys(self, frame: object, description: str) -> None:
-        if not self.id_columns:
+    def _validate_unique_identifiers(self, frame: object, description: str) -> None:
+        if not self.identifiers:
             logger.debug(
-                "Skipping dataset dimension-key uniqueness for %s (no dimensions)", description
+                "Skipping dataset identifier uniqueness for %s (no dimensions)", description
             )
             return
         logger.debug(
-            "Check dataset dimension-key uniqueness for columns %s for %s",
-            self.id_columns,
+            "Check dataset identifier uniqueness for columns %s for %s",
+            self.identifiers,
             description,
         )
-        keys = self.backend.select(frame, self.id_columns)
+        keys = self.backend.select(frame, self.identifiers)
         if self.backend.is_duplicated(keys):
-            raise ValueError(f"{description} contains duplicate dimension keys")
+            raise ValueError(f"{description} contains duplicate identifiers")
 
     def _validate_declared_types(
         self, frame: object, column_types: abc.Mapping[str, str] | None, description: str
@@ -154,6 +164,14 @@ class Dataset:
             broadcast_cardinality=broadcast_cardinality,
         )
         self.dataframe = merged
+        self.relations = tuple(
+            dict.fromkeys(
+                [
+                    *self.relations,
+                    *(column for column in fragment.keys if column not in self.identifiers),
+                ]
+            )
+        )
         if fragment_id is not None:
             self.fragments[fragment_id] = fragment
         return fragment

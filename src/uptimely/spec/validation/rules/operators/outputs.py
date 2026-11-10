@@ -18,6 +18,7 @@ def validate_output_presence(spec: spec_model.Spec) -> None:
             function is not None
             and function.returns == "dataframe"
             and not operator.output_features
+            and not (spec.key_ids_by_profile[key[0]] and not spec.dataframe_argument_profiles[key])
         ):
             raise ValueError(f"Operator {key[1]} must declare one or more features")
 
@@ -43,7 +44,7 @@ def validate_dimension_collision(spec: spec_model.Spec) -> None:
     logger.debug("Check calculated outputs do not collide with dimensions")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        collisions = set(operator.output_features) & spec.grain_key_ids
+        collisions = set(operator.output_features) & spec.identifier_ids
         if (
             function is not None
             and function.returns == "dataframe"
@@ -103,10 +104,7 @@ def validate_output_feature(spec: spec_model.Spec) -> None:
         if function is None or function.returns == "none":
             continue
         for feature in operator.output_features:
-            if (
-                feature not in spec.profiles_by_key[key[0]].features
-                and feature not in spec.grain_keys_by_profile[key[0]]
-            ):
+            if feature not in spec.profiles_by_key[key[0]].features:
                 raise ValueError(f"Operator {key[1]} references unknown feature: {feature}")
 
 
@@ -119,7 +117,7 @@ def validate_unique_producer(spec: spec_model.Spec) -> None:
         if function is None or function.returns == "none":
             continue
         for feature in operator.output_features:
-            if feature in spec.grain_keys_by_profile[key[0]]:
+            if feature in spec.identifiers_by_profile[key[0]]:
                 continue
             producer_key = (key[0], feature)
             previous = producers.get(producer_key)
@@ -139,7 +137,7 @@ def validate_collapse_output(spec: spec_model.Spec) -> None:
             function is not None
             and function.returns == "dataframe"
             and _has_dataframe_grain_relationship(spec, key, "collapse")
-            and not (set(operator.output_features) - set(spec.grain_keys_by_profile[key[0]]))
+            and not (set(operator.output_features) - set(spec.identifiers_by_profile[key[0]]))
         ):
             raise ValueError(f"Collapse operator {key[1]} must produce a non-dimension feature")
 
@@ -156,7 +154,7 @@ def validate_current_feature_selector(spec: spec_model.Spec) -> None:
         ):
             continue
         count = (
-            len(set(operator.output_features) - set(spec.grain_keys_by_profile[key[0]]))
+            len(set(operator.output_features) - set(spec.identifiers_by_profile[key[0]]))
             if _has_dataframe_grain_relationship(spec, key, "collapse")
             else len(operator.output_features)
         )
@@ -189,7 +187,7 @@ def warn_unproduced_features(spec: spec_model.Spec) -> None:
                 for operator_id, operator in producers
             )
         }
-        missing = sorted(profile.features.keys() - produced - set(spec.grain_keys_by_profile[key]))
+        missing = sorted(profile.features.keys() - produced - set(spec.identifiers_by_profile[key]))
         if missing:
             warnings.warn(
                 f"profiles.{key}.features: Features have no producer operator: "

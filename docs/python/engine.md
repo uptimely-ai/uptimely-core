@@ -21,9 +21,10 @@ with safe fixtures or mocks.
 
 The spec's `Profile` describes the analytical model. The engine's `Dataset` is
 only the accumulated physical dataframe materialized for that profile; it is not
-a spec declaration. Each runtime Dataset owns its `dataframe` and explicit `id_columns`.
+a spec declaration. Each runtime Dataset owns its `dataframe`, `identifiers`,
+and `relations`; `keys` combines identifiers and relations.
 `Fragment.stage(...)` calls a compute invocation's loader, asks the Fragment to
-check the raw result, derives its carried keys, and projects declared outputs.
+check the raw result, derives its identifiers and relations, and projects declared outputs.
 Required structure and declared-output checks always run; content, uniqueness,
 and type checks run when `validate=True`. The executor retains that fragment by
 compute invocation ID without changing the profile's accumulated dataframe.
@@ -39,28 +40,30 @@ publication, reusing the staged object rather than copying the dataframe.
 Staging and merging preserve lazy execution unless enabled validation needs to
 inspect values.
 
-`Dataset(backend, id_columns, dataframe=None)` needs neither a profile declaration
-nor a Spec. The invocation executor translates profile grain keys into physical ID
+`Dataset(backend, identifiers, dataframe=None, relations=())` needs neither a profile declaration
+nor a Spec. The invocation executor translates profile grain members into physical ID
 column names. Ownership is split explicitly:
 
-- `Fragment` stages and validates compute results, carrying `dimensions` for
-  uniqueness and `identifiers` for joins. Merge code does not inspect its invocation.
+- `Fragment` stages and validates compute results, carrying `identifiers` for
+  row identity and `relations` for links to other grains. Its `keys` combines
+  both for merging. Merge code does not inspect its invocation.
 - `Merge(dataset, fragment)` checks collisions, executes the configured assembly,
   and validates its complete result without changing dataset state.
 - `Dataset` owns the accumulated frame, retained fragments, and grain/type checks.
 
 The invocation executor checks
 vectorized results against invocation-specific contracts before publication.
-These operations use `invocation.target_grain_keys`,
-`invocation.fragment_identifiers`, `invocation.column_types`, and the
+These operations use `invocation.target_identifiers`,
+`invocation.fragment_keys`, `invocation.column_types`, and the
 invocation's derived operator policy where needed. The compiler resolves these values from
 declarations. Runtime execution does not receive profile objects or traverse the
 bundled Spec.
 
 An expansion can return a source-resolution feature and its identifiers without
 performing its own join. Parent-resolution IDs are dimension identifiers, not
-analytical features. The compiler includes every resolution key from each
-dimension used by the target grain in `fragment_identifiers`. Staging retains
+analytical features. Declare these related-profile resolutions in `relations`.
+The compiler includes the selected identifiers and explicitly declared relation
+columns in `fragment_keys`. Staging retains
 these columns when they occur in the data,
 without requiring feature declarations or interface outputs. Other undeclared
 columns are discarded. Their types are validated when runtime validation is enabled.
@@ -69,7 +72,7 @@ The merge uses the resolution identifiers present in the fragment. They must
 already be available on the target; no reader or identifier-producer dependencies
 are inferred. A missing target identifier fails the merge rather than falling
 back to a cross join. Full-grain fragments merge by the declared grain and
-coalesce other shared identifiers. Lower-resolution fragments left-join by their
+coalesce shared relations. Lower-resolution fragments left-join by their
 carried identifiers without changing the target grain. The current portable
 plan requires this metadata; older plan versions are rejected and must be
 rebuilt from the source Spec. Rebuild after changing these declarations.
@@ -237,7 +240,7 @@ dimension-aware assembly is handled by the stateless Polars merge library.
 
 ### Merge functions
 
-`uptimely.library.merge.polars.merge_by_grain(dataset, fragment, dataset_keys,
+`uptimely.library.merge.polars.merge_by_grain(dataset, fragment, dataset_identifiers,
 fragment_keys=None)` assembles a fragment using its carried keys. When
 `fragment_keys` is omitted, the function infers carried dataset keys from the
 fragment schema at runtime. Equal key sets use a full join, a strict subset

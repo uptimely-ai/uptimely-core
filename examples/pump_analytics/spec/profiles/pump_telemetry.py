@@ -20,35 +20,10 @@ from uptimely.spec.row_context import RowContext
 HYDRAULIC_POWER_SCALE = 1.0 / 36.0
 """Converts bar * m3/h into kW for the hydraulic-power numerator."""
 
-TELEMETRY_GRAIN = [
-    dimension.MACHINE_DIMENSION.resolution("machine"),
-    dimension.MACHINE_TIMESTAMP.resolution("timestamp"),
-]
-
 
 class TelemetryFeatures(FeatureSet):
     """Features declared by the telemetry profile."""
 
-    machine_series_id = Feature(
-        type="string",
-        description="Pump-series key from the asset registry.",
-    )
-    machine_category_id = Feature(
-        type="string",
-        description="Pump-category key from the asset registry.",
-    )
-    minute = Feature(
-        type="datetime",
-        description="Telemetry timestamp truncated to minute resolution.",
-    )
-    hour = Feature(
-        type="datetime",
-        description="Telemetry timestamp truncated to hour resolution.",
-    )
-    day = Feature(
-        type="datetime",
-        description="Telemetry timestamp truncated to day resolution.",
-    )
     discharge_pressure = Feature(
         type="float",
         unit="bar",
@@ -139,7 +114,17 @@ class PumpTelemetry(Profile):
     name = "Pump Telemetry"
     description = "Pump process and condition readings sampled at one-minute intervals."
     category = "Telemetry"
-    grain = TELEMETRY_GRAIN
+    grain = [
+        dimension.MACHINE_DIMENSION.resolution("machine"),
+        dimension.MACHINE_TIMESTAMP.resolution("timestamp"),
+    ]
+    relations = [
+        dimension.MACHINE_DIMENSION.resolution("machine_series"),
+        dimension.MACHINE_DIMENSION.resolution("machine_category"),
+        dimension.MACHINE_TIMESTAMP.resolution("minute"),
+        dimension.MACHINE_TIMESTAMP.resolution("hour"),
+        dimension.MACHINE_TIMESTAMP.resolution("day"),
+    ]
     scope = "Development telemetry selected by the read function"
     order = (Order(dimension.MACHINE_TIMESTAMP, "timestamp", direction="asc"),)
     features = TelemetryFeatures()
@@ -150,11 +135,6 @@ class PumpTelemetry(Profile):
                 id="read_pump_telemetry",
                 interface=Interface(
                     outputs=[
-                        features.machine_series_id,
-                        features.machine_category_id,
-                        features.minute,
-                        features.hour,
-                        features.day,
                         features.discharge_pressure,
                         features.flow_rate,
                         features.bearing_temperature,

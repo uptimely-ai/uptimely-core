@@ -36,7 +36,7 @@ def _invocation(
         function_id="calculate",
         operator_id="calculate",
         profile_id="dataset",
-        target_grain_keys=["key"],
+        target_identifiers=["key"],
         output_features=output_features or [],
         column_types=column_types or {},
     )
@@ -46,8 +46,8 @@ def _invocation(
 @pytest.mark.parametrize(
     ("data", "dimensions", "message"),
     [
-        ({"value": [1]}, ("key",), "missing dimension columns: key"),
-        ({"key": ["A", "A"]}, ("key",), "duplicate dimension keys"),
+        ({"value": [1]}, ("key",), "missing identifier columns: key"),
+        ({"key": ["A", "A"]}, ("key",), "duplicate identifiers"),
         ({"value": [1, 2]}, (), "dimensionless profile frames allow at most one row"),
     ],
 )
@@ -81,7 +81,7 @@ def test_read_retains_dimension_identifiers_without_feature_outputs(validate: bo
     invocation = _invocation(
         output_features=["value"],
         column_types={"key": "string", "series": "string", "category": "string", "value": "float"},
-    ).__replace__(fragment_identifiers=["series", "category"])
+    ).__replace__(fragment_keys=["series", "category"])
     frame = pl.LazyFrame(
         {"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0], "extra": [1, 2]}
     )
@@ -90,7 +90,9 @@ def test_read_retains_dimension_identifiers_without_feature_outputs(validate: bo
         backend_module.PolarsBackend(), invocation, lambda: frame, validate=validate
     )
 
-    assert fragment.dimensions == ("key",)
+    assert fragment.identifiers == ("key",)
+    assert fragment.relations == ("series",)
+    assert fragment.keys == ("key", "series")
     assert fragment.dataframe.collect().columns == ["key", "value", "series"]
     assert invocation.output_features == ["value"]
     assert fragment.dataframe.collect()["series"].to_list() == ["s1", "s1"]
@@ -99,7 +101,7 @@ def test_read_retains_dimension_identifiers_without_feature_outputs(validate: bo
 def test_read_validates_carried_identifier_types() -> None:
     invocation = _invocation(
         output_features=["value"], column_types={"series": "string"}
-    ).__replace__(fragment_identifiers=["series"])
+    ).__replace__(fragment_keys=["series"])
 
     with pytest.raises(ValueError, match="Output column series.*expected string"):
         fragment_module.Fragment.stage(
@@ -113,7 +115,7 @@ def test_read_validates_carried_identifier_types() -> None:
 @pytest.mark.parametrize("validate", [False, True])
 def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        fragment_identifiers=["series"],
+        fragment_keys=["series"],
         column_types={"series": "string", "value": "float"},
     )
     frame = pl.LazyFrame({"series": ["s1", "s2"], "value": [90.0, 80.0], "extra": [1, 2]})
@@ -122,13 +124,15 @@ def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
         backend_module.PolarsBackend(), invocation, lambda: frame, validate=validate
     )
 
-    assert fragment.dimensions == ("series",)
+    assert fragment.identifiers == ("series",)
+    assert fragment.relations == ()
+    assert fragment.keys == ("series",)
     assert fragment.dataframe.collect().columns == ["series", "value"]
 
 
 def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        fragment_identifiers=["plant", "series"]
+        fragment_keys=["plant", "series"]
     )
     fragment = fragment_module.Fragment.stage(
         backend_module.PolarsBackend(),
@@ -136,16 +140,16 @@ def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
         lambda: pl.LazyFrame({"series": ["s1"], "value": [90.0]}),
         validate=True,
     )
-    assert fragment.dimensions == ("series",)
+    assert fragment.identifiers == ("series",)
     assert fragment.dataframe.collect().columns == ["series", "value"]
 
 
 def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        fragment_identifiers=["series"]
+        fragment_keys=["series"]
     )
 
-    with pytest.raises(ValueError, match="duplicate dimension keys"):
+    with pytest.raises(ValueError, match="duplicate identifiers"):
         fragment_module.Fragment.stage(
             backend_module.PolarsBackend(),
             invocation,
@@ -156,7 +160,7 @@ def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() 
 
 def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        fragment_identifiers=["series"]
+        fragment_keys=["series"]
     )
     frame = pl.LazyFrame({"key": ["p1", "p2"], "value": [90.0, 80.0]})
 
@@ -164,24 +168,24 @@ def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
         backend_module.PolarsBackend(), invocation, lambda: frame, validate=True
     )
 
-    assert fragment.dimensions == ("key",)
+    assert fragment.identifiers == ("key",)
     assert fragment.dataframe.collect().equals(frame.collect())
 
 
 def test_full_grain_fragment_retains_other_resolution_keys_without_changing_uniqueness() -> None:
     invocation = _invocation("expand", output_features=["value"]).__replace__(
-        fragment_identifiers=["key", "series"]
+        fragment_keys=["key", "series"]
     )
     frame = pl.LazyFrame({"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0]})
     backend = backend_module.PolarsBackend()
 
     fragment = fragment_module.Fragment.stage(backend, invocation, lambda: frame, validate=True)
 
-    assert fragment.dimensions == ("key",)
+    assert fragment.identifiers == ("key",)
     assert (
         fragment.dataframe.collect().select(frame.collect_schema().names()).equals(frame.collect())
     )
-    with pytest.raises(ValueError, match="duplicate dimension keys"):
+    with pytest.raises(ValueError, match="duplicate identifiers"):
         fragment_module.Fragment.stage(
             backend,
             invocation,
@@ -199,7 +203,7 @@ def test_missing_dimension_log_identifies_resource_before_failure(
     frame = pl.DataFrame({"value": [1]})
     invocation = _invocation()
 
-    with pytest.raises(ValueError, match="missing dimension columns: key"):
+    with pytest.raises(ValueError, match="missing identifier columns: key"):
         if resource == "fragment":
             fragment_module.Fragment(frame, ("key",), invocation).validate_invocation_result(
                 backend, invocation
@@ -209,7 +213,7 @@ def test_missing_dimension_log_identifies_resource_before_failure(
                 description="Accumulated profile telemetry"
             )
 
-    expected = f"Check {resource} required dimension columns ('key',)"
+    expected = f"Check {resource} required identifier columns ('key',)"
     if resource == "fragment":
         expected += (
             " from operator calculate, function calculate, invocation invocation, profile dataset"
@@ -249,7 +253,7 @@ def test_dataset_validates_structure_keys_and_types(lazy: bool) -> None:
         ["key"],
         frame.lazy() if lazy else frame,
     )
-    with pytest.raises(ValueError, match="duplicate dimension keys"):
+    with pytest.raises(ValueError, match="duplicate identifiers"):
         dataset.validate_accumulated_frame()
 
     valid = dataset_module.Dataset(
@@ -373,7 +377,7 @@ def test_executor_checks_vectorized_contract_and_preservation(
         "invocation invocation, profile dataset"
     )
     assert all(context in message for message in caplog.messages)
-    assert f"Check required dimension columns ['key'] for {context}" in caplog.messages
+    assert f"Check required identifier columns ['key'] for {context}" in caplog.messages
     assert f"Check declared output columns ['new'] exist in {context}" in caplog.messages
     assert (
         "Check output columns ['new'] do not replace existing feature columns ['value'] "
@@ -427,7 +431,7 @@ def test_vectorized_validation_skips_content_comparison_when_disabled(
             pl.DataFrame({"value": [1]}),
             ["new"],
             pl.DataFrame({"key": ["A"]}),
-            "missing dimension columns: key",
+            "missing identifier columns: key",
         ),
         (
             pl.DataFrame({"key": ["A"]}),
@@ -484,7 +488,7 @@ def test_owner_validation_logs_checks(caplog: pytest.LogCaptureFixture) -> None:
     identity = "from operator calculate, function calculate, invocation invocation, profile dataset"
     assert f"Check fragment dataframe type {identity}" in caplog.messages
     assert f"Check fragment declared output columns [] {identity}" in caplog.messages
-    assert f"Check fragment required dimension columns ('key',) {identity}" in caplog.messages
+    assert f"Check fragment required identifier columns ('key',) {identity}" in caplog.messages
     assert all(identity in message for message in caplog.messages)
 
     caplog.clear()
@@ -499,7 +503,7 @@ def test_owner_validation_logs_checks(caplog: pytest.LogCaptureFixture) -> None:
         in caplog.messages
     )
     assert (
-        "Check dataset required dimension columns () for Accumulated profile telemetry"
+        "Check dataset required identifier columns () for Accumulated profile telemetry"
         in caplog.messages
     )
     assert all("Accumulated profile telemetry" in message for message in caplog.messages)

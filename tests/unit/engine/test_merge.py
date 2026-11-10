@@ -7,7 +7,7 @@ from uptimely import engine
 
 
 @pytest.mark.parametrize("lazy", [False, True])
-def test_merge_uses_fragment_identifiers_without_invocation_metadata(lazy: bool) -> None:
+def test_merge_uses_fragment_keys_without_invocation_metadata(lazy: bool) -> None:
     target = pl.DataFrame({"pump": ["p1", "p2"], "series": ["s1", "s1"]})
     contribution = pl.DataFrame({"series": ["s1"], "capacity": [90.0]})
     if lazy:
@@ -29,7 +29,7 @@ def test_merge_uses_fragment_identifiers_without_invocation_metadata(lazy: bool)
     ]
 
 
-def test_full_grain_merge_coalesces_explicit_fragment_identifiers() -> None:
+def test_full_grain_merge_coalesces_explicit_fragment_keys() -> None:
     dataset = engine.Dataset(
         engine.PolarsBackend(),
         ["pump"],
@@ -38,14 +38,52 @@ def test_full_grain_merge_coalesces_explicit_fragment_identifiers() -> None:
     fragment = engine.Fragment(
         pl.DataFrame({"pump": ["p1"], "series": ["s1"], "capacity": [90.0]}),
         ("pump",),
-        identifiers=("series",),
+        relations=("series",),
     )
 
     result = engine.Merge(dataset, fragment).execute(validate=True)
 
-    assert fragment.dimensions == ("pump",)
-    assert fragment.identifiers == ("pump", "series")
+    assert fragment.identifiers == ("pump",)
+    assert fragment.relations == ("series",)
+    assert fragment.keys == ("pump", "series")
     assert result.to_dicts() == [{"pump": "p1", "series": "s1", "capacity": 90.0}]
+
+
+def test_identifier_and_relation_roles_are_relative_to_each_frame() -> None:
+    dataset = engine.Dataset(
+        engine.PolarsBackend(),
+        ["pump"],
+        pl.DataFrame({"pump": ["p1", "p2"], "series": ["s1", "s1"]}),
+        relations=["series"],
+    )
+    fragment = engine.Fragment(
+        pl.DataFrame({"series": ["s1"], "capacity": [90.0]}),
+        ("series",),
+    )
+
+    assert dataset.identifiers == ("pump",)
+    assert dataset.relations == ("series",)
+    assert dataset.keys == ("pump", "series")
+    assert fragment.identifiers == ("series",)
+    assert fragment.relations == ()
+    assert fragment.keys == ("series",)
+    dataset.merge(fragment)
+    assert dataset.identifiers == ("pump",)
+    assert dataset.relations == ("series",)
+    assert dataset.dataframe["capacity"].to_list() == [90.0, 90.0]
+
+
+def test_dataset_retains_relations_from_full_grain_fragments() -> None:
+    dataset = engine.Dataset(engine.PolarsBackend(), ["pump"])
+    fragment = engine.Fragment(
+        pl.DataFrame({"pump": ["p1"], "series": ["s1"], "value": [1]}),
+        ("pump",),
+        relations=("series",),
+    )
+    dataset.merge(fragment)
+    assert dataset.identifiers == fragment.identifiers == ("pump",)
+    assert dataset.relations == fragment.relations == ("series",)
+    assert dataset.keys == fragment.keys == ("pump", "series")
 
 
 @pytest.mark.parametrize("invalid", [False, True])

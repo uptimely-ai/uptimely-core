@@ -36,8 +36,8 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
                 "dependency_ids": invocation.dependency_ids,
                 "output_features": invocation.output_features,
                 "input_features": invocation.input_features,
-                "target_grain_keys": invocation.target_grain_keys,
-                "fragment_identifiers": invocation.fragment_identifiers,
+                "target_identifiers": invocation.target_identifiers,
+                "fragment_keys": invocation.fragment_keys,
                 "output_types": invocation.output_types,
                 "column_types": invocation.column_types,
                 "argument_types": invocation.argument_types,
@@ -74,8 +74,8 @@ def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     invocations = []
     for invocation in payload["invocations"]:
         missing_metadata = {
-            "target_grain_keys",
-            "fragment_identifiers",
+            "target_identifiers",
+            "fragment_keys",
             "output_types",
             "produces_features",
             "is_sink",

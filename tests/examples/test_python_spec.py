@@ -181,7 +181,7 @@ def test_example_manifest_parses_complete_spec() -> None:
         ("machine_dimension", "machine"),
         ("machine_timestamp", "timestamp"),
     }
-    assert spec_definition.grain_keys_by_profile["pump_telemetry"] == [
+    assert spec_definition.identifiers_by_profile["pump_telemetry"] == [
         "pump_id",
         "timestamp",
     ]
@@ -355,5 +355,5 @@ def test_sources_and_transforms_python_spec() -> None:
         "filter_column": "",
         "filter_value": "",
     }
-    assert collapse.output_features == ["id", "collapsed_feature"]
+    assert collapse.output_features == ["collapsed_feature"]
     assert spec_definition.operator_kinds[("summary", "collapse_data")] == "collapse"

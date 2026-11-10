@@ -75,7 +75,7 @@ def _write_bundle(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": 12,
+                "plan_version": 13,
                 "required_backend": "polars",
                 "invocations": [],
                 "stages": [],

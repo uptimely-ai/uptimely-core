@@ -18,7 +18,7 @@ DEFAULT_FUNCTION = functions.FunctionTemplate(
     args={
         "dataset": functions.Argument(id="dataset", type="dataframe | null"),
         "fragment": functions.Argument(id="fragment", type="dataframe"),
-        "dataset_keys": functions.Argument(id="dataset_keys", type="array[string]"),
+        "dataset_identifiers": functions.Argument(id="dataset_identifiers", type="array[string]"),
     },
 )
 

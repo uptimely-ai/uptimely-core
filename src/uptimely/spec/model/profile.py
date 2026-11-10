@@ -98,9 +98,9 @@ class Operator(base.StrictModel):
         function_id: str,
         operator_kind: operator_kinds.OperatorKindId,
         profile_id: str,
-        grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]],
+        identifiers_by_profile: typing.Mapping[str, typing.Sequence[str]],
         resources: binding_argument.BindingResources,
-        id_columns: typing.Sequence[str],
+        identifiers: typing.Sequence[str],
         *,
         role: typing.Literal["compute", "merge"] = "compute",
     ) -> dict[str, object]:
@@ -111,7 +111,7 @@ class Operator(base.StrictModel):
             output_features = [
                 feature
                 for feature in self.output_features
-                if kind.dimension_change != "remove" or feature not in id_columns
+                if kind.dimension_change != "remove" or feature not in identifiers
             ]
             feature_id = output_features[0] if len(output_features) == 1 else None
         elif role == "merge" and self.merge is not None:
@@ -127,7 +127,7 @@ class Operator(base.StrictModel):
         return selected_binding.resolve_args(
             profile_id,
             feature_id,
-            grain_keys_by_profile,
+            identifiers_by_profile,
             resources,
             row_context=self.row_context,
         )
@@ -178,38 +178,67 @@ class Profile(base.StrictModel):
     category: str | None = None
     scope: str | None = None
     grain: list[Grain] = pydantic.Field(default_factory=list)
+    relations: list[Grain] = pydantic.Field(default_factory=list)
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)
     assembly: dict[str, Operator] = pydantic.Field(default_factory=dict)
     order: list[Order] = pydantic.Field(default_factory=list)
 
-    def keys(self, dimensions: typing.Mapping[str, dimension_module.Dimension]) -> list[str]:
-        """Return all resolution keys for dimensions used by this profile's grain.
+    def identifiers(self, dimensions: typing.Mapping[str, dimension_module.Dimension]) -> list[str]:
+        """Return only the selected grain columns identifying profile rows.
 
         Args:
             dimensions: Dimension catalog from the owning Spec.
 
         Returns:
-            Distinct identifier columns in grain-dimension and resolution order.
+            Profile identifier columns in grain order, excluding relations.
         """
-        return list(self.key_types(dimensions))
+        return list(self.identifier_types(dimensions))
 
-    def key_types(
+    def identifier_types(
         self, dimensions: typing.Mapping[str, dimension_module.Dimension]
     ) -> dict[str, str]:
-        """Return all resolution key types for dimensions used by this profile.
+        """Return logical types for the selected grain identifiers.
 
         Args:
             dimensions: Dimension catalog from the owning Spec.
 
         Returns:
-            Identifier columns mapped to logical types, without changing the grain.
+            Profile identifier columns mapped to logical types, excluding relations.
         """
         return {
             resolution.key: resolution.type
             for reference in self.grain
             if (dimension := dimensions.get(reference.dimension)) is not None
-            for resolution in dimension.resolutions.values()
+            and (resolution := dimension.resolutions.get(reference.resolution)) is not None
         }
+
+    def relation_types(
+        self, dimensions: typing.Mapping[str, dimension_module.Dimension]
+    ) -> dict[str, str]:
+        """Return logical types for resolutions relating this profile to other profiles.
+
+        Args:
+            dimensions: Dimension catalog from the owning Spec.
+
+        Returns:
+            Declared relation columns mapped to logical types, excluding identifiers.
+        """
+        return {
+            resolution.key: resolution.type
+            for reference in self.relations
+            if (dimension := dimensions.get(reference.dimension)) is not None
+            and (resolution := dimension.resolutions.get(reference.resolution)) is not None
+        }
+
+    def keys(self, dimensions: typing.Mapping[str, dimension_module.Dimension]) -> list[str]:
+        """Return identifiers and relations in declaration order."""
+        return list(self.key_types(dimensions))
+
+    def key_types(
+        self, dimensions: typing.Mapping[str, dimension_module.Dimension]
+    ) -> dict[str, str]:
+        """Return logical types for identifiers and relations together."""
+        return self.identifier_types(dimensions) | self.relation_types(dimensions)
 
     @functools.cached_property
     def dimension_ids(self) -> list[str]:

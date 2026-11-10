@@ -91,7 +91,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
                     "args": {
                         "target": {"type": "dataframe | null"},
                         "fragment": {"type": "dataframe"},
-                        "dataset_keys": {"type": "array[string]"},
+                        "dataset_identifiers": {"type": "array[string]"},
                     },
                 },
             },
@@ -106,7 +106,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
                                 "args": {
                                     "target": "$profiles.data.dataset",
                                     "fragment": "$operators.source.fragment",
-                                    "dataset_keys": ["id"],
+                                    "dataset_identifiers": ["id"],
                                 },
                             },
                             "interface": {"outputs": ["$features.value"]},
@@ -142,7 +142,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         arguments={
             "dataset": "data",
             "fragment": "$operators.source.fragment",
-            "dataset_keys": ["id"],
+            "dataset_identifiers": ["id"],
         },
         dependency_ids=[read_id],
     )
@@ -461,7 +461,7 @@ def test_plan_and_lineage_present_roles_separately_from_grain_relationships() ->
                     "args": {
                         "dataset": {"type": "dataframe | null"},
                         "fragment": {"type": "dataframe"},
-                        "dataset_keys": {"type": "array[string]"},
+                        "dataset_identifiers": {"type": "array[string]"},
                     },
                 },
             },
@@ -484,7 +484,7 @@ def test_plan_and_lineage_present_roles_separately_from_grain_relationships() ->
                                 "args": {
                                     "dataset": "$profiles.target.dataset",
                                     "fragment": "$operators.calculate.fragment",
-                                    "dataset_keys": "$profiles.target.grain.ids",
+                                    "dataset_identifiers": "$profiles.target.grain.ids",
                                 },
                             },
                             "interface": {

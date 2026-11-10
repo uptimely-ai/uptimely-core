@@ -266,7 +266,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     text = capsys.readouterr().out
     assert "Engine processed 2 profiles in " in text
     assert "Scope:" not in text
-    assert "Processed profile pump: 10 features" in text
+    assert "Processed profile pump: 9 features" in text
 
 
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
@@ -410,7 +410,7 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
     processed_profiles = [line for line in lines[1:] if "Processed profile " in line]
     assert len(processed_profiles) == dataset_count
     assert all(line.startswith("INFO     | ") for line in processed_profiles)
-    assert any("Processed profile pump: 10 features" in line for line in processed_profiles)
+    assert any("Processed profile pump: 9 features" in line for line in processed_profiles)
     assert lines[-3] == (f"INFO     | Engine processed {dataset_count} profiles in 1.234 s.")
     assert all(lines.index(line) < len(lines) - 3 for line in processed_profiles)
     assert lines[-2] == "INFO     | View results in Explorer:"
@@ -834,7 +834,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": 12,
+                "plan_version": 13,
                 "required_backend": "polars",
                 "invocations": [],
                 "stages": [],

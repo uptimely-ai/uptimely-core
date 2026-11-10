@@ -393,7 +393,7 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
         "source",
         "source",
     ]
-    assert binding.resolve_args("telemetry", grain_keys_by_profile=grain_keys) == {
+    assert binding.resolve_args("telemetry", identifiers_by_profile=grain_keys) == {
         "host_keys": ["pump", "timestamp"],
         "source_keys": ["pump"],
         "source": "source",
@@ -503,9 +503,11 @@ def test_dimension_outputs_are_implicit_in_mapping(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_telemetry"]["assembly"]["read_pump_telemetry"]["interface"][
-        "outputs"
-    ].remove("$features.pump_id")
+    outputs = configuration["profiles"]["pump_telemetry"]["assembly"]["read_pump_telemetry"][
+        "interface"
+    ]["outputs"]
+    assert "$features.pump_id" not in outputs
+    assert "$features.timestamp" not in outputs
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -544,7 +546,7 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
 
     with pytest.raises(
         ValueError,
-        match="Calculated feature names cannot duplicate profile grain keys: pump_id",
+        match="interface outputs must contain only features; pump_id",
     ):
         spec.load_spec(spec_path)
 

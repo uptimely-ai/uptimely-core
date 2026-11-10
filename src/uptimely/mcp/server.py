@@ -285,7 +285,7 @@ def create_server(state: ServerState) -> fastmcp.FastMCP:
                 )
             profile_key = snapshot.spec.profile_keys.get(profile_id)
             grain_keys = (
-                snapshot.spec.grain_keys_by_profile[profile_key] if profile_key is not None else []
+                snapshot.spec.identifiers_by_profile[profile_key] if profile_key is not None else []
             )
             columns = [name for name in [*grain_keys, *features] if name in frame.columns]
             view = frame.select(columns) if columns else frame

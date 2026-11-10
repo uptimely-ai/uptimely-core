@@ -8,6 +8,45 @@ from uptimely.spec.validation import errors
 logger = logging.getLogger(__name__)
 
 
+def validate_relations(spec: spec_model.Spec) -> None:
+    """Require distinct, valid relations outside the profile grain and features."""
+    logger.debug("Check spec profile relations reference distinct non-grain columns")
+    for profile_id, profile in spec.profile_items:
+        seen = set(spec.identifiers_by_profile[profile_id])
+        for index, reference in enumerate(profile.relations):
+            path = ("profiles", profile_id, "relations", index)
+            dimension = spec.dimensions.get(reference.dimension)
+            if dimension is None:
+                raise errors.SpecError(
+                    f"Profile {profile_id} relation references unknown dimension: "
+                    f"{reference.dimension}",
+                    code="unknown_relation_dimension",
+                    path=(*path, "dimension"),
+                )
+            resolution = dimension.resolutions.get(reference.resolution)
+            if resolution is None:
+                raise errors.SpecError(
+                    f"Profile {profile_id} relation references unknown resolution: "
+                    f"{reference.resolution}",
+                    code="unknown_relation_resolution",
+                    path=(*path, "resolution"),
+                )
+            if resolution.key in seen:
+                raise errors.SpecError(
+                    f"Profile {profile_id} relation repeats column: {resolution.key}",
+                    code="duplicate_relation_column",
+                    path=(*path, "resolution"),
+                )
+            if resolution.key in profile.features:
+                raise errors.SpecError(
+                    f"Profile {profile_id} relation column is also declared as a feature: "
+                    f"{resolution.key}",
+                    code="relation_feature_collision",
+                    path=(*path, "resolution"),
+                )
+            seen.add(resolution.key)
+
+
 def validate_grain_dimensions(spec: spec_model.Spec) -> None:
     """Require profile grain references to name declared dimensions."""
     logger.debug("Check spec profile grains reference declared dimensions")

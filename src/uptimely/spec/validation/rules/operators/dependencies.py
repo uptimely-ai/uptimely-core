@@ -18,10 +18,10 @@ def validate_operator_cycle(spec: spec_model.Spec) -> None:
         if function is None or function.returns == "none":
             continue
         profile_id = spec.operator_profile_keys[key]
-        grain_keys = spec.grain_keys_by_profile[profile_id]
+        grain_keys = spec.identifiers_by_profile[profile_id]
         operator_key = key
         for feature in operator.output_features:
-            if feature not in grain_keys and feature not in spec.grain_key_ids:
+            if feature not in grain_keys and feature not in spec.identifier_ids:
                 producers[feature] = operator_key
 
     dependencies: dict[OperatorKey, tuple[OperatorKey, ...]] = {}

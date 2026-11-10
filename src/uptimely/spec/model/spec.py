@@ -202,10 +202,9 @@ class Spec(base.StrictModel):
     def feature_owners(self) -> dict[str, list[ProfileKey]]:
         """Return all occurrence keys owning each non-dimension feature."""
         owners: dict[str, list[ProfileKey]] = {}
-        grain_keys = self.grain_key_ids
         for profile_key, profile in self.profile_items:
             for feature_id in profile.features:
-                if feature_id not in grain_keys:
+                if feature_id not in self.key_ids_by_profile[profile_key]:
                     owners.setdefault(feature_id, []).append(profile_key)
         return owners
 
@@ -236,8 +235,8 @@ class Spec(base.StrictModel):
         }
 
     @functools.cached_property
-    def grain_keys_by_profile(self) -> dict[ProfileKey, list[str]]:
-        """Return dataframe key column names in profile grain order."""
+    def identifiers_by_profile(self) -> dict[ProfileKey, list[str]]:
+        """Return profile row identifiers in grain order."""
         return {
             profile_key: [
                 dimension.resolutions[reference.resolution].key
@@ -249,8 +248,8 @@ class Spec(base.StrictModel):
         }
 
     @functools.cached_property
-    def grain_key_types_by_profile(self) -> dict[ProfileKey, dict[str, str]]:
-        """Return logical types for dataframe key columns in each profile."""
+    def identifier_types_by_profile(self) -> dict[ProfileKey, dict[str, str]]:
+        """Return logical types for profile row identifiers."""
         return {
             profile_key: {
                 dimension.resolutions[reference.resolution].key: dimension.resolutions[
@@ -264,19 +263,37 @@ class Spec(base.StrictModel):
         }
 
     @functools.cached_property
-    def identifier_types_by_profile(self) -> dict[ProfileKey, dict[str, str]]:
-        """Return all resolution key types for the dimensions used by each profile."""
+    def relation_types_by_profile(self) -> dict[ProfileKey, dict[str, str]]:
+        """Return logical types for declared relations, excluding identifiers."""
         return {
-            profile_key: profile.key_types(self.dimensions)
+            profile_key: profile.relation_types(self.dimensions)
             for profile_key, profile in self.profile_items
         }
 
     @functools.cached_property
-    def grain_key_ids(self) -> frozenset[str]:
-        """Return all dataframe key column names selected by profile grains."""
+    def key_types_by_profile(self) -> dict[ProfileKey, dict[str, str]]:
+        """Return identifier and relation types together for physical assembly."""
+        return {
+            key: self.identifier_types_by_profile[key] | self.relation_types_by_profile[key]
+            for key, _ in self.profile_items
+        }
+
+    @functools.cached_property
+    def identifier_ids(self) -> frozenset[str]:
+        """Return all column names selected as profile row identifiers."""
         return frozenset(
-            key_id for key_ids in self.grain_keys_by_profile.values() for key_id in key_ids
+            key_id for key_ids in self.identifiers_by_profile.values() for key_id in key_ids
         )
+
+    @functools.cached_property
+    def key_ids_by_profile(self) -> dict[ProfileKey, frozenset[str]]:
+        """Return identifier and relation column names together for each profile."""
+        return {key: frozenset(types) for key, types in self.key_types_by_profile.items()}
+
+    @functools.cached_property
+    def key_ids(self) -> frozenset[str]:
+        """Return all declared identifier and relation column names."""
+        return frozenset().union(*self.key_ids_by_profile.values())
 
     @functools.cached_property
     def operator_paths(self) -> dict[OperatorKey, SpecPath]:
@@ -296,9 +313,9 @@ class Spec(base.StrictModel):
 
     @functools.cached_property
     def local_features(self) -> dict[ProfileKey, frozenset[str]]:
-        """Return feature IDs available in each profile, including grain keys."""
+        """Return column IDs available in each profile, including keys and relations."""
         return {
-            key: frozenset(profile.features) | frozenset(self.grain_keys_by_profile[key])
+            key: frozenset(profile.features) | self.key_ids_by_profile[key]
             for key, profile in self.profile_items
         }
 
@@ -309,7 +326,7 @@ class Spec(base.StrictModel):
             key: tuple(
                 (feature, self.feature_owners.get(feature, []))
                 for feature in operator.input_features
-                if feature != selectors.CURRENT_ID and feature not in self.grain_key_ids
+                if feature != selectors.CURRENT_ID and feature not in self.key_ids
             )
             for key, operator in self.operator_items
         }
@@ -410,10 +427,10 @@ class Spec(base.StrictModel):
         return self._derived_semantics.operator_source_statuses
 
     @functools.cached_property
-    def dataframe_argument_grain_keys(self) -> dict[OperatorKey, frozenset[str]]:
+    def dataframe_argument_identifiers(self) -> dict[OperatorKey, frozenset[str]]:
         """Return dataframe keys available from each operator's referenced profiles."""
         return {
-            key: frozenset().union(*(self.grain_keys_by_profile[source] for source in sources))
+            key: frozenset().union(*(self.identifiers_by_profile[source] for source in sources))
             for key, sources in self.dataframe_argument_profiles.items()
         }
 
@@ -468,7 +485,7 @@ class Spec(base.StrictModel):
                     continue
                 matches.extend(
                     (grain_key, (*self.declaration_paths[key], "compute", "args", *path))
-                    for grain_key in self.grain_keys_by_profile[profile_key]
+                    for grain_key in self.identifiers_by_profile[profile_key]
                 )
             result[key] = tuple(matches)
         return result

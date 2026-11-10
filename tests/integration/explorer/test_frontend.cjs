@@ -459,7 +459,7 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.ok(!html.includes("<max>"));
 });
 
-test("feature catalog excludes dimensions, unused declarations and duplicate outputs", async () => {
+test("feature catalog excludes grain keys, unused declarations and duplicate outputs", async () => {
   const { features, schemaColumns } = await moduleAt("catalogs/catalog_renderer.js");
   const config = sampleData().catalogs.configuration;
   const profile = config.profiles.readings;
@@ -467,7 +467,7 @@ test("feature catalog excludes dimensions, unused declarations and duplicate out
   profile.assembly.calculate.interface.outputs.push("$features.id", "$features.value");
   assert.deepEqual(features(config).map(item => item.featureId), ["value"]);
   assert.deepEqual(schemaColumns(config, profile).map(column => column.role),
-    ["Dimension", "Feature", "Feature"]);
+    ["ID", "Feature", "Feature"]);
 });
 
 test("dimension catalog renders resolutions as a parent-linked hierarchy", async () => {

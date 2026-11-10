@@ -86,19 +86,19 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         and invocation.operator_id == "read_pump_capacity"
         and invocation.operator_kind == "read"
     )
-    assert set(reader.fragment_identifiers) == {
+    assert set(reader.fragment_keys) == {
         "pump_id",
         "machine_series_id",
         "machine_category_id",
     }
-    assert reader.output_features == ["pump_id", "pump_max_capacity"]
+    assert reader.output_features == ["pump_max_capacity"]
     series_compute = next(
         invocation
         for invocation in restored.invocations
         if invocation.operator_id == "expand_series_capacity"
         and invocation.operator_kind == "expand"
     )
-    assert series_compute.fragment_identifiers == reader.fragment_identifiers
+    assert series_compute.fragment_keys == reader.fragment_keys
     assert "pump_assets_source" not in series_compute.arguments
     reader_merge = next(
         invocation
@@ -113,7 +113,7 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         if invocation.operator_id == "expand_series_capacity" and invocation.role == "merge"
     )
     assert reader_merge.id not in series_merge.dependency_ids
-    assert "identifier_columns" not in series_merge.arguments
+    assert "key_columns" not in series_merge.arguments
     parameters = json.loads(
         (bundle.project_root / "config/config.json").read_text(encoding="utf-8")
     )["params"]

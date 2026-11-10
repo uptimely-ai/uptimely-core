@@ -8,7 +8,26 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- Profiles can declare `relations` as additional dimension resolutions without
+  changing their grain. Relation columns are retained during fragment assembly and
+  shown in Explorer's profile schema rather than its feature catalog or lineage.
+
 ### Changed
+
+- Operator interfaces now contain only feature dependencies and outputs.
+  Identifiers and relations stay in profile schema and assembly metadata;
+  Python authoring no longer adds identifier outputs or infers key inputs.
+
+- Profile `identifiers` and `identifier_types` describe grain members;
+  `relations` describe links to other grains, and `keys` combines both.
+  Datasets and fragments expose the same distinction relative to their own rows.
+  Explorer labels identifiers **ID** and related-profile columns **Relation**.
+- **Breaking (plan and merge APIs):** Plan version 13 replaces `target_grain_keys`
+  and `fragment_identifiers` with `target_identifiers` and `fragment_keys`.
+  The built-in merge uses `dataset_identifiers` and `key_columns` arguments.
+  Rebuild bundles and Explorer snapshots from their source Specs.
 
 - **Breaking (Spec, plans, and Python API):** Callable contracts now declare
   arguments and return roles independently of operator behavior. The function

@@ -158,6 +158,8 @@ class FeatureGraph(FeatureGraphBase):
                 and "collapse" not in self.spec.operator_grain_relationships[key].values()
             )
             for name in operator.output_features:
+                if name in self.spec.key_ids_by_profile[key[0]]:
+                    continue
                 feature = profile.all_features[name]
                 reference = models.FeatureNode(
                     name=name,
@@ -187,7 +189,10 @@ class FeatureGraph(FeatureGraphBase):
         graph = graphable_.graph.Graph()
         nodes: dict[str, Node] = {}
         output_names = {
-            name for name in self.spec.feature_producers if name not in self.spec.grain_key_ids
+            name
+            for key, operator in self.spec.operator_items
+            for name in operator.output_features
+            if name not in self.spec.key_ids_by_profile[key[0]]
         }
         dependency_names = {
             name for _, operator in self.spec.operator_items for name in operator.input_features
@@ -230,7 +235,9 @@ class FeatureGraph(FeatureGraphBase):
             profile = self.spec.operator_profiles[key]
             profile_id = self.spec.operator_profile_keys[key]
             outputs = [
-                name for name in operator.output_features if name not in self.spec.grain_key_ids
+                name
+                for name in operator.output_features
+                if name not in self.spec.key_ids_by_profile[key[0]]
             ]
             operator_metadata = models.OperatorNode(
                 operator_id=operator.id,
@@ -256,6 +263,8 @@ class FeatureGraph(FeatureGraphBase):
                 output_node = node(feature_meta(output, operator_metadata))
                 graph.add_edge(operator_node, output_node)
             for parent in set(operator.input_features):
+                if parent in self.spec.key_ids_by_profile[key[0]]:
+                    continue
                 parent_node = node(feature_meta(parent))
                 graph.add_edge(parent_node, operator_node)
 

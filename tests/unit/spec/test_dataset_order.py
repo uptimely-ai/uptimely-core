@@ -241,7 +241,6 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                     outputs=[
                         python_spec.feature.Feature(id="input_1"),
                         python_spec.feature.Feature(id="input_2"),
-                        python_spec.feature.Feature(id="id", type="integer"),
                     ],
                 ),
                 compute=python_spec.Binding(

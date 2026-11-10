@@ -175,10 +175,10 @@ explicit dimensional operation; same-profile fragment assembly is
 not a cross-profile reconciliation. Functions are responsible for grouping,
 matching, output names, and constructing literal values.
 
-For `collapse`, target keys must be available as source grain keys or source
-features, and each target dimension must be selected by the source profile.
+For `collapse`, target keys must be available as source grain keys, relations,
+or source features, and each target dimension must be selected by the source profile.
 This allows a finer-resolution source to group by a parent-resolution key
-carried as a source feature, such as a pump-series ID or an hour derived from
+carried as a relation, such as a pump-series ID or an hour derived from
 a timestamp.
 
 The compiled plan groups independent invocations into stages. The built-in engine
@@ -219,13 +219,14 @@ partial and disjoint coverage; equal row counts or identical key sets are not
 required.
 
 For a lower-grain `expand` fragment, the default merge function left-joins onto
-the existing accumulated profile frame by the carried keys with a many-to-one
+the existing accumulated profile frame by the carried relation columns with a many-to-one
 relationship, transferring each source observation to matching target
 observations. This includes parent-resolution identifiers, such as a pump's
 `machine_series_id` and `machine_category_id`. Read them among the pump data;
-they are identifiers, not analytical features or read-interface outputs.
-The compiler includes all resolution key names and types for every dimension
-used by the profile grain, and staging retains those columns when present. Unrelated
+declare these resolutions in the profile's `relations`, not as analytical
+features or read-interface outputs.
+The compiler includes selected grain keys and explicitly declared relation
+columns and types, and staging retains those columns when present. Unrelated
 undeclared columns are still discarded. Keeping parent identifiers does not
 change the profile's grain or add calculated features.
 
@@ -234,7 +235,7 @@ The merge uses the resolution identifiers present in the fragment. Those identif
 must already be available on the target when merging; the compiler does not
 infer dependencies on readers or identifier producers.
 If a required identifier was not read, the merge fails explicitly. Staging retains
-these keys; the merge uses them without changing the target profile's grain.
+these relation columns; the merge uses them without changing the target profile's grain.
 A function may still return full target-grain keys instead. Full-grain fragments
 join by the declared grain and coalesce other shared resolution identifiers.
 

@@ -51,7 +51,7 @@ class _CountingDict(dict[str, typing.Any]):
         return super().values()
 
 
-def test_identifier_types_include_all_resolutions_of_only_used_dimensions() -> None:
+def test_structural_types_include_only_grain_keys_and_declared_relations() -> None:
     payload = _sample_spec().model_dump()
     payload["dimensions"] = {
         "key": {
@@ -66,22 +66,31 @@ def test_identifier_types_include_all_resolutions_of_only_used_dimensions() -> N
     }
     document = model.Spec.model_validate(payload)
 
-    assert document.identifier_types_by_profile == {
+    assert document.key_types_by_profile == {
+        profile: {"key": "integer"} for profile in ("first", "second")
+    }
+    assert document.relation_types_by_profile == {"first": {}, "second": {}}
+    for profile in payload["profiles"].values():
+        profile["relations"] = [{"dimension": "key", "resolution": "parent"}]
+    document = model.Spec.model_validate(payload)
+    assert document.key_types_by_profile == {
         profile: {
             "key": "integer",
             "parent_id": "string",
-            "sibling_id": "string",
-            "child_id": "integer",
         }
         for profile in ("first", "second")
     }
-    assert document.grain_keys_by_profile == {"first": ["key"], "second": ["key"]}
+    assert document.identifiers_by_profile == {"first": ["key"], "second": ["key"]}
     for profile_id, profile in document.profiles.items():
         assert (
-            profile.key_types(document.dimensions)
+            profile.identifier_types(document.dimensions)
             == document.identifier_types_by_profile[profile_id]
         )
-        assert profile.keys(document.dimensions) == ["key", "parent_id", "sibling_id", "child_id"]
+        assert profile.identifiers(document.dimensions) == ["key"]
+        assert profile.keys(document.dimensions) == ["key", "parent_id"]
+        assert profile.key_types(document.dimensions) == {"key": "integer", "parent_id": "string"}
+        assert profile.relation_types(document.dimensions) == {"parent_id": "string"}
+        assert document.relation_types_by_profile[profile_id] == {"parent_id": "string"}
 
 
 def test_dimensionless_profile_exposes_no_identifiers() -> None:
@@ -127,7 +136,7 @@ def test_cached_views_build_only_the_views_they_need() -> None:
         ("load", "path"),
         ("other", "path"),
     ]
-    assert document.grain_keys_by_profile == {"first": ["key"], "second": ["key"]}
+    assert document.identifiers_by_profile == {"first": ["key"], "second": ["key"]}
     assert len(document.operators) == 2
     assert len(document.profile_items) == 2
     assert document.operators_by_function["load"] == [("first", "read")]

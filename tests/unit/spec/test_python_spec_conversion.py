@@ -16,7 +16,7 @@ from uptimely.spec.python import (
 )
 
 
-def test_profile_exposes_all_resolution_keys_and_types() -> None:
+def test_profile_identifiers_include_only_selected_grain_resolutions() -> None:
     machines = dimension.Dimension(
         id="machines",
         resolutions=[
@@ -35,15 +35,15 @@ def test_profile_exposes_all_resolution_keys_and_types() -> None:
     dimensions = {item.id: item.to_model() for item in (machines, sites)}
     canonical = declaration.to_model()
 
-    assert declaration.keys == ["pump_id", "series_id", "sensor_id", "site_id"]
+    assert declaration.keys == ["series_id", "site_id"]
+    assert declaration.identifiers == ["series_id", "site_id"]
     assert declaration.key_types == {
-        "pump_id": "string",
         "series_id": "string",
-        "sensor_id": "integer",
         "site_id": "string",
     }
     assert declaration.keys == canonical.keys(dimensions)
     assert declaration.key_types == canonical.key_types(dimensions)
+    assert declaration.identifier_types == canonical.identifier_types(dimensions)
     assert [item.key for item in declaration.grain] == ["series_id", "site_id"]
     assert profile.Profile(id="global").keys == []
     assert profile.Profile(id="global").key_types == {}
@@ -265,8 +265,8 @@ def test_python_spec_infers_selected_key_and_available_resolutions() -> None:
     assert payload["dimensions"]["machine"]["description"] == "Machine identifier"
     assert list(payload["dimensions"]["machine"]["resolutions"]) == ["machine", "fleet"]
     canonical = document.profiles["readings"]
-    assert canonical.features["pump"].type == "string"
-    assert canonical.assembly["readings_mapping"].interface.outputs == ["$features.pump"]
+    assert "pump" not in canonical.features
+    assert canonical.assembly["readings_mapping"].interface.outputs == []
     assert readings.grain == [pump.resolution("machine")]
 
 
@@ -583,6 +583,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
             "description": "Telemetry readings",
             "category": "telemetry",
             "grain": [{"dimension": "machine", "resolution": "machine"}],
+            "relations": [],
             "scope": "One row per pump observation",
             "order": [{"dimension": "machine", "resolution": "machine", "direction": "desc"}],
             "features": {},

@@ -1,5 +1,5 @@
 {
-  "plan_version": 12,
+  "plan_version": 13,
   "required_backend": "polars",
   "invocations": [
     {
@@ -9,7 +9,7 @@
       "function_id": "load",
       "operator_id": "reading",
       "profile_id": "telemetry",
-      "target_grain_keys": [
+      "target_identifiers": [
         "asset_id"
       ],
       "column_types": {
@@ -37,7 +37,7 @@
       "key_relation": "unrestricted",
       "row_order_relation": "unrestricted",
       "existing_data_relation": "unrestricted",
-      "fragment_identifiers": [
+      "fragment_keys": [
         "asset_id"
       ],
       "output_types": {
@@ -51,7 +51,7 @@
       "function_id": "double",
       "operator_id": "doubled",
       "profile_id": "telemetry",
-      "target_grain_keys": [
+      "target_identifiers": [
         "asset_id"
       ],
       "column_types": {
@@ -86,7 +86,7 @@
       "key_relation": "identical",
       "row_order_relation": "preserve",
       "existing_data_relation": "preserve",
-      "fragment_identifiers": [
+      "fragment_keys": [
         "asset_id"
       ],
       "output_types": {
@@ -100,7 +100,7 @@
       "function_id": "merge_by_grain",
       "operator_id": "reading",
       "profile_id": "telemetry",
-      "target_grain_keys": [
+      "target_identifiers": [
         "asset_id"
       ],
       "column_types": {
@@ -109,14 +109,14 @@
       "argument_types": {
         "dataset": "dataframe | null",
         "fragment": "dataframe",
-        "dataset_keys": "array[string]"
+        "dataset_identifiers": "array[string]"
       },
       "return_type": null,
       "package": null,
       "arguments": {
         "dataset": "telemetry",
         "fragment": "$operators.@.fragment",
-        "dataset_keys": [
+        "dataset_identifiers": [
           "asset_id"
         ]
       },
@@ -133,7 +133,7 @@
       "key_relation": "unrestricted",
       "row_order_relation": "unrestricted",
       "existing_data_relation": "unrestricted",
-      "fragment_identifiers": [
+      "fragment_keys": [
         "asset_id"
       ],
       "output_types": {}
@@ -145,7 +145,7 @@
       "function_id": "save",
       "operator_id": "save_doubled",
       "profile_id": "telemetry",
-      "target_grain_keys": [
+      "target_identifiers": [
         "asset_id"
       ],
       "column_types": {
@@ -176,7 +176,7 @@
       "key_relation": "unrestricted",
       "row_order_relation": "unrestricted",
       "existing_data_relation": "unrestricted",
-      "fragment_identifiers": [
+      "fragment_keys": [
         "asset_id"
       ],
       "output_types": {}

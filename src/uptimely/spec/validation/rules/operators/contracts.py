@@ -63,7 +63,7 @@ def validate_matching_keys(spec: spec_model.Spec) -> None:
         participants = (spec.operator_profile_keys[key], *spec.dataframe_argument_profiles[key])
         for grain_key, path in matches:
             for participant in participants:
-                if grain_key not in spec.grain_keys_by_profile[participant]:
+                if grain_key not in spec.identifiers_by_profile[participant]:
                     raise errors.SpecError(
                         f"Matching key {grain_key} is not in the grain of profile {participant}",
                         code="invalid_mapping_matching_key",
@@ -146,8 +146,8 @@ def validate_dataframe_argument_features(spec: spec_model.Spec) -> None:
             feature
             for feature in operator.input_features
             if (
-                feature not in spec.dataframe_argument_grain_keys[key]
-                if feature in spec.grain_key_ids
+                feature not in spec.dataframe_argument_identifiers[key]
+                if feature in spec.identifier_ids
                 else not any(
                     owner in spec.dataframe_argument_profile_ids[key]
                     for owner in spec.feature_owners.get(feature, [])

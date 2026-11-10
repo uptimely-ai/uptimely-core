@@ -116,10 +116,10 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
         compute = compute_by_operator[operator_key]
         assert compute.id in merge.dependency_ids
         profile_key = specification.profile_keys[compute.profile_id]
-        assert compute.target_grain_keys == specification.grain_keys_by_profile[profile_key]
+        assert compute.target_identifiers == specification.identifiers_by_profile[profile_key]
         assert set(compute.output_types) == set(compute.output_features)
-        assert merge.target_grain_keys == compute.target_grain_keys
-        assert merge.fragment_identifiers == compute.fragment_identifiers
+        assert merge.target_identifiers == compute.target_identifiers
+        assert merge.fragment_keys == compute.fragment_keys
         assert merge.result == "target"
         assert merge.role == "merge"
         assert merge.output_features == []
@@ -158,7 +158,7 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
             assert publication.id in invocation.dependency_ids
 
     selected_feature = next(
-        feature for feature in feature_producers if feature not in specification.grain_key_ids
+        feature for feature in feature_producers if feature not in specification.identifier_ids
     )
     selected = compiler.Compiler().compile(specification, features=[selected_feature])
     selected_producer = feature_producers[selected_feature]

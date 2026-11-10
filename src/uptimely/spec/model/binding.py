@@ -143,7 +143,7 @@ class Binding(base.StrictModel):
         self,
         profile_id: str,
         feature_id: str | None = None,
-        grain_keys_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
+        identifiers_by_profile: typing.Mapping[str, typing.Sequence[str]] | None = None,
         resources: binding_argument.BindingResources | None = None,
         *,
         row_context: row_context_values.RowContext | None = None,
@@ -153,7 +153,7 @@ class Binding(base.StrictModel):
             name: argument.resolve(
                 profile_id,
                 feature_id,
-                grain_keys_by_profile,
+                identifiers_by_profile,
                 resources,
                 row_context=row_context,
             )

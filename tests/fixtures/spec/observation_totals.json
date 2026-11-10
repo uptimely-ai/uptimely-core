@@ -45,9 +45,6 @@
         }
       ],
       "features": {
-        "id": {
-          "type": "integer"
-        },
         "input_1": {
           "type": "integer"
         },
@@ -65,7 +62,6 @@
           },
           "interface": {
             "outputs": [
-              "$features.id",
               "$features.input_1",
               "$features.input_2"
             ]
@@ -75,7 +71,7 @@
             "args": {
               "dataset": "$profiles.@.dataset",
               "fragment": "$operators.@.fragment",
-              "dataset_keys": "$profiles.@.grain.ids"
+              "dataset_identifiers": "$profiles.@.grain.ids"
             }
           }
         },

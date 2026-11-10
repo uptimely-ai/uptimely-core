@@ -416,7 +416,7 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
     produced_features = {
         feature for invocation in plan_invocations for feature in invocation.output_features
     }
-    dimensions = set(source_spec.grain_key_ids)
+    dimensions = set(source_spec.identifier_ids)
     for invocation in plan_invocations:
         assert set(invocation.dependency_ids) <= plan_ids
     for sink in sinks:
