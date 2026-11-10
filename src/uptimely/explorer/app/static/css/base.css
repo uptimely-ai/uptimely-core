@@ -111,7 +111,7 @@ html.with-navigation body:has(.site-menus > .site-context) .site-content { grid-
 .site-context { position: sticky; top: 0; grid-column: 2; grid-row: 1;
   height: 100vh; height: 100dvh; box-sizing: border-box; display: flex;
   flex-direction: column; gap: 20px; min-width: 0; width: clamp(240px, 22vw, 320px);
-  padding: 16px 12px; overflow-y: auto; background: var(--color-surface);
+  padding: 16px 12px; overflow-y: hidden; background: var(--color-surface);
   border-right: 1px solid var(--color-border); }
 .site-context > * { flex-shrink: 0; }
 .site-nav-context, .context-header { display: flex; flex-direction: column; gap: 12px; box-sizing: border-box;
