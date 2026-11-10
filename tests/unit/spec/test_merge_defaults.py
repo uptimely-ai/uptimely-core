@@ -2,7 +2,7 @@
 
 import json
 
-from uptimely import default_merge
+from uptimely import default_merge, merge
 from uptimely.spec import model as spec_model
 from uptimely.spec.python import Spec, assembly, feature, profile, ref
 
@@ -35,7 +35,7 @@ def test_omitted_merge_is_not_implicit() -> None:
 
 
 def test_default_merge_helper_returns_an_explicit_binding() -> None:
-    binding = default_merge()
+    binding = merge.default()
     document = _python_spec([_operator("read", merge=binding)])
     operator = document.profiles["readings"].assembly["read"]
 
@@ -53,8 +53,12 @@ def test_default_merge_helper_returns_an_explicit_binding() -> None:
     )
 
 
+def test_legacy_helper_remains_an_alias() -> None:
+    assert default_merge is merge.default
+
+
 def test_json_round_trip_preserves_explicit_default_binding(tmp_path) -> None:
-    document = _python_spec([_operator("read", merge=default_merge())])
+    document = _python_spec([_operator("read", merge=merge.default())])
     path = tmp_path / "spec.json"
     path.write_text(json.dumps(document.model_dump(mode="json")), encoding="utf-8")
 
@@ -65,7 +69,7 @@ def test_json_round_trip_preserves_explicit_default_binding(tmp_path) -> None:
 
 
 def test_explicit_builtin_reference_collects_its_contract() -> None:
-    document = _python_spec([_operator("read", merge=default_merge())])
+    document = _python_spec([_operator("read", merge=merge.default())])
     payload = document.model_dump(mode="json")
     payload["functions"].pop("merge_by_grain")
 

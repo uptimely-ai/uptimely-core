@@ -371,7 +371,7 @@ argument slots, not distinct referenced profiles, even when inspection is disabl
 
 With a merge, compute returns a fragment. Without one, a dataframe result is
 the complete target; omission never selects a default merge. Python authors
-can explicitly choose `merge=up.default_merge()`. JSON authors select the
+can explicitly choose `merge=up.merge.default()`. JSON authors select the
 builtin merge binding:
 
 ```json

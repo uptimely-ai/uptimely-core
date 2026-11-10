@@ -22,6 +22,7 @@ from .spec.python import (
     Spec,
     function,
     default_merge,
+    merge,
     ref,
 )
 from .compiler import Compiler, InvocationGraph, InvocationNode
@@ -40,6 +41,7 @@ __all__ = [
     "Order",
     "function",
     "default_merge",
+    "merge",
     "ref",
     "Compiler",
     "Dimension",

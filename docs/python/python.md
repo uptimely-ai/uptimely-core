@@ -194,7 +194,7 @@ Implementations aren't called during authoring; assembly checks callable
 parameter names and required arguments.
 
 ```python
-from uptimely import Binding, Feature, Interface, Operator, default_merge
+from uptimely import Binding, Feature, Interface, Operator, merge
 from uptimely.spec.python import function, ref
 
 
@@ -220,7 +220,8 @@ Declare dimensional matching keys explicitly with
 `ref.profile().grain.ids` (or a named profile's `.grain.ids` selector).
 Grouping and ordering references do not implicitly select matching keys.
 With a merge binding, compute returns a Polars `DataFrame` or `LazyFrame`
-fragment. Select the builtin merge explicitly with `merge=up.default_merge()`;
+fragment. Import the helper module with `from uptimely import merge` and select
+the builtin merge explicitly with `merge=merge.default()`;
 omitting a merge publishes a complete target rather than silently joining.
 The builtin merge assembles fragments
 for the same profile by complete keys with a full outer join, preserving
@@ -242,7 +243,7 @@ input dataframes: publishing by assignment cannot roll back mutations made by
 user code.
 
 Operators stage fragments only when they declare a `merge` binding.
-Use `up.default_merge()` for the builtin grain merge, or provide a custom binding.
+Use `up.merge.default()` for the builtin grain merge, or provide a custom binding.
 Changing an operator's merge binding requires rebuilding the project.
 The implementation module's package must be installed in the build and runtime
 environments; install a local project package in editable mode for development.
@@ -273,7 +274,7 @@ aggregate = Operator(
             "output": ref.feature("series_total").id,
         },
     ),
-    merge=default_merge(),
+    merge=merge.default(),
 )
 ```
 

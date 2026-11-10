@@ -12,7 +12,7 @@ from uptimely import (
     Operator,
     Order,
     Profile,
-    default_merge,
+    merge,
     ref,
 )
 from uptimely.spec.row_context import RowContext
@@ -151,7 +151,7 @@ class PumpTelemetry(Profile):
                         environment="development",
                     ),
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             ),
         ],
         calculations=[
@@ -251,7 +251,7 @@ class PumpTelemetry(Profile):
                         output=features.room_temperature_reference,
                     ),
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             ),
             Operator(
                 id="bearing_temperature_rise",

@@ -15,7 +15,7 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import model as spec_model
 from uptimely.spec import operator_kinds
-from uptimely.spec.python import assembly, default_merge, dimension, feature, profile, ref
+from uptimely.spec.python import assembly, dimension, feature, merge, profile, ref
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -160,7 +160,7 @@ def _spec(*, lazy=False, empty=False):
                     function=ref.function(read_values),
                     arguments={"lazy": lazy, "empty": empty},
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             ),
             assembly.Operator(
                 id="double",
@@ -212,7 +212,7 @@ def _spec(*, lazy=False, empty=False):
                         "calculated": ref.feature("doubled").id,
                     },
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             )
         ],
     )
@@ -229,7 +229,7 @@ def _spec(*, lazy=False, empty=False):
                     function=ref.function(total),
                     arguments={"dataset": ref.profile("summary").dataset},
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             ),
             assembly.Operator(
                 id="global_maximum",
@@ -241,7 +241,7 @@ def _spec(*, lazy=False, empty=False):
                     function=ref.function(maximum),
                     arguments={"dataset": ref.profile("summary").dataset},
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             ),
         ],
     )
@@ -292,7 +292,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                     function=ref.function(read_conform_target),
                     arguments={},
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             ),
             assembly.Operator(
                 id="conform_source",
@@ -324,7 +324,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                     function=ref.function(read_conform_source),
                     arguments={},
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             )
         ],
     )
@@ -424,7 +424,7 @@ def test_collapse_consumes_expanded_features(
                 id="read_expansion",
                 compute=spec_model.Binding(function="read_expansion_input", args={"lazy": lazy}),
                 interface=spec_model.Interface(outputs=["$features.expansion_value"]),
-                merge=default_merge().to_model(),
+                merge=merge.default().to_model(),
             )
         },
     )
@@ -449,7 +449,7 @@ def test_collapse_consumes_expanded_features(
             inputs=["$features.expansion_value"],
             outputs=["$features.expanded"],
         ),
-        merge=default_merge().to_model(),
+        merge=merge.default().to_model(),
     )
     spec_definition.functions.root["expanded_values"] = spec_model.FunctionTemplate(
         id="expanded_values",
@@ -478,7 +478,7 @@ def test_collapse_consumes_expanded_features(
                 inputs=["$features.value", "$features.expanded"],
                 outputs=["$features.combined_maximum"],
             ),
-            merge=default_merge().to_model(),
+            merge=merge.default().to_model(),
         )
     }
     spec_definition.functions.root["nested_maximum"] = spec_model.FunctionTemplate(
@@ -625,7 +625,7 @@ def _broadcast_spec(
                     function=ref.function(read_values),
                     arguments={"lazy": lazy},
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             ),
             assembly.Operator(
                 id="reference",
@@ -641,7 +641,7 @@ def _broadcast_spec(
                         "output": ref.feature("reference").id,
                     },
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             ),
         ],
     )
@@ -659,7 +659,7 @@ def _broadcast_spec(
                     function=ref.function(reader),
                     arguments={"lazy": lazy},
                 ),
-                merge=default_merge(),
+                merge=merge.default(),
             )
         ],
     )

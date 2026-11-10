@@ -3,7 +3,7 @@
 from . import assembly, ref
 
 
-def default_merge() -> assembly.Binding:
+def default() -> assembly.Binding:
     """Return a binding that merges a fragment into its dataset by grain keys."""
     return assembly.Binding(
         function=ref.function(
@@ -22,3 +22,6 @@ def default_merge() -> assembly.Binding:
             "dataset_identifiers": ref.profile().grain.ids,
         },
     )
+
+
+default_merge = default

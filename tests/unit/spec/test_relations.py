@@ -43,7 +43,7 @@ def test_compiled_relation_from_non_grain_dimension_survives_execution(
                 compute=assembly.Binding(
                     function=ref.function(_read_related, returns="dataframe"),
                 ),
-                merge=merge.default_merge(),
+                merge=merge.default(),
             )
         ],
     )
@@ -171,7 +171,7 @@ def test_key_only_reader_has_no_feature_outputs(
                 id="read",
                 interface=assembly.Interface(),
                 compute=assembly.Binding(function=ref.function(_read_related)),
-                merge=merge.default_merge() if staged else None,
+                merge=merge.default() if staged else None,
             )
         ],
     )

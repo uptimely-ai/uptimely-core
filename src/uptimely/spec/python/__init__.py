@@ -1,6 +1,6 @@
 """Python authoring declarations for spec."""
 
-from . import ref
+from . import merge, ref
 from .assembly import Binding, Interface, Operator
 from .dimension import Dimension, Resolution
 from .feature import Feature, FeatureSet
@@ -25,5 +25,6 @@ __all__ = [
     "Params",
     "function",
     "default_merge",
+    "merge",
     "ref",
 ]
