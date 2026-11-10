@@ -1,20 +1,15 @@
 # Uptimely Core
 
-Uptimely Core is a data science framework for organizing data science work into
-meaningful structure. It lets teams to build their analytical functions with pure Python, while adding a layer to build, validate, and run analytical
-pipelines whose calculations depend on one another.
+Uptimely Core is an open source framework for managing interdependent data science calculations. It provides tooling for defining, validating, and running them.
 
-Uptimely complements data modeling: data models organize business data, while
-Uptimely makes calculation-facing profiles and their feature dependencies
-explicit. See [Data Modeling and Uptimely](docs/data-science/data-modeling.md).
+The framework lets teams to build their analytics with pure Python functions. It is specialized to manage analytical pipelines whose calculations depend on one another either by calculated features or dimensional hierarchy.
 
-Use it for machine telemetry, process analytics, failure prediction, and
-factory optimization. Currently works on batch, streaming abstractions are on the roadmap.
+Uptimely takes best practices from data modeling to organize data science into **profiles**: Analytical declarations on different grains. The profiles makes their meta data available to computational **operators** declaring feature dependencies and function bindings.
 
-Definitions can be authored in Python and exported to JSON, or supplied directly as JSON. The built-in execution backend uses Polars, and the engine supports configurable runtime adapters.
+Author the data science workflow in Python. Build and run from command line. Explore from web browser.
 
 > [!WARNING]
-> This project follows semantic versioning, but is still at `0.x`: minor
+> This project is still at version `0.x`: minor
 > releases may include breaking changes. See the [changelog](CHANGELOG.md)
 > for details.
 
@@ -50,9 +45,8 @@ poetry add uptimely-core
 
 ## End-to-end example
 
-This short workflow downloads, builds, and runs the included pump analytics
-project. The build compiles its analytics definition into an execution plan.
-The run executes that plan.
+This short workflow downloads, builds, and runs the included pump data science
+project. The build compiles its analytical definition into an execution plan.
 
 With Poetry, prefix these commands with `poetry run`.
 
@@ -65,32 +59,26 @@ uptimely examples
 Build the project:
 
 ```sh
-uptimely build examples/pump_analytics --log-level debug
+uptimely build examples/pump_analytics
 ```
 
-The build creates the execution bundle under
-`examples/pump_analytics/_generated/build/` and the Explorer data snapshot at
-`examples/pump_analytics/_generated/explorer.json`. Rebuild after changing the
-project source.
+The build creates the execution bundle under `examples/pump_analytics/_generated/`.
 
 Execute the data pipeline:
 
 ```sh
-uptimely run examples/pump_analytics --log-level debug --preview 10
+uptimely run examples/pump_analytics --preview 10
 ```
 
 Output will show the materialized profile frames:
 
 ![Uptimely run preview](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-run-preview.png)
 
-Each execution replaces `_generated/run/` with run metadata, JSONL logs, and
-bounded profile previews. Five preview rows are saved by default, including
-for lazy frames; `--preview 10` saves and displays up to ten rows per profile.
-This is a latest-run diagnostic snapshot, not a durable output store.
+Each execution replaces contents in `_generated/run/`.
 
 ## Explore the resources
 
-Use the project explorer to inspect a project visually:
+Use the project explorer to inspect a project visually in web browser:
 
 ```sh
 uptimely explore examples/pump_analytics
@@ -101,16 +89,15 @@ Open <http://127.0.0.1:8001/> to view the Explorer.
 
 ## Python API
 
-The previous example was built by the [Python-authored example specification](examples/pump_analytics/). The specification describes profiles, dimensions, grains, and actions. Functions remain pure Python; the decorator supplies metadata for structural validation.
+The previous example was built by the [Python-authored example specification](examples/pump_analytics/). The specification describes profiles, grains, feature and operators. Functions remain pure Python.
 
-Here even more simplified example.
+Here is even more simplified example.
 
 ```python
 import polars as pl
 import uptimely as up
 
 
-@up.function
 def read_values() -> pl.DataFrame:
     return pl.DataFrame(
         {
@@ -120,12 +107,10 @@ def read_values() -> pl.DataFrame:
     )
 
 
-@up.function
 def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
 
-@up.function
 def print_results(dataset: pl.DataFrame) -> None:
     print(dataset)
 
