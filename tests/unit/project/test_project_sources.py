@@ -160,9 +160,10 @@ def test_build_defers_source_semantic_validation_to_compiler(
     json_spec = json_path if source_kind == "json" else None
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
-        document = builder._load_spec_definition(tmp_path, python_spec, json_spec)
+        project_builder = builder.ProjectBuilder(tmp_path)
+        document = project_builder._load_spec_definition(python_spec, json_spec)
         check.assert_not_called()
-        builder._compile_plan(document, None)
+        project_builder._compile_plan(document, None)
         check.assert_called_once_with(document)
 
 
@@ -175,10 +176,11 @@ def test_build_reports_deferred_semantic_error_at_compilation(tmp_path: pathlib.
         ),
         encoding="utf-8",
     )
-    document = builder._load_spec_definition(tmp_path, None, path)
+    project_builder = builder.ProjectBuilder(tmp_path)
+    document = project_builder._load_spec_definition(None, path)
 
     with pytest.raises(project.ProjectBuildError, match="compilation.*unknown parent"):
-        builder._compile_plan(document, None)
+        project_builder._compile_plan(document, None)
 
 
 def test_complete_build_validates_spec_semantics_once(

@@ -51,8 +51,8 @@ class Project:
             BuildLockError: Another builder or active bundle reader holds the lock.
             ProjectBuildError: Loading, compilation, generation, or publication fails.
         """
-        return builder.build(
-            self.root, python_spec=python_spec, json_spec=json_spec, features=features
+        return builder.ProjectBuilder(self.root).build(
+            python_spec=python_spec, json_spec=json_spec, features=features
         )
 
     def load_build_bundle(self, *, validate: bool = True) -> models.BuildBundle:
@@ -67,7 +67,7 @@ class Project:
         Raises:
             BuildError: The saved build is missing, incomplete, or invalid.
         """
-        return bundle.load_build_bundle(self.root, validate=validate)
+        return bundle.BundleStore(self.root).load(validate=validate)
 
     def read_build_bundle(
         self, *, validate: bool = True
@@ -80,4 +80,4 @@ class Project:
         Returns:
             A context manager yielding the validated saved build bundle.
         """
-        return bundle.read_build_bundle(self.root, validate=validate)
+        return bundle.BundleStore(self.root).read(validate=validate)
