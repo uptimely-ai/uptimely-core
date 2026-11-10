@@ -6,7 +6,7 @@ import pathlib
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely import spec
-from uptimely.project import imports, paths
+from uptimely.project import paths
 from uptimely.spec import python as python_spec_api
 
 JsonSourceInput = str | pathlib.Path | None
@@ -20,11 +20,19 @@ class PythonSource:
         if python_spec is None:
             self.entrypoint = entrypoint_module.Entrypoint.from_path(
                 self.path,
-                imports.project_import_root(project_root),
+                self._find_import_root(project_root),
                 paths.DEFAULT_SPEC_ATTRIBUTE,
             )
         else:
             self.entrypoint = entrypoint_module.Entrypoint(python_spec)
+
+    @staticmethod
+    def _find_import_root(project_root: pathlib.Path) -> pathlib.Path:
+        """Find the import root above a project's enclosing regular packages."""
+        root = project_root.resolve()
+        while (root / "__init__.py").is_file():
+            root = root.parent
+        return root
 
     def is_available(self) -> bool:
         """Return whether the conventional Python spec entrypoint exists."""

@@ -53,6 +53,25 @@ def test_spec_source_resolves_without_loading(tmp_path: pathlib.Path) -> None:
     assert source.entrypoint.function.name == project.DEFAULT_SPEC_ATTRIBUTE
 
 
+@pytest.mark.parametrize("package_depth", [0, 1, 2])
+def test_python_source_resolves_enclosing_packages(
+    tmp_path: pathlib.Path, package_depth: int
+) -> None:
+    root = tmp_path
+    package_names = [f"package_{index}" for index in range(package_depth)]
+    for name in package_names:
+        root /= name
+        root.mkdir()
+        (root / "__init__.py").touch()
+    python_path = root / project.SPEC_PYTHON_ENTRY_FILE
+    python_path.parent.mkdir()
+    python_path.touch()
+
+    source = build_source.PythonSource(root)
+
+    assert source.entrypoint.module.location == ".".join([*package_names, "spec", "spec"])
+
+
 def test_python_spec_rejects_local_file_entrypoints(tmp_path: pathlib.Path) -> None:
     python_path = tmp_path / project.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir(parents=True)
