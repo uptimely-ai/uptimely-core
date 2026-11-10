@@ -47,6 +47,7 @@ Before making project-wide changes, consult the relevant guides:
   material when it improves clarity or fills a gap.
 - Keep documentation focused on user needs; avoid repeating details already
   expressed by scripts or configuration.
+- In project root readme.md, only code edits are allowed
 - Do not use semicolons ;
 - Do not use word canonical
 
