@@ -90,6 +90,16 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.doesNotMatch(functionOverview, /<h2[^>]*>Functions overview<\/h2>/);
   assert.match(functionOverview, /Functions by category/);
   assert.match(functionOverview, /data-category="Uncategorized"/);
+  const categorizedFunctions = sampleData();
+  categorizedFunctions.catalogs.function_groups = {
+    "data_loading": { calculate: categorizedFunctions.catalogs.function_groups.Uncategorized.calculate },
+  };
+  categorizedFunctions.catalogs.summary.function_count = 1;
+  const categorizedCatalog = renderCatalog(categorizedFunctions, "functions");
+  const categorizedOverview = categorizedCatalog.content.slice(0, categorizedCatalog.content.indexOf('<div class="space-y-8">'));
+  assert.match(categorizedOverview, /data-category="data_loading"[^]*?>Data Loading</);
+  assert.match(categorizedCatalog.context, /context-group-label"><span>Data Loading<\/span>/);
+  assert.match(categorizedCatalog.content, /href="#functions-data_loading"/);
   assert.match(functionOverview, /Functions by return type/);
   assert.match(functionOverview, /data-category="DataFrame" data-count="1"[^]*?icon--return-arrow[^>]*data-lucide="arrow-right"[^]*?class="data-type-label-text">DataFrame/);
   const returnTypeChart = functionOverview.slice(functionOverview.indexOf("Functions by return type"));
