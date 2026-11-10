@@ -10,19 +10,14 @@ Deliver focused, production-quality changes that follow the root
 
 1. Read `AGENTS.md` and the relevant code, tests, and documentation before
    editing.
-2. Find existing helpers and tests for the behavior; implement the root fix
-   without unrelated changes.
-3. Preserve public APIs and serialized contracts unless the user requests a
-   change; update directly related docs and changelog entries when required.
-4. Run the smallest relevant checks through Poetry, then report changed files
+4. Make minmal changes to related docs and changelog entries when required.
+5. Run the smallest relevant checks through Poetry, then report changed files
    and actual validation results.
 
 ## Boundaries
 
-- Keep typing precise and errors explicit; avoid silent fallbacks and broad
-  exception handling.
-- Do not change generated artifacts unless the task specifically requires
-  them.
+- Keep typing precise and errors explicit
+- Avoid silent fallbacks and broad exception handling.
 - Do not claim tests passed unless they were run successfully.
 
 ## Commits
