@@ -8,75 +8,41 @@ Contributions are welcome via pull requests.
 2. Open the repository in the included `.devcontainer/`, or, from the
    repository root, install locally:
 
-   ```sh
-   ./.devcontainer/scripts/install-dev-dependencies.sh
-   ./.devcontainer/scripts/install-git-hooks.sh
-   ```
+```sh
+./.devcontainer/scripts/install-dev-dependencies.sh
+./.devcontainer/scripts/install-git-hooks.sh
+```
 
 Scripts under [`.devcontainer/scripts/`](.devcontainer/scripts/) set up the
 development environment. The [Dockerfile](.devcontainer/Dockerfile) prepares
-the image; [`post-create.sh`](.devcontainer/scripts/post-create.sh) prepares
+the image. [`post-create.sh`](.devcontainer/scripts/post-create.sh) prepares
 the repository after the container is created.
 
 Scripts under [`scripts/`](scripts/) are repository convenience actions to run
-in an existing development environment. For example,
-[`install-mcp.sh`](scripts/install-mcp.sh) installs the optional MCP extra and
-prepares the example specification, and [`serve-docs.sh`](scripts/serve-docs.sh)
-starts the MkDocs development server.
+in an existing development environment.
 
 ## Development process
 
-1. Create a branch from `main`.
-2. Make your change.
-3. Commit and push your changes. The installed pre-commit hooks run checks,
-   including pytest when Python files are staged and the Explorer JavaScript
-   tests when Explorer JavaScript or test files are staged.
-4. Open a pull request against `main`. Describe the motivation and link any
-   related issue. CI must pass (lint, format, tests, coverage gate) before
-   merge.
+1. **Branch:** Create a branch from `main`.
+2. **Implement:** Make your change.
+3. **Commit and validate:** Commit and push your changes. Installed pre-commit
+   hooks run checks, including pytest when Python files are staged and Explorer
+   JavaScript tests when Explorer JavaScript or test files are staged.
+4. **Open a pull request:** Describe the motivation and open a PR against
+   `main`. CI must pass lint, format, tests, and the coverage gate before merge.
 
-The CI quality job skips the pytest hook to avoid running tests twice. The
-separate test job runs the Python suite with coverage and the Explorer
-JavaScript tests.
-
-### Explorer JavaScript
-
-The browser entrypoint is
-[`application/bootstrap.js`](src/uptimely/explorer/app/static/js/application/bootstrap.js).
-The frontend modules are grouped by responsibility under
-[`static/js/`](src/uptimely/explorer/app/static/js/):
-
-- `application/`: startup, asset loading, history routing, and view lifecycles.
-- `rendering/`: shared HTML helpers and overview/graph page markup.
-- `catalogs/`: catalog rendering, item navigation, and function highlighting.
-- `lineage/`: feature and invocation lineage views, shared layouts, and 2D/3D controls.
-- `animation/`: animation markup, playback, table frames, connections, and viewport.
-- `navigation/`: desktop/mobile sidebar controls.
-- `theme/`: Tailwind theme configuration.
-
-Renderers produce markup; interactive controllers initialize each mounted view
-and release resources through its abort signal. Keep related modules together
-and update relative imports when moving them. Runtime snapshot configuration
-remains in `static/config.js`, which static export rewrites for its data URL.
-
-Run the frontend regression tests with
-`node --test tests/integration/explorer/*.cjs tests/unit/explorer/*.mjs`.
 
 ## Multi-agent coding
 
-Use one main VS Code window to manage `main` and basic tasks. For parallel
-agent-driven work, use a separate Git worktree and VS Code window for each task.
-
-From the project root inside the VS Code devcontainer, create a detached
-worktree from `main` under `/home/vscode/worktrees`. This keeps the directory name
-independent of the branch name and avoids creating a branch named `worktree-a`:
+Use the main VS Code window for `main` and basic tasks. For parallel agent work,
+create a separate worktree and VS Code window per task. From the project root in
+the devcontainer, create a detached worktree under `/home/vscode/worktrees`:
 
 ```sh
 git worktree add --detach /home/vscode/worktrees/worktree-a main
 ```
 
-Create the task branch in the worktree and open it in a new VS Code window
-without changing the current directory:
+Create and verify the task branch, then open the worktree in a new window:
 
 ```sh
 git -C /home/vscode/worktrees/worktree-a switch -c feature/tune-explorer-layout
@@ -84,29 +50,16 @@ git -C /home/vscode/worktrees/worktree-a branch --show-current
 code --new-window /home/vscode/worktrees/worktree-a
 ```
 
-For an existing branch, omit `-c` from the `git -C ... switch` command.
-A branch can only be checked out in one worktree at a time. Switch to a task
-branch before making commits; do not leave the worktree detached.
-Verify that `branch --show-current` prints the intended branch before opening
-the new window. Opening a folder in VS Code does not switch its Git branch.
-
-Keep each agent's changes on its own branch and follow the normal pull request
-process to merge them into `main`.
-
-You might need to run `poetry install` when opening the worktree first time.
+For an existing branch, omit `-c`. Each branch can be checked out in only one
+worktree; commit from a task branch, not a detached worktree. Confirm the
+intended branch before opening VS Code—opening a folder does not switch
+branches. Keep each agent's changes separate and merge through the usual PR
+process. Run `poetry install` if the worktree needs dependencies.
 
 ## Coding style
 
 Follow the project's coding conventions in
-[`.github/copilot-instructions.md`](.github/copilot-instructions.md).
-
-### Python imports
-
-Import modules and qualify their members. Use absolute imports from the owning
-package across packages (`from uptimely.compiler import plan`), and single-dot
-relative imports for siblings (`from . import errors`). Avoid multi-level
-relative imports. Package `__init__.py` files may re-export individual public
-symbols using relative imports.
+[the repository's `AGENTS.md`](AGENTS.md).
 
 ### Changelog entries
 
@@ -118,11 +71,12 @@ version or date for an individual PR; release preparation moves these entries
 under a version heading. Internal refactors and chores that do not affect users
 do not normally need an entry.
 
-### Explorer JavaScript
+### Testing
 
-Node tests can be ran by:
+Run the Python suite with coverage and the Explorer JavaScript tests with:
 
 ```sh
+poetry run pytest --cov --cov-report=xml
 node --test tests/integration/explorer/*.cjs tests/unit/explorer/*.mjs
 ```
 
@@ -130,66 +84,46 @@ node --test tests/integration/explorer/*.cjs tests/unit/explorer/*.mjs
 
 ### Branching strategy
 
-The project uses trunk-based development. `main` is the only long-lived branch
-and should always be releasable. Create short-lived branches from `main` and
-merge them back through pull requests.
+`main` is the only long-lived branch. Create short-lived branches from `main`,
+keep changes small and CI-green, and merge through pull requests. Hide
+unfinished work behind opt-in code paths. Releases are tags on `main`; there
+are no `develop` or `release/*` branches.
 
-Keep `main` green by merging changes
-that pass CI and splitting larger work into reviewable steps. Use an opt-in
-code path to keep unfinished behavior hidden while integrating it through
-short-lived branches.
-Releases are tags on `main`.
-
-> [!WARNING]
-> There are no `develop` or `release/*` branches.
-
-Name branches `<type>/<short-slug>`, where `<type>` is one of:
+Name branches `<type>/<short-slug>`:
 
 | Prefix | Use |
 | --- | --- |
-| `feature` | Add a user-facing feature or capability. |
-| `fix` | Correct a bug or unintended behavior. |
+| `feature` / `fix` | Add a capability or correct behavior. |
 | `docs` | Change documentation. |
-| `refactor` | Restructure code without changing behavior. |
-| `chore` | Perform maintenance or repository upkeep. |
+| `refactor` / `chore` | Restructure code or maintain the project. |
 | `test` | Add or update tests. |
 
-`<short-slug>` is 2–5 lowercase, hyphenated words describing the change. For
-example: `feature/multi-output-calculations` or
-`fix/empty-spread-health-score`.
-
-> [!WARNING]
-> Do not use personal namespaces, version numbers, or dates in branch names.
-
-Feature and fix branches usually result in changelog
-entries; refactor and chore branches usually do not.
+Use 2–5 lowercase, hyphenated words for the slug (for example,
+`feature/multi-output-calculations`). Do not include personal names, versions,
+or dates. User-visible features and fixes usually need a changelog entry;
+internal refactors and chores usually do not.
 
 ### Versioning policy
 
-The project follows [Semantic Versioning](https://semver.org). Before `1.0.0`,
-the API is unstable: minor releases may include breaking changes, and patch
-releases may change behavior. From `1.0.0` onward, breaking changes will ship
-only in major releases, with deprecations announced at least one minor release
-in advance.
+We follow [Semantic Versioning](https://semver.org). Before `1.0.0`, minor
+releases may break the API and patch releases may change behavior. After `1.0.0`,
+breaking changes require a major release and at least one minor release of
+deprecation notice.
 
 ### Preparing and publishing releases
 
-Prepare every release in a short-lived PR to `main`. Merge the PR only after review and CI pass. Once it is merged, create
-and push the release tag from an up-to-date `main` checkout; the release script
-checks the package version and repository state before creating the tag.
+Prepare releases in a short-lived PR to `main`. After review and CI pass, merge
+the PR and run the release script from an up-to-date `main`; it checks the
+version and repository state before tagging.
 
 #### Stable release
 
-1. Choose the next stable version according to the versioning policy.
-2. Set `version` under `[project]` in [`pyproject.toml`](pyproject.toml) to that
-   version, using the `X.Y.Z` format (for example, `0.2.0`).
-3. In [`CHANGELOG.md`](CHANGELOG.md), replace `## [Unreleased]` with
-   `## [<version>] - YYYY-MM-DD`, keeping its entries and categories. Add a
-   fresh, empty `## [Unreleased]` section above the version heading.
-4. Create a short-lived branch with a compliant name, such as
-   `chore/prepare-release`. Run the normal checks, open a PR to `main`, and
-   merge it after review and CI pass.
-5. Update your local `main` and run the stable release script:
+1. **Prepare:** Choose the next `X.Y.Z` version, update `pyproject.toml`, and
+   move `Unreleased` entries under a dated version heading in `CHANGELOG.md`.
+   Add a fresh `Unreleased` section above it.
+2. **Merge:** Open a release-preparation PR to `main`; merge after review and CI
+   pass.
+3. **Tag:** Update local `main` and run:
 
    ```sh
    git switch main
@@ -197,22 +131,17 @@ checks the package version and repository state before creating the tag.
    ./scripts/tag/stable-release.sh
    ```
 
-6. After the release, open a follow-up PR to set `pyproject.toml` to the next
-   development version, such as `0.3.0.dev0`. Keep the fresh `Unreleased`
-   changelog section in place.
+4. **Resume development:** Open a follow-up PR to set the next development
+   version (for example, `0.3.0.dev0`). Keep the empty `Unreleased` section.
 
 #### Development release
 
-1. Choose the development version to publish, using the PEP 440 format
-   `X.Y.Z.devN` (for example, `0.3.0.dev1`). Increment `N` for every upload:
-   PyPI does not allow replacing an already published version.
-2. Set `version` under `[project]` in [`pyproject.toml`](pyproject.toml) to that
-   development version. Leave [`CHANGELOG.md`](CHANGELOG.md) entries under
-   `Unreleased`; do not create a dated heading for a development release.
-3. Create a short-lived branch with a compliant name, such as
-   `chore/prepare-development-release`. Run the normal checks, open a PR to
-   `main`, and merge it after review and CI pass.
-4. Update your local `main` and run the development release script:
+1. **Prepare:** Choose a PEP 440 `X.Y.Z.devN` version and increment `N` for each
+   upload (published PyPI versions cannot be replaced). Update `pyproject.toml`;
+   leave changelog entries under `Unreleased`.
+2. **Merge:** Open a release-preparation PR to `main`; merge after review and CI
+   pass.
+3. **Tag:** Update local `main` and run:
 
    ```sh
    git switch main
@@ -220,11 +149,9 @@ checks the package version and repository state before creating the tag.
    ./scripts/tag/dev-release.sh
    ```
 
-Pushing either tag triggers the release workflow to build and publish the
-package to PyPI and create a GitHub release. Stable releases require a dated
-changelog heading matching the package version; development releases do not.
-Merge release-workflow changes before tagging so the tagged commit includes
-them.
+Pushing either tag triggers the workflow to publish to PyPI and create a GitHub
+release. Stable tags require a matching dated changelog heading; development
+tags do not. Merge release-workflow changes before tagging.
 
 ## Commit and PR conventions
 
