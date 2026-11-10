@@ -11,7 +11,6 @@ import polars as pl
 from uptimely import engine as engine_module
 from uptimely import project
 from uptimely.cli import common
-from uptimely.project import build as project_build
 
 logger = logging.getLogger(__name__)
 DEFAULT_PREVIEW_ROWS = 5
@@ -73,7 +72,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         try:
             if args.build:
                 logger.info("Start building the project bundle")
-                bundle = project_build.build_project(root)
+                bundle = project.build(root)
                 logger.info("Build files created to %s", bundle.root)
             with project.read_build_bundle(root) as bundle:
                 settings = engine_module.Config.model_validate_json(

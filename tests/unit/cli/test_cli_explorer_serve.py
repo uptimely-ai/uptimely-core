@@ -89,7 +89,7 @@ def _get(app: ASGIApp, path: str) -> tuple[int, bytes, dict[str, str]]:
 def _saved_run(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> engine.Engine:
     source = tmp_path / "spec.json"
     spec.write_document(spec.Spec(), source)
-    bundle = project.build_project(tmp_path, json_spec=source)
+    bundle = project.build(tmp_path, json_spec=source)
     runtime = engine.Engine(bundle, engine.EngineConfig())
 
     def execute(**kwargs: object) -> engine.ExecutionResult:
@@ -210,14 +210,14 @@ def test_api_reads_snapshot_after_project_rebuild(tmp_path: pathlib.Path) -> Non
     spec_path = project_root / "spec.json"
     definition = spec.Spec(name="Before rebuild")
     spec.write_document(definition, spec_path)
-    project.build_project(project_root, json_spec=spec_path)
+    project.build(project_root, json_spec=spec_path)
     app = explorer_server.create_app(project_root)
 
     assert json.loads(_get(app, "/api/explorer")[1])["project"]["name"] == "Before rebuild"
 
     definition.name = "After rebuild"
     spec.write_document(definition, spec_path)
-    project.build_project(project_root, json_spec=spec_path)
+    project.build(project_root, json_spec=spec_path)
 
     assert json.loads(_get(app, "/api/explorer")[1])["project"]["name"] == "After rebuild"
 

@@ -48,7 +48,7 @@ def prepare_example_projects(examples_root: pathlib.Path) -> None:
             ignore=shutil.ignore_patterns("_generated", "__pycache__"),
             dirs_exist_ok=True,
         )
-        project_module.build_project(examples_root / "pump_analytics")
+        project_module.build(examples_root / "pump_analytics")
         ready.touch()
 
 
@@ -62,7 +62,7 @@ def _example_project(example: str, features: tuple[str, ...] | None) -> pathlib.
     root = pathlib.Path(tempfile.mkdtemp(prefix="scoped-example-", dir=EXAMPLES_ROOT.parent))
     target = root / example
     shutil.copytree(source, target, ignore=shutil.ignore_patterns("_generated", "__pycache__"))
-    project_module.build_project(
+    project_module.build(
         target,
         json_spec=source / project_module.BUILD_OUTPUT_DIR / "spec.json",
         features=features,

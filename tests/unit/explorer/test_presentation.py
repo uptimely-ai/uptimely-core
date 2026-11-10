@@ -193,7 +193,7 @@ def test_project_build_persists_source_origin(
     ].entrypoint = "source_provenance_fixture:calculate"
     monkeypatch.setattr(builder, "_load_spec_definition", lambda *args: pump_bundle.spec_definition)
 
-    project.build_project(tmp_path)
+    project.build(tmp_path)
 
     snapshot = json.loads((tmp_path / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert snapshot["catalogs"]["configuration"]["functions"]["ratio"]["source_origin"] == "project"
