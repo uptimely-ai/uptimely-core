@@ -3,7 +3,7 @@
 `uptimely.spec` loads, converts, validates, and writes Spec documents. The
 compiler turns a Spec into an execution plan.
 
-The [spec format reference](../architecture/spec.md) describes the
+The [spec format reference](../../architecture/spec.md) describes the
 contract. See [Python authoring](python.md) for declarations that produce it, or
 [feature graphs](feature-graph.md) for feature dependency analysis.
 

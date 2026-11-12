@@ -143,5 +143,5 @@ requires a newer plan version, rebuild the bundle from the source Spec.
 ## Learn more
 
 See the [Spec reference](spec.md) for declaration semantics and the
-[Python Compiler API](../python/compiler.md) for compilation and plan
+[Python Compiler API](../reference/python/compiler.md) for compilation and plan
 serialization details.

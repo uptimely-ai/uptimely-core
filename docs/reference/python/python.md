@@ -2,7 +2,7 @@
 
 Use `uptimely` to describe profiles, dimensions, features, and calculations.
 These declarations are converted to a Spec when you build a project. See the
-[project structure guide](../project-layout/project-structure.md) for a runnable
+[project structure guide](../../project-layout/project-structure.md) for a runnable
 example.
 
 ```python

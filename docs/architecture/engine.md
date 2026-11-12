@@ -119,6 +119,6 @@ project data.
 ## Learn more
 
 See the [Compiler and plan reference](compiler.md) for the execution-plan
-contract, the [Engine CLI reference](../cli/engine.md) for run options and
-artifacts, and the [Python Engine API](../python/engine.md) for programmatic
+contract, the [Engine CLI reference](../reference/cli/engine.md) for run options and
+artifacts, and the [Python Engine API](../reference/python/engine.md) for programmatic
 execution and result access.

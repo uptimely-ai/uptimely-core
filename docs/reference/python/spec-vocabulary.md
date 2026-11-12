@@ -19,7 +19,7 @@ profiles. The labels describe the work; they are not set on the function.
 | `vectorize` | Add calculated values to the existing profile dataframe. |
 
 For behavior and validation rules, see the
-[Spec format reference](../architecture/spec.md).
+[Spec format reference](../../architecture/spec.md).
 
 ::: uptimely.spec.operator_kinds
     options:

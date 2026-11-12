@@ -661,7 +661,7 @@ Compilation checks whether a Spec can produce a selected, schedulable plan.
 The engine checks runtime values and returned data, including whether declared
 feature types match actual columns. For the `validate_spec()` API and its
 ordered semantic checks, see the
-[Python validation reference](../python/spec/validation.md).
+[Python validation reference](../reference/python/spec/validation.md).
 
 The built-in engine currently accepts Polars `DataFrame` and `LazyFrame`
 values only. Other dataframe representations and custom adapters are not part

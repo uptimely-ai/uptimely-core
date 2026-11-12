@@ -72,7 +72,7 @@ may contain project data.
 
 ## Learn more
 
-See [MCP API](../mcp/index.md) for installation, VS Code and other client
+See [MCP API](../reference/mcp/index.md) for installation, VS Code and other client
 configuration, working-directory requirements, connection checks, example
 questions, and troubleshooting. Install the latest published MCP extra or use
 the repository setup for unreleased tools. The

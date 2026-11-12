@@ -12,5 +12,5 @@ build produces a `BuildBundle` containing the Spec and portable execution plan.
 services prepare and manage artifacts; they do not execute the analytics. The
 Engine runs a bundle separately.
 
-Use the [Python Project API](../python/project.md) for API details and the
-[project CLI reference](../cli/project.md) for build commands and options.
+Use the [Python Project API](../reference/python/project.md) for API details and the
+[project CLI reference](../reference/cli/project.md) for build commands and options.

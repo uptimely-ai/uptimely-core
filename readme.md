@@ -26,9 +26,9 @@ More business benefits at [uptimely.ai website](https://uptimely.ai).
 ## Documentation
 
 * [The full documentation site](https://uptimely-ai.github.io/uptimely-core/)
-* [Python API reference](https://uptimely-ai.github.io/uptimely-core/python/)
-* [CLI API reference](https://uptimely-ai.github.io/uptimely-core/cli/)
-* [MCP API and AI chat setup](https://uptimely-ai.github.io/uptimely-core/mcp/)
+* [Python API reference](https://uptimely-ai.github.io/uptimely-core/reference/python/)
+* [CLI API reference](https://uptimely-ai.github.io/uptimely-core/reference/cli/)
+* [MCP API and AI chat setup](https://uptimely-ai.github.io/uptimely-core/reference/mcp/)
 
 ## Install
 

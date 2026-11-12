@@ -4,7 +4,7 @@ The Explorer displays a project Spec and its execution plan. The functions
 below prepare and check the data used by the static Explorer. They do not build
 the project or run calculations.
 
-For user workflows, see the [Explorer guide](../architecture/explorer.md) and
+For user workflows, see the [Explorer guide](../../architecture/explorer.md) and
 [CLI reference](../cli/explorer.md).
 
 ::: uptimely.explorer.presentation

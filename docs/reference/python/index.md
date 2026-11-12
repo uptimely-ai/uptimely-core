@@ -22,5 +22,5 @@ Common classes are available from `uptimely`, including `Spec`, `Project`,
 
 For a complete example, see the
 [repository examples](https://github.com/uptimely-ai/uptimely-core/tree/main/examples).
-The [architecture overview](../architecture/index.md) explains how the
+The [architecture overview](../../architecture/index.md) explains how the
 packages work together.
