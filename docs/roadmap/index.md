@@ -1,33 +1,26 @@
 # Development roadmap
 
-Long term plans.
+Uptimely Core is evolving from batch-oriented analytics toward more reliable,
+extensible execution and easier exploration of analytical dependencies.
+Near-term work improves Explorer navigation and lineage views, then strengthens
+data adapters, validation, configuration, and execution planning.
 
+Longer term, the project aims to support freshness-aware and streaming
+workflows, portable isolated runtimes, and user-selected orchestrators. The
+first streaming engine will run bounded micro-batches and retain progress and
+analytical state across invocations, without running as a server. Separately,
+the execution engine can grow from single-process runs to segmented,
+parallel, and multi-node execution. Declarative specification and project
+tooling will continue to expand alongside these capabilities.
 
-## Streaming
+## Roadmap structure
 
-At the moment the framework is design for batch calculations.
+The [planned releases](backlog.md) group related work packages in dependency
+order. Each package lists its prerequisites, so unrelated work can proceed in
+parallel. High-priority packages appear first within those constraints, and
+independently scheduled extensions are identified separately.
 
-We are planning to add streaming abstraction by data cache, watermarks and freshness.
-
-
-## Support orchestrators
-
-The built-in engine currently runs the graph in one Python process.
-
-Plan isolated function runtimes under `runtimes/`, with implementations grouped
-by runtime and dependencies provisioned separately from the developer's Poetry
-environment. Inspect function contracts inside their owning runtimes and export
-immutable ZIP bundles containing source, plans, and locked requirements.
-
-Start with whole-graph jobs launched through a venv process or Docker. User-owned
-functions under `deployment/` can submit the same bundle locally, to Prefect, or
-to another orchestrator. Later, the compiler will identify execution segments
-with Arrow IPC boundaries, and the engine will become a driver for sequential,
-parallel, and multi-node worker execution.
-
-See the [backlog](backlog.md) for dependency-ordered work packages.
-
-
-## Extend the MCP support
-
-Add MCP support for each atomic analytical functions.
+Release groupings are planning labels, not software version numbers. Versions
+are assigned when software releases are published. A package's *breaking*
+column marks changes that require updates to specifications, projects,
+functions, or commands.
