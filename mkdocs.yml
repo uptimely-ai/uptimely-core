@@ -57,11 +57,11 @@ validation:
     unrecognized_links: warn
 
 nav:
-  - Home: index.md
-  - Getting started:
-      - "Pump analytics explorer": examples/pump_analytics/index.html
+  - Quick start: index.md
+  - Introduction:
       - The problem: overview/problem.md
-      - Spec infographic: overview/spec.md
+      - Concepts: overview/concepts.md
+      - Demo explorer: examples/pump_analytics/index.html
   - Architecture:
       - Overview: architecture/index.md
       - Project: architecture/project.md

@@ -1,37 +1,72 @@
-# Spec
+# Concepts
 
 The examples below use pump measurements to show how dimensions, resolutions,
-profiles, features, operators, and functions describe an analytical system.
+profiles, features, function contracts, and operators describe an analytical system.
 
-## Dimension and resolution
+## Grain
 
 <p class="cv-function-subtitle">Available observation keys and their levels</p>
 
+A **dimension** describes an observation axis, such as a machine or time. Its
+**resolutions** declare the available keys and form a hierarchy. Each resolution
+can name a coarser parent, so the root is the coarsest level and its children are
+finer. A profile's grain selects one resolution per dimension.
+
+P-01 is one key of the `machine` resolution. Pressure and flow are measured
+features, not dimensions.
+
 <div class="concepts-visual">
-  <div class="cv-dimension">
-    <div>
-      <p>A <strong>dimension</strong> describes an observation axis, such as a machine or time. Its <strong>resolutions</strong> declare available keys, such as pump ID or fleet ID.</p>
-      <p>P-01 is one pump resolution key. Pressure and flow are measured features, not dimensions.</p>
-    </div>
-    <div class="cv-pump">
-      <svg viewBox="0 0 240 200" role="img" aria-label="A pump with pressure and flow measurements">
-        <circle cx="120" cy="100" r="88" fill="none" stroke="#bdccdf" stroke-dasharray="3 8"/>
-        <path d="M24 105H73M164 105H218" fill="none" stroke="#6087b2" stroke-width="12"/>
-        <circle cx="120" cy="105" r="45" fill="#edf2f8" stroke="#6087b2" stroke-width="3"/>
-        <circle cx="120" cy="105" r="13" fill="#dff5ef" stroke="#14634f" stroke-width="3"/>
-        <path d="M120 76V92M133 105H149M120 118V134M91 105H107" fill="none" stroke="#14634f" stroke-width="3" stroke-linecap="round"/>
-        <path d="M86 148L78 171H162L154 148" fill="#eaf1fc" stroke="#6087b2" stroke-width="2"/>
-      </svg>
-      <div class="cv-sensor cv-sensor-pressure"><span>PRESSURE</span><strong>6 <small>bar</small></strong></div>
-      <div class="cv-sensor cv-sensor-flow"><span>FLOW</span><strong>12 <small>L/s</small></strong></div>
-      <span class="cv-pump-id">P-01 / 09:00</span>
-    </div>
+  <div class="cv-grain-hierarchies">
+    <section class="cv-grain-dimension" aria-label="Machine dimension">
+      <span class="cv-tag">DIMENSION / machine_dimension</span>
+      <ul class="cv-res-tree" aria-label="Resolution hierarchy">
+        <li>
+          <div class="cv-res-card"><strong>machine_category</strong><span>machine_category_id</span></div>
+          <ul class="cv-res-children">
+            <li>
+              <div class="cv-res-card"><strong>machine_series</strong><span>machine_series_id</span></div>
+              <ul class="cv-res-children">
+                <li><div class="cv-res-card cv-res-selected"><strong>machine</strong><span>pump_id / P-01</span></div></li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
+    <section class="cv-grain-dimension" aria-label="Time dimension">
+      <span class="cv-tag">DIMENSION / machine_timestamp</span>
+      <ul class="cv-res-tree" aria-label="Resolution hierarchy">
+        <li>
+          <div class="cv-res-card"><strong>day</strong><span>day</span></div>
+          <ul class="cv-res-children">
+            <li>
+              <div class="cv-res-card"><strong>hour</strong><span>hour</span></div>
+              <ul class="cv-res-children">
+                <li>
+                  <div class="cv-res-card"><strong>minute</strong><span>minute</span></div>
+                  <ul class="cv-res-children">
+                    <li><div class="cv-res-card cv-res-selected"><strong>timestamp</strong><span>timestamp / 09:00</span></div></li>
+                  </ul>
+                </li>
+              </ul>
+            </li>
+          </ul>
+        </li>
+      </ul>
+    </section>
   </div>
+  <p class="cv-detail">Highlighted resolutions form the grain of the telemetry profile below: one pump at one timestamp.</p>
 </div>
 
 ## Profile
 
 <p class="cv-function-subtitle">A selected grain and its available features</p>
+
+A profile is more than data. It is an analytical specification with three parts:
+
+- A **scope** that describes what the profile covers.
+- A set of **analytical operators** that produce and transform its features.
+- A **unique set of features**. Each feature belongs to exactly one profile and has exactly one producing operator.
 
 A profile selects one resolution per dimension in its ordered `grain`. This
 profile selects pump and timestamp keys for minute-by-minute observations.
@@ -68,31 +103,67 @@ Data might be stored physically in different way.
         </tbody>
       </table>
     </div>
-    <p class="cv-legend-title">Color key for all examples</p>
-    <dl class="cv-legend">
-      <div><dt><span class="cv-swatch cv-key" aria-hidden="true"></span>Blue</dt><dd><strong>Dimension keys</strong><span>pump + timestamp identify an observation, not a measured value.</span></dd></div>
-      <div><dt><span class="cv-swatch cv-teal" aria-hidden="true"></span>Teal</dt><dd><strong>Telemetry features</strong><span>pressure and flow are outputs of operator A.</span></dd></div>
-      <div><dt><span class="cv-swatch cv-violet" aria-hidden="true"></span>Violet</dt><dd><strong>Limit features</strong><span>limit is an output of operator B and keeps its color when aligned or expanded.</span></dd></div>
-      <div><dt><span class="cv-swatch cv-amber" aria-hidden="true"></span>Amber</dt><dd><strong>Calculated features</strong><span>ratio and max_pressure are produced by vectorize or collapse functions.</span></dd></div>
-    </dl>
-    <p class="cv-detail">Colors identify column roles throughout the page, not which cells changed. Headers and labels carry the same meaning without color. Neutral cells describe arguments or operations.</p>
+    <p class="cv-legend-title">Color key</p>
+    <ul class="cv-legend-row">
+      <li><span class="cv-swatch cv-key" aria-hidden="true"></span>Dimension keys</li>
+      <li><span class="cv-swatch cv-teal" aria-hidden="true"></span>Telemetry features</li>
+      <li><span class="cv-swatch cv-violet" aria-hidden="true"></span>Limit features</li>
+      <li><span class="cv-swatch cv-amber" aria-hidden="true"></span>Calculated features</li>
+    </ul>
   </div>
 </div>
 
 The combined profile dataframe is a conceptual view, not a requirement to store all
 intermediate columns in one physical table.
 
-## Functions
+## Function contracts
 
-A **function template** defines reusable code and argument types.
+A **function** is reusable code with typed arguments and a declared return
+contract. An operator uses a function in one of two binding roles. Each role
+accepts a fixed number of dataframe arguments and returns a dataframe or nothing.
 
-In the compact tables, `time` abbreviates `timestamp`. Pressure and limits are
-in bar; tables without a pump column still describe P-01. Column colors follow
-the profile legend above, including on both sides of each transformation.
+<div class="concepts-visual">
+  <div class="cv-contracts" role="group" aria-label="Function contracts by dataframe inputs and outputs">
+    <div class="cv-contract">
+      <span class="cv-tag">COMPUTE 0&#8594;1</span>
+      <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot cv-slot-empty">no input</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot">dataframe</span></div></div>
+      <p>Produces data from outside the spec, such as a source read.</p>
+    </div>
+    <div class="cv-contract">
+      <span class="cv-tag">COMPUTE 1&#8594;1</span>
+      <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot">dataframe</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot">dataframe</span></div></div>
+      <p>Transforms a dataframe into a new dataframe or fragment.</p>
+    </div>
+    <div class="cv-contract">
+      <span class="cv-tag">COMPUTE 1&#8594;0</span>
+      <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot">dataframe</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot cv-slot-empty">no output</span></div></div>
+      <p>Consumes a dataframe for a side effect, such as a write.</p>
+    </div>
+    <div class="cv-contract">
+      <span class="cv-tag">COMPUTE any&#8594;any</span>
+      <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot cv-slot-empty">any input</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot cv-slot-empty">ignored</span></div></div>
+      <p>Runs an opaque external workflow and ignores its result.</p>
+    </div>
+    <div class="cv-contract cv-contract-merge">
+      <span class="cv-tag">MERGE 2&#8594;1</span>
+      <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot">dataset</span><span class="cv-slot">fragment</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot">dataframe</span></div></div>
+      <p>Combines the current dataset with a staged fragment.</p>
+    </div>
+  </div>
+</div>
 
-### Read
+<div class="concepts-visual">
+  <div class="cv-label-note">
+    <span class="cv-label-badge"><small>inferred label</small>vectorize</span>
+    <p>Badges mark <strong>inferred operator labels</strong>. You never declare them. Uptimely derives each one from the operator's contract and grain, so the same function can get different labels in different operators.</p>
+  </div>
+</div>
 
-<p class="cv-function-subtitle">Bring observations in</p>
+### Compute 0→1
+
+<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>read</span></p>
+
+<p class="cv-function-subtitle">No input dataframe, brings data in from a source</p>
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -101,13 +172,21 @@ the profile legend above, including on both sides of each transformation.
       <div class="cv-arrow"><span>retrieve</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">OUTPUT / 3 observations</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-teal">pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-teal">6</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:01</td><td class="cv-teal">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:02</td><td class="cv-teal">4</td></tr></tbody></table></div>
     </div>
-    <p class="cv-takeaway"><strong>Boundary crossed: source to spec.</strong> The returned dataframe contains dimension keys and declared features.</p>
   </div>
 </div>
 
-### Vectorize
+### Compute 1→1
 
-<p class="cv-function-subtitle">Enrich the target frame, keep its existing data and row order</p>
+The function receives one dataframe and returns a dataframe. The result is
+either the complete target or a fragment that a merge combines with the current
+dataset. The target grain relative to the input produces the derived labels
+below.
+
+#### Vectorize
+
+<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>vectorize</span></p>
+
+<p class="cv-function-subtitle">Same profile as input, adds features and keeps rows</p>
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -116,13 +195,14 @@ the profile legend above, including on both sides of each transformation.
       <div class="cv-arrow"><span>divide</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">AFTER / one new feature</span><table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-amber">ratio</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-amber">0.75</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-amber">1.00</td></tr><tr><td class="cv-key">09:02</td><td class="cv-teal">4</td><td class="cv-amber">0.50</td></tr></tbody></table></div>
     </div>
-    <p class="cv-takeaway"><strong>Add declared outputs to the complete target frame.</strong> Existing columns, values, and row order are preserved; here, ratio = pressure / limit. The existing limit column is omitted from the after-view only for space.</p>
   </div>
 </div>
 
-### Conform
+#### Conform
 
-<p class="cv-function-subtitle">Align with the target profile grain</p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>conform</span></p>
+
+<p class="cv-function-subtitle">Keeps dimensions, aligns resolution</p>
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -131,13 +211,14 @@ the profile legend above, including on both sides of each transformation.
       <div class="cv-arrow"><span>align</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">TARGET / telemetry keys</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:01</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:02</td><td class="cv-violet">8</td></tr></tbody></table></div>
     </div>
-    <p class="cv-takeaway"><strong>The target scope is the contract.</strong> This example excludes an out-of-scope observation. The binding's implementation defines how alignment is performed.</p>
   </div>
 </div>
 
-### Expand
+#### Expand
 
-<p class="cv-function-subtitle">Broaden dimensional coverage</p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>expand</span></p>
+
+<p class="cv-function-subtitle">Adds dimensions to the input grain</p>
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -146,13 +227,14 @@ the profile legend above, including on both sides of each transformation.
       <div class="cv-arrow"><span>extend</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">TARGET FRAGMENT / pump + time</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:01</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:02</td><td class="cv-violet">8</td></tr></tbody></table></div>
     </div>
-    <p class="cv-takeaway"><strong>One observation becomes three in this example.</strong> Unlike conform's target-scope alignment, expand explicitly broadens dimensional coverage.</p>
   </div>
 </div>
 
-### Collapse
+#### Collapse
 
-<p class="cv-function-subtitle">Move from a source profile to a coarser target grain</p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>collapse</span></p>
+
+<p class="cv-function-subtitle">Collapses finer input grain to a coarser grain</p>
 
 `collapse` describes an operator whose source grain is finer than its target
 grain. Its compute implementation performs grouping and returns results at the
@@ -166,13 +248,19 @@ the callable.
       <div class="cv-arrow"><span>collapse</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">TARGET / pump grain</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-amber">max_pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-amber">8</td></tr></tbody></table><p class="cv-detail">One row summarizes the three moments.</p></div>
     </div>
-    <p class="cv-takeaway">Each collapse function binding produces one feature per group. The engine evaluates multiple bindings together to calculate multiple summary features.</p>
   </div>
 </div>
 
-### Write
+### Compute 1→0
 
-<p class="cv-function-subtitle">Deliver or evaluate results</p>
+The function receives one dataframe and returns nothing, so it declares no
+materialized features.
+
+#### Write
+
+<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>write</span></p>
+
+<p class="cv-function-subtitle">Takes the input dataframe and returns nothing</p>
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -181,17 +269,21 @@ the callable.
       <div class="cv-arrow"><span>deliver</span><b aria-hidden="true">&#8594;</b></div>
       <div class="cv-endpoint"><span class="cv-endpoint-icon" aria-hidden="true">&#8599;</span><strong>Your destination</strong><span>Persist to a database or file.<br/>Print a report.<br/>Evaluate the results.</span></div>
     </div>
-    <p class="cv-takeaway"><strong>Boundary crossed: spec to use.</strong> Keep external I/O in read and write functions, not analytical transformations.</p>
   </div>
 </div>
 
-### Escape
+### Compute any→any
 
-<p class="cv-function-subtitle">Run one opaque external workflow</p>
+The function accepts any arguments and its result is ignored (`returns="any"`). Declared features act as logical dependencies and are not materialized as dataframe columns.
 
-Use `returns="any"` when an external workflow's result must be ignored. This
-derives an `escape` operator label. Prefer explicit dataframe dataflow and
-runtime checks when they fit the work.
+#### Escape
+
+<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>escape</span></p>
+
+<p class="cv-function-subtitle">Result is ignored, no dataframe output</p>
+
+Use `returns="any"` when an external workflow's result must be ignored. Prefer
+explicit dataframe dataflow and runtime checks when they fit the work.
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -200,10 +292,27 @@ runtime checks when they fit the work.
       <strong>External workflow</strong>
       <span>Read source <span aria-hidden="true">&rarr;</span> calculate <span aria-hidden="true">&rarr;</span> write result</span>
     </div>
-    <p class="cv-takeaway">Declared features track dependencies; outputs are not dataframe columns.</p>
   </div>
 </div>
 
+### Merge 2→1
+
+<p class="cv-function-subtitle">Combine the current dataset with a staged fragment</p>
+
+When an operator declares a merge, its compute step returns a fragment instead
+of the complete target. Fragment is data transformed to fit to target profiles,grain. The merge receives the current dataset, which is empty
+for the first operator, and that fragment. It returns the updated dataset.
+
+<div class="concepts-visual">
+  <div class="cv-operation">
+    <div class="cv-transform">
+      <div><span class="cv-tag">DATASET + FRAGMENT / two inputs</span><table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td></tr></tbody></table><table class="cv-table cv-stacked"><thead><tr><th class="cv-key">time</th><th class="cv-amber">ratio</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-amber">0.75</td></tr><tr><td class="cv-key">09:01</td><td class="cv-amber">1.00</td></tr></tbody></table></div>
+      <div class="cv-arrow"><span>merge</span><b aria-hidden="true">&#8594;</b></div>
+      <div><span class="cv-tag">DATASET / one output</span><table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-amber">ratio</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-amber">0.75</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-amber">1.00</td></tr></tbody></table></div>
+    </div>
+    <p class="cv-takeaway"><strong>Merge bindings take exactly two dataframes and return one.</strong> The builtin merge aligns the fragment to the dataset by grain.</p>
+  </div>
+</div>
 
 ## Operator
 
@@ -214,29 +323,33 @@ that function to concrete arguments. In this example, `divide` receives the
 current profile dataframe and feature identifiers, and returns `pressure_ratio`.
 
 <div class="concepts-visual">
-  <div class="cv-operation cv-mapping-flow" role="group" aria-label="Input dataframe, JSON operator, and output dataframe">
+  <div class="cv-operation cv-mapping-flow" role="group" aria-label="Input dataframe, Python operator, and output dataframe">
     <div class="cv-mapping-stage cv-mapping-inputs">
       <span class="cv-tag">INPUT DATAFRAME / declared features</span>
       <table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-violet">limit</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-violet">8</td></tr><tr><td class="cv-key">09:02</td><td class="cv-teal">4</td><td class="cv-violet">8</td></tr></tbody></table>
     </div>
     <div class="cv-mapping-arrow" aria-hidden="true">&#8595;</div>
     <div class="cv-mapping-stage cv-mapping-call">
-      <span class="cv-tag">MAPPING / JSON</span>
-      <pre class="cv-mapping-code"><code>{
-  <span class="cv-teal">"compute"</span>: {
-    <span class="cv-teal">"function"</span>: <span class="cv-amber">"divide"</span>,
-    <span class="cv-teal">"args"</span>: {
-      <span class="cv-teal">"dataset"</span>: <span>"$profiles.@.dataset"</span>,
-      <span class="cv-teal">"numerator"</span>: <span class="cv-teal">"$features.pressure.id"</span>,
-      <span class="cv-teal">"denominator"</span>: <span class="cv-violet">"$features.limit.id"</span>,
-      <span class="cv-teal">"output"</span>: <span class="cv-amber">"$features.pressure_ratio.id"</span>
-    }
-  },
-  <span class="cv-violet">"interface"</span>: {
-    <span class="cv-teal">"inputs"</span>: [<span class="cv-teal">"$features.pressure"</span>, <span class="cv-violet">"$features.limit"</span>],
-    <span class="cv-teal">"outputs"</span>: [<span class="cv-amber">"$features.pressure_ratio"</span>]
-  }
-}</code></pre>
+      <span class="cv-tag">OPERATOR / PYTHON</span>
+      <pre class="cv-mapping-code"><code>up.Operator(
+    id=<span class="cv-amber">"pressure_ratio"</span>,
+    <span class="cv-violet">interface</span>=up.Interface(
+        <span class="cv-teal">inputs</span>=[
+            up.ref.feature(<span class="cv-teal">"pressure"</span>),
+            up.ref.feature(<span class="cv-violet">"limit"</span>),
+        ],
+        <span class="cv-teal">outputs</span>=[up.Feature(id=<span class="cv-amber">"pressure_ratio"</span>)],
+    ),
+    <span class="cv-teal">compute</span>=up.Binding(
+        <span class="cv-teal">function</span>=<span class="cv-amber">divide</span>,
+        <span class="cv-teal">arguments</span>={
+            <span class="cv-teal">"dataset"</span>: up.ref.dataset(),
+            <span class="cv-teal">"numerator"</span>: up.ref.feature(<span class="cv-teal">"pressure"</span>).id,
+            <span class="cv-teal">"denominator"</span>: up.ref.feature(<span class="cv-violet">"limit"</span>).id,
+            <span class="cv-teal">"output"</span>: up.ref.feature(<span class="cv-amber">"pressure_ratio"</span>).id,
+        },
+    ),
+)</code></pre>
     </div>
     <div class="cv-mapping-arrow" aria-hidden="true">&#8595;</div>
     <div class="cv-mapping-stage cv-mapping-outputs">

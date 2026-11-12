@@ -6,7 +6,7 @@ description: "Design or author Uptimely analytics Specs and Python definitions. 
 # Analytics Spec design
 
 Use this workflow to translate analytical requirements into an Uptimely
-definition. Consult the [Spec guide](../../../docs/overview/spec.md), the
+definition. Consult the [Concepts guide](../../../docs/overview/concepts.md), the
 [project structure guide](../../../docs/project-layout/project-structure.md),
 and [pump analytics example](../../../examples/pump_analytics/README.md).
 
