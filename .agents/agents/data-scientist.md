@@ -10,7 +10,7 @@ Make sure the example functions and approaches are state of the art data science
 
 ## Approach
 
-1. Read the root [`AGENTS.md`](../../AGENTS.md), the Spec guide,
+1. Read the root [`AGENTS.md`](../../AGENTS.md), the Concepts guide,
    project-structure guide, and relevant runnable examples.
 2. Clarify the observation grain, dimension keys, feature meanings and units,
    input coverage, null behavior, and expected outputs.
