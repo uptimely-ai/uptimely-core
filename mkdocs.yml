@@ -60,17 +60,15 @@ nav:
   - Getting started:
       - "Pump analytics explorer": examples/pump_analytics/index.html
       - The problem: overview/problem.md
-      - Architecture: overview/architecture.md
       - Spec infographic: overview/spec.md
-  - Components:
-      - About: components/index.md
-      - Spec: components/spec.md
-      - Compiler: components/compiler.md
-      - Engine: components/engine.md
-  - Tools:
-      - Overview: tools/index.md
-      - Explorer: tools/explorer.md
-      - AI agents: tools/ai.md
+  - Architecture:
+      - Overview: architecture/index.md
+      - Project: architecture/project.md
+      - Spec: architecture/spec.md
+      - Compiler: architecture/compiler.md
+      - Engine: architecture/engine.md
+      - Explorer: architecture/explorer.md
+      - AI agents: architecture/ai.md
   - Data science:
       - Data Modeling: data-science/data-modeling.md
       - Comparison to SQL: data-science/comparison-to-sql.md

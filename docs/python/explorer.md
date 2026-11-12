@@ -3,8 +3,8 @@
 The Explorer uses a versioned JSON presentation model and a packaged static
 frontend. Build projects with `uptimely project build`, preview them with
 `uptimely explore`, and export the frontend and snapshot with
-`uptimely explorer export`. See the [Explorer guide](../tools/explorer.md) for
-the CLI workflow.
+`uptimely explorer export`. See the [Explorer page](../architecture/explorer.md)
+for the workflow and [CLI reference](../cli/explorer.md) for command options.
 
 <div class="api-reference" markdown="1">
 

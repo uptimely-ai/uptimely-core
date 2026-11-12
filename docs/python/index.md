@@ -28,7 +28,7 @@ and return values generated from the Python source.
 ## Finding the right interface
 
 - **Author a spec definition:** start with [Python authoring](python.md)
-  or the [spec format reference](../components/spec.md).
+  or the [spec format reference](../architecture/spec.md).
 - **Load or prepare a definition:** use the
   [spec operations](spec/api.md).
 - **Compile and run it:** use the [compiler](compiler.md), then the
@@ -47,7 +47,7 @@ internals are also outside its scope.
 
 For a runnable workflow, see the
 [repository examples](https://github.com/uptimely-ai/uptimely-core/tree/main/examples).
-The [architecture overview](../overview/architecture.md) explains how the
+The [architecture overview](../architecture/index.md) explains how the
 packages fit together.
 
 </div>

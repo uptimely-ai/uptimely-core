@@ -48,6 +48,8 @@ Before making project-wide changes, consult the relevant guides:
 - Keep documentation focused on user needs; avoid repeating details already
   expressed by scripts or configuration.
 - Keep project root readme.md docs/index.md synced
+- Keep explorer docs minimal, users can easily see what's available
+- Docs architecture section should not have code examples
 - Do not use semicolons ;
 - Do not use word canonical
 

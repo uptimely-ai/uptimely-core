@@ -231,7 +231,7 @@ supply; the engine left-joins such a fragment onto the accumulated profile frame
 the keys it carries, broadcasting a dimensionless fragment to every
 observation. See the runnable
 [dimensional operations example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/dimensional_operations)
-and [engine fragment contract](../components/engine.md#fragments).
+and [engine fragment contract](../architecture/engine.md#datasets-and-fragments).
 
 `vectorize` functions instead receive the accumulated dataset dataframe and
 return that complete dataframe enriched with their declared outputs. They must
@@ -339,7 +339,7 @@ Python profiles expose declarations through `Profile.assembly`; canonical
 documents and exported JSON use the same `assembly` key.
 The current JSON contract is spec version 8. JSON profiles use an `assembly`
 mapping whose operators declare `compute`, optionally `merge`, and `interface`;
-see the [binding contracts](../components/spec.md#binding-roles-and-derived-operator-labels).
+see the [binding contracts](../architecture/spec.md#binding-roles-and-derived-operator-labels).
 
 <div class="api-reference" markdown="1">
 

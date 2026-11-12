@@ -84,6 +84,9 @@
 .av-result { border-color: #f0d391; background: #fff0cf; }
 .av-result .av-node-label { color: #80500b; }
 .av-legend { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.av-legend > div { display: grid; grid-template-columns: 16px minmax(0, 1fr); align-items: start; gap: 0 10px; }
+.av-legend dt { grid-column: 1; grid-row: 1; padding-top: 2px; }
+.concepts-visual .av-legend dd { grid-column: 2; grid-row: 1; margin: 0; }
 .av-swatch-authoring { background: #f3f6fa; color: #52647b; }
 .av-connector { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; min-width: 72px; color: #6087b2; }
 .av-connector span { font-size: 10px; font-weight: 650; }
