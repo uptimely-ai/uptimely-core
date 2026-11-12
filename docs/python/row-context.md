@@ -1,8 +1,8 @@
 # Row context
 
-`uptimely.spec.row_context` defines the runtime row-window values passed to analytical
-functions. Python declarations for requesting those windows live in
-[uptimely.spec.python.row_context](python.md#row_context).
+`RowContext` describes which nearby rows a calculation needs. Use it when a
+function depends on earlier, later, or all rows in a profile. Python helpers
+for declaring these needs are listed in [Python authoring](python.md).
 
 <div class="api-reference" markdown="1">
 
@@ -10,8 +10,6 @@ functions. Python declarations for requesting those windows live in
 
 Import `RowContext`, `ContextExtent`, and `UNBOUNDED` from
 `uptimely.spec.row_context`.
-The Python authoring module provides binding helpers, not aliases of these
-runtime types and constants.
 
 Use a bare integer as row-count shorthand, and reference a declared direction
 from the compute arguments when the function also needs that value:
@@ -31,10 +29,8 @@ up.Operator(
 )
 ```
 
-`ref.row_context("before")` and `ref.row_context("after")` resolve to the
-scalar extent: a row or step count, a duration string, or `"unbounded"`.
-An empty direction resolves to `0`. `ref.row_context("dimension")` resolves
-the declared dimension ID and raises an error if no dimension is declared.
+`ref.row_context("before")` and `ref.row_context("after")` pass the requested
+extent to the function. `ref.row_context("dimension")` passes the dimension ID.
 
 ::: uptimely.spec.row_context
     options:

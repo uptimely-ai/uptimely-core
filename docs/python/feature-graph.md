@@ -1,40 +1,20 @@
 # Feature graphs
 
-`uptimely.spec.feature_graph` represents dependencies between features and
-operators and supports subgraph selection. The Explorer visualizes those
-relationships in **Lineage**, distinct from **Topology** (invocation dependencies)
-and **Animation** (the execution walkthrough).
+`FeatureGraph` shows how features depend on one another in a Spec. Use
+`FeatureSubGraph` to inspect a selected part of the graph. The Explorer
+visualizes these relationships.
 
-<div class="api-reference" markdown="1">
-
-## feature_graph
-
-`uptimely.spec.feature_graph.feature_graph` exposes the complete feature
-dependency graph and feature subgraphs.
-Both expose `feature_nodes`, a live, ordered view of their feature metadata.
-
-`FeatureGraph(spec_definition)` validates Spec semantics by default. Use
-`FeatureGraph(spec_definition, validate=False)` only when the Spec has already
-been validated and has not changed.
+Creating a graph validates the Spec by default. Use `validate=False` only if
+the Spec has already been validated and has not changed.
 
 ::: uptimely.spec.feature_graph.feature_graph
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
       members: [FeatureGraphBase, FeatureGraph, FeatureSubGraph, FeatureGraphNodeMeta]
 
-`Node` is the graph library's node type, re-exported from
-`uptimely.spec.feature_graph`. `FeatureGraphNodeMeta` describes the feature or operator metadata carried by a node.
-
-## models
-
-`uptimely.spec.feature_graph.models` defines the metadata attached to
-feature and operator nodes.
-
 ::: uptimely.spec.feature_graph.models
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
       members: [FeatureNode, OperatorNode]
-
-</div>
