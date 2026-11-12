@@ -275,7 +275,7 @@ configuration. The former `validate_lazy_frames` option has been removed.
 Direct backend value queries execute lazy frames when needed. Expensive content
 checks run only when validation is enabled; basic fragment and vectorize
 structure checks still run during normal execution.
-See [runtime validation](../components/engine.md#runtime-validation) for details.
+See [runtime validation](../architecture/engine.md#runtime-validation) for details.
 
 ::: uptimely.engine.dataframe.backend
     options:

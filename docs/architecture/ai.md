@@ -96,7 +96,7 @@ The server loads backend settings and required scalar values from `--config`,
 which defaults to `config/config.json` under the project root. It does not
 select an environment or merge configuration files. Only `$params.<name>` references are
 substituted, not arbitrary spec fields. See the
-[parameter guide](../components/engine.md#global-parameters) for the file
+[parameter guide](engine.md#global-parameters) for the file
 structure and Python API usage.
 
 The server communicates over stdio and is normally launched by the MCP client,

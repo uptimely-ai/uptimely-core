@@ -519,7 +519,7 @@ the keys it carries. The engine validates required columns, types, and unique
 keys, then
 assembles same-profile fragments by key with a full outer join. Partial
 coverage is retained; duplicate keys and overlapping feature outputs are
-rejected. See the [engine fragment contract](engine.md#fragments) for runtime
+rejected. See the [engine fragment contract](engine.md#datasets-and-fragments) for runtime
 details.
 
 ### Merge bindings
