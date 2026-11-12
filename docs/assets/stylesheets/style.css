@@ -12,6 +12,11 @@
   padding: 1rem 1.25rem;
 }
 
+.md-typeset table:has(.dm-profile-selected) th:has(> .dm-profile-selected),
+.md-typeset table:has(.dm-profile-selected) td:has(> .dm-profile-selected) {
+  background-color: #e8f5e9;
+}
+
 .api-reference > h2 {
   margin-top: 2rem;
   padding: .65rem .8rem;

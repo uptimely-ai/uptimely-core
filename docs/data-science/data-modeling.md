@@ -1,10 +1,9 @@
 # Data Modeling and Uptimely
 
-Data models organize business data so people can understand and use it.
-Uptimely describes calculation-facing profiles and the features and
-dependencies that make up analytical workflows. These are complementary
-concerns: Uptimely can use data from different modeling approaches without
-requiring a one-to-one match between stored tables and analytical profiles.
+Data modeling gives data structure and meaning by defining what it represents,
+how its elements relate, and at what level of detail it is recorded.
+
+Let's first take a short recap on dimension modeling, and then see how Uptimely applies decades of best practices to the era of data science and AI.
 
 ## Dimensional modeling
 
@@ -13,8 +12,9 @@ dimensions. A fact table has a defined **grain**: what one row represents.
 For example, one row might represent one pump measurement at one timestamp.
 
 A dimensional model can cover an entire organization or a single business
-process. It describes the data and its organization; it does not prescribe
-how every calculation must be implemented. SQL is commonly used to query and
+process. It describes the data and its organization. But leaves open how data is calculated into those structures.
+
+SQL is commonly used to query and
 transform warehouse data, but it is not a requirement of dimensional
 modeling.
 
@@ -26,106 +26,100 @@ The same measurements can be represented in different table shapes. In a
 long-format table, each row records one measurement. Its grain is one machine,
 date, and measurement:
 
-| Machine | Machine Family | Date | Measurement | Value |
+| Machine | Machine Category | Date | Measurement | Value |
 |---|---|---|---|---:|
-| M001 | Family A | 2026-01-01 | Runtime | 20 |
-| M001 | Family A | 2026-01-01 | Energy | 150 |
-| M002 | Family A | 2026-01-01 | Runtime | 22 |
-| M002 | Family A | 2026-01-01 | Energy | 165 |
-| M101 | Family B | 2026-01-01 | Runtime | 18 |
-| M101 | Family B | 2026-01-01 | Energy | 130 |
+| M001 | Category A | 2026-01-01 | Runtime | 20 |
+| M001 | Category A | 2026-01-01 | Energy | 150 |
+| M002 | Category A | 2026-01-01 | Runtime | 22 |
+| M002 | Category A | 2026-01-01 | Energy | 165 |
+| M101 | Category B | 2026-01-01 | Runtime | 18 |
+| M101 | Category B | 2026-01-01 | Energy | 130 |
+| M101 | Category B | 2026-01-01 | Downtime | 52 |
 
 The same data can be represented in wide format, with one column per
 measurement. Here the grain is one machine and date:
 
-| Machine | Machine Family | Date | Runtime | Energy |
-|---|---|---|---:|---:|
-| M001 | Family A | 2026-01-01 | 20 | 150 |
-| M002 | Family A | 2026-01-01 | 22 | 165 |
-| M101 | Family B | 2026-01-01 | 18 | 130 |
+| Machine | Machine Category | Date | Runtime | Energy | Downtime |
+|---|---|---|---:|---:|---:|
+| M001 | Category A | 2026-01-01 | 20 | 150 | NULL |
+| M002 | Category A | 2026-01-01 | 22 | 165 | NULL |
+| M101 | Category B | 2026-01-01 | 18 | 130 | 52 |
 
-Each shape serves different storage and use needs. A wide, calculation-facing
-view can be selected or reshaped from dimensional tables; it does not have to
-be the warehouse's physical storage format.
+Each shape serves different storage and use needs.
 
-## Data Vault and Uptimely
+The advantage of long format is consistent schema and dense data population. Wide format on the other hand is better for calculations requiring multiple metrics from the same grain.
 
-Data Vault is a data-modeling approach for integrating and historizing
-enterprise data. It organizes information into Hubs, Links, and Satellites;
-Uptimely does not replace these structures or prescribe how data is stored.
-Instead, Uptimely can define analytical profiles and feature calculations
-that use data sourced from a Data Vault. The Vault's structures and Uptimely
-profiles serve different purposes and need not correspond one-to-one.
+## Uptimely profile describes analytical calculation model
 
-## Uptimely profiles describe analytical views
+Dataset such as industrial pump telemetry can have several
+analytical views. This is what Uptimely **profiles** are for: An analytical model whose dataset is has in specific grain.
 
-An asset or process, such as a pump or production line, can have several
-calculation-facing views. An Uptimely profile describes one such view: its
-selected dimensional grain and the features available at that grain. A project
-can define separate profiles for minute-level telemetry, daily summaries, or
-maintenance events.
+What often might be a fact table in dimensionaly modeled data warehouse, would be multiple profile datasets in Uptimely's model. You can think it as a subset or a view of a physical fact table.
 
-A profile is not necessarily a physical table. It can select rows and
-features from one fact table or combine data from several tables.
+You might have profile for pumps in category A:
 
-For example, warehouse telemetry for a factory could support minute-level
-measurements for a production line and hourly summaries for individual pumps.
-These profiles have different grains even if they draw on the
-same underlying warehouse tables.
+| Machine | Machine Category | Date | Runtime | Energy | Downtime |
+|---|---|---|---:|---:|---:|
+| <span class="dm-profile-selected">M001</span> | <span class="dm-profile-selected">Category A</span> | <span class="dm-profile-selected">2026-01-01</span> | <span class="dm-profile-selected">20</span> | <span class="dm-profile-selected">150</span> | NULL |
+| <span class="dm-profile-selected">M002</span> | <span class="dm-profile-selected">Category A</span>| <span class="dm-profile-selected">2026-01-01</span> | <span class="dm-profile-selected">22</span> | <span class="dm-profile-selected">165</span> | NULL |
+| M101 | Category B | 2026-01-01 | 18 | 130 | 52 |
 
-Uptimely processes features in a wide, calculation-facing form. For instance,
-the wide fact table above could supply a profile for Family A:
+And another profile for pumps in category B:
 
-| Machine | Date | Runtime | Energy | Downtime |
-|---|---|---:|---:|---:|
-| M001 | 2026-01-01 | 20 | 150 | 45 |
-| M002 | 2026-01-01 | 22 | 165 | 67 |
+| Machine | Machine Category | Date | Runtime | Energy | Downtime |
+|---|---|---|---:|---:|---:|
+| M001 | Category A | 2026-01-01 | 20 | 150 | NULL |
+| M002 | Category A | 2026-01-01 | 22 | 165 | NULL |
+| <span class="dm-profile-selected">M101</span> | <span class="dm-profile-selected">Category B</span> | <span class="dm-profile-selected">2026-01-01</span> | <span class="dm-profile-selected">18</span> | <span class="dm-profile-selected">130</span> | <span class="dm-profile-selected">52</span> |
 
-It could also supply a Family B profile with a different set of features:
+They have same grain, but different row scope and feature set.
 
-| Machine | Date | Runtime | Energy |
-|---|---|---:|---:|
-| M101 | 2026-01-01 | 18 | 130 |
-
-The `Downtime` feature, for example, could be calculated rather than stored
-in the source fact table. A profile can also use a different grain from the
-physical tables that supply it.
+Uptimely profiles are more than data. They describe how the data was produced to the dataset by analytical **operators**.
 
 ## Organizing calculations by profile
 
-Features with the same name are not always calculated the same way in every
-profile. An industrial company might want to calculate operating modes or
-detect overheating for different kinds of machines. A request such as "raise
-an alarm for high temperature" names a business goal, but does not specify
-whether it uses an existing signal, a straightforward calculation, or a
-model.
+An industrial company might want to detect overheating for different kinds of machines.
 
-For example, `Energy` for one machine family might be a directly available
-measurement, while another family's value requires a specialized calculation.
+For example, `Energy` for one machine Category might be a directly available
+measurement, while another Category's value requires basic calculation, and a third one more specialized neural network.
+
 Putting all such behavior into one broad calculation can obscure differences
 in grain, machine behavior, and business rules.
 
-Uptimely describes each calculation in the profile where its inputs and
-behavior make sense. Profiles can share reusable functions when their
-implementations are genuinely common, while keeping different calculations
-distinct when their logic differs. This makes the analytical organization
-explicit without requiring the source data model to encode every
-calculation-specific variation.
+This creates a conflict between analytical requirements and how dimensional modeling works.
 
-## How the two approaches fit together
+Dimensional modeling is designed for data storage.
+It mostly expects that `overheating_alarm` is always calculated with same logic.
+But that is not how the world works.
 
-A data model explains how source data is organized. An Uptimely specification
-describes the calculation-facing profiles and features built from that data.
-For example, one dimensional fact table can support multiple profiles, and
-one profile can combine multiple tables; neither needs a one-to-one
-correspondence.
+Because it does not consider the analytical subsets, the code starts to fall apart by hardcoding the exceptions:
 
-Uptimely's declared dimensions identify profile rows and can reflect keys in
-the source model. The framework can check that calculation results contain
-the expected dimension columns and types, have no duplicate dimension keys,
-and preserve input keys where required. These structural checks do not
-establish that a formula is analytically correct; domain review and result
-tests are still necessary.
+```txt
+if category = A
+    function_a()
+elif category = B
+    run_function_b()
+elif machine = 001
+    very_complex_override_logic()
+```
 
-For how SQL fits into the implementation and workflow around calculations,
-see [Comparison to SQL](comparison-to-sql.md).
+In SQL this would be even more unmanageable.
+
+The fact is that machine in category A might have different measurements than category B.
+
+Then you calculate `overheating_alarm_category_a` in category A profile and `overheating_alarm_category_b` in category B profile. And for outlier machines you might have `overheating_alarm_machine` in machine grained profile.
+
+This is manageable and mathematically correct. The decision whether you want all of them resolve logically to a single `overheating_alarm` feature is up to you.
+
+
+## Data Vault and Uptimely
+
+Data Vault and Uptimely address different problems. Data Vault structures
+enterprise data to integrate information from changing source systems and
+preserve its history. Uptimely defines and runs analytical calculations over
+data. It does not provide a Data Vault or replace a data-integration and
+storage architecture.
+
+They can be used in the same organization, but are not alternatives: a data
+platform may use Data Vault to manage source history and use Uptimely for
+calculations that serve operational or analytical needs.
