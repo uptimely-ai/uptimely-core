@@ -20,7 +20,7 @@ Add remote-native execution only for workflows that need it, after local
 contracts, configuration, tests and diagnostics are established.
 
 **Prerequisites:** Frame adapter contracts and conformance suites;
-Runtime configuration and scoped execution; Testing and CI/CD;
+Runtime configuration and scoped execution; Analytics CI/CD workflow;
 Execution reports and inspection for report export, not its Explorer view.
 
 | title | breaking | description |

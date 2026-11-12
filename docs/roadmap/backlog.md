@@ -23,3 +23,4 @@ These release groupings do not assign software version numbers. Versions are ass
 - [Release 14: Live pump demo, Spec editing, and MCP chat](release-14-live-demo-mcp.md)
   includes [pump demo hosting and AI integration planning](pump-demo-deployment.md).
 - [Release 15: Explorer frontend and FastAPI package separation](release-15-explorer-packages.md)
+- [Release 16: Markdown and JSON test cases, reports, and Explorer test views](release-16-automated-testing.md)
