@@ -71,6 +71,7 @@ nav:
       - Explorer: architecture/explorer.md
       - AI agents: architecture/ai.md
   - Data science:
+      - Uptimely practices: data-science/uptimely-practices.md
       - Analytical functions: data-science/analytical-functions.md
       - Data Modeling: data-science/data-modeling.md
       - Comparison to SQL: data-science/comparison-to-sql.md
