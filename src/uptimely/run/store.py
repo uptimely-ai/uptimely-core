@@ -131,7 +131,12 @@ class RunStore:
         return preview
 
     def read_logs(
-        self, *, run_id: str | None = None, offset: int = 0, limit: int = 1000
+        self,
+        *,
+        run_id: str | None = None,
+        offset: int = 0,
+        limit: int = 1000,
+        level: str | None = None,
     ) -> list[models.LogEntry]:
         """Read a bounded page of validated JSONL events.
 
@@ -139,6 +144,7 @@ class RunStore:
             run_id: Optional consistency token from a previously read manifest.
             offset: Nonnegative number of log entries to skip.
             limit: Maximum number of entries to return, between 1 and 1,000.
+            level: Optional exact log level. Pagination counts matching events.
 
         Returns:
             Events in emission order; an empty list after the end of the log.
@@ -151,13 +157,20 @@ class RunStore:
         """
         if offset < 0 or not 1 <= limit <= 1000:
             raise ValueError("Log offset must be nonnegative and limit must be between 1 and 1000")
+        if level is not None and level not in {"DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"}:
+            raise ValueError("Log level must be DEBUG, INFO, WARNING, ERROR, or CRITICAL")
         manifest = self._manifest(run_id)
         with self._artifact(manifest.log_path).open(encoding="utf-8") as stream:
             entries: list[models.LogEntry] = []
-            for index, line in enumerate(stream):
-                if index < offset:
+            matched = 0
+            for line in stream:
+                entry = models.LogEntry.model_validate_json(line)
+                if level is not None and entry.level != level:
                     continue
-                entries.append(models.LogEntry.model_validate_json(line))
+                matched += 1
+                if matched <= offset:
+                    continue
+                entries.append(entry)
                 if len(entries) == limit:
                     break
             return entries

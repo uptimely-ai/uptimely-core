@@ -235,8 +235,39 @@ def test_json_logs_are_scoped_paginated_and_capture_multiline_messages(
     assert [entry.message for entry in entries] == ["first\nsecond", "last"]
     assert entries[0].invocation_id == "step"
     assert saved.read_logs(offset=1, limit=1) == [entries[1]]
+    assert saved.read_logs(level="WARNING", limit=1) == [entries[1]]
+    assert saved.read_logs(level="WARNING", offset=1) == []
+    assert saved.read_logs(level="ERROR") == []
     assert logging.getLogger().handlers == before
     assert len((saved.root / "log.jsonl").read_text().splitlines()) == 2
+
+
+def test_filtered_log_pagination_counts_only_matching_events(
+    runtime: engine.Engine, monkeypatch: pytest.MonkeyPatch, caplog: pytest.LogCaptureFixture
+) -> None:
+    caplog.set_level(logging.INFO)
+    logger = logging.getLogger("test.run")
+
+    def execute(**kwargs: object) -> engine.ExecutionResult:
+        logger.info("one")
+        logger.warning("first warning")
+        logger.info("two")
+        logger.warning("second warning")
+        return _result()
+
+    monkeypatch.setattr(runtime, "_execute", execute)
+    runtime.run()
+
+    entries = store.RunStore(runtime.bundle.project_root).read_logs(
+        level="WARNING", offset=1, limit=1
+    )
+
+    assert [entry.message for entry in entries] == ["second warning"]
+
+
+def test_invalid_log_level_is_rejected(runtime: engine.Engine) -> None:
+    with pytest.raises(ValueError, match="Log level must be"):
+        store.RunStore(runtime.bundle.project_root).read_logs(level="invalid")
 
 
 def test_promotion_failure_restores_old_run_and_cleans_staging(

@@ -31,6 +31,7 @@ plugins:
 
 markdown_extensions:
   - admonition
+  - def_list
   - md_in_html
   - toc:
       toc_depth: 3
@@ -89,6 +90,9 @@ nav:
       - examples: cli/examples.md
       - explorer: cli/explorer.md
       - project: cli/project.md
+  - MCP API:
+      - Setup: mcp/index.md
+      - Tool reference: mcp/tools.md
   - Python API:
       - Overview: python/index.md
       - project: python/project.md

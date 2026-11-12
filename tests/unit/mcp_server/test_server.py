@@ -2,19 +2,25 @@
 
 import dataclasses
 import json
+import logging
 import pathlib
 import shlex
 import sys
 
 import pytest
+from examples.pump_analytics.functions import external_workflow
 from support import examples as example_support
 
 fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed")
 
 import fastmcp as fastmcp_  # noqa: E402
 
-from uptimely import compiler  # noqa: E402
+from uptimely import compiler, engine  # noqa: E402
+from uptimely import plan as plan_module  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
+from uptimely.mcp import state as mcp_state  # noqa: E402
+from uptimely.project import paths  # noqa: E402
+from uptimely.run import store as run_store  # noqa: E402
 from uptimely.spec import model as spec_model  # noqa: E402
 
 PROJECT_ROOT = example_support.EXAMPLES_ROOT / "pump_analytics"
@@ -22,11 +28,14 @@ CONFIG_PATH = example_support.EXAMPLES_ROOT / "pump_analytics" / "config" / "con
 
 
 @pytest.fixture()
-def state(example_projects: pathlib.Path) -> server.ServerState:
+def state(
+    tmp_path: pathlib.Path, example_project_factory: example_support.ProjectFactory
+) -> mcp_state.ServerState:
     """Provide server state bound to the pump analytics build."""
-    config = server._load_config(CONFIG_PATH, PROJECT_ROOT)
-    return server.ServerState(
-        project_root=PROJECT_ROOT,
+    root = example_project_factory(tmp_path / "pump_analytics")
+    config = mcp_state.ServerState.load_config(CONFIG_PATH, root)
+    return mcp_state.ServerState(
+        project_root=root,
         config=config,
     )
 
@@ -39,13 +48,13 @@ def test_load_config_defaults_to_project_config(tmp_path: pathlib.Path) -> None:
         encoding="utf-8",
     )
 
-    config = server._load_config(None, tmp_path)
+    config = mcp_state.ServerState.load_config(None, tmp_path)
 
     assert config.engine.backend.dataframe == "polars"
     assert config.params.root == {"threshold": 10}
 
 
-async def _call(state: server.ServerState, tool: str, arguments: dict | None = None) -> dict:
+async def _call(state: mcp_state.ServerState, tool: str, arguments: dict | None = None) -> dict:
     """Call one tool over the in-memory transport and decode its JSON payload."""
     async with fastmcp_.Client(server.create_server(state)) as client:
         result = await client.call_tool(tool, arguments or {})
@@ -53,7 +62,7 @@ async def _call(state: server.ServerState, tool: str, arguments: dict | None = N
 
 
 @pytest.mark.anyio
-async def test_lists_all_tools(state: server.ServerState) -> None:
+async def test_lists_all_tools(state: mcp_state.ServerState) -> None:
     """The server exposes the expected tool names."""
     async with fastmcp_.Client(server.create_server(state)) as client:
         tools = {tool.name for tool in await client.list_tools()}
@@ -65,12 +74,18 @@ async def test_lists_all_tools(state: server.ServerState) -> None:
         "describe_build",
         "execute_build",
         "reload_build",
+        "describe_spec",
+        "list_operators",
+        "execute_operator",
+        "execute_function",
+        "describe_last_run",
+        "read_last_run_logs",
     } <= tools
     assert not {"compile_plan", "execute_feature", "reload_spec"} & tools
 
 
 @pytest.mark.anyio
-async def test_list_functions_returns_callable_contracts(state: server.ServerState) -> None:
+async def test_list_functions_returns_callable_contracts(state: mcp_state.ServerState) -> None:
     """list_functions returns each function id, category, and return contract."""
     payload = await _call(state, "list_functions")
     assert {
@@ -82,7 +97,7 @@ async def test_list_functions_returns_callable_contracts(state: server.ServerSta
 
 
 @pytest.mark.anyio
-async def test_describe_function_resolves_signature(state: server.ServerState) -> None:
+async def test_describe_function_resolves_signature(state: mcp_state.ServerState) -> None:
     """describe_function returns declared args and the resolved Python signature."""
     payload = await _call(state, "describe_function", {"function_id": "pump_health_score"})
     assert payload["category"] == "calculate"
@@ -107,7 +122,7 @@ async def test_describe_function_resolves_signature(state: server.ServerState) -
 
 @pytest.mark.anyio
 async def test_describe_function_skips_disabled_signature_without_importing_parent(
-    state: server.ServerState,
+    state: mcp_state.ServerState,
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
@@ -126,12 +141,12 @@ async def test_describe_function_skips_disabled_signature_without_importing_pare
     )
     monkeypatch.syspath_prepend(str(tmp_path))
 
-    snapshot = state.load_snapshot()
-    definition = snapshot.spec.model_copy(deep=True)
+    bundle = state.load_bundle()
+    definition = bundle.spec_definition.model_copy(deep=True)
     function = definition.functions["pump_health_score"]
     function.entrypoint = "mcp_signature_validation_fixture.calculation:calculate"
     function.validate_signature = False
-    state.snapshot = dataclasses.replace(snapshot, spec=definition)
+    state.bundle = dataclasses.replace(bundle, spec_definition=definition)
 
     described = await _call(state, "describe_function", {"function_id": function.id})
 
@@ -145,10 +160,10 @@ async def test_describe_function_skips_disabled_signature_without_importing_pare
 
 @pytest.mark.anyio
 async def test_describe_function_reports_bindings_and_derived_operator_usage(
-    state: server.ServerState,
+    state: mcp_state.ServerState,
 ) -> None:
-    snapshot = state.load_snapshot()
-    definition = snapshot.spec.model_copy(deep=True)
+    bundle = state.load_bundle()
+    definition = bundle.spec_definition.model_copy(deep=True)
     definition.functions.root["external_audit"] = spec_model.FunctionTemplate(
         id="external_audit",
         returns="any",
@@ -163,8 +178,8 @@ async def test_describe_function_reports_bindings_and_derived_operator_usage(
             outputs=[],
         ),
     )
-    state.snapshot = dataclasses.replace(
-        snapshot, spec=spec_model.Spec.model_validate(definition.model_dump())
+    state.bundle = dataclasses.replace(
+        bundle, spec_definition=spec_model.Spec.model_validate(definition.model_dump())
     )
 
     listing = await _call(state, "list_functions")
@@ -189,7 +204,7 @@ async def test_describe_function_reports_bindings_and_derived_operator_usage(
 
 @pytest.mark.anyio
 async def test_describe_function_rejects_unknown_ids(
-    state: server.ServerState,
+    state: mcp_state.ServerState,
 ) -> None:
     """describe_function fails with a clear error for unknown functions."""
     async with fastmcp_.Client(server.create_server(state)) as client:
@@ -198,7 +213,7 @@ async def test_describe_function_rejects_unknown_ids(
 
 
 @pytest.mark.anyio
-async def test_list_calculated_features(state: server.ServerState) -> None:
+async def test_list_calculated_features(state: mcp_state.ServerState) -> None:
     """list_calculated_features returns sorted calculated feature ids."""
     payload = await _call(state, "list_calculated_features")
     assert payload == [
@@ -219,7 +234,7 @@ async def test_list_calculated_features(state: server.ServerState) -> None:
 
 @pytest.mark.anyio
 async def test_describe_feature_reports_dependencies(
-    state: server.ServerState,
+    state: mcp_state.ServerState,
 ) -> None:
     """describe_feature reports direct, transitive, and input dependencies."""
     payload = await _call(state, "describe_feature", {"feature_id": "pump_health_score"})
@@ -237,7 +252,7 @@ async def test_describe_feature_reports_dependencies(
 
 @pytest.mark.anyio
 async def test_describe_feature_rejects_unknown_feature(
-    state: server.ServerState,
+    state: mcp_state.ServerState,
 ) -> None:
     """describe_feature fails with a clear error for unknown features."""
     async with fastmcp_.Client(server.create_server(state)) as client:
@@ -246,7 +261,7 @@ async def test_describe_feature_rejects_unknown_feature(
 
 
 @pytest.mark.anyio
-async def test_describe_build_reports_saved_scope(state: server.ServerState) -> None:
+async def test_describe_build_reports_saved_scope(state: mcp_state.ServerState) -> None:
     """describe_build reports the scope declared by the validated bundle."""
     payload = await _call(state, "describe_build")
     assert payload["scope"] == "all features"
@@ -256,7 +271,7 @@ async def test_describe_build_reports_saved_scope(state: server.ServerState) -> 
 
 @pytest.mark.anyio
 async def test_execute_build_runs_the_saved_plan_without_compiling(
-    state: server.ServerState,
+    state: mcp_state.ServerState,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """execute_build runs saved outputs and does not compile a new build."""
@@ -284,7 +299,7 @@ async def test_execute_build_runs_the_saved_plan_without_compiling(
 
 @pytest.mark.anyio
 async def test_execute_build_rejects_nonpositive_row_limit(
-    state: server.ServerState,
+    state: mcp_state.ServerState,
 ) -> None:
     """execute_build rejects limits that cannot produce a useful row response."""
     async with fastmcp_.Client(server.create_server(state)) as client:
@@ -293,7 +308,7 @@ async def test_execute_build_rejects_nonpositive_row_limit(
 
 
 @pytest.mark.anyio
-async def test_reload_build(state: server.ServerState) -> None:
+async def test_reload_build(state: mcp_state.ServerState) -> None:
     """reload_build refreshes the bundle, source model, and recorded scope."""
     payload = await _call(state, "reload_build")
     assert payload["scope"] == "all features"
@@ -315,7 +330,7 @@ async def test_reload_build(state: server.ServerState) -> None:
 async def test_missing_build_fails_with_recovery_command(tmp_path: pathlib.Path) -> None:
     """MCP reports missing saved builds explicitly instead of loading source files."""
     project_root = tmp_path / "missing project"
-    state = server.ServerState(project_root=project_root)
+    state = mcp_state.ServerState(project_root=project_root)
 
     with pytest.raises(Exception, match="uptimely project build") as error:
         await _call(state, "list_functions")
@@ -331,3 +346,287 @@ def test_mcp_cli_rejects_spec_path(monkeypatch: pytest.MonkeyPatch) -> None:
         server.main()
 
     assert error.value.code == 2
+
+
+def test_bundle_caches_validated_spec(state: mcp_state.ServerState) -> None:
+    bundle = state.load_bundle()
+    assert state.load_bundle() is bundle
+    assert state.load_bundle(reload=True) is not bundle
+
+
+@pytest.mark.anyio
+async def test_describe_spec_counts_all_declarations(state: mcp_state.ServerState) -> None:
+    definition = state.load_bundle().spec_definition
+
+    payload = await _call(state, "describe_spec")
+
+    assert payload["features"] == sum(
+        len(profile.features) for profile in definition.profiles.values()
+    )
+    assert payload["calculated_features"] == len(definition.calculated_feature_producers)
+    assert payload["functions"] == len(definition.functions.root)
+    assert payload["operators"] == len(definition.operators)
+    assert payload["dimensions"] == len(definition.dimensions)
+    assert payload["profiles"]["pump_telemetry"]["features"] == len(
+        definition.profiles["pump_telemetry"].features
+    )
+
+
+@pytest.mark.anyio
+async def test_list_operators_reports_bindings_and_scope(state: mcp_state.ServerState) -> None:
+    payload = await _call(state, "list_operators")
+    operator = next(item for item in payload if item["operator"] == "pump_health_score")
+
+    assert operator == {
+        "profile": "pump_telemetry",
+        "operator": "pump_health_score",
+        "bindings": {"compute": "pump_health_score"},
+        "input_features": [
+            "bearing_temperature_delta",
+            "vibration_delta",
+            "pressure_flow_efficiency",
+        ],
+        "output_features": ["pump_health_score"],
+        "execution_form": "compute",
+        "declared_returns": "dataframe",
+        "in_saved_scope": True,
+    }
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("tool", ["execute_operator", "execute_function"])
+async def test_targeted_execution_returns_only_requested_outputs(
+    state: mcp_state.ServerState, monkeypatch: pytest.MonkeyPatch, tool: str
+) -> None:
+    monkeypatch.setattr(
+        compiler.Compiler,
+        "compile",
+        lambda *_args, **_kwargs: pytest.fail("MCP must not compile plans"),
+    )
+    bundle = state.load_bundle()
+    arguments = (
+        {"profile_id": "pump_telemetry", "operator_id": "pump_health_score"}
+        if tool == "execute_operator"
+        else {"function_id": "pump_health_score"}
+    )
+
+    payload = await _call(state, tool, {**arguments, "max_rows": 2})
+
+    assert payload["status"] == "ok"
+    assert payload["target"] == {"profile": "pump_telemetry", "operator": "pump_health_score"}
+    assert len(payload["datasets"]) == 1
+    dataset = payload["datasets"][0]
+    assert dataset["features"] == ["pump_health_score"]
+    assert dataset["row_count"] == 2
+    assert set(dataset["columns"]) == {
+        *bundle.spec_definition.identifiers_by_profile["pump_telemetry"],
+        "pump_health_score",
+    }
+    saved = run_store.RunStore(state.project_root).read_manifest()
+    selected = bundle.execution_plan.for_operator("pump_telemetry", "pump_health_score")
+    assert {
+        invocation_id
+        for invocation_id, outcome in saved.invocations.items()
+        if outcome.status == "succeeded"
+    } == set(selected.invocations_by_id)
+    assert all(
+        saved.invocations[invocation.id].status == "skipped"
+        for invocation in bundle.execution_plan.invocations
+        if invocation.is_sink
+    )
+    assert saved.preview_rows == 2
+    assert len(run_store.RunStore(state.project_root).read_preview("pump_telemetry").rows) == 2
+
+
+@pytest.mark.anyio
+async def test_execute_function_requires_unambiguous_usage(
+    state: mcp_state.ServerState,
+) -> None:
+    async with fastmcp_.Client(server.create_server(state)) as client:
+        with pytest.raises(Exception, match="Ambiguous function"):
+            await client.call_tool("execute_function", {"function_id": "aggregate"})
+
+    definition = state.load_bundle().spec_definition
+    profile_id, operator_id = definition.operators_by_function["aggregate"][0]
+    payload = await _call(
+        state,
+        "execute_function",
+        {
+            "function_id": "aggregate",
+            "profile_id": profile_id,
+            "operator_id": operator_id,
+            "max_rows": 1,
+        },
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["target"] == {"profile": profile_id, "operator": operator_id}
+    assert payload["datasets"][0]["row_count"] == 1
+
+
+@pytest.mark.anyio
+async def test_targeted_optimization_returns_structured_numerical_results(
+    state: mcp_state.ServerState,
+) -> None:
+    payload = await _call(
+        state,
+        "execute_function",
+        {"function_id": "operation_point_quantum_optimization", "max_rows": 1},
+    )
+
+    assert payload["status"] == "ok"
+    assert payload["datasets"][0]["features"] == ["operating_point_recommendation"]
+    row = payload["datasets"][0]["rows"][0]
+    assert row["pump_id"] == "PUMP-101"
+    assert row["timestamp"] == "2026-09-01T08:00:00+00:00"
+    assert row["operating_point_recommendation"] == {
+        "recommended_flow_rate": 118.0,
+        "recommended_discharge_pressure": 5.3,
+        "energy_cost_score": pytest.approx(17.9 / 118.0),
+        "converged": True,
+    }
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize(
+    ("tool", "arguments", "message"),
+    [
+        ("execute_function", {"function_id": "unknown"}, "Unknown function"),
+        (
+            "execute_function",
+            {"function_id": "pump_health_score", "profile_id": "unknown"},
+            "No matching operator usage",
+        ),
+        (
+            "execute_operator",
+            {"profile_id": "pump_telemetry", "operator_id": "unknown"},
+            "Unknown operator",
+        ),
+        (
+            "execute_operator",
+            {"profile_id": "pump_telemetry", "operator_id": "pump_health_score", "max_rows": 0},
+            "max_rows must be a positive integer",
+        ),
+    ],
+)
+async def test_targeted_execution_rejects_invalid_requests(
+    state: mcp_state.ServerState, tool: str, arguments: dict[str, object], message: str
+) -> None:
+    async with fastmcp_.Client(server.create_server(state)) as client:
+        with pytest.raises(Exception, match=message):
+            await client.call_tool(tool, arguments)
+
+
+@pytest.mark.anyio
+async def test_targeted_execution_rejects_operators_outside_saved_scope(
+    tmp_path: pathlib.Path, example_project_factory: example_support.ProjectFactory
+) -> None:
+    root = example_project_factory(tmp_path / "scoped", features=("pressure_flow_efficiency",))
+    state = mcp_state.ServerState(root)
+    listing = await _call(state, "list_operators")
+    assert not next(
+        item for item in listing if item["operator"] == "process_pump_external_workflow"
+    )["in_saved_scope"]
+    async with fastmcp_.Client(server.create_server(state)) as client:
+        with pytest.raises(Exception, match="not in the saved execution scope"):
+            await client.call_tool(
+                "execute_function", {"function_id": "process_pump_external_workflow"}
+            )
+
+    assert not (root / paths.RUN_OUTPUT_DIR).exists()
+
+
+@pytest.mark.anyio
+async def test_last_run_tools_read_external_execution_without_current_build(
+    state: mcp_state.ServerState, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    bundle = state.load_bundle()
+    runtime = engine.Engine(bundle, state.config)
+    original_execute = runtime._execute
+
+    def execute(
+        *, validate: bool, plan: plan_module.ExecutionPlan | None = None
+    ) -> engine.ExecutionResult:
+        logging.getLogger(__name__).warning("Source observations are delayed")
+        return original_execute(validate=validate, plan=plan)
+
+    monkeypatch.setattr(runtime, "_execute", execute)
+    runtime.run(operator=("pump_telemetry", "pressure_flow_efficiency"), preview_rows=1)
+    monkeypatch.setattr(
+        state, "load_bundle", lambda **kwargs: pytest.fail("Run tools must not load the build")
+    )
+
+    manifest = await _call(state, "describe_last_run")
+    logs = await _call(
+        state, "read_last_run_logs", {"level": "WARNING", "run_id": manifest["run_id"]}
+    )
+
+    assert manifest["status"] == "succeeded"
+    assert logs["run_id"] == manifest["run_id"]
+    assert [entry["message"] for entry in logs["entries"]] == ["Source observations are delayed"]
+    assert logs["next_offset"] == 1
+    assert (await _call(state, "read_last_run_logs", {"level": "WARNING", "offset": 1}))[
+        "entries"
+    ] == []
+
+
+@pytest.mark.anyio
+@pytest.mark.parametrize("tool", ["describe_last_run", "read_last_run_logs"])
+async def test_last_run_tools_report_missing_runs(tmp_path: pathlib.Path, tool: str) -> None:
+    state = mcp_state.ServerState(tmp_path)
+    async with fastmcp_.Client(server.create_server(state)) as client:
+        with pytest.raises(Exception, match="No saved run"):
+            await client.call_tool(tool)
+
+
+@pytest.mark.anyio
+async def test_last_run_logs_reject_stale_run_id(state: mcp_state.ServerState) -> None:
+    await _call(state, "execute_function", {"function_id": "pump_health_score", "max_rows": 1})
+    async with fastmcp_.Client(server.create_server(state)) as client:
+        with pytest.raises(Exception, match="latest run changed"):
+            await client.call_tool("read_last_run_logs", {"run_id": "old-run"})
+
+
+@pytest.mark.anyio
+async def test_targeted_execution_reports_failed_previews(
+    state: mcp_state.ServerState, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    original_run = engine.Engine.run
+
+    def run(
+        runtime: engine.Engine,
+        *,
+        operator: tuple[str, str] | None = None,
+        preview_rows: int = 50,
+        validate: bool = False,
+    ) -> engine.ExecutionResult:
+        result = original_run(
+            runtime, operator=operator, preview_rows=preview_rows, validate=validate
+        )
+        return dataclasses.replace(
+            result,
+            preview_frames={},
+            preview_failures={"pump_telemetry": "Cannot collect output"},
+        )
+
+    monkeypatch.setattr(engine.Engine, "run", run)
+    payload = await _call(state, "execute_function", {"function_id": "pump_health_score"})
+
+    assert payload["status"] == "failed"
+    assert payload["datasets"] == []
+    assert payload["preview_failures"] == {"pump_telemetry": "Cannot collect output"}
+
+
+@pytest.mark.anyio
+async def test_targeted_execution_does_not_fabricate_side_effect_only_results(
+    state: mcp_state.ServerState, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setattr(external_workflow, "process_pump_external_workflow", lambda: None)
+
+    payload = await _call(
+        state, "execute_function", {"function_id": "process_pump_external_workflow", "max_rows": 1}
+    )
+
+    assert payload["status"] == "failed"
+    assert payload["datasets"] == []
+    assert "ratio" in payload["output_failures"]["pump"]

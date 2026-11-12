@@ -20,3 +20,5 @@ These release groupings do not assign software version numbers. Versions are ass
 - [Release 11: Reusable profile filters and action-driven row scopes](release-11-executable-scopes.md)
 - [Release 12: Domain templates for specifications, configuration, and calculations](release-12-domain-templates.md)
 - [Release 13: Stateful micro-batch streaming with checkpoints and restart recovery](release-13-streaming-engine.md)
+- [Release 14: Live pump demo, Spec editing, and MCP chat](release-14-live-demo-mcp.md)
+  includes [pump demo hosting and AI integration planning](pump-demo-deployment.md).

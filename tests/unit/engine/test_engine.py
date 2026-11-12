@@ -21,6 +21,7 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.library.merge import polars as merge_module
 from uptimely.plan import serialization as plan_serialization
+from uptimely.run import store as run_store
 from uptimely.spec.python import assembly, dimension, profile, ref
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
@@ -72,6 +73,60 @@ def _patch_callables(monkeypatch: pytest.MonkeyPatch, callables: dict[str, objec
             return callables[self.location]
 
     monkeypatch.setattr(entrypoint_module, "Entrypoint", _TestEntrypoint)
+
+
+@pytest.mark.parametrize("operator_id", ["reading", "doubled"])
+def test_targeted_run_excludes_downstream_work_and_records_saved_identity(
+    monkeypatch: pytest.MonkeyPatch,
+    engine_for_plan: execution_support.EngineFactory,
+    operator_id: str,
+) -> None:
+    calls: list[str] = []
+
+    def read(source: str) -> pl.DataFrame:
+        calls.append("read")
+        return pl.DataFrame({"asset_id": ["A", "B"], "reading": [2, 3]})
+
+    def double(column: str, dataset: pl.DataFrame) -> pl.DataFrame:
+        calls.append("double")
+        return dataset.with_columns((pl.col(column) * 2).alias("doubled"))
+
+    def write(dataset: pl.DataFrame, features: list[str]) -> None:
+        pytest.fail("A targeted analytical request must not execute a downstream sink")
+
+    _patch_callables(monkeypatch, {"test:read": read, "test:double": double, "test:write": write})
+    runtime = engine_for_plan(_plan(), {"source": "/tmp/telemetry.parquet"})
+    original_plan = runtime.plan
+
+    result = runtime.run(operator=("telemetry", operator_id), preview_rows=1)
+
+    assert result.failures == {}
+    assert calls == (["read"] if operator_id == "reading" else ["read", "double"])
+    preview = result.preview_frames["telemetry"]
+    assert isinstance(preview, pl.DataFrame)
+    assert preview.height == 1
+    assert runtime.plan is original_plan
+    assert runtime.bundle.execution_plan is original_plan
+    selected = original_plan.for_operator("telemetry", operator_id)
+    for invocation in original_plan.invocations:
+        assert result.invocation_statuses[invocation.id] == (
+            "succeeded" if invocation.id in selected.invocations_by_id else "skipped"
+        )
+    manifest = run_store.RunStore(runtime.bundle.project_root).read_manifest()
+    assert manifest.status == "succeeded"
+    assert {
+        invocation_id: outcome.status for invocation_id, outcome in manifest.invocations.items()
+    } == result.invocation_statuses
+
+
+def test_targeted_run_rejects_missing_operator_without_replacing_last_run(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    runtime = engine_for_plan(_plan())
+    with pytest.raises(ValueError, match="not in the saved execution scope"):
+        runtime.run(operator=("unknown", "unknown"))
+    with pytest.raises(run_store.RunNotFoundError):
+        run_store.RunStore(runtime.bundle.project_root).read_manifest()
 
 
 @pytest.mark.parametrize("validate", [False, True])
