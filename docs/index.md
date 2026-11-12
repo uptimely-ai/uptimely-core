@@ -1,6 +1,8 @@
 # Uptimely Core
 
-Uptimely Core is an open source framework for managing interdependent data science calculations. It provides tooling for defining, validating, and running them.
+Uptimely Core is an open source framework for managing interdependent data science calculations.
+
+The ambition is to free data science teams from building internal tools to define, debug, validate and deploy their work, so they can focus on advanced analytics, mathematics, and modeling.
 
 The framework lets teams to build their analytics with pure Python functions. It is specialized to manage analytical pipelines whose calculations depend on one another either by calculated features or dimensional hierarchy.
 
@@ -89,7 +91,7 @@ Open <http://127.0.0.1:8001/> to view the Explorer.
 
 ## Python API
 
-The previous example was built by the [Python-authored example specification](examples/pump_analytics/). The specification describes profiles, grains, feature and operators. Functions remain pure Python.
+The previous example was built by the [Python-authored example specification](examples/pump_analytics/). The specification describes profiles, grains, features and operators. Functions remain pure Python.
 
 Here is even more simplified example.
 
@@ -160,7 +162,10 @@ python_spec = up.Spec(
 )
 ```
 
-Then create `run.py` in the project root and run it with `python run.py`.
+The specification can be exported to `json`, and it works as a standalone semantic layer for data science.
+Additionally Uptimely Core provides tooling to build portable execution plan and built-in engine to run and validate the workflow.
+
+Create `run.py` in the project root and run it with `python run.py`.
 The engine takes the built bundle, which contains the plan and its runtime
 context. This is alternative to the previous CLI example:
 
