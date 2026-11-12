@@ -1,80 +1,29 @@
 # Python entrypoints
 
-`uptimely.entrypoint` loads Python callables and inspects their annotated
-signatures. Entry points use `module.path:qualname` syntax and resolve through
-Python's import system. The module's package must be installed in the build and
-runtime environments; editable installs support local development. Uptimely
-does not install packages or add project paths to `sys.path`.
+An entrypoint identifies a function with `"module.path:function_name"`.
+Install the function's package in both the build and runtime environments.
+Uptimely checks the function signature during compilation and loads the function
+when the engine runs.
 
-The distribution name and version associated with each entrypoint are recorded
-as build provenance. The engine does not enforce that version. If the callable
-cannot be resolved or is incompatible, the error includes the recorded package
-metadata and the package metadata available at runtime. Ambiguous installed
-package namespaces are reported explicitly.
+```python
+from uptimely.entrypoint import Entrypoint
 
-Use `Entrypoint` to access the function and module. Resolve the named object
-with `entrypoint.resolve()`, or load it as a callable with
-`entrypoint.load()`; callable resolution errors include saved package provenance.
-Pass saved provenance to `Entrypoint(location, package=recorded_package)` and
-access it through `entrypoint.package`. The engine passes these entrypoint
-objects to the callable executor rather than passing package metadata separately.
-`entrypoint.function.load()` loads the callable and
-preserves the underlying Python exception. Create a `Function` from an existing
-callable with `Function.from_callable(callable)`, using its `__module__` and
-`__qualname__` without importing the module. Inspect annotations with
-`entrypoint.function.signature`. Module and function objects are reused within
-an entrypoint, and signatures are read once per `Function` instance. Use
-`Entrypoint.from_path(path, import_root, function_name)` to create an entrypoint
-from a Python source file's location beneath an import root. Use
-`Entrypoint.format(module_path, function_name)` to format validated components
-as an entrypoint string.
+function = Entrypoint("my_package.calculations:calculate").load()
+```
 
-Read `entrypoint.module.package` for a `PackageProvenance` value without importing
-the implementation. Package metadata is read once per `Module` instance.
-The value exposes `distribution` and `version`, along with `top_level_package`
-and `distribution_candidates`. `PackageProvenance.read(module_path)` also
-supports standalone metadata lookup.
-Use `package.to_dict()` to serialize the distribution name and version for a
-portable plan; lookup diagnostics are not included.
-
-The installed-package index is shared across lookups and refreshed when
-`sys.path` changes, avoiding a full environment scan for each entrypoint.
-After installing or removing distributions in a running process without changing
-`sys.path`, call `PackageProvenance.invalidate_cache()` before creating new
-module objects or compiling again. Existing `Module` instances retain their
-previously read provenance.
-
-Read `entrypoint.module.source_file` to get the loaded module's file path.
-Modules without a file raise `ValueError`.
-
-`entrypoint.read_source_origin(project_root)` resolves the callable and returns
-a `SourceOrigin` identifying project code, verified installed distribution
-code, or unknown ownership. It follows re-exports and decorated callables to
-their implementation. A missing project root or unverifiable source returns
-unknown; installed file ownership takes precedence over project containment.
-This is distinct from `read_package()`, which does not import the module.
-
-!!! warning "Only load trusted code"
-
-    Loading a callable, reading its signature or source origin, and accessing
-    `module.source_file` import and execute the referenced Python module if it is
-    not already loaded.
-
-<div class="api-reference" markdown="1">
-
-## entrypoint
+Loading an entrypoint imports and runs the referenced module. Only load code
+you trust. Use `PackageProvenance` to inspect installed package information
+without importing the function module.
 
 ::: uptimely.entrypoint
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
       members:
         - Entrypoint
-        - Module
         - Function
+        - Module
         - Signature
         - TypeAnnotation
         - PackageProvenance
         - SourceOrigin
-
-</div>

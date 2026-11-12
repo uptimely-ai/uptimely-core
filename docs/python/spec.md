@@ -1,8 +1,7 @@
 # Spec
 
-`uptimely.spec` owns declarative documents, loading, conversion, semantic
-validation, serialization, and feature dependency graph inspection. Executable
-invocations and execution plans belong to the compiler.
+`uptimely.spec` loads, converts, validates, and writes Spec documents. The
+compiler turns a Spec into an execution plan.
 
 The [spec format reference](../architecture/spec.md) describes the
 contract. See [Python authoring](python.md) for declarations that produce it, or
@@ -10,32 +9,21 @@ contract. See [Python authoring](python.md) for declarations that produce it, or
 
 <div class="api-reference" markdown="1">
 
-## Package map
+## Modules
 
 | Module or subpackage | Purpose |
 | --- | --- |
-| [api](spec/api.md) | Load and convert spec with semantic validation. |
-| [model](spec/model.md) | Define the spec document, profiles, bindings, and function metadata. |
-| [serialization](spec/serialization.md) | Write spec documents as JSON. |
-| [validation](spec/validation.md) | Check document relationships and inspect structured validation errors. |
-| [python](python.md) | Author spec using Python declarations. |
-| [feature_graph](feature-graph.md) | Inspect feature dependencies and select subgraphs. |
+| [api](spec/api.md) | Load a Spec or convert Python declarations. |
+| [model](spec/model.md) | Work with Spec document types. |
+| [serialization](spec/serialization.md) | Write a Spec as JSON. |
+| [validation](spec/validation.md) | Check a Spec and read validation errors. |
+| [Python authoring](python.md) | Declare profiles and calculations. |
+| [Feature graphs](feature-graph.md) | Inspect feature dependencies. |
 
 ## Working with spec
 
-1. Load a JSON document or convert Python declarations using
-   [api](spec/api.md).
-2. Work with the document types defined in [model](spec/model.md).
-3. Inspect feature dependencies using [feature graphs](feature-graph.md), or
-   pass the document to the [compiler](compiler.md) to create executable
-   invocations.
-4. Write the spec document using [serialization](spec/serialization.md). After editing a document
-   directly, call [validate_spec](spec/validation.md) to check its semantics again.
-
-Public convenience imports such as `uptimely.spec.Spec` and
-`uptimely.spec.load_spec` remain available. The reference pages
-document each interface in its defining module.
-Authoring declarations and reference helpers belong to `uptimely.spec.python`
-or the curated `uptimely` root API, not the document-model namespace.
+Load or convert a Spec with [api](spec/api.md), then pass it to the
+[compiler](compiler.md) to make an execution plan. The module-level helpers
+are also available as `uptimely.spec.load_spec` and `uptimely.spec.from_python`.
 
 </div>

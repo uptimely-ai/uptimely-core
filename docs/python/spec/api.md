@@ -1,20 +1,14 @@
 # Spec operations
 
-`uptimely.spec.api` provides the application-level operations for loading,
-and converting spec.
+`uptimely.spec.api` provides functions to load a Spec or convert Python
+declarations.
 
-Loading and Python conversion perform semantic validation directly on the
-[spec document](model.md). They do not create executable invocations or attach
-derived state. Compile the document when an execution plan is needed.
+Loading and conversion validate the Spec by default. Compile it when you need
+an execution plan.
 
-Both `load_spec(..., validate=False)` and `from_python(..., validate=False)`
-defer semantic validation. Document structure and Python declaration checks
-still run. Validation is enabled by default; only defer it when a later step,
-such as `Compiler.compile()`, validates the document before using it.
-
-`load_spec(..., log_structure=False)` suppresses structural validation debug
-messages without disabling any checks. Builds use this for saved-bundle rereads,
-so only the original source load emits the document-structure summary.
+Pass `validate=False` to `load_spec()` or `from_python()` to defer declaration
+checks. Document structure and Python declaration checks still run. Do this
+only when you will validate or compile the Spec before using it.
 
 ```python
 from uptimely import compiler, spec

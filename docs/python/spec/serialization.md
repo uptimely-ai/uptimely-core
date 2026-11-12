@@ -1,17 +1,14 @@
 # Spec serialization
 
-`uptimely.spec.serialization` reads and writes spec documents as JSON. Use
-[load_spec](api.md#uptimely.spec.api.load_spec) when loading a
-document that also needs semantic validation.
+`uptimely.spec.serialization` reads and writes Spec documents as JSON. Use
+[load_spec](api.md#uptimely.spec.api.load_spec) to also check the declarations.
 
 <div class="api-reference" markdown="1">
 
 ## serialization
 
-`uptimely.spec.serialization` reads JSON, converts document models to
-dictionaries, and writes spec documents. `load_document` reads document data;
-it does not perform the semantic validation provided by `load_spec`. The former
-`uptimely.spec.json.codec` path remains as a compatibility import.
+`load_document` reads JSON without checking that the declarations work
+together. `load_spec` performs those checks when it loads the document.
 
 ::: uptimely.spec.serialization
     options:

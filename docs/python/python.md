@@ -1,35 +1,13 @@
 # Python authoring
 
-Use `import uptimely as up` for Python authoring declarations and `up.ref` for
-deferred references. These declarations convert to the
-[spec document model](spec/model.md). Their defining modules remain available
-under `uptimely.spec.python`; the reference sections below follow those modules.
-
-For a runnable example, see the
-[analytics project structure](../project-layout/project-structure.md).
-
-## Build-time declarations and runtime configuration
-
-Python declarations define the build-time workflow. Operators, bindings, and
-profile grain are compiled into the plan, so changes to them require a rebuild.
-Runtime parameters, source/sink locations, and validation controls normally
-change execution without changing the graph.
-
-| Setting | Ownership | Rebuild required? |
-| --- | --- | --- |
-| Operators, bindings, and profile grain | Build-time declarations | Yes |
-| Runtime parameters, source/sink locations, and validation controls | Project/runtime configuration and run options | Normally no |
-
-Runtime parameters can change calculation results without changing the plan.
-The plan's required backend is fixed at build time; an incompatible backend
-setting fails rather than reinterpreting the plan.
-
-## Declarative profiles
+Use `uptimely` to describe profiles, dimensions, features, and calculations.
+These declarations are converted to a Spec when you build a project. See the
+[project structure guide](../project-layout/project-structure.md) for a runnable
+example.
 
 ```python
 import polars as pl
 import uptimely as up
-from uptimely.spec import feature_types
 
 machine = up.Dimension(
     id="machine",
@@ -40,476 +18,120 @@ machine = up.Dimension(
 @up.function(returns="dataframe")
 def maximum(
     dataset: pl.LazyFrame, feature: str, dimensions: list[str], output: str
-) -> pl.LazyFrame: ...
-
-
-class PumpFeatures(up.FeatureSet):
-    bearing_temperature_max = up.Feature(
-        type=feature_types.FLOAT,
-        unit="C",
-        description="Maximum observed bearing temperature.",
-    )
+) -> pl.LazyFrame:
+    return dataset.group_by(dimensions).agg(pl.col(feature).max().alias(output))
 
 
 class Pump(up.Profile):
     id = "pump_summary"
-    name = "Pump Summary"
-    description = "Maximum bearing temperature per pump."
     grain = [machine.resolution("machine")]
-    features = PumpFeatures()
-
     assembly = [
         up.Operator(
             id="temperature_max",
             interface=up.Interface(
-                outputs=[features.bearing_temperature_max],
+                outputs=[up.Feature(id="bearing_temperature_max")],
             ),
             compute=up.Binding(
                 function=maximum,
-                arguments=dict(
-                    dataset=up.ref.dataset("telemetry"),
-                    feature=up.ref.feature("bearing_temperature"),
-                    dimensions=up.ref.profile().grain.ids,
-                    output=up.ref.feature("bearing_temperature_max"),
-                ),
+                arguments={
+                    "dataset": up.ref.dataset("telemetry"),
+                    "feature": up.ref.feature("bearing_temperature"),
+                    "dimensions": up.ref.profile().grain.ids,
+                    "output": up.ref.feature("bearing_temperature_max").id,
+                },
             ),
         ),
     ]
+
+
+specification = up.Spec(profiles=[Pump], name="Pump analytics")
 ```
 
-`Feature.id` is the stable feature identifier used by references and serialized
-keys. `Feature.name` is an optional display label; when omitted, it is generated
-by humanizing the ID (for example, `bearing_temperature_max` becomes
-`Bearing Temperature Max`). Within a `FeatureSet`, the attribute name is used
-as the ID when `id` is omitted; an explicit ID can be supplied when it should
-differ from the attribute name. A `FeatureSet` subclass groups a profile's
-feature declarations as attributes, which operators reference in their outputs
-instead of repeating metadata inline. Logical feature types are available as
-constants in `uptimely.spec.feature_types` and remain strings in the spec.
+## Profiles and features
 
-```python
-python_spec = up.Spec(
-    profiles=[Pump],
-    name="Pump analytics",
-)
-```
+A `Profile` describes the data at a particular level. Its `grain` selects the
+dimension resolutions that identify its rows. `Dimension` defines those
+resolutions and their dataframe key columns. Use `Profile.relations` to declare
+links to other profiles; relations are not features and do not define row
+identity.
 
-Root-level `Spec`, `Profile`, `Operator`, `Interface`, `Binding`,
-`Dimension`, `Resolution`, `Feature` and `FeatureSet` are Python
-authoring classes.
-Document-model classes remain under `uptimely.spec.model` and the existing
-`uptimely.spec` exports. The authoring `Spec` is defined as
-`uptimely.spec.python.spec.Spec` and exported as `up.Spec` and
-`uptimely.spec.python.Spec`.
+Declare output metadata with `Feature`. A `FeatureSet` can group features for
+reuse. Feature IDs are used in references and JSON. Names and descriptions are
+for display. Logical feature types are available from
+`uptimely.spec.feature_types`.
 
-Dimensions have stable IDs and declare one or more keyed resolutions. A profile's
-`grain` is a list of selected resolutions, one per dimension; select them with
-`dimension.resolution("resolution_id")`. The selected resolution's key is the
-dataframe column used by that profile. Optional dimension names are
-human-readable labels generated from IDs when omitted.
+## Operators and functions
 
-Declare relationships to other profiles with `relations`, a list of resolutions selected
-with the same `dimension.resolution("resolution_id")` helper. Unlike `grain`,
-relations do not define row identity and can include multiple resolutions of a
-dimension. They may support merging, grouping, or filtering; they do not declare
-a foreign-key constraint. Explorer shows relations in the profile schema,
-not among features. Do not also declare them as `Feature` objects.
+An `Operator` connects a function to a profile. Its `Interface` declares input
+and output features, and its `Binding` supplies the function and named
+arguments. If `inputs` is omitted, feature references in the arguments are used
+to infer dependencies. Set `inputs=[]` to disable that inference.
 
-Profile instances expose `profile.identifiers` and `profile.identifier_types`:
-only the columns selected by `grain` and their logical types.
-`profile.relation_types` separately maps declared relation columns to their types.
-`profile.keys` and `profile.key_types` combine identifiers and relations.
-Unselected resolutions are excluded. A profile without grain has no identifiers,
-but can still have relations and therefore keys. Explorer labels identifiers
-**ID** and related-profile columns **Relation** in the schema.
+Use `up.ref` to refer to profile data, features, and other Spec values without
+loading data during authoring. `up.ref.feature("name")` refers to a feature's
+value; append `.id` when the function needs its identifier, such as an output
+column name.
 
-Datasets and fragments use the same terminology: `identifiers` identify their own
-rows, `relations` link to another grain, and `keys` combines both. These roles
-depend on perspective: `machine_series_id` can identify a series-level fragment
-while being a relation in the pump-level dataset receiving it. A full pump-level
-fragment instead has `pump_id` as its identifier and can carry `machine_series_id`
-as a relation.
+`@up.function(returns=...)` describes what a function returns. Use
+`"dataframe"` for a dataframe, `"none"` for no result, or `"any"` when the
+result is intentionally ignored. The decorator records a contract; it does not
+run the function or check that its calculations are correct. Function
+signatures are checked when the project is compiled. External functions can be
+referenced by `"package.module:function"` with `up.ref.function(...)`.
 
-Relation columns are retained when present in source fragments; the declaration
-does not generate their values or require every fragment to carry them.
+Without a `merge` binding, a dataframe-producing function returns the complete
+profile dataframe. To return a fragment for Uptimely to combine with existing
+data, declare a merge binding, such as `merge=up.merge.default()`. Custom merge
+functions are also supported. See the [engine reference](engine.md) for runtime
+behavior.
 
-`up.Spec` accepts the profile declarations only. It infers dimension and
-resolution definitions from each profile's grain and relations, requires repeated declarations
-to agree, rejects unresolved resolutions and conflicting metadata, and emits
-deterministic output. A profile's missing ID is inferred from its name, and a
-missing name is humanized from its ID. If both are omitted, the profile class
-name supplies the snake-case ID and humanized name. Profile IDs are globally
-unique. The function catalog is collected from the registered profiles;
-reference resolution does not mutate the supplied declarations.
-`ProfileRegistry([Pump]).to_declarations()` can instantiate and register
-profile classes.
+For calculations that need nearby rows, see [Row context](row-context.md).
 
-`Operator` declares work without executing it. Its declaration fields are
-ordered `id`, `interface`, optional `row_context`, `compute`, and optional
-`merge`. `Binding` contains the implementation `function` and named
-`arguments`; `Interface` contains feature `inputs` and `outputs`.
-Interface inputs are optional: if omitted, feature references in compute
-and optional merge arguments are inferred as dependencies, excluding declared
-outputs and retaining first-occurrence order. If supplied, they define the
-dependencies instead; an empty input list disables inference. `Interface`
-validates feature references and rejects repeated input or output IDs when
-constructed. It checks them again during conversion, so later mutations of its
-collections cannot bypass those checks.
-
-Interfaces contain features only. Declare identifiers with `Profile.grain` and
-relations with `Profile.relations`, not in `Interface.inputs` or `outputs`.
-Spec conversion excludes these keys from inferred inputs and never adds
-identifier outputs. Explicit identifier or relation entries in an interface are
-rejected during semantic validation. Keys remain available for dataframe
-validation and merge assembly independently of feature lineage.
-
-`Binding` owns a function reference and its reusable contract metadata,
-callable argument validation (`bound_arguments()`), and conversion (`to_model()` and
-`to_function_template()`). `Interface.to_model(compute=..., merge=...)` accepts
-canonical bindings and builds feature selectors. `Operator` coordinates these
-conversions and validates compute/merge compatibility; its existing metadata
-properties and `bound_arguments()` delegate to the compute binding.
-Entrypoint strings and function references are not imported during these
-conversions; their signature checks are deferred until compilation.
-
-`Operator` accepts an optional `row_context` requirement. The compute binding
-can refer to its scalar attributes with `ref.row_context("before")`,
-`ref.row_context("after")`, or `ref.row_context("dimension")`. Its function
-catalog ID is derived from the referenced function name. Optionally annotate
-callable implementations with `@function(returns=...)`.
-The decorator attaches reusable argument and return contracts;
-an optional `category="..."` may also be supplied as descriptive Spec metadata.
-The category is unrestricted text and does not affect execution or validation.
-The decorator returns the original function without wrapping or executing it. Alternatively,
-keep implementations undecorated and supply their contract through
-`ref.function(implementation, returns=...)`. Entrypoint strings also use explicit
-function references. Operator meaning comes from its binding position and
-source/target declarations, not from metadata attached to the implementation.
-
-An explicit reference contract must agree with decorated metadata. Decoration
-is optional: dataframe and `None` return annotations can establish the return
-contract. Missing, opaque, or mixed annotations require explicit `returns`.
-String references always require it because authoring does not import them.
-Implementations aren't called during authoring; assembly checks callable
-parameter names and required arguments.
-
-```python
-from uptimely import Binding, Feature, Interface, Operator, merge
-from uptimely.spec.python import function, ref
-
-
-@function(returns="dataframe", category="aggregation")
-def maximum(dataset, feature, dimensions, output): ...
-
-
-decorated = ref.function(maximum)
-external = ref.function("third_party.analytics:maximum", returns="dataframe")
-categorized = ref.function(
-    "third_party.analytics:maximum", returns="dataframe", category="aggregation"
-)
-```
-Compute bindings take zero or one dataframe argument and declare `returns` as
-`dataframe`, `none`, or `any` (an ignored result with logical dependencies).
-Merge bindings take exactly two dataframe arguments and return a dataframe.
-These roles belong to binding positions, not permanently to callables.
-Derived `conform` sources and targets have
-the same grain. `collapse` moves to a coarser grain, and `expand` moves to a
-finer grain; parent links between resolutions describe valid coarsening and
-refinement.
-Declare dimensional matching keys explicitly with
-`ref.profile().grain.ids` (or a named profile's `.grain.ids` selector).
-Grouping and ordering references do not implicitly select matching keys.
-With a merge binding, compute returns a Polars `DataFrame` or `LazyFrame`
-fragment. Import the helper module with `from uptimely import merge` and select
-the builtin merge explicitly with `merge=merge.default()`;
-omitting a merge publishes a complete target rather than silently joining.
-The builtin merge assembles fragments
-for the same profile by complete keys with a full outer join, preserving
-partial coverage while rejecting duplicate keys and feature collisions. An
-`expand` fragment may omit dimension keys its lower-dimensional source cannot
-supply; the engine left-joins such a fragment onto the accumulated profile frame by
-the keys it carries, broadcasting a dimensionless fragment to every
-observation. See the runnable
-[dimensional operations example](https://github.com/uptimely-ai/uptimely-core/tree/main/examples/dimensional_operations)
-and [engine fragment contract](../architecture/engine.md#datasets-and-fragments).
-
-`vectorize` functions instead receive the accumulated dataset dataframe and
-return that complete dataframe enriched with their declared outputs. They must
-preserve existing columns and values, row count, key identities, and row order;
-they do not return fragments and cannot declare a merge binding. The engine
-always checks the returned schema, while opt-in runtime validation checks
-preservation of existing values and row order. Functions must not mutate their
-input dataframes: publishing by assignment cannot roll back mutations made by
-user code.
-
-Operators stage fragments only when they declare a `merge` binding.
-Use `up.merge.default()` for the builtin grain merge, or provide a custom binding.
-Changing an operator's merge binding requires rebuilding the project.
-The implementation module's package must be installed in the build and runtime
-environments; install a local project package in editable mode for development.
-
-### Migrating from function kinds
-
-The former `kind` argument on `@function` and `ref.function()` is no longer
-supported. A function now declares only its reusable argument and return
-contract; the operator's bindings and source/target profiles establish how it
-is used. Do not translate an old kind into a `category`: categories are
-descriptive function metadata, not execution instructions.
-
-For example, a dataframe-producing operation that returns a fragment must
-declare a merge explicitly:
-
-```python
-@function(returns="dataframe", category="aggregation")
-def aggregate_by_series(dataset, output): ...
-
-
-aggregate = Operator(
-    id="aggregate_by_series",
-    interface=Interface(outputs=[Feature(id="series_total")]),
-    compute=Binding(
-        function=ref.function(aggregate_by_series),
-        arguments={
-            "dataset": ref.profile("series").dataset,
-            "output": ref.feature("series_total").id,
-        },
-    ),
-    merge=merge.default(),
-)
-```
-
-By contrast, a compute binding without a merge must return the complete target
-dataframe; it is not implicitly joined. Operations that do not return a
-dataframe declare `returns="none"` or `returns="any"` according to whether the
-result is absent or intentionally ignored. These contracts and the operator's
-actual bindings determine the migration; a single old kind does not have a
-mechanical replacement.
-
-References such as `ref.feature("result").id` pass an identifier, not feature
-data, and may be used for output-name arguments. Declare produced features in
-`interface.outputs`; they are not inferred from arguments. In the resulting
-spec document, dependencies are recorded explicitly in `interface.inputs`.
-Writes use `interface=Interface(outputs=[])`. For
-generated declarations, use `Profile(id=..., grain=[...], assembly=[...])`.
-
-### Profile assembly
-
-Each profile declares its work in one `assembly` list. For readability, a
-mapping of group names to operator lists is also accepted and flattened in
-insertion order:
-
-```python
-assembly = {
-    "ingestion": [read_operator],
-    "calculations": [calculate_operator],
-    "publishing": [write_operator],
-}
-```
-
-Groups are organizational only; execution roles come from compute and merge
-binding positions. Operator IDs must be
-non-empty and unique within the profile. Reusing one function in multiple
-operators is allowed with distinct operator IDs; its function name identifies
-the reusable catalog contract.
-
-The assembly defaults to an empty list and is copied for each profile instance.
-Constructor arguments replace the class declaration, including when an empty
-list is passed. Subclasses inherit assembly using normal Python attribute lookup:
-defining `assembly` replaces the inherited list rather than merging it. To extend
-it, write `assembly = [*Base.assembly, another_operator]`.
-
-List order and group order do not impose execution order. Declared feature
-dependencies determine scheduling. Uptimely does not inspect an escape
-function's internal steps.
-
-### Migrating from FunctionMapping
-
-- Replace `FunctionMapping(...)` with `Operator(id=..., ...)`. Move named profile
-  attributes or entries in `mappings={...}` into the appropriate assembly list.
-  Use the former attribute name or dictionary key as the operator ID.
-- Replace imports from `uptimely.spec.python.mapping` or
-  `uptimely.spec.python.mappings` with `uptimely.spec.python.assembly`, or import
-  `Operator` directly from `uptimely.spec.python`.
-- Access declarations through `Profile.assembly` rather than `Profile.mappings`.
-- Convert an operator with `Operator.to_model()`; its own ID supplies the canonical
-  operator identifier. Feature metadata remains in `outputs`, and
-  `Feature.to_model()` is unchanged.
-
-Python profiles expose declarations through `Profile.assembly`; canonical
-documents and exported JSON use the same `assembly` key.
-The current JSON contract is spec version 8. JSON profiles use an `assembly`
-mapping whose operators declare `compute`, optionally `merge`, and `interface`;
-see the [binding contracts](../architecture/spec.md#binding-roles-and-derived-operator-labels).
-
-<div class="api-reference" markdown="1">
-
-## spec
-
-`uptimely.spec.python.spec` groups declarations into a
-`up.Spec` definition.
+## API
 
 ::: uptimely.spec.python.spec
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
-
-## profile
-
-`uptimely.spec.python.profile` declares profile grain, metadata, assembly, and
-optional class registries.
+      members: [Spec]
 
 ::: uptimely.spec.python.profile
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
-
-## dimension
-
-`uptimely.spec.python.dimension` declares shared dimensions.
+      members: [Profile, ProfileRegistry]
 
 ::: uptimely.spec.python.dimension
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
-
-## feature
-
-`uptimely.spec.python.feature` declares metadata for operator outputs.
+      members: [Dimension, Resolution]
 
 ::: uptimely.spec.python.feature
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
-
-## assembly module
-
-`uptimely.spec.python.assembly` defines `Operator`, `Interface`, and `Binding`,
-the declarations used in a profile's assembly.
+      members: [Feature, FeatureSet]
 
 ::: uptimely.spec.python.assembly
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
-
-## functions
-
-`uptimely.spec.python.functions` defines reusable callable contracts.
-Import `function` directly from `uptimely.spec.python` for
-`@function(returns="dataframe")`, or import the `functions` module for
-`@functions.function(returns="dataframe")`. Functions have no `kind` argument
-or field; use `category` only for descriptive grouping.
-The decorator does not prove implementation behavior; it declares the contract
-that Uptimely validates at its supported boundaries.
+      members: [Operator, Interface, Binding]
 
 ::: uptimely.spec.python.functions
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
-
-## bind
-
-`uptimely.spec.python.bind` provides lower-level nested argument bindings and
-serialization helpers. Operators bind functions directly through their
-`function` and `arguments` attributes.
-
-::: uptimely.spec.python.bind
-    options:
-      heading_level: 3
-      show_root_heading: false
-
-## ref
-
-`up.ref` (also available as `uptimely.spec.python.ref`) builds deferred
-references to functions and spec objects. It does not construct or load data.
-
-| Helper | Meaning |
-| --- | --- |
-| `up.ref.dataset()` | Current profile's dataframe. |
-| `up.ref.dataset("telemetry")` | Named profile's dataframe. |
-| `up.ref.fragment()` | Staged fragment for the current operator's merge binding. |
-| `up.ref.feature("temperature")` | Input feature column; infers a dependency unless `inputs` is explicit. |
-| `up.ref.feature("maximum")` | Identifier of a feature in the containing operator's `outputs`; no input dependency. |
-
-`ref.feature()` does not declare a feature. An undeclared output name raises
-`ValueError`, including references nested in lists, dictionaries, and bindings.
-Use `ref.profile().dataset`, `ref.profile(name).dataset`,
-`ref.feature(name)`, and `ref.feature(name).id` to create deferred references.
-The general `.id` selector does not require the feature to be an operator output.
-
-Function references accept `validate_signature`, defaulting to `True`.
-Conversion preserves it in the function catalog and exported JSON. When
-`False`, compilation and documentation do not import the implementation or
-inspect its signature. Spec-level contracts and declared feature dependencies
-are still validated, and execution still requires a loadable implementation.
-When enabled, compilation checks keyword-call compatibility, required
-parameters, positional-only parameters, and supported annotation contradictions.
-Annotations may be omitted when `returns` is explicit; incompatible return
-annotations are rejected when inspection is enabled. Disabling inspection
-requires explicit `args` and `returns`; it does not disable binding-name or
-dataframe-arity checks.
-
-Function references also carry a `description` into the function catalog and
-exported JSON. When a callable is referenced, the description defaults to the
-summary line of its docstring; pass `description=` to override it. Entrypoint
-strings have no default because the implementation is not imported while
-loading the spec.
-
-## Testing callable behavior
-
-There is no dedicated operator-contract test helper in the current public API.
-Use ordinary pytest tests to call analytical functions with safe fixture inputs
-and assert their expected values. To exercise binding resolution and runtime
-contracts together, execute a test build with `Engine.run(validate=True)` and
-stub or isolate readers, writers, and other side effects. Project builds inspect
-and compile declarations but do not execute analytical functions.
-
-Runtime validation checks declared input and dataframe contracts on the values
-actually used in that run. It does not establish business correctness or prove
-behavior for all possible inputs, so tests should still assert expected
-analytical results. Signature inspection is enabled by default; when disabled,
-declare both `args` and `returns` explicitly. Disabling inspection does not
-disable binding-name, dataframe-arity, or runtime contract checks.
-
-Use an entrypoint string when the implementation must not be imported while
-loading the Python spec:
-
-```python
-ref.function(
-    "other_project.functions:calculate",
-    returns="dataframe",
-    args={"dataset": "dataframe", "feature": "string"},
-    validate_signature=False,
-)
-```
-
-Python spec declarations execute during source loading. Do not import an
-unavailable analytical implementation from the declaration module itself;
-pass its entrypoint as a string instead.
+      members: [function]
 
 ::: uptimely.spec.python.ref
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
-
-## row_context
-
-`uptimely.spec.python.row_context` declares row windows for functions.
-The runtime value is documented under [row context](row-context.md).
 
 ::: uptimely.spec.python.row_context
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
-
-## conversion
-
-`uptimely.spec.python.conversion` converts declarations to document model
-objects. Use [api.from_python](spec/api.md#uptimely.spec.api.from_python)
-to convert and semantically validate in one operation.
-
-::: uptimely.spec.python.conversion
-    options:
-      heading_level: 3
-      show_root_heading: false
-
-</div>
+      members: [RowContextBinding, time, steps, rows, current, all_rows]

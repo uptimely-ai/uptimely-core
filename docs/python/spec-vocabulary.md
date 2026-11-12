@@ -1,60 +1,29 @@
 # Spec vocabulary
 
-These modules define shared callable contracts, operator policies, argument types, and reference
-vocabulary. Components that author, validate, compile, or execute specs use the
-same definitions.
+These modules provide shared types used when describing and checking a Spec.
+Most projects use the Python helpers in [Python authoring](python.md) instead.
 
-<div class="api-reference" markdown="1">
+## Operator labels
 
-## Callable contracts and operator policies
+Uptimely derives a label from each operator's bindings and source and target
+profiles. The labels describe the work; they are not set on the function.
 
-`uptimely.spec.function_contracts` defines independent return roles: `dataframe`,
-`none`, and `any` for an explicitly ignored result. Callable definitions have no
-operator classification. Compute and merge roles come from binding positions,
-and shared Spec views derive source-to-target relationships for each operator.
+| Label | Purpose |
+| --- | --- |
+| `read` | Load data into a profile. |
+| `write` | Send data to an output. |
+| `escape` | Run a function without producing a dataframe. |
+| `conform` | Produce data at the same level as the target profile. |
+| `expand` | Produce data at a more detailed level. |
+| `collapse` | Produce data at a less detailed level. |
+| `vectorize` | Add calculated values to the existing profile dataframe. |
 
-`uptimely.spec.operator_kinds` contains the derived operator labels and their
-structural policies. Labels are resolved per usage; the same callable can be
-used by operators with different source/target relationships. They are not a
-replacement metadata field on functions.
-
-The built-in structural policies are independent. `dimension_change` compares
-the bound source profile's selected dimensional identities with the target
-profile's selected identities during spec validation: `preserve` requires equal
-sets, `add` requires the target to be a strict superset, and `remove` requires
-the target to be a strict subset. `fragment_dimensions` checks the raw
-materialized fragment against the target profile grain: `target` requires all
-target grain keys; `subset` permits any subset and leaves the engine to assemble
-it against the accumulated target. For fragment-producing kinds,
-`row_count_relation` compares the raw result's row count with the accumulated
-target and `key_relation` compares key identities. Vectorize does not produce a
-fragment: it must return all existing target columns plus its declared outputs.
-With `validate=True`, the engine also checks its `row_order_relation` and
-`existing_data_relation` contracts by comparing old columns and values in their
-original row order. These policies never infer row-count or key guarantees
-from a dimensional change.
-
-| Kind | Source-to-target dimensions (spec validation) | Dataframe result (runtime) |
-| --- | --- | --- |
-| `read` | Unrestricted; no bound source | Target-grain fragment |
-| `write` | Unrestricted | Not applicable; no dataframe result |
-| `escape` | Unrestricted | Not applicable; its return is ignored |
-| `conform` | Preserve: bound foreign source to target | Target-grain fragment |
-| `expand` | Add: bound lower-dimensional source to target | Partial-grain fragment assembled against the target |
-| `collapse` | Remove: bound higher-dimensional source to target | Target-grain fragment |
-| `vectorize` | Preserve: bound target profile to target | Complete enriched target frame; no fragment or join |
-
-Dimensionless profile frames and fragments have a separate structural
-limit of at most one row. This is not a same-row-count guarantee. Expand's
-partial raw fragment is validated before broadcasting; its assembled result
-uses the accumulated target's complete dimensions. Conform and expand do not
-assume their foreign source has the target's rows. Feature dependencies and
-explicit dataframe arguments remain distinct: a logical output does not
-materialize an ignored return value.
+For behavior and validation rules, see the
+[Spec format reference](../architecture/spec.md).
 
 ::: uptimely.spec.operator_kinds
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
       members:
         - OperatorKind
@@ -75,12 +44,12 @@ materialize an ignored return value.
 
 ## Argument types
 
-`uptimely.spec.arg_types` defines atomic argument types and helpers for the
-recursive collection expressions `array[item_type]` and `object{str: value_type}`.
+`uptimely.spec.arg_types` defines argument types used in Spec documents.
+Collections can be described with `array_of()` and `object_values_of()`.
 
 ::: uptimely.spec.arg_types
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
       members:
         - AtomicArgumentType
@@ -97,15 +66,15 @@ recursive collection expressions `array[item_type]` and `object{str: value_type}
         - array_item_type
         - object_value_type
 
-## Reference syntax
+## Reference selectors
 
-`uptimely.spec.selectors` defines profile, feature, dimension, and operator
-reference prefixes, the current-resource marker, and selectors for identifiers,
-profile grain keys, datasets, and current-operator row-context attributes.
+`uptimely.spec.selectors` defines the strings used to refer to profiles,
+features, dimensions, and row context in a Spec. For normal authoring, use the
+helpers in [`up.ref`](python.md).
 
 ::: uptimely.spec.selectors
     options:
-      heading_level: 3
+      heading_level: 2
       show_root_heading: false
       members:
         - REFERENCE_PREFIX
@@ -120,5 +89,3 @@ profile grain keys, datasets, and current-operator row-context attributes.
         - CURRENT_ID
         - ID_SELECTOR
         - DATASET_SELECTOR
-
-</div>
