@@ -1,15 +1,15 @@
 # Backlog
 
-Planned releases are listed in the order we expect to publish them. Each
-release names the work it needs first; unrelated work can happen at the same
-time. Items that can be released separately are listed at the end.
+Work packages are listed in dependency order. Each package names its
+prerequisites; unrelated packages can proceed at the same time.
+Independently scheduled work packages are listed at the end.
 
-Version numbers are assigned when releases are published. The *breaking*
-column marks changes that require users to update their specifications,
-projects, functions or commands.
+Version numbers are assigned when software releases are published. The
+*breaking* column marks changes that require users to update their
+specifications, projects, functions or commands.
 
 
-## Planned release: Frame adapter contracts
+## Work package: Frame adapter contracts
 
 Introduce a common adapter contract for converting and combining dataframe
 representations. Keep Polars as the built-in native implementation, and use
@@ -28,7 +28,7 @@ adapters to support interoperability with other dataframe libraries.
 | Validate adapter capabilities before execution | No | Record representation and capability requirements during portable compilation without requiring target adapters on the build machine. Offer strict target-aware compilation using engine configuration and the registry. Reuse its resolver in mandatory engine preflight to check conversions, native operations, execution requirements and permitted materialization or transfer boundaries. Errors identify the function or boundary, missing capability, expected registration signature and loading guidance. |
 | Add adapter and assembly conformance suites | No | Generalize the existing Polars safety tests into reusable suites for conversion and native assembly separately. Cover null and duplicate keys, dimensionless datasets, collisions, partial coverage, schema fidelity, missing values and eager/lazy behavior. Test missing-capability diagnostics and reject unsupported boundaries without silent local collection. Ship suites with the registry; every later adapter must pass its applicable tests. |
 
-## Planned release: Runtime configuration and scoped execution
+## Work package: Runtime configuration and scoped execution
 
 Run the requested scope in the right environment without changing saved builds.
 
@@ -41,7 +41,7 @@ Run the requested scope in the right environment without changing saved builds.
 | Extend preflight validation | No | Extend mandatory capability preflight to saved-plan identity, output scope, runtime bindings, callable entrypoints and backend compatibility before execution. Reuse target-aware diagnostics without running analytical functions or performing workflow data I/O. This does not verify external source availability or input data. |
 | Add secret-aware runtime bindings | No | Resolve secrets from environment variables or a provider at runtime, report missing values, redact secrets and keep them out of build artifacts. |
 
-## Planned release: Data quality validations
+## Work package: Data quality validations
 
 Check real data with explicit rules that produce no features and do not change
 data. Quality checks complement contracts; they do not prove formula correctness.
@@ -57,12 +57,13 @@ execution for shared invocation and environment configuration.
 | Add a missing-value policy | No | Define whether datasets and features may contain nulls or NaNs, with feature-level settings overriding dataset defaults. Make the policy available to data-quality checks so allowed nulls are not treated as failures by default. Preserve nulls and NaNs distinctly across representation conversions, or reject conversions that cannot preserve them, such as arrays without null-validity information. |
 | Add validation reports | No | Use a consistent record containing validation, dataset, severity, pass/fail, failing row count, bounded sample and message. Include run and build identity for later correlation with execution reports. Export with `--report <path>`, print a CLI summary and show the latest report in Explorer. Each run replaces the previous report; shared history is out of scope. Make sample capture explicit and redact sensitive data. |
 
-## Planned release: Testing and CI/CD
+## Work package: Testing and CI/CD
 
 Provide public testing helpers and a reproducible development workflow.
 
 **Prerequisites:** Runtime configuration and scoped execution; Data quality
-validations. Existing repository tests continue to accompany every release.
+validations. Existing repository tests continue to accompany every software
+release.
 
 | title | breaking | description |
 |---|---|---|
@@ -72,7 +73,7 @@ validations. Existing repository tests continue to accompany every release.
 | Document testing levels | No | Explain unit tests, worked examples, workflow tests on fixtures and real-data validations in the project structure guide, with `tests/unit/`, `tests/workflow/`, `tests/fixtures/` and `validations/` folders. |
 | Document an analytics CI/CD workflow | No | Provide a runnable pipeline that validates the spec, builds the plan, runs unit and fixture workflow tests with contract and quality checks, and publishes the build and available validation reports. Promote the same immutable build with runtime configuration supplied separately. Keep production-data checks and credentials outside fixture-based CI. |
 
-## Planned release: Plan optimization and bounded concurrency
+## Work package: Plan optimization and bounded concurrency
 
 Optimize a correct, scoped plan and execute genuinely independent work.
 
@@ -85,7 +86,7 @@ Data quality validations for shared validation and failure semantics.
 | Add compiler optimization | No | Offer configurable optimization that reuses scoped-execution pruning and avoids redundant assembly, conversion and materialization. Preserve dependencies derived from declared inputs and outputs, validation semantics and all writes within the requested scope. Keep the logical plan backend-independent, with backend-specific choices in target-aware planning. Retain safety checks with optimization disabled and test optimized/unoptimized equivalence. |
 | Add a parallel scheduler | No | Run independent dataset work concurrently with configurable global and per-adapter limits and grouped lazy collection, such as `pl.collect_all`. Account for library threading, memory, process startup and serialization; do not allocate one process per callable or size workers solely from the widest stage. Wait for declared input producers to finish successfully before starting consumers, and preserve validation and failure propagation without special write skipping. Optimization and concurrency can ship separately if needed. |
 
-## Planned release: Additional dataframe adapters
+## Work package: Additional dataframe adapters
 
 Extend supported libraries without conflating interchange with native assembly.
 
@@ -103,7 +104,7 @@ Parallel scheduling is not required for an adapter to ship.
 |---|---|---|
 | Add explanations for non-experts | No | Extend metadata extraction with `Explanation:` and `Formula:` sections containing argument placeholders. Explorer fills them with bound feature descriptions and units and combines them into output lineage stories. |
 
-## Planned release: Freshness-aware scheduling
+## Work package: Freshness-aware scheduling
 
 Derive schedules from declared result freshness without changing the meaning
 of analytical dependencies.
@@ -113,12 +114,12 @@ scoped execution. Parallel execution is not required.
 
 | title | breaking | description |
 |---|---|---|
-| Add freshness to the specification | No | Define freshness requirements for mappings or features, their propagation through declared input/output dependencies and how external source availability constrains achievable schedules. Specify schedule-multiple and compatibility rules without introducing separate side-effect dependencies. Reject incompatible requirements with actionable diagnostics. Add derived schedules only after these semantics are defined; earlier releases validate existing schedule declarations only. |
+| Add freshness to the specification | No | Define freshness requirements for mappings or features, their propagation through declared input/output dependencies and how external source availability constrains achievable schedules. Specify schedule-multiple and compatibility rules without introducing separate side-effect dependencies. Reject incompatible requirements with actionable diagnostics. Add derived schedules only after these semantics are defined; earlier work packages validate existing schedule declarations only. |
 
-## Planned release: Example extensions
+## Work package: Example extensions
 
 Consolidate and extend runnable analytics examples, not migration work deferred
-from earlier releases.
+from earlier work packages.
 
 **Prerequisites:** The callable contracts and operator bindings used by each example.
 
@@ -126,7 +127,7 @@ from earlier releases.
 |---|---|---|
 | Add signal processing to `pump_analytics` | No | Add NumPy-based signal processing and sliding-window calculations with meaningful aggregation and bounded windows. |
 
-## Planned release: Distributed dataframe adapters
+## Work package: Distributed dataframe adapters
 
 Add remote-native execution only for workflows that need it, after local
 contracts, configuration, tests and diagnostics are established.
@@ -139,7 +140,7 @@ Execution reports and inspection for report export, not its Explorer view.
 |---|---|---|
 | Add PySpark and Snowpark native execution support | No | Support cluster-native inspection, validation and assembly; Arrow conversion alone is not distributed execution. Keep frames and joins remote on native paths. Show remote-to-local transfer in the plan and require explicit permission, such as `uptimely run --allow-remote-transfer`, with transfer limits. Missing native capabilities must not implicitly collect into Polars. Test remote failure and transfer diagnostics and expose them in execution reports. |
 
-## Independently scheduled releases and extensions
+## Independently scheduled work packages and extensions
 
 These are not blocked by the full preferred sequence above. Ship when their
 specific prerequisites and user needs justify them.
@@ -154,7 +155,7 @@ specific prerequisites and user needs justify them.
 
 ### Polars 2.0 upgrade
 
-**Prerequisites:** An available upstream release and successful compatibility
+**Prerequisites:** An available upstream software release and successful compatibility
 testing. Neither the upgrade nor the adapter redesign inherently blocks the other.
 
 | title | breaking | description |
@@ -179,7 +180,7 @@ missing-value rules.
 |---|---|---|
 | Add a tensor feature type | No | Support fixed-shape tensor features using Arrow's `FixedShapeTensor` type, with explicit shape, dtype and conversion contracts tested through the applicable adapter conformance suites. |
 
-## Planned release: Reproducible builds and diagnostics
+## Work package: Reproducible builds and diagnostics
 
 Make builds identifiable and immutable, and source-loading failures actionable.
 
@@ -191,9 +192,9 @@ with changes to specification and plan formats.
 | Record execution requirements | No | Record callable module references, declared package requirements and available version provenance in the build manifest. Provide checks for requirement availability and compatibility without executing analytical functions, for reuse by strict target-aware compilation and engine preflight. Distinguish declared requirements from best-effort import analysis; dynamic imports cannot be exhaustively inferred. Do not install dependencies automatically. |
 | Preserve immutable build snapshots | No | Published artifacts retain fixed specification, mapping bindings, plan and callable implementation source with stable build identity. Package callable code in the bundle as a wheel for packaged projects or a source archive for supported pure-Python projects; record its content hash and load implementations from that artifact at runtime rather than mutable project files. An import path or source fingerprint alone does not freeze implementation. Record dependency requirements and provenance separately; bundling project source does not bundle third-party dependencies. Changed logic or bindings require a new build, not a new authoring identity for every function or mapping. Runtime overrides must not mutate published artifacts. |
 | Improve build-source diagnostics | No | Distinguish malformed `module:attribute` entrypoints, missing spec sources and import failures inside otherwise valid modules. Preserve the underlying exception cause and actionable message, and offer a verbose traceback option. Cover Python and JSON source selection, project-directory discovery and nested import failures in tests; document the current CLI syntax rather than introducing a duplicate project-directory option. |
-| Align examples with the documented project layout | Maybe | Link example READMEs to the project structure guide and keep specifications in `spec/`, separate from runtime configuration. Align examples and documentation around importable implementation packages, using a `src/` layout where packaging is needed and grouping I/O and calculations consistently. Add validation folders when quality validations ship. Keep deployment assets separate from analytical functions; automatic assembly needs no user-authored merge category. Update scaffolding, entrypoints, commands and tests together. Earlier breaking releases must still migrate affected examples immediately. |
+| Align examples with the documented project layout | Maybe | Link example READMEs to the project structure guide and keep specifications in `spec/`, separate from runtime configuration. Align examples and documentation around importable implementation packages, using a `src/` layout where packaging is needed and grouping I/O and calculations consistently. Add validation folders when quality validations ship. Keep deployment assets separate from analytical functions; automatic assembly needs no user-authored merge category. Update scaffolding, entrypoints, commands and tests together. Breaking changes in earlier work packages must still migrate affected examples immediately. |
 
-## Planned release: Executable scopes
+## Work package: Executable scopes
 
 Turn profile scope from descriptive text into reusable, executable row
 selection while keeping resolution (row detail) distinct from scope (included
@@ -301,7 +302,7 @@ references are expressed.
 | Apply scope consistently during execution | No | Apply resolved scope selections to profile observations at a defined engine boundary so all data-producing fragments and downstream calculations obey the same included-row semantics. Preserve eager/lazy behavior through the adapter contract, handle empty selections and range boundaries deterministically, and fail explicitly when a scope cannot be applied to a representation. Do not interpret descriptive text as executable or silently widen/narrow a scope. |
 | Test, document, and migrate executable scopes | No | Add unit, integration, and adapter conformance coverage for static and action-produced scopes, list and range filters, independent time dimensions, hierarchical resolutions, empty results, invalid columns and types, lazy execution, and custom-scope limitations. Update authoring, Python, CLI, engine, Explorer, examples, generated artifacts, and migration documentation to distinguish resolution from included-row scope. |
 
-## Planned release: Themes
+## Work package: Themes
 
 Provide reusable, domain-specific starting points for analytics projects.
 

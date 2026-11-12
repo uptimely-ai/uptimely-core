@@ -32,3 +32,5 @@ Return a concise plan with:
 - Risks, dependencies, and questions (only when material)
 
 Do not implement the plan or modify files.
+
+Store plans to gitignored tmp folder in the project when requested.
