@@ -83,31 +83,32 @@ nav:
   - Roadmap:
       - Development roadmap: roadmap/index.md
       - Backlog: roadmap/backlog.md
-  - CLI:
-      - Overview: cli/index.md
-      - spec: cli/spec.md
-      - engine: cli/engine.md
-      - examples: cli/examples.md
-      - explorer: cli/explorer.md
-      - project: cli/project.md
-  - MCP API:
-      - Setup: mcp/index.md
-      - Tool reference: mcp/tools.md
-  - Python API:
-      - Overview: python/index.md
-      - project: python/project.md
-      - spec:
-          - Overview: python/spec.md
-          - api: python/spec/api.md
-          - model: python/spec/model.md
-          - serialization: python/spec/serialization.md
-          - validation: python/spec/validation.md
-          - python: python/python.md
-          - feature_graph: python/feature-graph.md
-      - compiler: python/compiler.md
-      - engine: python/engine.md
-      - explorer: python/explorer.md
-      - row_context: python/row-context.md
-      - entrypoint: python/entrypoint.md
-      - storage: python/storage.md
-      - spec vocabulary: python/spec-vocabulary.md
+  - Reference:
+      - CLI:
+          - Overview: cli/index.md
+          - spec: cli/spec.md
+          - engine: cli/engine.md
+          - examples: cli/examples.md
+          - explorer: cli/explorer.md
+          - project: cli/project.md
+      - MCP:
+          - Setup: mcp/index.md
+          - Tool reference: mcp/tools.md
+      - Python:
+          - Overview: python/index.md
+          - project: python/project.md
+          - spec:
+              - Overview: python/spec.md
+              - api: python/spec/api.md
+              - model: python/spec/model.md
+              - serialization: python/spec/serialization.md
+              - validation: python/spec/validation.md
+              - python: python/python.md
+              - feature_graph: python/feature-graph.md
+          - compiler: python/compiler.md
+          - engine: python/engine.md
+          - explorer: python/explorer.md
+          - row_context: python/row-context.md
+          - entrypoint: python/entrypoint.md
+          - storage: python/storage.md
+          - spec vocabulary: python/spec-vocabulary.md
