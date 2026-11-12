@@ -2,7 +2,9 @@
 
 ## Introduction
 
-Building industrial analytics involves more than writing individual calculations: teams also need to manage dependencies, validate changes, and move work into production. Traditional workflows often handle these concerns separately and manually. Uptimely takes a system-wide approach, describing the information and calculations needed so their relationships can be resolved as one analytical system. The comparison below highlights the differences.
+Building industrial analytics involves more than writing individual calculations: teams also need to manage dependencies, validate changes, and move work into production. Traditional workflows often handle these concerns separately and manually.
+
+Uptimely takes a system-wide approach, describing the information and calculations needed so their relationships can be resolved as one analytical system. The comparison below highlights the differences.
 
 ## Comparison
 
