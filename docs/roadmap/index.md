@@ -8,6 +8,9 @@ chat. The [demo deployment plan](pump-demo-deployment.md) recommends a managed
 Python service and hosted model API rather than operating a local model first.
 Other packages strengthen
 data adapters, validation, configuration, and execution planning.
+The [automated testing release](release-16-automated-testing.md) adds named
+operator cases authored in Markdown or JSON, saved reports, Explorer test views,
+optional pytest integration, and custom checks against evaluated real datasets.
 
 Longer term, the project aims to support freshness-aware and streaming
 workflows, portable isolated runtimes, and user-selected orchestrators. The

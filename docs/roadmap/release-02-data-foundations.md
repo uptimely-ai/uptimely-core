@@ -52,20 +52,21 @@ execution for shared invocation and environment configuration.
 | Add a missing-value policy | No | Define whether datasets and features may contain nulls or NaNs, with feature-level settings overriding dataset defaults. Make the policy available to data-quality checks so allowed nulls are not treated as failures by default. Preserve nulls and NaNs distinctly across representation conversions, or reject conversions that cannot preserve them, such as arrays without null-validity information. |
 | Add validation reports | No | Use a consistent record containing validation, dataset, severity, pass/fail, failing row count, bounded sample and message. Include run and build identity for later correlation with execution reports. Export with `--report <path>`, print a CLI summary and show the latest report in Explorer. Each run replaces the previous report; shared history is out of scope. Make sample capture explicit and redact sensitive data. |
 
-## Work package: Testing and CI/CD
+## Work package: Analytics CI/CD workflow
 
-Provide public testing helpers and a reproducible development workflow.
+Provide a reproducible development workflow using the public testing helpers in
+[the automated testing release](release-16-automated-testing.md). Fixture cases,
+worked-example tables, and pytest integration are planned there rather than
+embedded in the production specification.
 
-**Prerequisites:** Runtime configuration and scoped execution; Data quality
-validations. Existing repository tests continue to accompany every software
-release.
+**Prerequisites:** Runtime configuration and scoped execution, Data quality
+validations, and Optional pytest integration. Existing repository tests continue to
+accompany every software release.
 
 | title | breaking | description |
 |---|---|---|
 | Reuse specification validation functions | No | Expose and reuse specification validators in user tests instead of duplicating validation logic. |
-| Add the `uptimely.testing` pytest plugin | No | Provide a project fixture, workflow execution on fixture data with all validations and assertions showing failing rows. Include writes using test-environment destinations rather than automatically skipping them. Allow each data-quality validation to be collected as a separate pytest item in CI/CD. |
-| Add worked examples | No | Store small input/output tables per function in the specification. Explorer shows before-and-after tables and the pytest plugin executes them as tests. |
-| Document testing levels | No | Explain unit tests, worked examples, workflow tests on fixtures and real-data validations in the project structure guide, with `tests/unit/`, `tests/workflow/`, `tests/fixtures/` and `validations/` folders. |
+| Document testing levels | No | Explain unit tests, named operator cases under `tests/uptimely/interface_data/`, controlled workflow tests, custom real-data checks under `tests/uptimely/quality/`, and runtime `validations/`. Keep fixture execution separate from production-data evaluation and document explicit side-effecting test opt-in. |
 | Document an analytics CI/CD workflow | No | Provide a runnable pipeline that validates the spec, builds the plan, runs unit and fixture workflow tests with contract and quality checks, and publishes the build and available validation reports. Promote the same immutable build with runtime configuration supplied separately. Keep production-data checks and credentials outside fixture-based CI. |
 
 ## Work package: Plan optimization and bounded concurrency
