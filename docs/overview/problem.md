@@ -114,8 +114,20 @@ Uptimely Core provides a highly structured specification and process to bypass a
 
 When are experts supposed to create real science having such workflows?
 
-Solving the above process would harness smart people to focus on real industrial intelligence where they can really shine. It removes a massive communication and information overhead between multiple developers and stakeholders.
+Typically individual mathematicians and data scientist are more than capable of building the algorithms and models when they have sufficient resources to do so. The problem comes from organizational complexity:
 
-Uptimely Core was born as a result of frustration to missing tooling to build analytical pipelines that are easy to organize, deploy and understand.
+* Changing priorities
+* Who makes decisions
+* Where is related code
+* Where to dump this code
+* Where is the documentation
+* Who knows about the dependencies
+* How to get quick feedback from stakeholders
+* How to validate that the results are correct
+* What refactoring is needed to ship the new solution
 
-Uptimely has ambition to build reusable modular components for advanced industrial use cases such as production optimization with quantum computing and generic industrial multi-sensor anomaly detection. Before that, it was important to build robust and scalable foundations.
+Solving the above process would harness smart people to focus on real data science where they can really shine. It removes a massive communication and information overhead between multiple developers and stakeholders.
+
+Uptimely Core was born as a result of frustration to missing tooling to logically organize analytical pipelines that are easy to structure, deploy and understand.
+
+Originally Uptimely had ambition to build reusable modular components for advanced industrial use cases such as production optimization with quantum computing and generic industrial multi-sensor anomaly detection. Before that, it was important to build robust and scalable foundations.
