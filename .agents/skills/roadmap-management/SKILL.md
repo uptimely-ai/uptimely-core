@@ -6,23 +6,32 @@ description: "Manage Uptimely Core roadmap contents in docs/roadmap. Use when re
 # Roadmap Management
 
 Maintain the roadmap under `docs/roadmap/`, especially
-[`backlog.md`](../../../docs/roadmap/backlog.md). Preserve its existing format,
-clear wording, and consistency with the project.
+[`index.md`](../../../docs/roadmap/index.md),
+[`backlog.md`](../../../docs/roadmap/backlog.md), and the release pages.
+Preserve clear wording and consistency with the project.
+
+The index briefly describes future direction. The backlog is the directory of
+planned releases, not a list of package descriptions. Each `release-*.md` file
+represents one planned release and contains one or more related work packages.
+Release numbering indicates planning order only; software version numbers are
+assigned when releases are published.
 
 ## Procedure
 
-1. Read the relevant roadmap pages and inspect repository evidence for any
-   completion or dependency claims that affect the requested change.
+1. Read the index, release directory, affected release pages, and repository
+   evidence for any completion or dependency claims that affect the change.
 2. Remove an item from the backlog only when its completion is confirmed by
    merged implementation, tests, or documentation as appropriate. Do not treat
    a plan, partial implementation, or an unmerged change as completed work.
-3. Add backlog work only when requested. Put it in a new or existing work
-   package according to its dependencies and scope. Keep title, breaking
-   status, description, and prerequisites consistent with neighboring entries.
-4. Order work packages so prerequisites precede dependents. Name prerequisites
-   using the corresponding work package titles, and keep independent work
-   schedulable without inventing dependencies. Update references when a package
-   is renamed, split, or moved.
+3. Add work only when requested. Put it in an existing or new release file
+   according to its relationship to other packages and actual prerequisites.
+   Keep title, breaking status, description, and prerequisites consistent with
+   neighboring entries. Name releases for concrete changes and split unrelated
+   packages rather than hiding them under generic capability or foundation labels.
+4. Order work packages so prerequisites precede dependents within and across
+   release files. Name prerequisites using the corresponding work-package
+   titles, and keep independent work schedulable without inventing dependencies.
+   Update links and the release directory when a package moves or is renamed.
 5. Keep each work package small enough for one pull request, with a clear
    outcome and bounded implementation, testing, and documentation scope. A
    backlog item can require one or more commits within that package. Split
