@@ -151,5 +151,5 @@ data. Standard output is reserved for MCP messages, so analytical functions
 must not print there. Your AI application may send tool results to its model
 provider.
 
-See the [MCP architecture overview](../architecture/ai.md) and
-[Engine reference](../architecture/engine.md) for execution behavior.
+See the [MCP architecture overview](../../architecture/ai.md) and
+[Engine reference](../../architecture/engine.md) for execution behavior.

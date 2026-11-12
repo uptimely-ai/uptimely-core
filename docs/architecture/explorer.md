@@ -37,6 +37,6 @@ uptimely explorer export examples/pump_analytics --output docs/examples/pump_ana
     exports may differ from the locally served website as those capabilities
     evolve.
 
-See the [Explorer CLI reference](../cli/explorer.md) for serving and export
-options, and the [Explorer API reference](../python/explorer.md) for
+See the [Explorer CLI reference](../reference/cli/explorer.md) for serving and export
+options, and the [Explorer API reference](../reference/python/explorer.md) for
 presentation data.
