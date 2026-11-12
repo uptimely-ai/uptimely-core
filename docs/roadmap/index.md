@@ -2,7 +2,11 @@
 
 Uptimely Core is evolving from batch-oriented analytics toward more reliable,
 extensible execution and easier exploration of analytical dependencies.
-Near-term work improves Explorer navigation and lineage views, then strengthens
+Near-term work improves Explorer navigation and lineage views and moves the
+pump demo to a live server for protected Spec editing, calculations, and MCP
+chat. The [demo deployment plan](pump-demo-deployment.md) recommends a managed
+Python service and hosted model API rather than operating a local model first.
+Other packages strengthen
 data adapters, validation, configuration, and execution planning.
 
 Longer term, the project aims to support freshness-aware and streaming

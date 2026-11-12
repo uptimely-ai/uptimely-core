@@ -76,7 +76,7 @@ uptimely run examples/pump_analytics
 The command defaults and options are documented on each command page. Project
 build consumers use the active bundle under `_generated/build/`; rebuild it
 with `uptimely build` (or `uptimely project build`) to change the saved plan or
-feature scope. The `uptimely-mcp` server is a separate optional command; see
-[AI agents](../architecture/ai.md).
+feature scope. The `uptimely-mcp` server is a separate optional command. See
+[MCP API](../mcp/index.md) for installation and client setup.
 
 </div>

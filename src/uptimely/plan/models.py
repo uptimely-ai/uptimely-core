@@ -354,6 +354,49 @@ class ExecutionPlan(_PlanModel):
         """Return invocations in stage order, retaining the order within each stage."""
         return [invocation for stage in self.execution_stages for invocation in stage]
 
+    def for_operator(self, profile_id: str, operator_id: str) -> ExecutionPlan:
+        """Restrict the saved schedule to one operator and its prerequisites.
+
+        Both compute and merge bindings are included. Downstream invocations,
+        including sinks, are not selected. The compiler's ordering is preserved.
+
+        Args:
+            profile_id: Profile containing the requested operator.
+            operator_id: Operator identifier within the profile.
+
+        Returns:
+            A validated subset of this plan without recompiling.
+
+        Raises:
+            ValueError: The operator is absent from the saved execution scope.
+        """
+        selected = {
+            invocation.id
+            for invocation in self.invocations
+            if invocation.profile_id == profile_id and invocation.operator_id == operator_id
+        }
+        if not selected:
+            raise ValueError(
+                f"Operator {profile_id}/{operator_id} is not in the saved execution scope. "
+                "Rebuild the project with this operator's outputs or all features."
+            )
+        pending = list(selected)
+        while pending:
+            for dependency_id in self.invocations_by_id[pending.pop()].dependency_ids:
+                if dependency_id not in selected:
+                    selected.add(dependency_id)
+                    pending.append(dependency_id)
+        stages = [
+            Stage([invocation_id for invocation_id in stage if invocation_id in selected])
+            for stage in self.stages
+        ]
+        return self.__replace__(
+            invocations=[
+                invocation for invocation in self.invocations if invocation.id in selected
+            ],
+            stages=[stage for stage in stages if stage.root],
+        )
+
     @functools.cached_property
     def function_ids(self) -> set[str]:
         """Return the distinct functions used by this plan."""

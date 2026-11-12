@@ -68,6 +68,45 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
     )
 
 
+def test_operator_selection_preserves_dependencies_and_saved_order() -> None:
+    original = _sample_plan()
+
+    selected = original.for_operator("pump_profile", "pressure_by_pump")
+
+    assert list(selected.invocations_by_id) == ["opaque-read", "opaque-collapse"]
+    assert [stage.root for stage in selected.stages] == [["opaque-read"], ["opaque-collapse"]]
+    assert selected.invocations[1].dependency_ids == ["opaque-read"]
+    assert "opaque-write" in original.invocations_by_id
+
+
+def test_operator_selection_includes_explicit_sink() -> None:
+    original = _sample_plan()
+
+    assert original.for_operator("pump_profile", "save_pressure_by_pump") == original
+
+
+@pytest.mark.parametrize(
+    ("profile_id", "operator_id"),
+    [("unknown", "pressure_by_pump"), ("pump_profile", "unknown")],
+)
+def test_operator_selection_rejects_unknown_target(profile_id: str, operator_id: str) -> None:
+    with pytest.raises(ValueError, match="not in the saved execution scope"):
+        _sample_plan().for_operator(profile_id, operator_id)
+
+
+def test_operator_selection_retains_fragment_merge_pairs() -> None:
+    original = uptimely_plan.from_json("tests/fixtures/plans/simple_engine.json")
+
+    selected = original.for_operator("telemetry", "reading")
+
+    assert {invocation.role for invocation in selected.invocations} == {"compute", "merge"}
+    assert {invocation.operator_id for invocation in selected.invocations} == {"reading"}
+    assert [invocation.role for invocation in selected.execution_invocations] == [
+        "compute",
+        "merge",
+    ]
+
+
 def test_plan_round_trip_preserves_operator_kind_metadata() -> None:
     plan = _sample_plan()
 

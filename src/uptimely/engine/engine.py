@@ -5,6 +5,7 @@ import time
 from collections import abc
 
 from uptimely import entrypoint as entrypoint_module
+from uptimely import plan as plan_module
 from uptimely.project import paths
 from uptimely.project.build import models as build_models
 from uptimely.run import recording
@@ -79,7 +80,11 @@ class Engine:
             )
 
     def run(
-        self, *, validate: bool = False, preview_rows: int = config_module.DEFAULT_PREVIEW_ROWS
+        self,
+        *,
+        validate: bool = False,
+        preview_rows: int = config_module.DEFAULT_PREVIEW_ROWS,
+        operator: tuple[str, str] | None = None,
     ) -> result_module.ExecutionResult:
         """Execute the plan and overwrite the project's latest-run artifacts.
 
@@ -88,6 +93,10 @@ class Engine:
                 Lazy value checks may execute upstream queries repeatedly.
             preview_rows: Positive maximum sample size per profile. Lazy previews
                 execute bounded queries after execution; timing excludes previews.
+            operator: Optional (profile ID, operator ID) selecting an operator
+                and its saved prerequisites, without downstream sinks. An
+                explicitly selected sink still runs. Unselected invocations
+                are recorded as skipped.
 
         Returns:
             Main dataframes, invocation results, execution duration, collected
@@ -96,18 +105,23 @@ class Engine:
         Raises:
             OSError: Run artifacts cannot be persisted.
             ValueError: The preview row limit is invalid.
+                The requested operator is absent from the saved execution scope.
         """
+        plan = self.plan if operator is None else self.plan.for_operator(*operator)
         with recording.RunRecorder(
             self.bundle, self.config, validate=validate, preview_rows=preview_rows
         ) as recorder:
-            return recorder.finish(self._execute(validate=validate))
+            return recorder.finish(self._execute(validate=validate, plan=plan))
 
-    def _execute(self, *, validate: bool) -> result_module.ExecutionResult:
+    def _execute(
+        self, *, validate: bool, plan: plan_module.ExecutionPlan | None = None
+    ) -> result_module.ExecutionResult:
         """Execute invocations without coupling runtime state to artifact storage."""
+        plan = self.plan if plan is None else plan
         state = state_module.RuntimeState()
         entrypoints: dict[str, entrypoint_module.Entrypoint] = {}
         invocation_by_entrypoint = {
-            invocation.entrypoint: invocation for invocation in self.plan.invocations
+            invocation.entrypoint: invocation for invocation in plan.invocations
         }
         for location, invocation in invocation_by_entrypoint.items():
             package = invocation.package
@@ -133,10 +147,10 @@ class Engine:
 
         logger.debug(
             "Executing plan with %d stages (runtime validation %s)",
-            len(self.plan.execution_stages),
+            len(plan.execution_stages),
             "enabled" if validate else "disabled",
         )
-        for invocation in self.plan.execution_invocations:
+        for invocation in plan.execution_invocations:
             started = time.perf_counter()
             try:
                 logger.debug(

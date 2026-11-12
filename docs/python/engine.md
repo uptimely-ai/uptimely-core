@@ -17,6 +17,16 @@ business correctness of an analytical result. Keep ordinary pytest assertions
 for expected values; isolate external reads, writes, and other side effects
 with safe fixtures or mocks.
 
+To run just one operator with its saved prerequisites, pass
+`engine.run(operator=("profile_id", "operator_id"))`. Selection retains the
+saved schedule and includes the operator's compute and merge bindings. Downstream
+work, including sinks, is excluded unless the sink is explicitly requested.
+Sources and custom functions may still cause side effects. The operator must
+already be present in the saved plan, otherwise rebuild the project with the
+required outputs or all features. This does not recompile or replace the build.
+The run still replaces the project's latest-run artifacts and records unselected
+invocations as skipped.
+
 ## Materialized datasets and fragments
 
 The spec's `Profile` describes the analytical model. The engine's `Dataset` is

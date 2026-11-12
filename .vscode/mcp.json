@@ -2,13 +2,13 @@
   "servers": {
     "uptimely": {
       "type": "stdio",
-      "command": "${workspaceFolder}/.venv/bin/uptimely-mcp",
+      "command": "poetry",
       "cwd": "${workspaceFolder}",
       "args": [
+        "run",
+        "uptimely-mcp",
         "--project-root",
-        "${workspaceFolder}/examples/pump_analytics",
-        "--config",
-        "${workspaceFolder}/examples/pump_analytics/config/config.json"
+        "${workspaceFolder}/examples/pump_analytics"
       ]
     }
   }

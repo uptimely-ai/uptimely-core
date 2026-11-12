@@ -10,6 +10,12 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- MCP tools can execute a selected analytical function or operator with its saved
+  prerequisites, excluding downstream sinks. They also summarize spec feature
+  counts and inspect the latest engine run and its filtered logs.
+- `Engine.run(operator=(profile_id, operator_id))` executes a dependency-complete
+  subset of the saved plan without recompiling.
+
 - `ProjectBuilder` and `BundleStore` in `uptimely.project.build` provide reusable
   root-bound build orchestration and bundle loading. `Project` delegates to them.
 - `Project` provides root-bound build and bundle-loading operations. Import it
@@ -21,6 +27,10 @@ While the version is `0.x`, minor releases may include breaking changes.
   shown in Explorer's profile schema rather than its feature catalog or lineage.
 
 ### Changed
+
+- MCP setup uses the existing Poetry environment rather than assuming a local
+  `.venv`. A dedicated guide covers installed packages, VS Code, other clients,
+  and remote environments.
 
 - Move `resolve_path` onto `Project`, using its stored root for default paths
   while preserving explicitly supplied paths unchanged.

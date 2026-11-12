@@ -1,205 +1,79 @@
-# Working with AI Agents
+# AI agents and MCP
 
-Uptimely Core is built from ground up to natively run and manage numerical calculations with AI agents.
+The MCP server lets an AI assistant work with an Uptimely analytics project.
+An assistant can explain calculations, run a selected calculation with the
+work it depends on, and inspect the latest execution's warnings and failures.
 
-AI assistants can explore an analytics project without custom integration code.
+[MCP](https://modelcontextprotocol.io) is a standard way for an AI application
+to call tools. The application supplies the chat interface and language model.
+Uptimely supplies the project tools. The server does not require its own model
+or model API key.
 
-Spec is declared in JSON, functions
-are catalog entries with typed arguments, and plans are portable — the same
-artifacts an agent can read are the ones the compiler and engine consume.
+## Project access
 
-## Built-in MCP server
+One server process works with one analytics project. It reads the project's
+saved build, containing the Spec and the plan prepared by the
+[Compiler](compiler.md). Changes to source declarations become available after
+a successful rebuild and a server reload.
 
-The package ships a basic [MCP](https://modelcontextprotocol.io) server that exposes
-these capabilities as agent tools. Once connected, assistants such as VS Code
-Copilot Chat can inspect the saved spec and execution scope, explain catalog
-functions, and run the saved plan conversationally.
+The server does not build the project automatically. Missing or invalid builds
+produce an error with a recovery command. Latest-run tools can read existing
+run records without loading a build.
 
-## Build your own MCP server
+## Analytical execution
 
-By looking at the mcp example in source code, it is almost trivial to define your own agentic interface.
+A function describes reusable Python code. An operator describes where that
+function is used, which arguments it receives, and which features it needs.
+Running through the operator allows the [Engine](engine.md) to prepare the
+required data and run earlier calculations first.
 
-## What the server exposes
+An assistant can select a function when it has one matching use in the Spec.
+When the same function is used in several places, the assistant must select
+the intended profile and operator. This avoids guessing which calculation
+the user meant.
 
-Operators declare required and produced features, so execution includes the
-prerequisites for a function **bound to features**, not just the raw function.
-A function can be reused by operators with different binding roles and grain
-relationships. Optional function categories are descriptive metadata and do
-not determine execution. The server exposes both the reusable function
-contracts and their operator usages:
+Selected runs exclude later work, including configured output writers.
+Explicitly selecting a writer still runs it. Full-build execution runs all
+work in the saved plan. Read functions and custom calculations can also write
+files or contact external services, so execution is not a read-only operation.
 
-Introspection over the saved spec and build:
+## Questions and results
 
-- `list_functions` — every catalog function id, optional category, and declared return contract
-- `describe_function` — one function's entrypoint, declared arguments, and
-  resolved Python signature, plus each usage's binding role, execution form,
-  and grain relationships
-- `list_calculated_features` — a sorted list of calculated feature ids
-- `describe_feature` — one calculated feature's producing function, direct
-  dependencies, and full transitive closure split into input and calculated
-  features
-- `describe_build` — the Uptimely version and whether the saved plan covers all
-  features or a selected feature scope
-- `reload_build` — refresh the validated saved bundle, spec, plan, and scope
+The tools support three main kinds of question:
 
-Execution through the saved plan and engine:
+- **Explore the model:** "How many features does my spec have?" or
+  "What does the pump health score depend on?"
+- **Run analytics:** "Give me the pump optimization result" or
+  "Run the pressure-flow ratio and show five rows."
+- **Review execution:** "Which warnings were logged in the last engine run?"
+  or "Which calculation failed?"
 
-- `execute_build` — run the saved execution plan as-is and return calculated
-  profile outputs as dimension-keyed JSON rows
+Results include a limited sample of rows with identifiers such as pump ID and
+timestamp. Sampling limits response size, not the amount of data used by the
+calculation. Functions must return data through their operator to expose
+analytical rows. Results written only inside a function are not automatically
+read back.
 
-MCP never compiles or renders. Choose a full or scoped plan with
-`uptimely project build` before starting the server; `execute_build` has no
-feature-selection input and cannot change that saved scope. To pick up a newer
-successful build while the server is running, call `reload_build`.
-Execution runs the saved plan's functions, including configured write sinks,
-and can therefore cause external side effects.
+Every execution replaces the latest-run records, including logs and previews.
+They describe the most recent run, including runs started through Python or
+the command line, not a history of previous runs.
 
-## Installation
+## Connection and boundaries
 
-The server lives in the optional `mcp` extra:
+The client starts the server and communicates through its standard input and
+output. No web port or separately managed background service is needed.
+The server must run in a Python environment with access to the project,
+its function packages, and its data.
 
-```sh
-poetry install --extras "mcp"
-```
+Data freshness and date filtering are controlled by project sources. The
+server does not interpret "today" as a filter. Only connect trusted projects
+and review tool permissions in the client. Logs, previews, and chat answers
+may contain project data.
 
-This installs [FastMCP](https://github.com/jlowin/fastmcp) and registers the
-`uptimely-mcp` command. No language model is involved on the server side — MCP
-is plain JSON-RPC; the model lives in the client host.
+## Learn more
 
-## Running the server
-
-```sh
-uptimely-mcp \
-  --project-root examples/pump_analytics \
-  --config examples/pump_analytics/config/config.json
-```
-
-The arguments:
-
-Argument | Purpose
---- | ---
-`--project-root` | Analytics project root containing the last successful `_generated/build/`. Defaults to the working directory.
-`--config` | JSON file with engine backend settings and global parameters.
-
-Build the project first, for example:
-
-```sh
-uptimely build examples/pump_analytics
-```
-
-The MCP server rejects missing, incomplete, or invalid builds with a recovery
-command. It does not fall back to source files or compile a replacement plan.
-Edits to the source spec do not change the saved MCP view until a successful
-project build is made and the server runs `reload_build`.
-
-The server loads backend settings and required scalar values from `--config`,
-which defaults to `config/config.json` under the project root. It does not
-select an environment or merge configuration files. Only `$params.<name>` references are
-substituted, not arbitrary spec fields. See the
-[parameter guide](engine.md#global-parameters) for the file
-structure and Python API usage.
-
-The server communicates over stdio and is normally launched by the MCP client,
-not by hand. Anything printed to stdout corrupts the protocol channel, so the
-server must log to stderr only.
-
-## Connecting VS Code Copilot Chat
-
-The repository contains a ready-made
-[`.vscode/mcp.json`](https://github.com/uptimely-ai/uptimely-core/blob/main/.vscode/mcp.json) for VS Code Copilot Chat. Keep
-`.vscode/` at the repository root, not inside `.devcontainer/`. In a Dev
-Container window, VS Code resolves `${workspaceFolder}` to the container's
-workspace and launches the server from its Poetry virtual environment.
-
-```json
-{
-  "servers": {
-    "uptimely": {
-      "type": "stdio",
-      "command": "${workspaceFolder}/.venv/bin/uptimely-mcp",
-      "cwd": "${workspaceFolder}",
-      "args": [
-        "--project-root",
-        "${workspaceFolder}/examples/pump_analytics",
-        "--config",
-        "${workspaceFolder}/examples/pump_analytics/config/config.json"
-      ]
-    }
-  }
-}
-```
-
-To use it:
-
-1. In the Dev Container, `post-create.sh` installs the MCP extra. Outside the
-   Dev Container, run `./scripts/install-mcp.sh` from the repository root to
-   install MCP and build the example bundle.
-2. Reopen the folder in the Dev Container if needed, then open Copilot Chat in
-   **Agent mode** — tools are not available in Ask mode.
-3. Check the tools icon to confirm the `uptimely` tools are listed, then ask
-   for example: *"describe the pump_health_score function"* or *"run the saved
-   build and show three rows per profile"*.
-
-MCP sampling uses VS Code's default available models. The repository does not
-pin an `allowedModels` list because VS Code identifies a workspace MCP server
-using a key that includes the local workspace folder name. To customize model
-access for this server, use **MCP: List Servers** in the Command Palette.
-
-The Dev Container sets `chat.mcp.autostart` to `newAndOutdated`. When you submit
-a chat message, VS Code starts new servers and servers whose configuration has
-changed. The existing workspace configuration launches `uptimely` inside the
-container using the environment prepared by `post-create.sh`. Rebuild the
-container to apply changes to its VS Code settings.
-
-Autostart does not override a disabled server or retry a server in an error
-state. If `uptimely` is disabled, enable it once through **MCP: List Servers**;
-if it is in an error state, inspect the error and restart it after resolving
-the cause. Server trust prompts must also be approved.
-
-The stdio process belongs to the MCP client, not the container lifecycle.
-Do not launch it from `post-create.sh` or `postStartCommand`: a separate
-background process cannot share its stdio connection with Copilot. Automatic
-startup happens through the client, not immediately when the container boots.
-Use **MCP: List Servers** in the Command Palette and the **MCP** channel in the
-Output panel to inspect status and raw JSON-RPC traffic when troubleshooting.
-
-If startup reports "No such file or directory", check that
-`.venv/bin/uptimely-mcp` exists in the container workspace. Run the
-`./scripts/install-mcp.sh` script in the container if it is missing. The
-Dockerfile already installs Poetry, and `post-create.sh` prepares the virtual
-environment; installing Poetry on the local host does not repair the container
-environment.
-
-This is VS Code's native configuration (`servers`, with workspace-variable
-substitution). Clients that require a root `.mcp.json` with `mcpServers`, such
-as some CLI or Agent Host integrations, need their own configuration and
-must launch the process in the container. Moving a configuration file alone
-does not make a host-side client run inside the Dev Container.
-
-## Example requests
-
-Once connected, an assistant can answer questions that would otherwise require
-running the runners by hand:
-
-- *"Which vectorize functions does this spec document declare?"* →
-  `list_functions`
-- *"What arguments does `min_max_scale` take?"* → `describe_function`
-- *"What does `pump_health_score` depend on?"* → `describe_feature`
-- *"What feature scope does this build cover?"* → `describe_build`
-- *"Run the saved build and show up to five rows per profile"* →
-  `execute_build`
-- *"I rebuilt the project; reload the active build"* → `reload_build`
-
-`execute_build` returns profile grain keys plus the calculated features for
-each profile, so results retain their declared dimensional context. It runs the
-plan's configured sinks, which may persist output.
-
-## Limitations
-
-- The server wraps the built-in batch engine; streaming sources are not
-  available.
-- Scoped plans still execute their configured sinks. A sink that expects
-  features outside the selected plan can fail; if all calculated outputs were
-  produced, the tool reports sink failures as warnings.
-- Each profile payload is capped by the `max_rows` argument of `execute_build`
-  to keep responses within a size agents can handle.
+See [MCP API](../mcp/index.md) for installation, VS Code and other client
+configuration, working-directory requirements, connection checks, example
+questions, and troubleshooting. Install the latest published MCP extra or use
+the repository setup for unreleased tools. The
+[Engine reference](engine.md) explains execution and saved run records.
