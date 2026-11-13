@@ -85,7 +85,7 @@ def test_numpy_multiline_doctest_remains_one_example() -> None:
         '    {"pressure": [4.0], "flow": [10.0], "power": [5.0], "temp": [80.0], "vib": [3.0]}\n'
         ")\n"
         'features = ["pressure", "flow", "power", "temp", "vib"]\n'
-        'result = operation_point_optimization(frame, features, "recommendation")\n'
+        'result = operation_point_optimization(frame, features, "recommendation", 90.0, 4.5)\n'
         'result.collect()["recommendation"].to_list()[0]["converged"]\n'
         "True"
     ]

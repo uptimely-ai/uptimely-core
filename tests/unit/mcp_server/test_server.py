@@ -226,6 +226,7 @@ async def test_list_calculated_features(state: mcp_state.ServerState) -> None:
         "operating_point_recommendation",
         "pressure_flow_efficiency",
         "pump_health_score",
+        "pump_mode",
         "recommended_differential_pressure",
         "recommended_flow_rate",
         "vibration_delta",

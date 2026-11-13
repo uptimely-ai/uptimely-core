@@ -15,6 +15,56 @@ SUPPORTED_AGGREGATIONS = ("max", "min", "mean", "sum")
 EMPTY_COLUMN_RENAMES: collections.abc.Mapping[str, str] = types.MappingProxyType({})
 
 
+@function(category="calculate")
+def pump_mode(
+    dataset: pl.LazyFrame,
+    bearing_temperature: str,
+    vibration_rms: str,
+    output: str,
+    bearing_temperature_warning_limit: float,
+    vibration_warning_limit: float,
+) -> pl.LazyFrame:
+    """Classify each reading using illustrative temperature and vibration limits.
+
+    Parameters
+    ----------
+    dataset
+        DataFrame containing the condition readings.
+    bearing_temperature
+        Bearing-temperature column in degrees Celsius.
+    vibration_rms
+        Vibration RMS column in mm/s.
+    output
+        Name of the resulting mode column.
+    bearing_temperature_warning_limit
+        Inclusive bearing-temperature warning threshold in degrees Celsius.
+    vibration_warning_limit
+        Inclusive vibration RMS warning threshold in mm/s.
+
+    Returns
+    -------
+    DataFrame with ``warning`` when either reading reaches its supplied limit,
+    otherwise ``operational``. Missing or non-finite
+    readings produce null unless the other reading establishes a warning.
+    These limits are illustrative, not validated equipment limits.
+    """
+    temperature = pl.col(bearing_temperature)
+    vibration = pl.col(vibration_rms)
+    temperature = pl.when(temperature.is_finite()).then(temperature)
+    vibration = pl.when(vibration.is_finite()).then(vibration)
+    warning = (temperature >= bearing_temperature_warning_limit) | (
+        vibration >= vibration_warning_limit
+    )
+    mode = (
+        pl.when(warning)
+        .then(pl.lit("warning"))
+        .when(~warning)
+        .then(pl.lit("operational"))
+        .otherwise(pl.lit(None, dtype=pl.String))
+    )
+    return dataset.with_columns(mode.alias(output))
+
+
 @function(category="select")
 def select_columns(
     dataset: pl.LazyFrame,
@@ -298,6 +348,8 @@ def operation_point_optimization(
     dataset: pl.LazyFrame,
     optimization_features: list[str],
     output: str,
+    bearing_temperature_warning_limit: float,
+    vibration_warning_limit: float,
     method: str = "quantum",
 ) -> pl.LazyFrame:
     """Return recommended operating values and convergence as a struct column.
@@ -313,6 +365,11 @@ def operation_point_optimization(
         columns, in that order.
     output
         Name of the resulting struct column.
+    bearing_temperature_warning_limit
+        Bearing-temperature limit in degrees Celsius, excluding convergence at
+        or above the limit.
+    vibration_warning_limit
+        Vibration RMS limit in mm/s, excluding convergence at or above the limit.
     method
         Optimization method. Only ``"quantum"`` is supported.
 
@@ -331,7 +388,7 @@ def operation_point_optimization(
     ...     {"pressure": [4.0], "flow": [10.0], "power": [5.0], "temp": [80.0], "vib": [3.0]}
     ... )
     >>> features = ["pressure", "flow", "power", "temp", "vib"]
-    >>> result = operation_point_optimization(frame, features, "recommendation")
+    >>> result = operation_point_optimization(frame, features, "recommendation", 90.0, 4.5)
     >>> result.collect()["recommendation"].to_list()[0]["converged"]
     True
     """
@@ -342,7 +399,8 @@ def operation_point_optimization(
         recommended_flow_rate=flow,
         recommended_differential_pressure=pressure,
         energy_cost_score=power / flow,
-        converged=(temperature < 90.0) & (vibration < 4.5),
+        converged=(temperature < bearing_temperature_warning_limit)
+        & (vibration < vibration_warning_limit),
     )
     data_vectorized = dataset.with_columns(expression.alias(output))
     return data_vectorized

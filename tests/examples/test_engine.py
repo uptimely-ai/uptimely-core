@@ -53,6 +53,7 @@ def test_engine_returns_calculated_features_without_writing_output(
         "operating_point_recommendation",
         "pressure_flow_efficiency",
         "pump_health_score",
+        "pump_mode",
         "recommended_differential_pressure",
         "recommended_flow_rate",
         "vibration_delta",
@@ -98,9 +99,22 @@ def test_engine_returns_calculated_features_without_writing_output(
     assert telemetry_frame.height == 10
     assert telemetry_frame.select("pump_id", "timestamp").n_unique() == 10
     assert telemetry_frame["pump_id"].unique().sort().to_list() == pump_frame["pump_id"].to_list()
+    assert telemetry_frame["pump_mode"].to_list() == [
+        "operational",
+        "operational",
+        "operational",
+        "operational",
+        "operational",
+        "operational",
+        "warning",
+        "operational",
+        "operational",
+        "operational",
+    ]
     telemetry_frame = telemetry_frame.filter(pl.col("pump_id").is_in(["CWP-101", "CWP-201"]))
     assert telemetry_frame["pump_id"].to_list() == ["CWP-101", "CWP-101", "CWP-201"]
-    assert telemetry_frame["operation_mode"].to_list() == [
+    assert "operation_mode" not in telemetry_frame.columns
+    assert telemetry_frame["mode"].to_list() == [
         "below_rated_flow",
         "at_or_above_rated_flow",
         "below_rated_flow",
