@@ -10,7 +10,7 @@ These release groupings do not assign software version numbers. Versions are ass
 - [Release 1: Explorer navigation, focused lineage, and dependency views](release-01-explorer.md)
 - [Release 2: Frame contracts, scoped runs, validation, and bounded concurrency](release-02-data-foundations.md)
 - [Release 3: Dataframe interoperability, distributed adapters, and tensor features](release-03-dataframe-support.md)
-- [Release 4: JSON specification composition and readable spec summaries](release-04-specification-authoring.md)
+- [Release 4: Specification expressions, composition, and summaries](release-04-specification-authoring.md)
 - [Release 5: Freshness requirements and dependency-derived schedules](release-05-freshness-scheduling.md)
 - [Release 6: Cooling-pump signal processing and sliding-window examples](release-06-signal-processing.md)
 - [Release 7: Immutable build snapshots, dependency provenance, and source diagnostics](release-07-reproducible-builds.md)
