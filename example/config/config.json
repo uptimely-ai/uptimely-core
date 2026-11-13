@@ -13,7 +13,15 @@
     "pump_category_source": "data/input/pump_category.json",
     "pump_external_inputs_source": "data/input/pump_external_workflow.csv",
     "telemetry_source": "data/input/pump_telemetry.json",
-    "pump_external_workflow_output": "_generated/pump_external_workflow_results.csv"
+    "constants_output": "data/output/constants.csv",
+    "pump_output": "data/output/pump.csv",
+    "pump_category_output": "data/output/pump_category.csv",
+    "pump_series_output": "data/output/pump_series.csv",
+    "pump_telemetry_output": "data/output/pump_telemetry.json",
+    "pump_telemetry_by_minute_output": "data/output/pump_telemetry_by_minute.csv",
+    "pump_telemetry_by_hour_output": "data/output/pump_telemetry_by_hour.csv",
+    "pump_telemetry_by_day_output": "data/output/pump_telemetry_by_day.csv",
+    "pump_external_workflow_output": "data/output/pump_external_workflow_results.csv"
   },
   "params": {
     "dummy": "not_used"

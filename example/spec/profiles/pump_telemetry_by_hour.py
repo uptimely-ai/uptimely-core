@@ -1,7 +1,7 @@
 """Cooling-pump telemetry by hour profile declaration."""
 
 from example.spec import dimension
-from example.src import analytics
+from example.src import analytics, io
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 
@@ -50,5 +50,17 @@ class PumpTelemetryByHour(Profile):
                 ),
             ),
             merge=merge.default(),
-        )
+        ),
+        Operator(
+            id="write_pump_telemetry_by_hour",
+            interface=Interface(outputs=[]),
+            compute=Binding(
+                function=io.write_file,
+                arguments=dict(
+                    dataset=ref.dataset(),
+                    features=[features.bearing_temperature_max],
+                    output=ref.paths("pump_telemetry_by_hour_output"),
+                ),
+            ),
+        ),
     ]

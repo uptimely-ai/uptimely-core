@@ -75,6 +75,82 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
         }
 
 
+def test_each_profile_publishes_its_features_with_the_shared_writer(
+    pump_bundle: project.BuildBundle,
+) -> None:
+    expected_outputs = {
+        "constants": (
+            {"gravity", "room_temperature"},
+            "constants_output",
+        ),
+        "pump": (
+            {
+                "pump_max_capacity",
+                "series_max_capacity",
+                "category_max_capacity",
+                "max_capacity",
+                "measurement",
+                "reference_value",
+                "bearing_temperature_max",
+                "health_signal_normalized",
+            },
+            "pump_output",
+        ),
+        "pump_category": (
+            {"bearing_temperature_category_max", "max_capacity_category"},
+            "pump_category_output",
+        ),
+        "pump_series": (
+            {"bearing_temperature_series_max", "max_capacity_series"},
+            "pump_series_output",
+        ),
+        "pump_telemetry": (
+            {
+                "differential_pressure",
+                "flow_rate",
+                "bearing_temperature",
+                "vibration_rms",
+                "motor_power",
+                "operation_mode",
+                "recommended_flow_rate",
+                "recommended_differential_pressure",
+                "energy_cost_score",
+                "converged",
+                "pressure_flow_efficiency",
+                "room_temperature_reference",
+                "bearing_temperature_rise",
+                "bearing_temperature_delta",
+                "vibration_delta",
+                "pump_health_score",
+                "operating_point_recommendation",
+            },
+            "pump_telemetry_output",
+        ),
+        "pump_telemetry_by_minute": (
+            {"bearing_temperature_minute_max"},
+            "pump_telemetry_by_minute_output",
+        ),
+        "pump_telemetry_by_hour": (
+            {"bearing_temperature_hour_max"},
+            "pump_telemetry_by_hour_output",
+        ),
+        "pump_telemetry_by_day": (
+            {"bearing_temperature_day_max"},
+            "pump_telemetry_by_day_output",
+        ),
+    }
+
+    for profile_id, (feature_ids, output_path) in expected_outputs.items():
+        writer = next(
+            invocation
+            for invocation in pump_bundle.execution_plan.invocations
+            if invocation.profile_id == profile_id and invocation.operator_kind == "write"
+        )
+        assert writer.function_id == "write_file"
+        assert set(writer.arguments["features"]) == feature_ids
+        assert writer.arguments["output"] == f"$paths.{output_path}"
+
+
 @pytest.mark.usefixtures("example_projects")
 def test_project_build_cli_exports_complete_bundle(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch

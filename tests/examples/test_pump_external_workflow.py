@@ -61,6 +61,9 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
         paths[name] = str(
             configured if configured.is_absolute() else bundle.project_root / configured
         )
+    assert pathlib.Path(paths["pump_external_workflow_output"]) == (
+        bundle.project_root / "data" / "output" / "pump_external_workflow_results.csv"
+    )
     paths["pump_external_workflow_output"] = str(output_path)
 
     result = engine_for_plan(
@@ -71,6 +74,11 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
         paths=paths,
     ).run()
 
+    profile_output_paths = [
+        pathlib.Path(paths[name])
+        for name in configuration["paths"]
+        if name.endswith("_output") and name != "pump_external_workflow_output"
+    ]
     escape = next(
         invocation
         for invocation in saved_plan.invocations
@@ -83,6 +91,7 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     assert all(status == "succeeded" for status in result.invocation_statuses.values())
     assert result.failures == {}
     assert len(result.datasets) == 8
+    assert all(path.is_file() for path in profile_output_paths)
     dataset = result.datasets["pump"]
     assert {
         "bearing_temperature_max",

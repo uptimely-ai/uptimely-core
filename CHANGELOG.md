@@ -44,6 +44,7 @@ While the version is `0.x`, minor releases may include breaking changes.
   `src/io.py`, and `src/merge.py`. Rebuild existing example bundles after updating.
 - Example input data now lives in `data/input/`. Project guidance reserves
   `data/output/` for results to keep, share, or reuse.
+- The pump example writes each profile to a configured file under `data/output/`.
 - The pump example uses `select_columns` for both keyed projections and
   constant columns; the engine handles broadcasting during merge.
 - The example aggregation function no longer supports filtering rows before
