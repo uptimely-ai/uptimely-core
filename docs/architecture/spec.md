@@ -10,15 +10,15 @@ analytical declarations and the tools that validate, document, and compile them.
 
 The root is one JSON object. Dimensions, profiles, function templates,
 features, arguments, and operators use object keys as identifiers. Their IDs
-are derived from those keys; operator entries do not include an `id` field.
+are derived from those keys. Operator entries do not include an `id` field.
 Identifiers should be stable, lowercase, and descriptive.
 
 Tables describe the current parser contract. A default applies when a field is
-omitted; it does not generally make explicit `null` valid. Unknown fields are
+omitted, but it does not generally make explicit `null` valid. Unknown fields are
 rejected. The JSON structure defines the same contract regardless of how a
 document is authored or consumed.
 
-Reference syntax is defined by each field; `$...` selectors are not a
+Reference syntax is defined by each field. `$...` selectors are not a
 universal notation for every link between declarations. Some fields name a
 catalog entry directly, some identify a resource by a structured set of IDs,
 and selectors are used where the field accepts a value resolved from the
@@ -58,17 +58,17 @@ For example, dimensions and profiles use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `8` | Spec format version; only `8` is supported. |
+| `spec_version` | integer | No | `8` | Spec format version. Only version `8` is supported. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
 | `profiles` | object | No | `{}` | Profile definitions keyed by globally unique identifier. |
 
 `spec_version` versions the Spec JSON format, not a particular analytics
-project. Increment it when the format changes incompatibly; readers reject
+project. Increment it when the format changes incompatibly. Readers reject
 unsupported values.
 
-The Spec defines the build-time workflow; project/runtime configuration supplies
+The Spec defines the build-time workflow. Project/runtime configuration supplies
 values and controls for execution. Runtime parameters can change results without
 changing the invocation graph.
 
@@ -124,7 +124,7 @@ Each resolution has the following fields:
 | `parent` | string or null | No | `null` | Identifier of a parent resolution in this dimension. |
 | `name` | string or null | No | `null` | Human-readable resolution label used by Explorer instead of the identifier when provided. |
 
-Resolution IDs are local to their dimension; the identity of a resolution is
+Resolution IDs are local to their dimension, and the identity of a resolution is
 the pair of dimension and resolution IDs. The `parent` field names a resolution
 within its containing dimension, so it uses that resolution's bare ID rather
 than a selector. A parent link does not add a parent key to a profile or expand
@@ -134,7 +134,7 @@ its observations.
 
 A profile describes observations, their dimensions, features, operators, and
 optional metadata. Profiles are top-level and identified by a globally unique
-object key; attributes must not include `id`. Its ordered `grain` selects one
+object key. Attributes must not include `id`. Its ordered `grain` selects one
 resolution per dimension and defines the dataframe key order. An empty grain
 represents a dimensionless profile.
 
@@ -143,7 +143,7 @@ represents a dimensionless profile.
 | `name` | string or null | No | Generated from the profile identifier | Human-readable display name. |
 | `description` | string or null | No | `null` | Explanation of the profile. |
 | `category` | string or null | No | `null` | Optional free-form grouping label. |
-| `scope` | string or null | No | `null` | Free-form descriptive metadata; it does not affect semantic validation or execution. |
+| `scope` | string or null | No | `null` | Free-form descriptive metadata. It does not affect semantic validation or execution. |
 | `grain` | array of objects | No | `[]` | Ordered dimension-resolution references defining row detail. |
 | `relations` | array of objects | No | `[]` | Resolutions relating observations to foreign profiles without contributing to row identity. |
 | `order` | array of objects | No | `[]` | Logical ordering by selected grain references. |
@@ -151,22 +151,22 @@ represents a dimensionless profile.
 | `assembly` | object | No | `{}` | Operators keyed by identifier, unique within this profile. |
 
 Each grain reference contains a bare `dimension` identifier and a `resolution`
-identifier from that dimension. Together they identify the resolution; neither
+identifier from that dimension. Together they identify the resolution, and neither
 value uses selector syntax. A profile cannot select multiple resolutions of
 one dimension, and selected dataframe keys must be distinct. Different
 dimensions remain independent axes, so a profile may select separate sales
 time and measurement time dimensions. The dimension registry describes what
-is available; a profile's grain declares what that profile actually selects.
+is available. A profile's grain declares what that profile actually selects.
 
 `relations` uses the same dimension-resolution reference shape as `grain`.
 It may include several resolutions of one dimension or resolutions from other
 dimensions. Relation columns must be distinct from each other, grain keys, and
 declared features. They do not change the profile's grain or imply a particular
 join or foreign-key constraint. The engine retains these keys when a fragment
-carries them; declaring a relation does not calculate or load its values.
+carries them. Declaring a relation does not calculate or load its values.
 Explorer labels grain resolutions **ID**, and lists related-profile columns
-as **Relation**, not as features. Identifiers define the profile grain;
-keys collectively means identifiers and relations.
+as **Relation**, not as features. Identifiers define the profile grain.
+The term `keys` refers to both identifiers and relations.
 
 In Python, declare resolutions directly:
 
@@ -217,7 +217,7 @@ Each key under `features` identifies a column's metadata. Each key under
 `assembly` identifies one operator, unique within its profile. An operator
 identifier names a compute instance, not a reusable function or an output
 feature. Multiple operators can invoke the same function with different
-arguments. The key supplies the operator ID; an `id` attribute is rejected.
+arguments. The key supplies the operator ID. An `id` attribute is rejected.
 
 ### Scope
 
@@ -239,7 +239,7 @@ The former `row_scope` object is not accepted.
 Order references must be distinct members of the profile grain. Array position
 determines key precedence. Omission means no declared order. Null placement,
 collation, and ties are not specified. Time-based row context requires the
-selected resolution to have type `datetime`; step-based row context requires
+selected resolution to have type `datetime`. Step-based row context requires
 type `integer`.
 
 Order is a logical convention, not a physical sort or partition guarantee.
@@ -250,7 +250,7 @@ profile order to interpret preceding and following observations.
 
 A feature is a column describing a profile's observations, whether read from a
 source or calculated. Its profile registry declares the metadata once. The registry key
-is the feature ID; `name` is an optional human-readable label and defaults to
+is the feature ID. `name` is an optional human-readable label and defaults to
 the ID converted from snake or kebab case to title case:
 
 ```json
@@ -324,13 +324,13 @@ identifiers.
 When `validate_signature` is `true`, the Python entrypoint is checked for
 keyword-call compatibility with declared arguments, undeclared required
 parameters, positional-only parameters, and supported annotation
-contradictions. Annotations are optional; a known incompatible annotation is
+contradictions. Annotations are optional. A known incompatible annotation is
 invalid. When it is `false`, compilation and documentation do not inspect the
 callable signature. This disables only implementation signature checks:
 declared contracts, binding arguments, feature dependencies, package
 provenance, and entrypoint syntax are still validated.
 Execution still requires a loadable implementation. Function packages must be
-installed in both the build and runtime environments; Uptimely does not install
+installed in both the build and runtime environments. Uptimely does not install
 them or add project paths to `sys.path`. Recorded distribution versions are
 provenance only and are not enforced at runtime. Ambiguous installed package
 namespaces are reported explicitly.
@@ -358,7 +358,7 @@ string and do not import the implementation from the spec declaration itself.
 
 Operator identifiers and feature names can differ from the function identifier.
 Function definitions have no `kind` field. A callable's argument and return
-contract must agree across all its bindings; its role and operator relationships
+contract must agree across all its bindings. Its role and operator relationships
 are established at each usage.
 
 ### Binding roles and derived operator labels
@@ -370,7 +370,7 @@ fragment. The dataset may be nullable for initialization. Binding arity counts
 argument slots, not distinct referenced profiles, even when inspection is disabled.
 
 With a merge, compute returns a fragment. Without one, a dataframe result is
-the complete target; omission never selects a default merge. Python authors
+the complete target. Omission never selects a default merge. Python authors
 can explicitly choose `merge=up.merge.default()`. JSON authors select the
 builtin merge binding:
 
@@ -388,9 +388,10 @@ builtin merge binding:
 The framework derives labels such as `read`, `vectorize`, `conform`, `expand`,
 and `collapse` from a binding's return contract, dataframe source, and target
 grain. They are not callable classifications: the same function can have
-different labels in different operators. Shared derived Spec views expose the grain relationship,
-execution form (`compute` or `compute + merge`), and binding roles separately;
-the grain relationship does not determine the execution form or runtime result
+different labels in different operators. Shared derived Spec views expose the
+grain relationship, execution form (`compute` or `compute + merge`), and binding
+roles separately.
+The grain relationship does not determine the execution form or runtime result
 contract. Categories remain descriptive and are used only for function
 catalog grouping in Explorer. `returns="any"` explicitly ignores a result and
 allows logical dependencies without materializing outputs. `returns="none"`
@@ -399,10 +400,9 @@ declares no output and cannot declare materialized features.
 ### Arguments
 
 The `args` schema declares reusable argument types. A dataframe argument
-represents a dataset input;
-other arguments may carry identifiers, features, or external resource
-settings. Each dataframe argument must be
-explicitly bound to a dataset; the engine does not implicitly pass the
+represents a dataset input. Other arguments may carry identifiers, features, or
+external resource settings. Each dataframe argument must be
+explicitly bound to a dataset. The engine does not implicitly pass the
 operator's accumulated dataframe.
 
 | Field | JSON type | Required | Default | Meaning |
@@ -483,10 +483,10 @@ An operator separates analytical requirements from its computation:
 | `interface.outputs` | array of strings | No | `[]` | Features produced in the owning profile. |
 | `row_context` | object or null | No | `null` | Surrounding-observation requirements. |
 | `compute` | object | Yes | N/A | Function invocation. |
-| `compute.function` | string | Yes | N/A | Function-catalog key identifying the definition to invoke; use the bare function ID, not a `$functions` selector. |
+| `compute.function` | string | Yes | N/A | Function-catalog key identifying the definition to invoke. Use the bare function ID, not a `$functions` selector. |
 | `compute.args` | object | No | `{}` | Concrete arguments matching the template schema. |
 | `merge` | object or null | No | `null` | Optional merge function invocation for a staged fragment. |
-| `merge.function` | string | Yes when `merge` is set | N/A | Function-catalog key; its binding position establishes the merge role. |
+| `merge.function` | string | Yes when `merge` is set | N/A | Function-catalog key. Its binding position establishes the merge role. |
 | `merge.args` | object | No | `{}` | Arguments including the current dataset and this operator's staged fragment. |
 
 Input and output lists contain distinct `$features.<id>` references, without
@@ -502,7 +502,7 @@ must exist. Declare every consumed feature in `inputs`.
 
 Outputs reference the owning profile's feature registry and are the only
 declaration of features produced by an operator. Compute arguments may use
-feature references to pass identifiers, including output names; those arguments
+feature references to pass identifiers, including output names. Those arguments
 do not infer inputs or outputs. Profile identifiers are required in every
 returned table, even when omitted from `outputs`.
 A write operator declares empty outputs and explicitly lists its required inputs.
@@ -514,11 +514,11 @@ least one feature. There is no binding-level `return` field.
 Each `read`, `conform`, `collapse`, or `expand` result is a fragment containing
 the target dataset's complete dimension keys and that operator's declared
 outputs. An `expand` fragment may omit dimension keys its lower-dimensional
-source cannot supply; the engine left-joins it onto the accumulated dataset by
+source cannot supply. The engine left-joins it onto the accumulated dataset by
 the keys it carries. The engine validates required columns, types, and unique
 keys, then
 assembles same-profile fragments by key with a full outer join. Partial
-coverage is retained; duplicate keys and overlapping feature outputs are
+coverage is retained. Duplicate keys and overlapping feature outputs are
 rejected. See the [engine fragment contract](engine.md#datasets-and-fragments) for runtime
 details.
 
@@ -526,13 +526,13 @@ details.
 
 Declare `merge` explicitly to stage and assemble a fragment. Without a merge,
 a dataframe compute result publishes the complete target. The binding is part of the build-time Spec and
-plan; changing it requires rebuilding. Runtime configuration does not select or
+plan. Changing it requires rebuilding. Runtime configuration does not select or
 change the merge function.
 
 When declared, `merge.args.dataset` must be `$profiles.@.dataset` and
 `merge.args.fragment` must be `$operators.@.fragment`. The dataset is nullable
 for the first merge. Python declarations use `ref.dataset()` and `ref.fragment()`.
-Merge bindings cannot reference features; assembly
+Merge bindings cannot reference features. Assembly
 uses the target profile's declared dimensions to determine join keys.
 `interface.inputs` declares compute dependencies only.
 
@@ -553,19 +553,19 @@ uses the target profile's declared dimensions to determine join keys.
 | `$profiles.<id>.id` | `string` | Profile identifier string. |
 | `$features.@.id` | `string` | The sole vectorize or collapse feature output. |
 
-These selectors apply to compute and merge argument values; they are not a general
+These selectors apply to compute and merge argument values. They are not a general
 replacement for the references elsewhere in the document. For example,
 `compute.function` uses a function-catalog key, grain uses a
 `dimension`/`resolution` pair, and a resolution's `parent` uses a bare
 resolution ID scoped to its dimension. Compute arguments can select resolution
-metadata with `$dimensions.<id>.resolutions.<resolution_id>.<property>`;
+metadata with `$dimensions.<id>.resolutions.<resolution_id>.<property>`.
 `row_context.dimension` accepts `$dimensions.<id>` as its dimension reference.
 
-Unsuffixed references remain supported; their template argument type determines
+Unsuffixed references remain supported. Their template argument type determines
 whether a profile identifier is resolved to data. Prefer explicit selectors
 when writing new declarations. `.id` arguments require `string`, and
 `.dataset` arguments require `dataframe`. Grain-key selectors require
-`array[string]`; their keys must be selected by the target and every referenced
+`array[string]`, and their keys must be selected by the target and every referenced
 dataframe profile. Use only the listed forms for compute arguments.
 
 Merge arguments additionally support `$operators.@.fragment`, which supplies
@@ -574,10 +574,10 @@ in a merge binding supplies the current dataset, or null before initialization.
 
 In Python declarations, use `ref.profile().grain.ids` or
 `ref.profile("source").grain.ids` for the corresponding selector. Grain-key
-selectors are explicit binding values; grouping, ordering, and other dimension
+selectors are explicit binding values. Grouping, ordering, and other dimension
 references do not implicitly declare matching keys. For a dimensional
-operation, pass the selected dataset keys as its explicit matching-key argument;
-the operation's source dataframe remains its only dataframe argument.
+operation, pass the selected dataset keys as its explicit matching-key argument.
+The operation's source dataframe remains its only dataframe argument.
 
 ### Row Context
 
@@ -587,7 +587,7 @@ operator. It does not describe returned rows or alter full-table execution.
 
 | Field | Required | Default | Meaning |
 | --- | --- | --- | --- |
-| `dimension` | Conditional | N/A | Reference to a declared input dimension; required for `time` or `steps`. |
+| `dimension` | Conditional | N/A | Reference to a declared input dimension. Required for `time` or `steps`. |
 | `before` | No | `{}` | Required preceding context. |
 | `after` | No | `{}` | Required following context. |
 
@@ -598,7 +598,7 @@ Each direction is an object containing at most one measurement, or the string
 | --- | --- | --- |
 | `time` | Fixed duration, such as `"8h"`, or `"unbounded"`. | Datetime. |
 | `steps` | Nonnegative integer or `"unbounded"`. | Integer. |
-| `rows` | Nonnegative integer or `"unbounded"`. | None; uses profile order. |
+| `rows` | Nonnegative integer or `"unbounded"`. | None. Ordering follows the profile order. |
 
 Only fixed dimension-based windows and row counts are supported. Feature-valued
 axes and data-dependent window sizes are not supported.
@@ -612,7 +612,7 @@ axes and data-dependent window sizes are not supported.
 
 An omitted or null context is unknown. Empty or zero directions explicitly mean
 current-row-only context. Two unbounded directions require the whole input and
-need no order; one unbounded direction still needs logical ordering.
+need no order. One unbounded direction still needs logical ordering.
 Functions handle grouping and sorting themselves.
 
 Nonzero directional requirements need profile order. A time/step dimension must
