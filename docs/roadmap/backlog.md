@@ -21,6 +21,5 @@ These release groupings do not assign software version numbers. Versions are ass
 - [Release 12: Domain templates for specifications, configuration, and calculations](release-12-domain-templates.md)
 - [Release 13: Stateful micro-batch streaming with checkpoints and restart recovery](release-13-streaming-engine.md)
 - [Release 14: Live cooling-pump demo, Spec editing, and MCP chat](release-14-live-demo-mcp.md)
-  includes [cooling-pump demo hosting and AI integration planning](data-center-cooling-pump-demo-deployment.md).
 - [Release 15: Explorer frontend and FastAPI package separation](release-15-explorer-packages.md)
 - [Release 16: Markdown and JSON test cases, reports, and Explorer test views](release-16-automated-testing.md)
