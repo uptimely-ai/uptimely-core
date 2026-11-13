@@ -86,7 +86,7 @@ def test_engine_returns_calculated_features_without_writing_output(
         {"gravity": 9.81, "room_temperature": 20.0}
     ]
     assert io.read_file(
-        str(example_support.EXAMPLES_ROOT / "data/constants_dev.json")
+        str(example_support.EXAMPLES_ROOT / "data/input/constants_dev.json")
     ).collect().to_dicts() == [{"gravity": 9.81, "room_temperature": 22.0}]
     efficiency = [5.3 * 118.0 / (36 * 17.9), 5.4 * 119.5 / (36 * 18.1), 4.1 * 83.0 / (36 * 11.7)]
     assert telemetry_frame["pressure_flow_efficiency"].to_list() == pytest.approx(efficiency)

@@ -26,6 +26,8 @@ value, and a pump with no value at any level remains blank.
 The example's importable Python modules are in `src/`: `analytics.py` contains
 calculations, `io.py` handles file input and output, and `merge.py` defines
 custom merge behavior.
+Source files are stored in `data/input/`. Use `data/output/` for results to
+keep, share, or reuse.
 
 ## Quick start
 

@@ -45,8 +45,9 @@ project/
 | `_generated/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
 | `config/config.json` | Engine settings under `engine` and runtime parameter values under `params`. |
 
-Use `_generated/` for disposable previews and debugging files, and `data/output/`
-for results that belong to the project's data. Each run replaces
+Put source files consumed by the workflow in `data/input/`. Store results you
+want to keep, share, or reuse in `data/output/`. Use `_generated/` for disposable
+previews and debugging files. Each run replaces
 `_generated/run/`, so it does not retain a history of earlier runs.
 
 

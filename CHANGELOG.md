@@ -30,6 +30,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - The example project organizes its importable functions in `src/analytics.py`,
   `src/io.py`, and `src/merge.py`. Rebuild existing example bundles after updating.
+- Example input data now lives in `data/input/`. Project guidance reserves
+  `data/output/` for results to keep, share, or reuse.
 - The pump analytics example now lives directly under `example/`, which remains
   the project root for the only included example.
 - MCP setup uses the existing Poetry environment rather than assuming a local
