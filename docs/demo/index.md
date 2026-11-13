@@ -6,7 +6,7 @@ The Explorer is a static frontend backed by the project's generated snapshot.
 Build and preview it locally, or export the same frontend and data for hosting:
 
 ```console
-$ uptimely examples
+$ uptimely example
 $ uptimely build example
 $ uptimely run example --preview 10 --log-level debug
 $ uptimely explore example

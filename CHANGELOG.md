@@ -30,6 +30,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- The examples download command is now `uptimely example`.
 - The example is available in the repository's development environment but is
   no longer bundled in Uptimely Core distributions.
 - The example project organizes its importable functions in `src/analytics.py`,

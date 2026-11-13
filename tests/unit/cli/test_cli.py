@@ -111,7 +111,7 @@ def test_missing_version_is_reported(
 
     monkeypatch.setattr(examples.metadata, "version", missing_version)
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "example")]
+        sys, "argv", ["uptimely", "example", "download", "--output", str(tmp_path / "example")]
     )
     with pytest.raises(SystemExit) as result:
         cli.main()
@@ -133,7 +133,7 @@ def test_missing_release_tag_does_not_fall_back(
 
     monkeypatch.setattr(examples.request, "urlopen", missing_tag)
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "example")]
+        sys, "argv", ["uptimely", "example", "download", "--output", str(tmp_path / "example")]
     )
     with pytest.raises(SystemExit) as result:
         cli.main()
@@ -198,7 +198,7 @@ def test_examples_cli_reports_existing_default_destination(
     output.mkdir()
     (output / "keep.txt").write_text("keep")
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sys, "argv", ["uptimely", "examples"])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example"])
 
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -265,7 +265,7 @@ def test_invalid_archives_are_reported(
 ) -> None:
     monkeypatch.setattr(examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "example")]
+        sys, "argv", ["uptimely", "example", "download", "--output", str(tmp_path / "example")]
     )
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -293,7 +293,7 @@ def test_network_errors_are_reported(
 
     monkeypatch.setattr(examples.request, "urlopen", fail)
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "example")]
+        sys, "argv", ["uptimely", "example", "download", "--output", str(tmp_path / "example")]
     )
     with pytest.raises(SystemExit) as result:
         cli.main()
@@ -338,7 +338,7 @@ def test_cli_success(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sys, "argv", ["uptimely", "examples", "download"])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "download"])
     cli.main()
     assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
     assert f"Downloaded examples to {tmp_path / 'example'}" in capsys.readouterr().out
@@ -352,7 +352,7 @@ def test_cli_output_and_revision(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "examples", "download", "--output", str(output), "--ref", "v1.0"],
+        ["uptimely", "example", "download", "--output", str(output), "--ref", "v1.0"],
     )
     cli.main()
     assert github == ["https://codeload.github.com/example/project/zip/v1.0"]
@@ -368,7 +368,7 @@ def test_examples_without_action_downloads_default_destination(
         "download_examples",
         lambda output, ref: calls.append((output, ref)) or output,
     )
-    monkeypatch.setattr(sys, "argv", ["uptimely", "examples"])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example"])
 
     cli.main()
 
@@ -379,10 +379,10 @@ def test_examples_without_action_downloads_default_destination(
 @pytest.mark.parametrize(
     ("arguments", "expected_output", "expected_ref"),
     [
-        (["examples", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
-        (["examples", "download", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
+        (["example", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
+        (["example", "download", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
         (
-            ["examples", "--output", "samples", "download", "--ref", "HEAD"],
+            ["example", "--output", "samples", "download", "--ref", "HEAD"],
             "samples",
             "HEAD",
         ),
@@ -410,7 +410,7 @@ def test_examples_options_work_with_shortcut_and_download_action(
 def test_download_help_describes_version_default(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", "examples", "download", "--help"])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "download", "--help"])
     with pytest.raises(SystemExit) as result:
         cli.main()
     assert result.value.code == 0
@@ -453,7 +453,7 @@ def test_destination_created_during_download_is_preserved(
     assert list(tmp_path.iterdir()) == [output]
 
 
-@pytest.mark.parametrize("arguments", [[], ["examples", "unknown"]])
+@pytest.mark.parametrize("arguments", [[], ["example", "unknown"], ["examples"]])
 def test_cli_requires_valid_subcommands(
     monkeypatch: pytest.MonkeyPatch, arguments: list[str]
 ) -> None:
