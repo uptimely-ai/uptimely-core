@@ -51,6 +51,12 @@ jobs:
       - run: pipx run twine check dist/*
       - name: Publish package to PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Create example archive
+        run: |
+          git archive \
+            --format=zip \
+            HEAD example \
+            > "dist/uptimely-data-center-cooling-example-${GITHUB_REF_NAME#v}.zip"
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
