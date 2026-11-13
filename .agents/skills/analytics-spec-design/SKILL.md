@@ -7,7 +7,7 @@ description: "Design or author Uptimely analytics Specs and Python definitions. 
 
 Use this workflow to translate analytical requirements into an Uptimely
 definition. Consult the [Concepts guide](../../../docs/overview/concepts.md), the
-[project structure guide](../../../docs/project-layout/project-structure.md),
+[folder structure guide](../../../docs/architecture/folder-structure.md),
 and [pump analytics example](../../../example/README.md).
 
 ## Procedure

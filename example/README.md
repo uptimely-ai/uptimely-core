@@ -97,4 +97,4 @@ uptimely explorer export . --output cooling-pump-analytics-explorer.zip
 ```
 
 For an explanation of the folders in an Uptimely project, see the
-[project structure guide](https://uptimely-ai.github.io/uptimely-core/project-layout/project-structure/).
+[folder structure guide](https://uptimely-ai.github.io/uptimely-core/architecture/folder-structure/).
