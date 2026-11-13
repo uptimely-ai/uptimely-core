@@ -56,21 +56,21 @@ With Poetry, prefix these commands with `poetry run`.
 Download the example project:
 
 ```sh
-uptimely example
+uptimely example --dir pump-analytics
 ```
 
 Build the project:
 
 ```sh
-uptimely build example
+uptimely build pump-analytics
 ```
 
-The build creates the execution bundle under `example/_generated/`.
+The build creates the execution bundle under `pump-analytics/_generated/`.
 
 Execute the data pipeline:
 
 ```sh
-uptimely run example --preview 10
+uptimely run pump-analytics --preview 10
 ```
 
 Output will show the materialized profile frames:
@@ -84,7 +84,7 @@ Each execution replaces contents in `_generated/run/`.
 Use the project explorer to inspect a project visually in web browser:
 
 ```sh
-uptimely explore example
+uptimely explore pump-analytics
 ```
 
 Open <http://127.0.0.1:8001/> to view the Explorer.

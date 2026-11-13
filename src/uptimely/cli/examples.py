@@ -86,7 +86,7 @@ def _ensure_destination_available(output: pathlib.Path) -> None:
     if output.exists() or output.is_symlink():
         raise FileExistsError(
             f"Examples destination already exists: {output}. Nothing was overwritten. "
-            "Choose a different destination with --output PATH, or move/remove the existing "
+            "Choose a different destination with --dir DIR, or move/remove the existing "
             "directory and retry."
         )
 
@@ -161,8 +161,11 @@ def configure_download_parser(
     output_default = argparse.SUPPRESS if suppress_defaults else pathlib.Path("example")
     ref_default = argparse.SUPPRESS if suppress_defaults else None
     parser.add_argument(
+        "--dir",
         "--output",
+        dest="output",
         type=pathlib.Path,
+        metavar="DIR",
         default=output_default,
         help="Destination directory (default: example)",
     )

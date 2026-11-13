@@ -207,7 +207,7 @@ def test_examples_cli_reports_existing_default_destination(
     message = capsys.readouterr().err
     assert f"Examples destination already exists: {output}" in message
     assert "Nothing was overwritten." in message
-    assert "--output PATH" in message
+    assert "--dir DIR" in message
     assert (output / "keep.txt").read_text() == "keep"
 
 
@@ -380,7 +380,13 @@ def test_examples_without_action_downloads_default_destination(
     ("arguments", "expected_output", "expected_ref"),
     [
         (["example", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
+        (["example", "--dir", "pump-analytics", "--ref", "HEAD"], "pump-analytics", "HEAD"),
         (["example", "download", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
+        (
+            ["example", "download", "--dir", "pump-analytics", "--ref", "HEAD"],
+            "pump-analytics",
+            "HEAD",
+        ),
         (
             ["example", "--output", "samples", "download", "--ref", "HEAD"],
             "samples",

@@ -10,6 +10,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- The example download command accepts `--dir` to choose its destination.
 - The pump example installs as a Python package, with setup instructions for
   pip, Poetry, and uv.
 - MCP tools can execute a selected analytical function or operator with its saved

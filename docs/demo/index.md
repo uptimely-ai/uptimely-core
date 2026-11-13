@@ -6,11 +6,11 @@ The Explorer is a static frontend backed by the project's generated snapshot.
 Build and preview it locally, or export the same frontend and data for hosting:
 
 ```console
-$ uptimely example
-$ uptimely build example
-$ uptimely run example --preview 10 --log-level debug
-$ uptimely explore example
-$ uptimely explorer export example --output docs/example
+$ uptimely example --dir pump-analytics
+$ uptimely build pump-analytics
+$ uptimely run pump-analytics --preview 10 --log-level debug
+$ uptimely explore pump-analytics
+$ uptimely explorer export pump-analytics --output docs/example
 ```
 
 The GitHub Pages pipeline builds and runs this example before exporting it.
