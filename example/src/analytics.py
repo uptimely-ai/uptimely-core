@@ -44,8 +44,6 @@ def aggregate(
     method: str,
     dimensions: list[str],
     output: str,
-    filter_column: str = "",
-    filter_value: str = "",
 ) -> pl.LazyFrame:
     """Return a dimension-keyed aggregate fragment at the requested grain.
 
@@ -63,10 +61,6 @@ def aggregate(
         the aggregate is computed over the whole dataset.
     output
         Name of the resulting aggregate column.
-    filter_column
-        Optional key column to filter before aggregation.
-    filter_value
-        Value required in ``filter_column`` before aggregation.
 
     Returns
     -------
@@ -75,7 +69,7 @@ def aggregate(
     Raises
     ------
     ValueError
-        If ``method`` is unsupported or only one filter argument is provided.
+        If ``method`` is unsupported.
 
     Examples
     --------
@@ -85,10 +79,6 @@ def aggregate(
     """
     if method not in SUPPORTED_AGGREGATIONS:
         raise ValueError(f"Unsupported aggregation method: {method}")
-    if bool(filter_column) != bool(filter_value):
-        raise ValueError("Both filter_column and filter_value must be provided together")
-    if filter_column:
-        dataset = dataset.filter(pl.col(filter_column) == filter_value)
     expression = getattr(pl.col(feature), method)().alias(output)
     data_collapsed = (
         dataset.group_by(dimensions).agg(expression) if dimensions else dataset.select(expression)

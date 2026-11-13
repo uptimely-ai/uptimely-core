@@ -59,44 +59,11 @@ def test_aggregate_preserves_all_null_groups() -> None:
     assert result.rows() == [("one", None)]
 
 
-def test_aggregate_filters_before_grouping() -> None:
-    result = analytics.aggregate(
-        pl.LazyFrame(
-            {
-                "pump_id": ["PUMP-101", "PUMP-101", "PUMP-201"],
-                "temperature": [68.2, 68.7, 64.5],
-            }
-        ),
-        "temperature",
-        "max",
-        ["pump_id"],
-        "maximum",
-        filter_column="pump_id",
-        filter_value="PUMP-101",
-    ).collect()
-
-    assert result.rows() == [("PUMP-101", 68.7)]
-
-
 def test_aggregate_rejects_unsupported_method() -> None:
     frame = pl.LazyFrame({"pump": ["one"], "temperature": [10.0]})
 
     with pytest.raises(ValueError, match="Unsupported aggregation method: median"):
         analytics.aggregate(frame, "temperature", "median", ["pump"], "maximum")
-
-
-def test_aggregate_requires_both_filter_arguments() -> None:
-    frame = pl.LazyFrame({"pump": ["one"], "temperature": [10.0]})
-
-    with pytest.raises(ValueError, match="Both filter_column and filter_value"):
-        analytics.aggregate(
-            frame,
-            "temperature",
-            "max",
-            ["pump"],
-            "maximum",
-            filter_column="pump",
-        )
 
 
 @pytest.mark.parametrize(

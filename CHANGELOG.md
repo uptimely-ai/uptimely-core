@@ -34,6 +34,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   `data/output/` for results to keep, share, or reuse.
 - The pump example uses `select_columns` for both keyed projections and
   constant columns; the engine handles broadcasting during merge.
+- The example aggregation function no longer supports filtering rows before
+  aggregation. Rebuild existing example bundles after updating.
 - The pump analytics example now lives directly under `example/`, which remains
   the project root for the only included example.
 - MCP setup uses the existing Poetry environment rather than assuming a local
