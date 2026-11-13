@@ -22,7 +22,7 @@ def test_capacity_uses_specificity_not_numeric_maximum() -> None:
         }
     )
 
-    result = analytics.resolve_capacity(
+    result = analytics.first_non_null_value(
         frame,
         ["pump_capacity", "series_capacity", "category_capacity"],
         "max_capacity",

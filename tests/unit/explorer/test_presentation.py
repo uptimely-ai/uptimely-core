@@ -90,7 +90,7 @@ def test_build_snapshot_preserves_complete_function_example(
         (example_projects / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8")
     )
     configuration = snapshot["catalogs"]["configuration"]["functions"]
-    function = configuration["operation_point_quantum_optimization"]
+    function = configuration["operation_point_optimization"]
     examples = function["doc"]["examples"]
 
     assert len(examples) == 1
@@ -98,9 +98,9 @@ def test_build_snapshot_preserves_complete_function_example(
     assert '\n)\nfeatures = ["pressure", "flow", "power", "temp", "vib"]\n' in examples[0]
     assert examples[0].endswith('["converged"]\nTrue')
     assert (
-        snapshot["catalogs"]["function_groups"]["estimate"]["operation_point_quantum_optimization"][
-            "doc"
-        ]["examples"]
+        snapshot["catalogs"]["function_groups"]["estimate"]["operation_point_optimization"]["doc"][
+            "examples"
+        ]
         == examples
     )
 

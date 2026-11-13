@@ -178,7 +178,7 @@ def test_optimization_struct_and_extraction_respect_convergence_boundaries() -> 
         }
     )
 
-    result = analytics.operation_point_quantum_optimization(
+    result = analytics.operation_point_optimization(
         frame, ["pressure", "flow", "power", "temperature", "vibration"], "recommendation"
     )
     expected_fields = {
@@ -203,7 +203,7 @@ def test_optimization_struct_and_extraction_respect_convergence_boundaries() -> 
 
 
 def test_optimization_retains_zero_flow_and_null_power_costs() -> None:
-    result = analytics.operation_point_quantum_optimization(
+    result = analytics.operation_point_optimization(
         pl.LazyFrame(
             {
                 "pressure": [6.0, 6.0, 6.0],

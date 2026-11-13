@@ -137,7 +137,7 @@ class Pump(Profile):
                 outputs=[features.max_capacity],
             ),
             compute=Binding(
-                function=analytics.resolve_capacity,
+                function=analytics.first_non_null_value,
                 arguments=dict(
                     dataset=ref.dataset(),
                     features=[
