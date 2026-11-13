@@ -2,7 +2,7 @@
 
 import inspect
 
-from example.functions import analytics, external_workflow
+from example.src import analytics, external_workflow
 
 from uptimely.explorer.sections import spec as spec_section
 

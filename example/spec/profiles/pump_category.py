@@ -1,7 +1,7 @@
 """Pump-category profile declaration."""
 
-from example.functions import analytics, source
 from example.spec import dimension
+from example.src import analytics, source
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 

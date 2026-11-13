@@ -50,7 +50,7 @@ def _escape_spec_configuration() -> dict:
     dataset["features"]["escape_start_output"] = {"type": "float"}
     dataset["features"]["escape_chain_output"] = {"type": "float"}
     dataset["features"]["escape_source_output"] = {"type": "float"}
-    entrypoint = "example.functions.external_workflow:process_pump_external_workflow"
+    entrypoint = "example.src.external_workflow:process_pump_external_workflow"
     _add_escape_mapping(
         configuration,
         "escape_start",
@@ -225,7 +225,7 @@ def test_existing_invocation_ids_survive_unrelated_additions_and_reordering() ->
         "unrelated_escape",
         "unrelated_escape",
         [],
-        "example.functions.external_workflow:process_pump_external_workflow",
+        "example.src.external_workflow:process_pump_external_workflow",
     )
     configuration["functions"]["unrelated_escape"]["validate_signature"] = False
     configuration["profiles"] = dict(reversed(configuration["profiles"].items()))
@@ -275,7 +275,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     definition.functions.root["conform_auxiliary"] = spec_model.FunctionTemplate(
         id="conform_auxiliary",
         returns="dataframe",
-        entrypoint="example.functions.analytics:aggregate",
+        entrypoint="example.src.analytics:aggregate",
         validate_signature=False,
         args={
             "source": spec_model.Argument(id="source", type="dataframe"),

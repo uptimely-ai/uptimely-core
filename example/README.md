@@ -23,6 +23,9 @@ group has a value of 130 m3/h. PUMP-201 has no individual or model-group value,
 so it uses its category's value of 100 m3/h. A capacity of zero is a valid
 value, and a pump with no value at any level remains blank.
 
+The example's importable Python modules are in `src/`, alongside `spec/`,
+`data/`, and `config/`.
+
 ## Quick start
 
 Python 3.13 or newer is required.

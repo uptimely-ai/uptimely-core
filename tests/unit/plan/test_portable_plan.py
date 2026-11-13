@@ -19,7 +19,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 result="target",
                 operator_kind="read",
                 dataframe_input_scope="none",
-                entrypoint="example.functions:load",
+                entrypoint="example.src:load",
                 function_id="load",
                 operator_id="read_pressure",
                 profile_id="pump_profile",
@@ -39,7 +39,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 result="target",
                 operator_kind="collapse",
                 dataframe_input_scope="foreign",
-                entrypoint="example.functions:maximum",
+                entrypoint="example.src:maximum",
                 function_id="maximum",
                 operator_id="pressure_by_pump",
                 profile_id="pump_profile",
@@ -52,7 +52,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 role="compute",
                 result="none",
                 operator_kind="write",
-                entrypoint="example.functions:save",
+                entrypoint="example.src:save",
                 function_id="save",
                 operator_id="save_pressure_by_pump",
                 profile_id="pump_profile",
@@ -117,7 +117,7 @@ def test_plan_round_trip_preserves_operator_kind_metadata() -> None:
     assert restored.invocations[1].function_id == "maximum"
     assert not hasattr(restored.invocations[1], "source")
     assert all("source" not in invocation for invocation in payload["invocations"])
-    assert restored.invocations[1].entrypoint == "example.functions:maximum"
+    assert restored.invocations[1].entrypoint == "example.src:maximum"
     assert restored.invocations[1].profile_id == "pump_profile"
     assert restored.invocations[1].operator_id == "pressure_by_pump"
     assert restored.invocations[0].function_id == "load"
@@ -492,9 +492,9 @@ def test_plan_cached_views_are_independent() -> None:
         assert plan.features["maximum"] == [plan.invocations[1]]
         assert plan.calculated_features == {"plant", "pump", "maximum"}
         assert list(plan.entrypoints) == [
-            "example.functions:load",
-            "example.functions:maximum",
-            "example.functions:save",
+            "example.src:load",
+            "example.src:maximum",
+            "example.src:save",
         ]
         assert plan.invocations_by_role["compute"] == plan.invocations
         assert plan.count_per_role == {"compute": 3}

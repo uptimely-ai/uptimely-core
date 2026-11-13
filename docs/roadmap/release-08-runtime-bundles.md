@@ -23,7 +23,7 @@ project/
 │       ├── requirements.in
 │       ├── requirements.lock
 │       └── Dockerfile                 # Alternatively a pinned image reference
-├── functions/                         # Importable implementation modules
+├── src/                               # Importable implementation modules
 │   ├── cpu/
 │   │   └── analytics.py
 │   └── pytorch_gpu/
@@ -86,7 +86,7 @@ languages by the runtime contract.
 ### Expected behavior and delivery phases
 
 1. Author the Spec using deferred function references. Resolve the owning runtime
-   from `functions/<runtime-id>/` before importing implementations, then check
+   from `src/<runtime-id>/` before importing implementations, then check
    any `runtime="..."` decorator declaration for agreement. External packages
    need explicit runtime associations.
 2. Inspect signatures, annotations, decorators, and documentation inside the
@@ -123,7 +123,7 @@ project layout.
 | title | breaking | description |
 |---|---|---|
 | Define portable runtime declarations | Yes | Add language-neutral `runtimes/<id>/runtime.json` definitions with worker commands, protocol versions, dependency/build inputs, and required capabilities such as GPU support. Python targets reference dependency files and a Python version, while other languages can use their own ecosystem inputs. Keep host placement, credentials, and orchestration policy outside these definitions. Carry function runtime references through decorators, Python authoring, Spec JSON, and plans without making decorators mandatory. |
-| Organize functions by runtime | Yes | Use `functions/<runtime-id>/` for implementations and `runtimes/<runtime-id>/` for their definitions. Discover the runtime from this mapping before importing a function, then validate any decorator runtime declaration against it. Require explicit associations for external implementation packages. Update project scaffolding, examples, entrypoints, and project structure documentation together. Avoid mixing incompatible runtime implementations in one Python module. |
+| Organize functions by runtime | Yes | Use `src/<runtime-id>/` for implementations and `runtimes/<runtime-id>/` for their definitions. Discover the runtime from this mapping before importing a function, then validate any decorator runtime declaration against it. Require explicit associations for external implementation packages. Update project scaffolding, examples, entrypoints, and project structure documentation together. Avoid mixing incompatible runtime implementations in one Python module. |
 | Separate runtime caches from generated outputs | No | Store reusable machine-local installations under project-root `.cache/uptimely/runtimes/<content-hash>/`, separate from `_generated/` build and run outputs. Ignore caches in version control and exclude them from bundles. Define cache identity from runtime and provisioning inputs, invalidation, and explicit cleanup. Docker images remain in Docker-managed storage. Test missing definitions, conflicting runtime references, and portable path validation. |
 
 ## Work package: Isolated Python runtime provisioning

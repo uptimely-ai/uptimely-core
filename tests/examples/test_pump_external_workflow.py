@@ -5,7 +5,7 @@ import pathlib
 
 import polars as pl
 import pytest
-from example.functions import external_workflow
+from example.src import external_workflow
 from support import execution as execution_support
 
 from uptimely import plan as plan_module

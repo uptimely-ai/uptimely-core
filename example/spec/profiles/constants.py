@@ -1,6 +1,6 @@
 """Project-wide physical constants profile."""
 
-from example.functions import source
+from example.src import source
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 

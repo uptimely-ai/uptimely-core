@@ -4,7 +4,7 @@ import json
 import pathlib
 
 import pytest
-from example.functions import analytics
+from example.src import analytics
 from support import examples as example_support
 
 from uptimely import project
