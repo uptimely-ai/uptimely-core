@@ -323,7 +323,9 @@ async def test_reload_build(state: mcp_state.ServerState) -> None:
         "pump_telemetry",
         "pump_telemetry_by_day",
         "pump_telemetry_by_hour",
+        "pump_telemetry_by_hour_when_warning",
         "pump_telemetry_by_minute",
+        "pump_telemetry_when_warning",
     ]
 
 
@@ -478,13 +480,13 @@ async def test_targeted_optimization_returns_structured_numerical_results(
     assert payload["status"] == "ok"
     assert payload["datasets"][0]["features"] == ["operating_point_recommendation"]
     row = payload["datasets"][0]["rows"][0]
-    assert row["pump_id"] == "CWP-101"
-    assert row["timestamp"] == "2026-09-01T08:00:00+00:00"
+    assert row["pump_id"] == "CWP-301"
+    assert row["hour"] == "2026-09-01T08:00:00+00:00"
     assert row["operating_point_recommendation"] == {
-        "recommended_flow_rate": 118.0,
-        "recommended_differential_pressure": 5.3,
-        "energy_cost_score": pytest.approx(17.9 / 118.0),
-        "converged": True,
+        "recommended_flow_rate": 182.0,
+        "recommended_differential_pressure": 6.6,
+        "energy_cost_score": pytest.approx(30.0 / 182.0),
+        "converged": False,
     }
 
 

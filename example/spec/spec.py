@@ -9,7 +9,9 @@ from .profiles.pump_series import PumpSeries
 from .profiles.pump_telemetry import PumpTelemetry
 from .profiles.pump_telemetry_by_day import PumpTelemetryByDay
 from .profiles.pump_telemetry_by_hour import PumpTelemetryByHour
+from .profiles.pump_telemetry_by_hour_when_warning import PumpTelemetryByHourWhenWarning
 from .profiles.pump_telemetry_by_minute import PumpTelemetryByMinute
+from .profiles.pump_telemetry_when_warning import PumpTelemetryWhenWarning
 
 python_spec = Spec(
     profiles=[
@@ -19,6 +21,8 @@ python_spec = Spec(
         PumpSeries,
         PumpCategory,
         PumpTelemetryByMinute,
+        PumpTelemetryWhenWarning,
+        PumpTelemetryByHourWhenWarning,
         PumpTelemetryByHour,
         PumpTelemetryByDay,
     ],

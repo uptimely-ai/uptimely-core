@@ -135,28 +135,44 @@ def test_engine_returns_calculated_features_without_writing_output(
     assert telemetry_frame["pump_health_score"].to_list() == pytest.approx(
         [None, efficiency[1] - 0.05 - 0.05, None]
     )
-    assert telemetry_frame["recommended_flow_rate"].to_list() == [118.0, 119.5, 83.0]
-    assert telemetry_frame["recommended_differential_pressure"].to_list() == [5.3, 5.4, 4.1]
-    assert telemetry_frame["energy_cost_score"].to_list() == pytest.approx(
-        [17.9 / 118.0, 18.1 / 119.5, 11.7 / 83.0]
+    intermediate = result.datasets["pump_telemetry_when_warning"].collect()
+    assert intermediate.select("pump_id", "timestamp", "warning_vibration_rms").rows() == [
+        ("CWP-301", telemetry_frame["timestamp"][1], 4.6)
+    ]
+    warning_profile = "pump_telemetry_by_hour_when_warning"
+    warning_frame = result.datasets[warning_profile].collect()
+    assert warning_frame.select("pump_id", "hour").rows() == [
+        ("CWP-301", telemetry_frame["hour"][1])
+    ]
+    assert warning_frame["warning_hour_max_vibration_rms"].to_list() == [4.6]
+    moved_features = {
+        "recommended_flow_rate",
+        "recommended_differential_pressure",
+        "energy_cost_score",
+        "converged",
+        "operating_point_recommendation",
+    }
+    assert not moved_features.intersection(telemetry_frame.columns)
+    assert all(
+        (warning_profile, feature) in result.calculated_outputs for feature in moved_features
     )
-    assert telemetry_frame["converged"].to_list() == [True, True, True]
-    recommendations = telemetry_frame["operating_point_recommendation"].to_list()
-    for recommendation, flow, pressure, cost in zip(
-        recommendations,
-        [118.0, 119.5, 83.0],
-        [5.3, 5.4, 4.1],
-        [17.9 / 118.0, 18.1 / 119.5, 11.7 / 83.0],
-        strict=True,
-    ):
-        assert recommendation == pytest.approx(
+    assert not any(
+        ("pump_telemetry", feature) in result.calculated_outputs for feature in moved_features
+    )
+    assert warning_frame["recommended_flow_rate"].to_list() == [182.0]
+    assert warning_frame["recommended_differential_pressure"].to_list() == [6.6]
+    assert warning_frame["energy_cost_score"].to_list() == pytest.approx([30.0 / 182.0])
+    assert warning_frame["converged"].to_list() == [False]
+    assert warning_frame["operating_point_recommendation"].to_list() == [
+        pytest.approx(
             {
-                "recommended_flow_rate": flow,
-                "recommended_differential_pressure": pressure,
-                "energy_cost_score": cost,
-                "converged": True,
+                "recommended_flow_rate": 182.0,
+                "recommended_differential_pressure": 6.6,
+                "energy_cost_score": 30.0 / 182.0,
+                "converged": False,
             }
         )
+    ]
 
     assert result.datasets["pump_series"].collect().select(
         "machine_series_id", "bearing_temperature_series_max", "max_capacity_series"
@@ -203,6 +219,118 @@ def test_engine_returns_calculated_features_without_writing_output(
         ("CWP-301", telemetry_frame["day"][0], 75.0),
         ("CWP-302", telemetry_frame["day"][0], 72.0),
         ("CWP-401", telemetry_frame["day"][0], 60.0),
+    ]
+
+
+def test_warning_profile_handles_no_warning_records(
+    tmp_path: pathlib.Path,
+    pump_bundle: project.BuildBundle,
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    paths = _engine_paths(pump_bundle.project_root)
+    source = tmp_path / "telemetry.json"
+    pl.read_json(paths["telemetry_source"]).with_columns(
+        pl.col("vibration_rms").clip(upper_bound=2.9)
+    ).write_json(source)
+    paths["telemetry_source"] = str(source)
+    engine = engine_for_plan(
+        pump_bundle.execution_plan,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
+        spec_definition=pump_bundle.spec_definition,
+        paths=paths,
+    )
+
+    result = engine.run(validate=True)
+
+    assert not result.failures
+    assert result.datasets["pump_telemetry"].collect().height == 10
+    assert result.datasets["pump_telemetry_when_warning"].collect().is_empty()
+    warning_frame = result.datasets["pump_telemetry_by_hour_when_warning"].collect()
+    assert warning_frame.is_empty()
+    assert warning_frame.schema["recommended_flow_rate"] == pl.Float64
+    assert warning_frame.schema["converged"] == pl.Boolean
+    assert warning_frame.schema["operating_point_recommendation"] == pl.Struct(
+        {
+            "recommended_flow_rate": pl.Float64,
+            "recommended_differential_pressure": pl.Float64,
+            "energy_cost_score": pl.Float64,
+            "converged": pl.Boolean,
+        }
+    )
+
+
+def test_hourly_warning_aggregates_only_warnings_by_pump_and_hour(
+    tmp_path: pathlib.Path,
+    pump_bundle: project.BuildBundle,
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    paths = _engine_paths(pump_bundle.project_root)
+    readings = json.loads(pathlib.Path(paths["telemetry_source"]).read_text(encoding="utf-8"))
+    first = next(
+        row
+        for row in readings
+        if row["pump_id"] == "CWP-301" and row["timestamp"] == "2026-09-01T08:00:00Z"
+    )
+    first["bearing_temperature"] = 92.0
+    normal = dict(
+        first, timestamp="2026-09-01T08:02:00Z", bearing_temperature=70.0, flow_rate=999.0
+    )
+    later = dict(first, timestamp="2026-09-01T09:00:00Z", flow_rate=200.0)
+    other = next(
+        row
+        for row in readings
+        if row["pump_id"] == "CWP-302" and row["timestamp"] == "2026-09-01T08:00:00Z"
+    )
+    other["vibration_rms"] = 5.1
+    other["flow_rate"] = None
+    readings.extend([normal, later])
+    source = tmp_path / "telemetry.json"
+    source.write_text(json.dumps(readings), encoding="utf-8")
+    paths["telemetry_source"] = str(source)
+    output = tmp_path / "hourly-warning.json"
+    paths["pump_telemetry_by_hour_when_warning_output"] = str(output)
+    engine = engine_for_plan(
+        pump_bundle.execution_plan,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
+        spec_definition=pump_bundle.spec_definition,
+        paths=paths,
+    )
+
+    result = engine.run(validate=True)
+
+    assert not result.failures
+    intermediate = result.datasets["pump_telemetry_when_warning"].collect()
+    assert intermediate.height == 4
+    hourly = (
+        result.datasets["pump_telemetry_by_hour_when_warning"].collect().sort("pump_id", "hour")
+    )
+    assert hourly.height == 3
+    rows = hourly.to_dicts()
+    first_hour, second_hour, other_pump = rows
+    assert first_hour["pump_id"] == "CWP-301"
+    assert first_hour["hour"].hour == 8
+    assert first_hour["warning_hour_mean_differential_pressure"] == pytest.approx((6.5 + 6.6) / 2)
+    assert first_hour["warning_hour_mean_flow_rate"] == pytest.approx((175.0 + 182.0) / 2)
+    assert first_hour["warning_hour_mean_motor_power"] == pytest.approx((29.0 + 30.0) / 2)
+    assert first_hour["warning_hour_max_bearing_temperature"] == 92.0
+    assert first_hour["warning_hour_max_vibration_rms"] == 4.6
+    assert first_hour["recommended_flow_rate"] == pytest.approx(178.5)
+    assert first_hour["recommended_differential_pressure"] == pytest.approx(6.55)
+    assert first_hour["energy_cost_score"] == pytest.approx(29.5 / 178.5)
+    assert first_hour["converged"] is False
+    assert (second_hour["pump_id"], second_hour["hour"].hour) == ("CWP-301", 9)
+    assert second_hour["recommended_flow_rate"] == 200.0
+    assert (other_pump["pump_id"], other_pump["hour"].hour) == ("CWP-302", 8)
+    assert other_pump["warning_hour_mean_flow_rate"] is None
+    assert other_pump["recommended_flow_rate"] is None
+    assert other_pump["energy_cost_score"] is None
+    published = pl.read_json(output).sort("pump_id", "hour")
+    assert published.select("pump_id", "recommended_flow_rate").rows() == [
+        ("CWP-301", 178.5),
+        ("CWP-301", 200.0),
+        ("CWP-302", None),
     ]
 
 

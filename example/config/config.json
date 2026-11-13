@@ -19,6 +19,7 @@
     "pump_series_output": "data/output/pump_series.csv",
     "pump_telemetry_output": "data/output/pump_telemetry.json",
     "pump_telemetry_by_minute_output": "data/output/pump_telemetry_by_minute.csv",
+    "pump_telemetry_by_hour_when_warning_output": "data/output/pump_telemetry_by_hour_when_warning.json",
     "pump_telemetry_by_hour_output": "data/output/pump_telemetry_by_hour.csv",
     "pump_telemetry_by_day_output": "data/output/pump_telemetry_by_day.csv",
     "pump_external_workflow_output": "data/output/pump_external_workflow_results.csv"

@@ -1,6 +1,5 @@
 """Minute-level cooling-pump telemetry and dataframe transformations."""
 
-import polars as pl
 from example.spec import dimension
 from example.src import analytics, io
 
@@ -64,24 +63,6 @@ class TelemetryFeatures(FeatureSet):
             "incomplete or non-finite readings unless a warning is established."
         ),
     )
-    recommended_flow_rate = Feature(
-        type="float",
-        unit="m3/h",
-        description="Illustrative recommended cooling-water flow rate.",
-    )
-    recommended_differential_pressure = Feature(
-        type="float",
-        unit="bar",
-        description="Illustrative recommended differential pressure across the pump.",
-    )
-    energy_cost_score = Feature(
-        type="float",
-        description="Estimated energy-cost score for the recommended operating point",
-    )
-    converged = Feature(
-        type="boolean",
-        description="Whether the optimization converged",
-    )
     pressure_flow_efficiency = Feature(
         type="float",
         description=(
@@ -113,13 +94,6 @@ class TelemetryFeatures(FeatureSet):
         description=(
             "Illustrative cooling-pump condition score from motor-bearing temperature "
             "trend, vibration trend, and hydraulic efficiency proxy."
-        ),
-    )
-    operating_point_recommendation = Feature(
-        type="object",
-        description=(
-            "Illustrative cooling-pump operating point based on flow, differential "
-            "pressure, power, temperature, and vibration."
         ),
     )
 
@@ -190,70 +164,6 @@ class PumpTelemetry(Profile):
                         output=features.pump_mode,
                         bearing_temperature_warning_limit=90.0,
                         vibration_warning_limit=4.5,
-                    ),
-                ),
-            ),
-            Operator(
-                id="recommended_flow_rate",
-                interface=Interface(
-                    outputs=[features.recommended_flow_rate],
-                ),
-                # A shortcut to bind a 3rd party function directly
-                compute=Binding(
-                    function=ref.function(
-                        pl.LazyFrame.with_columns,
-                        returns="dataframe",
-                        args={"self": "dataframe", "recommended_flow_rate": "string"},
-                        validate_signature=False,
-                    ),
-                    arguments=dict(
-                        self=ref.dataset(),
-                        recommended_flow_rate=features.flow_rate,
-                    ),
-                ),
-            ),
-            Operator(
-                id="recommended_differential_pressure",
-                interface=Interface(
-                    outputs=[features.recommended_differential_pressure],
-                ),
-                compute=Binding(
-                    function=analytics.extract_field,
-                    arguments=dict(
-                        dataset=ref.dataset(),
-                        column=features.operating_point_recommendation,
-                        field="recommended_differential_pressure",
-                        output=features.recommended_differential_pressure,
-                    ),
-                ),
-            ),
-            Operator(
-                id="energy_cost_score",
-                interface=Interface(
-                    outputs=[features.energy_cost_score],
-                ),
-                compute=Binding(
-                    function=analytics.extract_field,
-                    arguments=dict(
-                        dataset=ref.dataset(),
-                        column=features.operating_point_recommendation,
-                        field="energy_cost_score",
-                        output=features.energy_cost_score,
-                    ),
-                ),
-            ),
-            Operator(
-                id="converged",
-                interface=Interface(
-                    outputs=[features.converged],
-                ),
-                compute=Binding(
-                    function=analytics.extract_field,
-                    arguments=dict(
-                        dataset=ref.dataset(),
-                        column=features.operating_point_recommendation,
-                        field="converged",
-                        output=features.converged,
                     ),
                 ),
             ),
@@ -360,28 +270,6 @@ class PumpTelemetry(Profile):
                     ),
                 ),
             ),
-            Operator(
-                id="operating_point_recommendation",
-                interface=Interface(
-                    outputs=[features.operating_point_recommendation],
-                ),
-                compute=Binding(
-                    function=analytics.operation_point_optimization,
-                    arguments=dict(
-                        dataset=ref.dataset(),
-                        optimization_features=[
-                            features.differential_pressure,
-                            features.flow_rate,
-                            features.motor_power,
-                            features.bearing_temperature,
-                            features.vibration_rms,
-                        ],
-                        output=features.operating_point_recommendation,
-                        bearing_temperature_warning_limit=90.0,
-                        vibration_warning_limit=4.5,
-                    ),
-                ),
-            ),
         ],
         publishing=[
             Operator(
@@ -394,8 +282,6 @@ class PumpTelemetry(Profile):
                     arguments=dict(
                         dataset=ref.dataset(),
                         features=[
-                            features.recommended_flow_rate,
-                            features.recommended_differential_pressure,
                             features.mode,
                             features.pump_mode,
                             features.differential_pressure,
@@ -403,15 +289,12 @@ class PumpTelemetry(Profile):
                             features.bearing_temperature,
                             features.vibration_rms,
                             features.motor_power,
-                            features.energy_cost_score,
-                            features.converged,
                             features.pressure_flow_efficiency,
                             features.room_temperature_reference,
                             features.bearing_temperature_rise,
                             features.bearing_temperature_delta,
                             features.vibration_delta,
                             features.pump_health_score,
-                            features.operating_point_recommendation,
                         ],
                         output=ref.paths("pump_telemetry_output"),
                     ),

@@ -211,6 +211,9 @@ def test_dependency_features_keep_their_producer_profile_without_becoming_source
     }
 
     assert features["bearing_temperature_max"].profile_id == "pump"
-    assert features["operating_point_recommendation"].profile_id == "pump_telemetry"
+    assert (
+        features["operating_point_recommendation"].profile_id
+        == "pump_telemetry_by_hour_when_warning"
+    )
     assert features["bearing_temperature_max"].is_source_input is False
     assert features["operating_point_recommendation"].is_source_input is False

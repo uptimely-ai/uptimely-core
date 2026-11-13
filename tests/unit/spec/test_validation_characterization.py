@@ -252,7 +252,9 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
 
 def test_mapping_dependency_cycle_keeps_its_message() -> None:
     configuration = _configuration()
-    operator = configuration["profiles"]["pump_telemetry"]["assembly"]["recommended_flow_rate"]
+    operator = configuration["profiles"]["pump_telemetry_by_hour_when_warning"]["assembly"][
+        "recommended_flow_rate"
+    ]
     operator["interface"]["inputs"].append("$features.recommended_flow_rate")
     model = spec.Spec.model_validate(configuration)
 
@@ -260,7 +262,8 @@ def test_mapping_dependency_cycle_keeps_its_message() -> None:
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "Operator feature dependency cycle: pump_telemetry.recommended_flow_rate"
+        "Operator feature dependency cycle: "
+        "pump_telemetry_by_hour_when_warning.recommended_flow_rate"
     )
 
 
@@ -320,9 +323,7 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     dataset.assembly["bearing_temperature_by_pump"].interface.inputs = ["$features.missing"]
     other = document.profiles["pump_telemetry"]
     other.assembly["pressure_flow_efficiency"].compute.function = "missing"
-    other.assembly["recommended_flow_rate"].compute.args = {
-        "unexpected": spec.model.BindingArgument(None)
-    }
+    other.assembly["pump_mode"].compute.args = {"unexpected": spec.model.BindingArgument(None)}
     document.profiles["pump_copy"] = dataset.model_copy(update={"id": "pump_copy"}, deep=True)
     original = document.model_copy(deep=True)
     profiles = document.profile_items

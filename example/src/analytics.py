@@ -66,6 +66,34 @@ def pump_mode(
 
 
 @function(category="select")
+def filter_rows(
+    dataset: pl.LazyFrame,
+    feature: str,
+    value: str,
+    rename: collections.abc.Mapping[str, str] = EMPTY_COLUMN_RENAMES,
+) -> pl.LazyFrame:
+    """Select matching rows and optionally rename columns for a target profile.
+
+    Parameters
+    ----------
+    dataset
+        Source profile dataset.
+    feature
+        Column used to select matching rows.
+    value
+        Required value of the filter column. Null values do not match.
+    rename
+        Mapping from source column names to target feature names.
+
+    Returns
+    -------
+    Filtered fragment with source keys and optional column renaming, including
+    an empty fragment with the same schema when no rows match.
+    """
+    return dataset.filter(pl.col(feature) == value).rename(rename)
+
+
+@function(category="select")
 def select_columns(
     dataset: pl.LazyFrame,
     columns: list[str],
@@ -95,10 +123,9 @@ def select_columns(
 @function(category="aggregate")
 def aggregate(
     dataset: pl.LazyFrame,
-    feature: str,
-    method: str,
+    aggregations: collections.abc.Mapping[str, str],
     dimensions: list[str],
-    output: str,
+    rename: collections.abc.Mapping[str, str] = EMPTY_COLUMN_RENAMES,
 ) -> pl.LazyFrame:
     """Return a dimension-keyed aggregate fragment at the requested grain.
 
@@ -106,16 +133,15 @@ def aggregate(
     ----------
     dataset
         DataFrame to aggregate.
-    feature
-        Name of the column to aggregate.
-    method
-        Aggregation method; one of ``"max"``, ``"min"``, ``"mean"``, or
-        ``"sum"``.
+    aggregations
+        Mapping from source column names to aggregation methods. Each method
+        must be one of ``"max"``, ``"min"``, ``"mean"``, or ``"sum"``.
     dimensions
         Dimension columns defining the aggregation grain. When empty,
         the aggregate is computed over the whole dataset.
-    output
-        Name of the resulting aggregate column.
+    rename
+        Mapping from aggregated source column names to output names.
+        Columns not listed retain their source names.
 
     Returns
     -------
@@ -124,19 +150,29 @@ def aggregate(
     Raises
     ------
     ValueError
-        If ``method`` is unsupported.
+        If aggregations are empty, a method is unsupported, or a rename refers
+        to a column that is not aggregated.
 
     Examples
     --------
     >>> frame = pl.LazyFrame({"pump": ["p1", "p1"], "flow": [1.0, 3.0]})
-    >>> aggregate(frame, "flow", "max", [], "max_flow").collect().to_dicts()
+    >>> aggregate(frame, {"flow": "max"}, [], {"flow": "max_flow"}).collect().to_dicts()
     [{'max_flow': 3.0}]
     """
-    if method not in SUPPORTED_AGGREGATIONS:
-        raise ValueError(f"Unsupported aggregation method: {method}")
-    expression = getattr(pl.col(feature), method)().alias(output)
+    if not aggregations:
+        raise ValueError("At least one aggregation is required")
+    unknown_columns = set(rename) - set(aggregations)
+    if unknown_columns:
+        raise ValueError(
+            f"Cannot rename non-aggregated columns: {', '.join(sorted(unknown_columns))}"
+        )
+    expressions = []
+    for feature, method in aggregations.items():
+        if method not in SUPPORTED_AGGREGATIONS:
+            raise ValueError(f"Unsupported aggregation method: {method}")
+        expressions.append(getattr(pl.col(feature), method)().alias(rename.get(feature, feature)))
     data_collapsed = (
-        dataset.group_by(dimensions).agg(expression) if dimensions else dataset.select(expression)
+        dataset.group_by(dimensions).agg(expressions) if dimensions else dataset.select(expressions)
     )
     return data_collapsed
 

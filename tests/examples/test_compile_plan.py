@@ -49,6 +49,42 @@ def test_telemetry_relations_are_identifiers_not_features(pump_bundle: project.B
     assert not relations.intersection(item.name for item in graph.feature_nodes)
 
 
+def test_hourly_warning_aggregates_all_measurements_in_one_operator(
+    pump_bundle: project.BuildBundle,
+) -> None:
+    profile_id = "pump_telemetry_by_hour_when_warning"
+    invocations = [
+        invocation
+        for invocation in pump_bundle.execution_plan.invocations
+        if invocation.profile_id == profile_id and invocation.function_id == "aggregate"
+    ]
+
+    assert len(invocations) == 1
+    invocation = invocations[0]
+    assert invocation.operator_id == "aggregate_warning_telemetry"
+    assert set(invocation.input_features) == {
+        "warning_differential_pressure",
+        "warning_flow_rate",
+        "warning_motor_power",
+        "warning_bearing_temperature",
+        "warning_vibration_rms",
+    }
+    assert set(invocation.output_features) == {
+        "warning_hour_mean_differential_pressure",
+        "warning_hour_mean_flow_rate",
+        "warning_hour_mean_motor_power",
+        "warning_hour_max_bearing_temperature",
+        "warning_hour_max_vibration_rms",
+    }
+    assert invocation.arguments["aggregations"] == {
+        "warning_differential_pressure": "mean",
+        "warning_flow_rate": "mean",
+        "warning_motor_power": "mean",
+        "warning_bearing_temperature": "max",
+        "warning_vibration_rms": "max",
+    }
+
+
 def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.BuildBundle) -> None:
     document = pump_bundle.spec_definition
     restored = execution_plan.from_dict(execution_plan.to_dict(pump_bundle.execution_plan))
@@ -112,10 +148,6 @@ def test_each_profile_publishes_its_features_with_the_shared_writer(
                 "vibration_rms",
                 "motor_power",
                 "mode",
-                "recommended_flow_rate",
-                "recommended_differential_pressure",
-                "energy_cost_score",
-                "converged",
                 "pressure_flow_efficiency",
                 "room_temperature_reference",
                 "bearing_temperature_rise",
@@ -123,13 +155,27 @@ def test_each_profile_publishes_its_features_with_the_shared_writer(
                 "vibration_delta",
                 "pump_health_score",
                 "pump_mode",
-                "operating_point_recommendation",
             },
             "pump_telemetry_output",
         ),
         "pump_telemetry_by_minute": (
             {"bearing_temperature_minute_max"},
             "pump_telemetry_by_minute_output",
+        ),
+        "pump_telemetry_by_hour_when_warning": (
+            {
+                "warning_hour_mean_differential_pressure",
+                "warning_hour_mean_flow_rate",
+                "warning_hour_mean_motor_power",
+                "warning_hour_max_bearing_temperature",
+                "warning_hour_max_vibration_rms",
+                "operating_point_recommendation",
+                "recommended_flow_rate",
+                "recommended_differential_pressure",
+                "energy_cost_score",
+                "converged",
+            },
+            "pump_telemetry_by_hour_when_warning_output",
         ),
         "pump_telemetry_by_hour": (
             {"bearing_temperature_hour_max"},
@@ -150,6 +196,12 @@ def test_each_profile_publishes_its_features_with_the_shared_writer(
         assert writer.function_id == "write_file"
         assert set(writer.arguments["features"]) == feature_ids
         assert writer.arguments["output"] == f"$paths.{output_path}"
+
+    assert not any(
+        invocation.profile_id == "pump_telemetry_when_warning"
+        and invocation.operator_kind == "write"
+        for invocation in pump_bundle.execution_plan.invocations
+    )
 
 
 @pytest.mark.usefixtures("example_projects")
@@ -205,6 +257,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
     assert {invocation["operator_kind"] for invocation in metadata["invocations"]} == {
         "read",
         "collapse",
+        "conform",
         "expand",
         "vectorize",
         "write",
@@ -219,10 +272,9 @@ def test_compiled_plan_export_omits_generated_timestamp(
     assert "entity_id" not in collapse_invocation
     assert collapse_invocation["entrypoint"].endswith(":aggregate")
     assert collapse_invocation["arguments"] == {
-        "feature": "bearing_temperature",
-        "method": "max",
+        "aggregations": {"bearing_temperature": "max"},
         "dataset": "pump_telemetry",
         "dimensions": ["pump_id"],
-        "output": "bearing_temperature_max",
+        "rename": {"bearing_temperature": "bearing_temperature_max"},
     }
     assert collapse_invocation["output_features"] == ["bearing_temperature_max"]
