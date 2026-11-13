@@ -19,7 +19,7 @@ def select_columns(
     columns: list[str],
     rename: collections.abc.Mapping[str, str] = EMPTY_COLUMN_RENAMES,
 ) -> pl.LazyFrame:
-    """Select source columns and optionally rename them for automatic merging.
+    """Select profile columns and optionally rename them for the target profile.
 
     Parameters
     ----------
@@ -178,37 +178,6 @@ def ratio(
     denominator = functools.reduce(operator.mul, (pl.col(name) for name in denominator_features))
     data_vectorized = dataset.with_columns((scale * numerator / denominator).alias(output))
     return data_vectorized
-
-
-@function(category="calculate")
-def broadcast_constant(
-    constants: pl.LazyFrame,
-    feature: str,
-    output: str,
-) -> pl.LazyFrame:
-    """Return a one-row fragment carrying a constant for the target dataset.
-
-    Parameters
-    ----------
-    constants
-        Single-row dataset containing the constant.
-    feature
-        Name of the constant column to broadcast.
-    output
-        Name of the resulting broadcast column.
-
-    Returns
-    -------
-    One-row fragment that the engine broadcasts to every target observation.
-
-    Examples
-    --------
-    >>> constants = pl.LazyFrame({"ambient": [20.0]})
-    >>> broadcast_constant(constants, "ambient", "ambient_reference").collect().to_dicts()
-    [{'ambient_reference': 20.0}]
-    """
-    data_expanded = constants.select(pl.col(feature).alias(output))
-    return data_expanded
 
 
 @function(category="calculate")

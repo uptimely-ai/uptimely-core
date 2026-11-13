@@ -243,11 +243,11 @@ class PumpTelemetry(Profile):
                     outputs=[features.room_temperature_reference],
                 ),
                 compute=Binding(
-                    function=analytics.broadcast_constant,
+                    function=analytics.select_columns,
                     arguments=dict(
-                        constants=ref.dataset("constants"),
-                        feature=ref.feature("room_temperature"),
-                        output=features.room_temperature_reference,
+                        dataset=ref.dataset("constants"),
+                        columns=[ref.feature("room_temperature")],
+                        rename={"room_temperature": features.room_temperature_reference},
                     ),
                 ),
                 merge=merge.default(),
