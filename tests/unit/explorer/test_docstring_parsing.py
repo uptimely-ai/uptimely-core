@@ -2,7 +2,7 @@
 
 import inspect
 
-from examples.pump_analytics.functions import analytics, external_workflow
+from example.functions import analytics, external_workflow
 
 from uptimely.explorer.sections import spec as spec_section
 

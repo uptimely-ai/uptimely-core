@@ -10,7 +10,7 @@ from uptimely import spec
 from uptimely.spec import model, validation
 from uptimely.spec.feature_graph import models
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 

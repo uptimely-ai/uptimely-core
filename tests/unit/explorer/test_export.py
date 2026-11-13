@@ -35,7 +35,7 @@ def test_export_directory_uses_relative_assets_and_preserves_snapshot_bytes(
     project_root.mkdir()
     snapshot_path = _write_snapshot(project_root, example_bundle_factory)
     snapshot_bytes = snapshot_path.read_bytes()
-    output = tmp_path / "docs" / "examples" / "pump"
+    output = tmp_path / "docs" / "example" / "pump"
 
     exported = export.export_static(project_root, output)
 

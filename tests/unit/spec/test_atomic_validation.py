@@ -181,7 +181,7 @@ def test_failed_spec_validation_logs_the_failing_check_before_stopping(
 def document(example_projects: pathlib.Path) -> spec.Spec:
     return spec.Spec.model_validate(
         json.loads(
-            (example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json").read_text(
+            (example_support.EXAMPLES_ROOT / "_generated/build/spec.json").read_text(
                 encoding="utf-8"
             )
         )

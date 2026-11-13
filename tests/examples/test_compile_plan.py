@@ -13,7 +13,7 @@ from uptimely.explorer.sections import spec as explorer_spec
 from uptimely.spec.feature_graph import feature_graph
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
-EXAMPLE_ROOT = example_support.EXAMPLES_ROOT / "pump_analytics"
+EXAMPLE_ROOT = example_support.EXAMPLES_ROOT
 
 
 def test_telemetry_relations_are_identifiers_not_features(pump_bundle: project.BuildBundle) -> None:
@@ -71,10 +71,7 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
 def test_project_build_cli_exports_complete_bundle(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    examples = tmp_path / "examples"
-    examples.mkdir()
-    shutil.copyfile(REPOSITORY_ROOT / "examples/__init__.py", examples / "__init__.py")
-    project_root = examples / "pump_analytics"
+    project_root = tmp_path / "example"
     shutil.copytree(
         EXAMPLE_ROOT,
         project_root,

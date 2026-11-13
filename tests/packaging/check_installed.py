@@ -10,7 +10,7 @@ import sys
 import tempfile
 import unittest
 
-import examples
+import example
 import installed_analytics
 
 import uptimely
@@ -52,7 +52,7 @@ class InstalledImportsTest(unittest.TestCase):
         return result
 
     def test_environment_is_not_editable_or_using_the_checkout(self) -> None:
-        for module in (uptimely, examples, installed_analytics):
+        for module in (uptimely, example, installed_analytics):
             with self.subTest(module=module.__name__):
                 self.assertIsNotNone(module.__file__)
                 location = pathlib.Path(module.__file__).resolve()
@@ -64,49 +64,42 @@ class InstalledImportsTest(unittest.TestCase):
         direct_url = json.loads(distribution.read_text("direct_url.json") or "{}")
         self.assertFalse(direct_url.get("dir_info", {}).get("editable", False))
         packaged_files = [str(path) for path in distribution.files or []]
-        self.assertTrue(any(path.startswith("examples/") for path in packaged_files))
+        self.assertTrue(any(path.startswith("example/") for path in packaged_files))
         self.assertFalse(any("/_generated/" in path for path in packaged_files))
 
     def test_all_examples_build_and_run_from_installed_wheel(self) -> None:
-        examples_root = pathlib.Path(examples.__file__).parent
-        (self.root / "examples").mkdir()
-        shutil.copyfile(examples_root / "__init__.py", self.root / "examples" / "__init__.py")
-        for name in ("pump_analytics",):
-            with self.subTest(example=name):
-                project = self.root / "examples" / name
-                shutil.copytree(examples_root / name, project)
-                result = self.command("project", "build", "--project-root", str(project))
-                self.assertIn("Build files created", result.stdout)
-                build = project / "_generated" / "build"
-                snapshot = json.loads(
-                    (project / "_generated" / "explorer.json").read_text(encoding="utf-8")
-                )
-                self.assertEqual(snapshot["format_version"], 3)
-                frontend = pathlib.Path(uptimely.__file__).parent / "explorer" / "app" / "static"
-                self.assertTrue((frontend / "index.html").is_file())
-                self.assertTrue((frontend / "css" / "explorer.css").is_file())
-                self.assertTrue((frontend / "js" / "lineage" / "feature_lineage.js").is_file())
-                self.assertTrue((frontend / "css" / "lineage.css").is_file())
-                plan = json.loads((build / "execution_plan.json").read_text(encoding="utf-8"))
-                self.assertTrue(plan["invocations"])
-                packages = {
-                    invocation["entrypoint"]: invocation["package"]
-                    for invocation in plan["invocations"]
-                }
-                for entrypoint, package in packages.items():
-                    top_level_package = entrypoint.partition(":")[0].partition(".")[0]
-                    expected_distribution = {
-                        "examples": "uptimely-core",
-                        "polars": "polars",
-                        "uptimely": "uptimely-core",
-                    }[top_level_package]
-                    self.assertEqual(package["distribution"], expected_distribution)
-                    self.assertEqual(
-                        package["version"], importlib.metadata.version(expected_distribution)
-                    )
-                result = self.command("run", str(project), "--preview", "2")
-                self.assertIn("Engine processed", result.stdout)
-                self.assertIn("Profile:", result.stdout)
+        examples_root = pathlib.Path(example.__file__).parent
+        project = self.root / "example"
+        shutil.copytree(examples_root, project)
+        result = self.command("project", "build", "--project-root", str(project))
+        self.assertIn("Build files created", result.stdout)
+        build = project / "_generated" / "build"
+        snapshot = json.loads(
+            (project / "_generated" / "explorer.json").read_text(encoding="utf-8")
+        )
+        self.assertEqual(snapshot["format_version"], 3)
+        frontend = pathlib.Path(uptimely.__file__).parent / "explorer" / "app" / "static"
+        self.assertTrue((frontend / "index.html").is_file())
+        self.assertTrue((frontend / "css" / "explorer.css").is_file())
+        self.assertTrue((frontend / "js" / "lineage" / "feature_lineage.js").is_file())
+        self.assertTrue((frontend / "css" / "lineage.css").is_file())
+        plan = json.loads((build / "execution_plan.json").read_text(encoding="utf-8"))
+        self.assertTrue(plan["invocations"])
+        packages = {
+            invocation["entrypoint"]: invocation["package"] for invocation in plan["invocations"]
+        }
+        for entrypoint, package in packages.items():
+            top_level_package = entrypoint.partition(":")[0].partition(".")[0]
+            expected_distribution = {
+                "example": "uptimely-core",
+                "polars": "polars",
+                "uptimely": "uptimely-core",
+            }[top_level_package]
+            self.assertEqual(package["distribution"], expected_distribution)
+            self.assertEqual(package["version"], importlib.metadata.version(expected_distribution))
+        result = self.command("run", str(project), "--preview", "2")
+        self.assertIn("Engine processed", result.stdout)
+        self.assertIn("Profile:", result.stdout)
 
     def test_installed_project_builds_and_executes_in_separate_processes(self) -> None:
         project = self.root / "project"

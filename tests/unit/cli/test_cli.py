@@ -37,13 +37,13 @@ def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
     archive = _archive(
         {
             "project-main/readme.md": "not an example",
-            "project-main/examples/README.md": "Example guide",
-            "project-main/examples/pump_analytics/run.py": "print('example')",
-            "project-main/examples/pump_analytics/data/sample.csv": "x\n1\n",
+            "project-main/example/README.md": "Example guide",
+            "project-main/example/run.py": "print('example')",
+            "project-main/example/data/sample.csv": "x\n1\n",
             "project-main/src/module.py": "not an example",
-            "project-main/explorer/examples/guide.md": "not a root-level example",
+            "project-main/explorer/example/guide.md": "not a root-level example",
             "project-main/tests/examples/fixture.py": "not a root-level example",
-            "project-main/examples/empty/": "",
+            "project-main/example/empty/": "",
         }
     )
 
@@ -57,23 +57,23 @@ def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
 
 
 def test_download_examples(tmp_path: pathlib.Path, github: list[str]) -> None:
-    output = tmp_path / "nested" / "examples"
+    output = tmp_path / "nested" / "example"
     assert examples.download_examples(output) == output
     assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
     assert sorted(
         str(path.relative_to(output)) for path in output.rglob("*") if path.is_file()
     ) == [
         "README.md",
-        "pump_analytics/data/sample.csv",
-        "pump_analytics/run.py",
+        "data/sample.csv",
+        "run.py",
     ]
-    assert (output / "pump_analytics/run.py").read_text() == "print('example')"
+    assert (output / "run.py").read_text() == "print('example')"
     assert not (output / "empty").exists()
     assert list(output.parent.iterdir()) == [output]
 
 
 def test_download_revision(tmp_path: pathlib.Path, github: list[str]) -> None:
-    examples.download_examples(tmp_path / "examples", "feature/demo")
+    examples.download_examples(tmp_path / "example", "feature/demo")
     assert github == ["https://codeload.github.com/example/project/zip/feature%2Fdemo"]
 
 
@@ -85,7 +85,7 @@ def test_download_matches_installed_version(
     version: str,
 ) -> None:
     monkeypatch.setattr(examples.metadata, "version", lambda name: version)
-    examples.download_examples(tmp_path / "examples")
+    examples.download_examples(tmp_path / "example")
     assert github == [f"https://codeload.github.com/example/project/zip/v{version}"]
 
 
@@ -96,7 +96,7 @@ def test_explicit_revision_does_not_require_version(
         raise metadata.PackageNotFoundError(name)
 
     monkeypatch.setattr(examples.metadata, "version", missing_version)
-    examples.download_examples(tmp_path / "examples", "HEAD")
+    examples.download_examples(tmp_path / "example", "HEAD")
     assert github == ["https://codeload.github.com/example/project/zip/HEAD"]
 
 
@@ -111,7 +111,7 @@ def test_missing_version_is_reported(
 
     monkeypatch.setattr(examples.metadata, "version", missing_version)
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "examples")]
+        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "example")]
     )
     with pytest.raises(SystemExit) as result:
         cli.main()
@@ -133,7 +133,7 @@ def test_missing_release_tag_does_not_fall_back(
 
     monkeypatch.setattr(examples.request, "urlopen", missing_tag)
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "examples")]
+        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "example")]
     )
     with pytest.raises(SystemExit) as result:
         cli.main()
@@ -155,12 +155,12 @@ def test_configured_examples_source(
     data = _archive(
         {
             f"project-main/{source_path}/run.py": "configured example",
-            "project-main/examples/ignored.py": "not the configured source",
+            "project-main/example/ignored.py": "not the configured source",
         }
     )
     monkeypatch.setattr(examples, "EXAMPLES_FOLDER", source_path)
     monkeypatch.setattr(examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
-    output = tmp_path / "examples"
+    output = tmp_path / "example"
     examples.download_examples(output)
     assert (output / "run.py").read_text() == "configured example"
     assert list(output.iterdir()) == [output / "run.py"]
@@ -170,7 +170,7 @@ def test_configured_examples_source(
 def test_existing_destination_is_preserved(
     tmp_path: pathlib.Path, github: list[str], kind: str
 ) -> None:
-    output = tmp_path / "examples"
+    output = tmp_path / "example"
     if kind == "directory":
         output.mkdir()
         (output / "keep.txt").write_text("keep")
@@ -194,7 +194,7 @@ def test_examples_cli_reports_existing_default_destination(
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
-    output = tmp_path / "examples"
+    output = tmp_path / "example"
     output.mkdir()
     (output / "keep.txt").write_text("keep")
     monkeypatch.chdir(tmp_path)
@@ -214,21 +214,21 @@ def test_examples_cli_reports_existing_default_destination(
 @pytest.mark.parametrize(
     "path",
     [
-        "project/examples/../../escape.txt",
-        "project/examples/../escape.txt",
-        "project/examples/nested/../../../escape.txt",
-        "project/examples/C:\\escape.txt",
-        "/examples/escape.txt",
-        "project/examples//escape.txt",
+        "project/example/../../escape.txt",
+        "project/example/../escape.txt",
+        "project/example/nested/../../../escape.txt",
+        "project/example/C:\\escape.txt",
+        "/example/escape.txt",
+        "project/example//escape.txt",
     ],
 )
 def test_unsafe_paths_leave_no_output(
     tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch, path: str
 ) -> None:
-    data = _archive({"project/examples/ok.txt": "ok", path: "unsafe"})
+    data = _archive({"project/example/ok.txt": "ok", path: "unsafe"})
     monkeypatch.setattr(examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
     with pytest.raises(ValueError, match="Unsafe"):
-        examples.download_examples(tmp_path / "examples")
+        examples.download_examples(tmp_path / "example")
     assert list(tmp_path.iterdir()) == []
 
 
@@ -237,7 +237,7 @@ def test_symlinks_are_rejected(
 ) -> None:
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
-        link = zipfile.ZipInfo("project/examples/link")
+        link = zipfile.ZipInfo("project/example/link")
         link.create_system = 3
         link.external_attr = (stat.S_IFLNK | 0o777) << 16
         archive.writestr(link, "../../escape")
@@ -247,7 +247,7 @@ def test_symlinks_are_rejected(
         lambda *args, **kwargs: io.BytesIO(buffer.getvalue()),
     )
     with pytest.raises(ValueError, match="Unsupported"):
-        examples.download_examples(tmp_path / "examples")
+        examples.download_examples(tmp_path / "example")
     assert list(tmp_path.iterdir()) == []
 
 
@@ -265,7 +265,7 @@ def test_invalid_archives_are_reported(
 ) -> None:
     monkeypatch.setattr(examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "examples")]
+        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "example")]
     )
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -293,7 +293,7 @@ def test_network_errors_are_reported(
 
     monkeypatch.setattr(examples.request, "urlopen", fail)
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "examples")]
+        sys, "argv", ["uptimely", "examples", "download", "--output", str(tmp_path / "example")]
     )
     with pytest.raises(SystemExit) as result:
         cli.main()
@@ -341,14 +341,14 @@ def test_cli_success(
     monkeypatch.setattr(sys, "argv", ["uptimely", "examples", "download"])
     cli.main()
     assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
-    assert f"Downloaded examples to {tmp_path / 'examples'}" in capsys.readouterr().out
-    assert (tmp_path / "examples/README.md").exists()
+    assert f"Downloaded examples to {tmp_path / 'example'}" in capsys.readouterr().out
+    assert (tmp_path / "example/README.md").exists()
 
 
 def test_cli_output_and_revision(
     tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    output = tmp_path / "demo" / "examples"
+    output = tmp_path / "demo" / "example"
     monkeypatch.setattr(
         sys,
         "argv",
@@ -372,8 +372,8 @@ def test_examples_without_action_downloads_default_destination(
 
     cli.main()
 
-    assert calls == [(pathlib.Path("examples"), None)]
-    assert "Downloaded examples to examples" in capsys.readouterr().out
+    assert calls == [(pathlib.Path("example"), None)]
+    assert "Downloaded examples to example" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
@@ -431,14 +431,14 @@ def test_write_failure_cleans_staging(
 
     monkeypatch.setattr(pathlib.Path, "open", open_path)
     with pytest.raises(PermissionError, match="Cannot write"):
-        examples.download_examples(tmp_path / "examples")
+        examples.download_examples(tmp_path / "example")
     assert list(tmp_path.iterdir()) == []
 
 
 def test_destination_created_during_download_is_preserved(
     tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    output = tmp_path / "examples"
+    output = tmp_path / "example"
     open_url = examples.request.urlopen
 
     def download(url: str, *, timeout: int) -> object:

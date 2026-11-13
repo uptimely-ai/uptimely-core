@@ -5,7 +5,7 @@ import pathlib
 
 import polars as pl
 import pytest
-from examples.pump_analytics.functions import analytics, capacity, source
+from example.functions import analytics, capacity, source
 from support import examples as example_support
 from support import execution as execution_support
 

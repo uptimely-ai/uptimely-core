@@ -10,7 +10,7 @@ Before making project-wide changes, consult the relevant guides:
 
 - [Project overview](readme.md)
 - [Documentation](docs/)
-- [Runnable examples](examples/README.md)
+- [Runnable examples](example/README.md)
 - [Contribution workflow and release process](CONTRIBUTING.md)
 
 ## Working principles

@@ -1,7 +1,7 @@
 """Pump-level profile and declarative dataframe transformations."""
 
-from examples.pump_analytics.functions import analytics, capacity, external_workflow, source
-from examples.pump_analytics.spec import dimension
+from example.functions import analytics, capacity, external_workflow, source
+from example.spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 from uptimely.spec import feature_types

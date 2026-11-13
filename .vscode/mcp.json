@@ -8,7 +8,7 @@
         "run",
         "uptimely-mcp",
         "--project-root",
-        "${workspaceFolder}/examples/pump_analytics"
+        "${workspaceFolder}/example"
       ]
     }
   }

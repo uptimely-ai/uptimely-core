@@ -156,7 +156,7 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
 def test_shared_examples_are_built_once_under_concurrent_requests(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    examples_root = tmp_path / "examples"
+    examples_root = tmp_path / "example"
     builds: list[pathlib.Path] = []
     monkeypatch.setattr(project, "build", builds.append)
 
@@ -165,14 +165,14 @@ def test_shared_examples_are_built_once_under_concurrent_requests(
     example_support.prepare_example_projects.cache_clear()
     example_support.prepare_example_projects(examples_root)
 
-    assert builds == [examples_root / "pump_analytics"]
-    assert (examples_root / "pump_analytics/spec").is_dir()
+    assert builds == [examples_root]
+    assert (examples_root / "spec").is_dir()
 
 
 def test_failed_example_build_can_be_retried(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    examples_root = tmp_path / "examples"
+    examples_root = tmp_path / "example"
 
     def fail_build(project_root: pathlib.Path) -> None:
         raise RuntimeError("Example build failed")
@@ -186,5 +186,5 @@ def test_failed_example_build_can_be_retried(
     monkeypatch.setattr(project, "build", builds.append)
     example_support.prepare_example_projects(examples_root)
 
-    assert builds == [examples_root / "pump_analytics"]
+    assert builds == [examples_root]
     assert (tmp_path / ".examples-ready").is_file()

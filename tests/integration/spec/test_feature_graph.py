@@ -10,7 +10,7 @@ from uptimely.cli import cli
 from uptimely.spec import operator_kinds
 from uptimely.spec.feature_graph import models
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
 
 
 def test_graph_metadata_uses_derived_grain_semantics(

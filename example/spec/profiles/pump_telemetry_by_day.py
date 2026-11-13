@@ -1,34 +1,34 @@
-"""Pump telemetry by hour profile declaration."""
+"""Pump telemetry by day profile declaration."""
 
-from examples.pump_analytics.functions import analytics
-from examples.pump_analytics.spec import dimension
+from example.functions import analytics
+from example.spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 
 
-class PumpTelemetryByHourFeatures(FeatureSet):
-    """Features declared by the hour-level profile."""
+class PumpTelemetryByDayFeatures(FeatureSet):
+    """Features declared by the day-level profile."""
 
     bearing_temperature_max = Feature(
-        id="bearing_temperature_hour_max",
+        id="bearing_temperature_day_max",
         type="float",
         unit="C",
         description="Maximum observed bearing temperature at this profile's grain.",
     )
 
 
-class PumpTelemetryByHour(Profile):
-    """Maximum bearing temperature at pump-and-hour grain."""
+class PumpTelemetryByDay(Profile):
+    """Maximum bearing temperature at pump-and-day grain."""
 
-    id = "pump_telemetry_by_hour"
-    name = "Pump Telemetry by Hour"
-    description = "Maximum bearing temperature per pump and hour."
+    id = "pump_telemetry_by_day"
+    name = "Pump Telemetry by Day"
+    description = "Maximum bearing temperature per pump and day."
     category = "Telemetry"
     grain = [
         dimension.MACHINE_DIMENSION.resolution("machine"),
-        dimension.MACHINE_TIMESTAMP.resolution("hour"),
+        dimension.MACHINE_TIMESTAMP.resolution("day"),
     ]
-    features = PumpTelemetryByHourFeatures()
+    features = PumpTelemetryByDayFeatures()
     assembly = [
         Operator(
             id="bearing_temperature_max",
@@ -44,7 +44,7 @@ class PumpTelemetryByHour(Profile):
                     method="max",
                     dimensions=[
                         dimension.MACHINE_DIMENSION.resolution("machine").key,
-                        dimension.MACHINE_TIMESTAMP.resolution("hour").key,
+                        dimension.MACHINE_TIMESTAMP.resolution("day").key,
                     ],
                     output=features.bearing_temperature_max,
                     filter_column="",

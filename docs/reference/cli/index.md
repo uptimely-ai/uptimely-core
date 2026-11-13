@@ -9,7 +9,7 @@ and `uptimely explore`. The grouped forms `uptimely project build`,
 `uptimely engine run`, and `uptimely explorer serve` remain available and accept
 the same options. Project-specific commands accept an optional project
 directory immediately after the action name, such as
-`uptimely build examples/pump_analytics`. If omitted, the current working
+`uptimely build example`. If omitted, the current working
 directory is used. `--project-root PATH` is also supported as an explicit
 alternative; do not pass both forms.
 
@@ -64,13 +64,13 @@ bundle, including its spec, execution plan, and Explorer data snapshot:
 
 ```console
 uptimely examples
-uptimely build examples/pump_analytics
+uptimely build example
 ```
 
 Run the saved execution plan from the active build:
 
 ```console
-uptimely run examples/pump_analytics
+uptimely run example
 ```
 
 The command defaults and options are documented on each command page. Project

@@ -4,7 +4,7 @@ import pathlib
 
 import polars as pl
 import pytest
-from examples.pump_analytics.functions import source
+from example.functions import source
 
 
 @pytest.mark.parametrize("extension", ["json", "csv"])

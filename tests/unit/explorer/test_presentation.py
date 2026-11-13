@@ -4,7 +4,7 @@ import json
 import pathlib
 
 import pytest
-from examples.pump_analytics.functions import analytics
+from example.functions import analytics
 from support import examples as example_support
 
 from uptimely import project
@@ -87,9 +87,7 @@ def test_build_snapshot_preserves_complete_function_example(
     example_projects: pathlib.Path,
 ) -> None:
     snapshot = json.loads(
-        (example_projects / "pump_analytics" / project.EXPLORER_DATA_FILE).read_text(
-            encoding="utf-8"
-        )
+        (example_projects / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8")
     )
     configuration = snapshot["catalogs"]["configuration"]["functions"]
     function = configuration["operation_point_quantum_optimization"]

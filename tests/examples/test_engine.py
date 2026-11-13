@@ -4,7 +4,7 @@ import sys
 
 import polars as pl
 import pytest
-from examples.pump_analytics.functions import analytics, source
+from example.functions import analytics, source
 from support import examples as example_support
 from support import execution as execution_support
 
@@ -15,7 +15,7 @@ from uptimely.engine.runtime import state as state_module
 
 
 def _engine_parameters() -> dict[str, object]:
-    path = example_support.EXAMPLES_ROOT / "pump_analytics/config/config.json"
+    path = example_support.EXAMPLES_ROOT / "config/config.json"
     return json.loads(path.read_text(encoding="utf-8"))["params"]
 
 
@@ -86,7 +86,7 @@ def test_engine_returns_calculated_features_without_writing_output(
         {"gravity": 9.81, "room_temperature": 20.0}
     ]
     assert source.read_file(
-        str(example_support.EXAMPLES_ROOT / "pump_analytics/data/constants_dev.json")
+        str(example_support.EXAMPLES_ROOT / "data/constants_dev.json")
     ).collect().to_dicts() == [{"gravity": 9.81, "room_temperature": 22.0}]
     efficiency = [5.3 * 118.0 / (36 * 17.9), 5.4 * 119.5 / (36 * 18.1), 4.1 * 83.0 / (36 * 11.7)]
     assert telemetry_frame["pressure_flow_efficiency"].to_list() == pytest.approx(efficiency)
@@ -174,7 +174,7 @@ def test_engine_cli_reports_processed_profiles(
     capsys: pytest.CaptureFixture[str],
     example_project_factory: example_support.ProjectFactory,
 ) -> None:
-    project_root = example_project_factory(tmp_path / "examples" / "pump_analytics")
+    project_root = example_project_factory(tmp_path / "project")
     (project_root.parent / "__init__.py").write_text("", encoding="utf-8")
     monkeypatch.setattr(
         sys,
@@ -220,7 +220,7 @@ def test_engine_cli_reports_scoped_saved_build(
     example_project_factory: example_support.ProjectFactory,
 ) -> None:
     project_root = example_project_factory(
-        tmp_path / "examples" / "pump_analytics", features=("health_signal_normalized",)
+        tmp_path / "scoped-project", features=("health_signal_normalized",)
     )
     (project_root.parent / "__init__.py").write_text("", encoding="utf-8")
     monkeypatch.setattr(

@@ -27,18 +27,18 @@ jobs:
       - run: poetry install --without dev,test --with docs
       - name: Build pump analytics demo site
         run: |
-          poetry run uptimely project build --project-root examples/pump_analytics
+          poetry run uptimely project build --project-root example
       - name: Run pump analytics demo
         run: |
           poetry run uptimely engine run \
-            --project-root examples/pump_analytics \
+            --project-root example \
             --preview 10 \
             --log-level debug
       - name: Export static Explorer to the docs
         run: |
           poetry run uptimely explorer export \
-            --project-root examples/pump_analytics \
-            --output docs/examples/pump_analytics
+            --project-root example \
+            --output docs/example
       - run: poetry run mkdocs build --site-dir site
       - name: Upload the site for deployment
         uses: actions/upload-pages-artifact@v3

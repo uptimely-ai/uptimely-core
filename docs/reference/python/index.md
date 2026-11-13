@@ -21,6 +21,6 @@ Common classes are available from `uptimely`, including `Spec`, `Project`,
 `Compiler`, and `Engine`. CLI commands and MCP tools have separate references.
 
 For a complete example, see the
-[repository examples](https://github.com/uptimely-ai/uptimely-core/tree/main/examples).
+[repository examples](https://github.com/uptimely-ai/uptimely-core/tree/main/example).
 The [architecture overview](../../architecture/index.md) explains how the
 packages work together.

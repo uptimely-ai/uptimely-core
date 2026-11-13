@@ -14,7 +14,7 @@ dependencies in the same Python environment.
 ```sh
 python -m pip install --upgrade "uptimely-core[mcp]"
 uptimely examples
-uptimely build examples/pump_analytics
+uptimely build example
 ```
 
 ### From this repository
@@ -23,7 +23,7 @@ Run from the repository root:
 
 ```sh
 poetry install --extras "mcp"
-poetry run uptimely build examples/pump_analytics
+poetry run uptimely build example
 ```
 
 Alternatively, run `./scripts/install-mcp.sh`. The Dev Container already
@@ -70,7 +70,7 @@ For clients using an `mcpServers` configuration:
         "-m",
         "uptimely.mcp.server",
         "--project-root",
-        "/absolute/path/to/examples/pump_analytics"
+        "/absolute/path/to/example"
       ]
     }
   }
@@ -80,7 +80,7 @@ For clients using an `mcpServers` configuration:
 Use your interpreter and project paths. VS Code uses a `servers` root field
 instead of `mcpServers`.
 
-Set the client's working directory to the directory containing `examples`
+Set the client's working directory to the directory containing `example`
 for the pump example. `--project-root` does not change the working directory.
 If the client cannot set it, use absolute data paths in the project's
 `config/config.json`.

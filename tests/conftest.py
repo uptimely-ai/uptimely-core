@@ -82,7 +82,7 @@ def pytest_configure(config: pytest.Config) -> None:
         config.add_cleanup(root.cleanup)
         patch = pytest.MonkeyPatch()
         config.add_cleanup(patch.undo)
-        examples_root = pathlib.Path(root.name) / "examples"
+        examples_root = pathlib.Path(root.name) / "example"
         patch.setattr(examples, "EXAMPLES_ROOT", examples_root)
         patch.setenv("UPTIMELY_TEST_EXAMPLES_ROOT", str(examples_root))
     config.add_cleanup(examples.clear_caches)

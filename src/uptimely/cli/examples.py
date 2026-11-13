@@ -17,7 +17,7 @@ from uptimely.cli import common
 
 logger = logging.getLogger(__name__)
 
-EXAMPLES_FOLDER: str = "examples"
+EXAMPLES_FOLDER: str = "example"
 DISTRIBUTION_NAME: str = "uptimely-core"
 RELEASE_TAG_PREFIX: str = "v"
 EXAMPLES_DOWNLOAD_TIMEOUT: int = 30
@@ -95,7 +95,7 @@ def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.P
     """Download the public repository's examples into a new directory.
 
     Args:
-        output: Destination for the contents of the repository's examples directory.
+        output: Destination for the contents of the repository's example directory.
         ref: GitHub branch, tag, or commit. If omitted, use the release tag
             matching the installed package version (v<version>).
             Explicit HEAD selects the default branch.
@@ -120,7 +120,7 @@ def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.P
     with tempfile.TemporaryDirectory(
         prefix=TEMPORARY_DIRECTORY_PREFIX, dir=output.parent
     ) as temporary:
-        staging = pathlib.Path(temporary) / "examples"
+        staging = pathlib.Path(temporary) / "example"
         staging.mkdir()
         with tempfile.TemporaryFile() as downloaded:
             try:
@@ -145,7 +145,7 @@ def configure_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the examples command and its download action."""
     parser.set_defaults(
         action="download",
-        output=pathlib.Path("examples"),
+        output=pathlib.Path("example"),
         ref=None,
     )
     configure_download_parser(parser)
@@ -158,13 +158,13 @@ def configure_download_parser(
     parser: argparse.ArgumentParser, *, suppress_defaults: bool = False
 ) -> None:
     """Configure options for downloading examples."""
-    output_default = argparse.SUPPRESS if suppress_defaults else pathlib.Path("examples")
+    output_default = argparse.SUPPRESS if suppress_defaults else pathlib.Path("example")
     ref_default = argparse.SUPPRESS if suppress_defaults else None
     parser.add_argument(
         "--output",
         type=pathlib.Path,
         default=output_default,
-        help="Destination directory (default: examples)",
+        help="Destination directory (default: example)",
     )
     parser.add_argument(
         "--ref",

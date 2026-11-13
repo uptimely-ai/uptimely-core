@@ -43,7 +43,7 @@ def test_installer_uses_existing_poetry_environment(tmp_path: pathlib.Path) -> N
     assert result.returncode == 0, result.stderr
     assert log.read_text(encoding="utf-8").splitlines() == [
         f"{REPOSITORY_ROOT}|install --extras mcp",
-        f"{REPOSITORY_ROOT}|run uptimely build examples/pump_analytics",
+        f"{REPOSITORY_ROOT}|run uptimely build example",
     ]
     assert "MCP: List Servers" in result.stdout
     assert "No background server is needed" in result.stdout
@@ -103,6 +103,6 @@ def test_vscode_mcp_uses_poetry_without_environment_path_assumptions() -> None:
             "run",
             "uptimely-mcp",
             "--project-root",
-            "${workspaceFolder}/examples/pump_analytics",
+            "${workspaceFolder}/example",
         ],
     }

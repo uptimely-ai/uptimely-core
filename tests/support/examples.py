@@ -12,16 +12,14 @@ from uptimely.project import paths
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLES_ROOT = pathlib.Path(
-    os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT", REPOSITORY_ROOT / "examples")
+    os.environ.get("UPTIMELY_TEST_EXAMPLES_ROOT", REPOSITORY_ROOT / "example")
 )
 
 
 class BundleFactory(typing.Protocol):
     """Load independent mutable bundles from reusable example artifacts."""
 
-    def __call__(
-        self, example: str = "pump_analytics", features: tuple[str, ...] | None = None
-    ) -> project_module.BuildBundle: ...
+    def __call__(self, features: tuple[str, ...] | None = None) -> project_module.BuildBundle: ...
 
 
 class ProjectFactory(typing.Protocol):
@@ -30,7 +28,6 @@ class ProjectFactory(typing.Protocol):
     def __call__(
         self,
         target: pathlib.Path,
-        example: str = "pump_analytics",
         features: tuple[str, ...] | None = None,
     ) -> pathlib.Path: ...
 
@@ -43,24 +40,24 @@ def prepare_example_projects(examples_root: pathlib.Path) -> None:
         if ready.is_file():
             return
         shutil.copytree(
-            REPOSITORY_ROOT / "examples",
+            REPOSITORY_ROOT / "example",
             examples_root,
             ignore=shutil.ignore_patterns("_generated", "__pycache__"),
             dirs_exist_ok=True,
         )
-        project_module.build(examples_root / "pump_analytics")
+        project_module.build(examples_root)
         ready.touch()
 
 
 @functools.cache
-def _example_project(example: str, features: tuple[str, ...] | None) -> pathlib.Path:
+def _example_project(features: tuple[str, ...] | None) -> pathlib.Path:
     """Prepare each scoped example once per worker; reuse full session builds."""
     prepare_example_projects(EXAMPLES_ROOT)
-    source = EXAMPLES_ROOT / example
+    source = EXAMPLES_ROOT
     if features is None:
         return source
     root = pathlib.Path(tempfile.mkdtemp(prefix="scoped-example-", dir=EXAMPLES_ROOT.parent))
-    target = root / example
+    target = root / "example"
     shutil.copytree(source, target, ignore=shutil.ignore_patterns("_generated", "__pycache__"))
     project_module.build(
         target,
@@ -70,20 +67,17 @@ def _example_project(example: str, features: tuple[str, ...] | None) -> pathlib.
     return target
 
 
-def example_bundle(
-    example: str = "pump_analytics", features: tuple[str, ...] | None = None
-) -> project_module.BuildBundle:
+def example_bundle(features: tuple[str, ...] | None = None) -> project_module.BuildBundle:
     """Load fresh, mutable objects from a reusable example build."""
-    return project_module.load_build_bundle(_example_project(example, features))
+    return project_module.load_build_bundle(_example_project(features))
 
 
 def copy_example_project(
     target: pathlib.Path,
-    example: str = "pump_analytics",
     features: tuple[str, ...] | None = None,
 ) -> pathlib.Path:
     """Copy example sources and saved build artifacts, excluding mutable run files."""
-    source = _example_project(example, features)
+    source = _example_project(features)
 
     def ignore(directory: str, names: list[str]) -> list[str]:
         if pathlib.Path(directory) == source / paths.GENERATED_DIR:

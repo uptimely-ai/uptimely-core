@@ -44,7 +44,7 @@ Thumbs.db
 
 *.html
 _generated/*.html
-examples/pump_analytics/_generated/output/
+example/_generated/output/
 *Identifier
 
 # Local documentation preview
@@ -54,7 +54,7 @@ docs/.jekyll-cache/
 docs/.jekyll-metadata
 docs/_site/
 docs/vendor/
-docs/examples/
+docs/example/
 
 # Examples
-examples/*/_generated/
+example/_generated/
