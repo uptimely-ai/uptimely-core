@@ -9,6 +9,8 @@ import polars as pl
 
 from uptimely import function
 
+from . import util
+
 SUPPORTED_AGGREGATIONS = ("max", "min", "mean", "sum")
 EMPTY_COLUMN_RENAMES: collections.abc.Mapping[str, str] = types.MappingProxyType({})
 
@@ -34,6 +36,9 @@ def select_columns(
     -------
     Selected columns with optional renaming, preserving rows and nulls.
     """
+    # Example module import
+    util.dummy_pass()
+
     return dataset.select(columns).rename(rename)
 
 
