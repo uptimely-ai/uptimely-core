@@ -16,6 +16,7 @@ import installed_analytics
 import uptimely
 
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
+EXAMPLE_DISTRIBUTION = "uptimely-data-center-cooling-example"
 
 
 class InstalledImportsTest(unittest.TestCase):
@@ -80,7 +81,7 @@ class InstalledImportsTest(unittest.TestCase):
         self.assertIsNotNone(example.__file__)
         self.assertFalse(pathlib.Path(example.__file__).resolve().is_relative_to(REPOSITORY_ROOT))
         self.assertEqual(
-            importlib.metadata.packages_distributions()["example"], ["uptimely-pump-example"]
+            importlib.metadata.packages_distributions()["example"], [EXAMPLE_DISTRIBUTION]
         )
 
     def test_standalone_example_builds_and_runs(self) -> None:
@@ -106,7 +107,7 @@ class InstalledImportsTest(unittest.TestCase):
         for entrypoint, package in packages.items():
             top_level_package = entrypoint.partition(":")[0].partition(".")[0]
             expected_distribution = {
-                "example": "uptimely-pump-example",
+                "example": EXAMPLE_DISTRIBUTION,
                 "polars": "polars",
                 "uptimely": "uptimely-core",
             }[top_level_package]
