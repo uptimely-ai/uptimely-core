@@ -471,7 +471,7 @@ async def test_targeted_optimization_returns_structured_numerical_results(
     payload = await _call(
         state,
         "execute_function",
-        {"function_id": "operation_point_quantum_optimization", "max_rows": 1},
+        {"function_id": "operation_point_optimization", "max_rows": 1},
     )
 
     assert payload["status"] == "ok"

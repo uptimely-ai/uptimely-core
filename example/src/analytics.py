@@ -299,8 +299,11 @@ def min_max_scale(
 
 
 @function(category="estimate")
-def operation_point_quantum_optimization(
-    dataset: pl.LazyFrame, optimization_features: list[str], output: str
+def operation_point_optimization(
+    dataset: pl.LazyFrame,
+    optimization_features: list[str],
+    output: str,
+    method: str = "quantum",
 ) -> pl.LazyFrame:
     """Return recommended operating values and convergence as a struct column.
 
@@ -316,10 +319,17 @@ def operation_point_quantum_optimization(
         columns, in that order.
     output
         Name of the resulting struct column.
+    method
+        Optimization method. Only ``"quantum"`` is supported.
 
     Returns
     -------
     DataFrame with the recommendation struct appended.
+
+    Raises
+    ------
+    ValueError
+        If ``method`` is not ``"quantum"``.
 
     Examples
     --------
@@ -327,10 +337,12 @@ def operation_point_quantum_optimization(
     ...     {"pressure": [4.0], "flow": [10.0], "power": [5.0], "temp": [80.0], "vib": [3.0]}
     ... )
     >>> features = ["pressure", "flow", "power", "temp", "vib"]
-    >>> result = operation_point_quantum_optimization(frame, features, "recommendation")
+    >>> result = operation_point_optimization(frame, features, "recommendation")
     >>> result.collect()["recommendation"].to_list()[0]["converged"]
     True
     """
+    if method.lower() != "quantum":
+        raise ValueError("Only 'quantum' method is supported.")
     pressure, flow, power, temperature, vibration = map(pl.col, optimization_features)
     expression = pl.struct(
         recommended_flow_rate=flow,
@@ -378,7 +390,7 @@ def pump_health_score(
 
 
 @function(category="calculate")
-def resolve_capacity(dataset: pl.LazyFrame, features: list[str], output: str) -> pl.LazyFrame:
+def first_non_null_value(dataset: pl.LazyFrame, features: list[str], output: str) -> pl.LazyFrame:
     """Choose the first non-null capacity in most-to-least-specific order.
 
     Parameters

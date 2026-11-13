@@ -327,7 +327,7 @@ class PumpTelemetry(Profile):
                     outputs=[features.operating_point_recommendation],
                 ),
                 compute=Binding(
-                    function=analytics.operation_point_quantum_optimization,
+                    function=analytics.operation_point_optimization,
                     arguments=dict(
                         dataset=ref.dataset(),
                         optimization_features=[
