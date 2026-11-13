@@ -13,8 +13,8 @@ dependencies in the same Python environment.
 
 ```sh
 python -m pip install --upgrade "uptimely-core[mcp]"
-uptimely example
-uptimely build example
+uptimely example --dir pump-analytics
+uptimely build pump-analytics
 ```
 
 ### From this repository

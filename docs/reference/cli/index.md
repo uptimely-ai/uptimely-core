@@ -63,14 +63,14 @@ From an installed package, download examples and build the complete active
 bundle, including its spec, execution plan, and Explorer data snapshot:
 
 ```console
-uptimely example
-uptimely build example
+uptimely example --dir pump-analytics
+uptimely build pump-analytics
 ```
 
 Run the saved execution plan from the active build:
 
 ```console
-uptimely run example
+uptimely run pump-analytics
 ```
 
 The command defaults and options are documented on each command page. Project
