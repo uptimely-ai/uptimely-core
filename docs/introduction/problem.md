@@ -89,7 +89,7 @@ Compare it to building a house. You have hammer, nails and a pile of wood. But n
 
 How do you scale to city level from this starting point?
 
-## Missing governance layer for analytics
+## Missing governance layer for data science
 
 Modern data platforms such as Snowflake, Databricks and BigQuery allow data analytics at any scale and complexity.
 
@@ -103,13 +103,13 @@ What if somebody could have just gone to a mobile app, write the minimal analyti
 
 ## The specification process
 
-Before the development process has started, there has been dozens of meetings to define project requirements and what needs to be achieved and how is it implemented. Who does what and when.
+Before the development process has started, there has been dozens of meetings to define project requirements, what needs to be achieved and how is it implemented. Who does what and when.
 
 And the only question that anybody is really interested about: **When is it ready?**
 
-The developer knows there is no realistic answer due to the described process. But to please everyone they give an estimation.
+The developer knows there is no realistic answer due to the described process. Every request is almost like starting from zero. But to please everyone they give an estimation.
 
-Uptimely Core provides a highly structured specification and process to bypass all intermediate steps. The person who needs the analytics can directly submit a draft for a data scientist to review and deploy.
+Uptimely Core provides a highly structured specification for analytical calculations and a process to bypass many of the intermediate steps.
 
 ## From basics to state of the art
 
@@ -129,6 +129,12 @@ Typically individual mathematicians and data scientist are more than capable of 
 
 Solving the above process would harness smart people to focus on real data science where they can really shine. It removes a massive communication and information overhead between multiple developers and stakeholders.
 
-Uptimely Core was born as a result of frustration to missing tooling to logically organize analytical pipelines that are easy to structure, deploy and understand.
+Uptimely Core was born as a result of frustration to missing tooling to logically organize analytical pipelines to make data science applications easy to structure, deploy and understand.
 
-Originally Uptimely had ambition to build reusable modular components for advanced industrial use cases such as production optimization with quantum computing and generic industrial multi-sensor anomaly detection. Before that, it was important to build robust and scalable foundations.
+## Starting from basics
+
+Also Uptimely has went from state of the art to basics in order to build this framework.
+
+The original ambition was to build reusable modular components for advanced industrial use cases such as production optimization with quantum computing and generic industrial multi-sensor anomaly detection.
+
+Before that, it was important to build robust and scalable foundations.
