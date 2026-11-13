@@ -137,8 +137,8 @@ Example:
     assert documentation is not None
     assert documentation["examples"] == [
         "telemetry = read_pump_telemetry(\n"
-        '    "data/pump_telemetry.json",\n'
-        '    "data/pump_assets.json",\n'
+        '    "data/input/pump_telemetry.json",\n'
+        '    "data/input/pump_assets.json",\n'
         '    production_line_id="line_1",\n'
         ")"
     ]

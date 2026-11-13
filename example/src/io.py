@@ -18,7 +18,7 @@ COLUMN_TYPES = {
 
 
 EXAMPLE_ROOT = pathlib.Path(__file__).resolve().parents[1]
-SOURCE_PATH = EXAMPLE_ROOT / "data" / "pump_external_workflow.csv"
+SOURCE_PATH = EXAMPLE_ROOT / "data" / "input" / "pump_external_workflow.csv"
 OUTPUT_PATH = EXAMPLE_ROOT / "_generated" / "pump_external_workflow_results.csv"
 
 
@@ -46,8 +46,8 @@ def read_pump_telemetry(
     Examples
     --------
     >>> telemetry = read_pump_telemetry(
-    ...     "data/pump_telemetry.json",
-    ...     "data/pump_assets.json",
+    ...     "data/input/pump_telemetry.json",
+    ...     "data/input/pump_assets.json",
     ...     production_line_id="line_1",
     ... )  # doctest: +SKIP
     """
