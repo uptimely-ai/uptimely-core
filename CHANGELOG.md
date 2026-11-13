@@ -28,6 +28,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- The pump analytics example now lives directly under `example/`, which remains
+  the project root for the only included example.
 - MCP setup uses the existing Poetry environment rather than assuming a local
   `.venv`. A dedicated guide covers installed packages, VS Code, other clients,
   and remote environments.

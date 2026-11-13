@@ -45,12 +45,9 @@ def bundle_files(root: pathlib.Path) -> dict[str, bytes]:
 
 
 def copy_unbuilt_example(tmp_path: pathlib.Path) -> pathlib.Path:
-    examples = tmp_path / "examples"
-    examples.mkdir()
-    shutil.copyfile(REPOSITORY_ROOT / "examples/__init__.py", examples / "__init__.py")
-    root = examples / "pump_analytics"
+    root = tmp_path / "example"
     shutil.copytree(
-        REPOSITORY_ROOT / "examples" / "pump_analytics",
+        REPOSITORY_ROOT / "example",
         root,
         ignore=shutil.ignore_patterns("_generated", "__pycache__"),
     )
@@ -114,7 +111,7 @@ def test_project_build_examples(
         assert result.out.endswith(f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n")
         assert "| Build   | Build scope" in result.out
         assert "| all features" in result.out
-        source = REPOSITORY_ROOT / "examples" / "pump_analytics" / project.SPEC_PYTHON_ENTRY_FILE
+        source = REPOSITORY_ROOT / "example" / project.SPEC_PYTHON_ENTRY_FILE
         assert f"| {source}" in result.out
     else:
         assert result.out == (
@@ -167,8 +164,7 @@ def test_project_rebuild_replaces_previous_bundle(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    root = example_support.copy_example_project(tmp_path / "examples" / "pump_analytics")
-    (root.parent / "__init__.py").write_text("", encoding="utf-8")
+    root = example_support.copy_example_project(tmp_path / "example")
     bundle = project.load_build_bundle(root)
     old_plan = bundle.execution_plan
     old_spec = bundle.spec_path.read_bytes()

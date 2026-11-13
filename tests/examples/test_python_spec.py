@@ -1,9 +1,9 @@
 import polars as pl
 import pytest
-from examples.pump_analytics.functions import analytics
-from examples.pump_analytics.spec import dimension as pump_dimensions
-from examples.pump_analytics.spec import spec as pump_telemetry_spec
-from examples.pump_analytics.spec.profiles import (
+from example.functions import analytics
+from example.spec import dimension as pump_dimensions
+from example.spec import spec as pump_telemetry_spec
+from example.spec.profiles import (
     constants,
     pump,
     pump_category,
@@ -19,7 +19,7 @@ from uptimely import spec
 from uptimely.spec import python as python_spec
 from uptimely.spec.python import binding_conversion
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
@@ -137,7 +137,7 @@ def test_function_catalog_contracts_are_independent_of_operator_kinds() -> None:
     user_functions = {
         function_id: function
         for function_id, function in spec_definition.functions.root.items()
-        if function.entrypoint.startswith("examples.pump_analytics.functions.")
+        if function.entrypoint.startswith("example.functions.")
     }
     assert all(function.category for function in user_functions.values())
     assert user_functions["aggregate"].category == "aggregate"

@@ -25,10 +25,7 @@ async def test_documented_stdio_launchers_build_and_execute(
     launcher: str,
 ) -> None:
     """Build a copied project and verify discovery and data access over stdio."""
-    root = example_project_factory(
-        tmp_path / "workspace with spaces" / "examples" / "pump_analytics"
-    )
-    shutil.copyfile(REPOSITORY_ROOT / "examples" / "__init__.py", root.parent / "__init__.py")
+    root = example_project_factory(tmp_path / "workspace with spaces" / "example")
     config_path = root / "config" / "config.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
     config["params"] = {

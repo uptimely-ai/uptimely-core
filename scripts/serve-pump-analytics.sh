@@ -8,10 +8,10 @@
   if read -r -p "Build project files before serving? [y/N] " build_reply &&
     [[ "$build_reply" =~ ^[Yy]([Ee][Ss])?$ ]]; then
     poetry run uptimely project build \
-      --project-root examples/pump_analytics
+      --project-root example
   fi
 
   exec poetry run uptimely explorer serve \
-    --project-root examples/pump_analytics \
+    --project-root example \
     "$@"
 )

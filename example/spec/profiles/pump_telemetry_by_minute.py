@@ -1,7 +1,7 @@
 """Pump telemetry by minute profile declaration."""
 
-from examples.pump_analytics.functions import analytics
-from examples.pump_analytics.spec import dimension
+from example.functions import analytics
+from example.spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 

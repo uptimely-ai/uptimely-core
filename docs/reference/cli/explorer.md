@@ -38,8 +38,8 @@ directory is used. The grouped form is
 Example:
 
 ```console
-uptimely explore examples/pump_analytics
-uptimely explore examples/pump_analytics --build
+uptimely explore example
+uptimely explore example --build
 ```
 
 If the build is missing or invalid, the command reports the problem and the
@@ -77,10 +77,10 @@ FastAPI, compile the project, or render pages. Build the project first with
 Example:
 
 ```console
-uptimely project build examples/pump_analytics
-uptimely run examples/pump_analytics --preview 10 --log-level debug
-uptimely explorer export examples/pump_analytics --output docs/examples/pump_analytics
-uptimely explorer export examples/pump_analytics --output pump-analytics-explorer.zip
+uptimely project build example
+uptimely run example --preview 10 --log-level debug
+uptimely explorer export example --output docs/example
+uptimely explorer export example --output pump-analytics-explorer.zip
 ```
 
 Export includes the complete saved log and bounded previews. These artifacts may

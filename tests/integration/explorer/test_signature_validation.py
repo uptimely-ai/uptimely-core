@@ -9,7 +9,7 @@ from support import examples as example_support
 from uptimely import compiler, spec
 from uptimely.explorer import presentation
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 

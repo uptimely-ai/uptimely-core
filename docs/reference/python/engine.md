@@ -54,7 +54,7 @@ Use `RunStore` to read the latest run without running the project:
 import pathlib
 from uptimely import run
 
-store = run.RunStore(pathlib.Path("examples/pump_analytics"))
+store = run.RunStore(pathlib.Path("example"))
 manifest = store.read_manifest()
 sample = store.read_preview("pump_profile", run_id=manifest.run_id)
 ```

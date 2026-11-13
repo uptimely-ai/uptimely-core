@@ -14,7 +14,7 @@ from uptimely.plan import models as execution_plan_models
 from uptimely.spec import model, serialization, validation
 from uptimely.spec.python import conversion, dimension, profile
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
 
 
 def test_public_models_are_canonical_objects() -> None:

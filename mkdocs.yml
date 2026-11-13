@@ -61,7 +61,7 @@ nav:
   - Introduction:
       - The problem: introduction/problem.md
       - Concepts: introduction/concepts.md
-      - Demo explorer: examples/pump_analytics/index.html
+      - Demo explorer: example/index.html
   - Architecture:
       - Overview: architecture/index.md
       - Project: architecture/project.md

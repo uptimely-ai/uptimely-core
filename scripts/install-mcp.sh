@@ -27,13 +27,13 @@ cd -- "$repo_root"
 
 # Respect the existing Poetry environment instead of forcing a .venv location.
 poetry install --extras "mcp"
-poetry run uptimely build examples/pump_analytics
+poetry run uptimely build example
 
 printf '\n%s\n' \
   "MCP is installed and the pump example is built." \
   "VS Code: open this checkout, run MCP: List Servers, and start uptimely." \
   "Other clients: use Poetry with this checkout as the working directory:"
-printf '  poetry run uptimely-mcp --project-root %q\n' "$repo_root/examples/pump_analytics"
+printf '  poetry run uptimely-mcp --project-root %q\n' "$repo_root/example"
 printf '%s\n' \
   "Let the MCP client launch this command. No background server is needed." \
   "Connection examples and troubleshooting: docs/mcp/index.md"

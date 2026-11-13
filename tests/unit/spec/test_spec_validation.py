@@ -10,7 +10,7 @@ from uptimely.spec.python import assembly, conversion, feature, profile, ref
 from uptimely.spec.validation import errors as validation_errors
 from uptimely.spec.validation.rules.operators import contracts as operator_contracts
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
@@ -24,7 +24,7 @@ def _escape_configuration() -> dict:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["external_operator"] = {
         "returns": "any",
-        "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
+        "entrypoint": "example.functions.analytics:aggregate",
         "args": {},
     }
     target = configuration["profiles"]["pump_telemetry"]
@@ -124,7 +124,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
         "returns": "dataframe",
-        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
+        "entrypoint": "example.functions.analytics:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
         },
@@ -328,7 +328,7 @@ def test_higher_dimensional_source_derives_collapse(tmp_path: pathlib.Path) -> N
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
         "returns": "dataframe",
-        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
+        "entrypoint": "example.functions.analytics:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
         },
@@ -358,7 +358,7 @@ def test_shared_callable_can_derive_collapse(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_telemetry"] = {
         "returns": "dataframe",
-        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
+        "entrypoint": "example.functions.analytics:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
         },
@@ -388,7 +388,7 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_with_keys"] = {
         "returns": "dataframe",
-        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
+        "entrypoint": "example.functions.analytics:read_pump_telemetry",
         "validate_signature": False,
         "args": {
             "source": {"type": "dataframe"},
@@ -510,7 +510,7 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_telemetry"] = {
         "returns": "dataframe",
-        "entrypoint": "examples.pump_analytics.functions.analytics:read_pump_telemetry",
+        "entrypoint": "example.functions.analytics:read_pump_telemetry",
         "args": {"source": {"type": "dataframe"}},
     }
     target = configuration["profiles"]["pump"]
@@ -633,7 +633,7 @@ def test_function_contract_validates_dataframe_inputs_and_return(
     else:
         configuration["functions"]["unmapped_vectorize"] = {
             "returns": "dataframe",
-            "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
+            "entrypoint": "example.functions.analytics:aggregate",
             "args": value,
         }
     path = tmp_path / "invalid_function_contract.json"
@@ -651,7 +651,7 @@ def test_ignored_return_contract_is_independent_of_operator_usage(
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["unmapped_vectorize"] = {
         "returns": "any",
-        "entrypoint": "examples.pump_analytics.functions.analytics:aggregate",
+        "entrypoint": "example.functions.analytics:aggregate",
         "args": {"dataset": {"type": "dataframe"}},
     }
     path = tmp_path / "unmatched_function_contract.json"

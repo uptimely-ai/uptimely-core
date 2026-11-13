@@ -37,7 +37,7 @@ After a successful run and any requested previews, an info log shows the
 For example, preview five rows per profile, or request a specific row limit:
 
 ```console
-uptimely run examples/pump_analytics
+uptimely run example
 uptimely run --preview
 uptimely run --preview 10
 ```
@@ -59,9 +59,9 @@ configuration, and backend compatibility are always checked; per-step runtime
 validation is opt-in:
 
 ```console
-uptimely run examples/pump_analytics --validate
-uptimely run examples/pump_analytics --validate --log-level debug
-uptimely run examples/pump_analytics --build
+uptimely run example --validate
+uptimely run example --validate --log-level debug
+uptimely run example --build
 ```
 
 The log level applies to Uptimely loggers, not third-party dependency loggers.

@@ -14,7 +14,7 @@ from uptimely.cli import cli, explorer
 from uptimely.explorer import server as explorer_server
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
-SPEC_PATH = example_support.EXAMPLES_ROOT / "pump_analytics/_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
 
 
 @pytest.fixture

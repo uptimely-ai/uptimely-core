@@ -1,1 +1,0 @@
-"""Pump analytics example project."""

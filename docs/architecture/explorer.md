@@ -11,7 +11,7 @@ A successful build bundle is required to show the Spec and execution plan.
 Build and start the Explorer in one command:
 
 ```console
-uptimely explore examples/pump_analytics --build
+uptimely explore example --build
 ```
 
 Open <http://127.0.0.1:8001/>
@@ -20,7 +20,7 @@ An Engine run is required to show data
 previews, logs, and run information:
 
 ```console
-uptimely run examples/pump_analytics
+uptimely run example
 ```
 
 ## Export a static site
@@ -28,7 +28,7 @@ uptimely run examples/pump_analytics
 Build the project and run it before exporting to include run information:
 
 ```console
-uptimely explorer export examples/pump_analytics --output docs/examples/pump_analytics
+uptimely explorer export example --output docs/example
 ```
 
 !!! info

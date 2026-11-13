@@ -1,6 +1,6 @@
 """Project-wide physical constants profile."""
 
-from examples.pump_analytics.functions import source
+from example.functions import source
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 

@@ -19,7 +19,7 @@ Author the data science workflow in Python. Build and run from command line. Exp
 
 ![Uptimely Core Demo](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-feature-lineage.png)
 
-Browse the [example project explorer](https://uptimely-ai.github.io/uptimely-core/examples/pump_analytics/).
+Browse the [example project explorer](https://uptimely-ai.github.io/uptimely-core/example/).
 
 More business benefits at [uptimely.ai website](https://uptimely.ai).
 
@@ -62,15 +62,15 @@ uptimely examples
 Build the project:
 
 ```sh
-uptimely build examples/pump_analytics
+uptimely build example
 ```
 
-The build creates the execution bundle under `examples/pump_analytics/_generated/`.
+The build creates the execution bundle under `example/_generated/`.
 
 Execute the data pipeline:
 
 ```sh
-uptimely run examples/pump_analytics --preview 10
+uptimely run example --preview 10
 ```
 
 Output will show the materialized profile frames:
@@ -84,7 +84,7 @@ Each execution replaces contents in `_generated/run/`.
 Use the project explorer to inspect a project visually in web browser:
 
 ```sh
-uptimely explore examples/pump_analytics
+uptimely explore example
 ```
 
 Open <http://127.0.0.1:8001/> to view the Explorer.
@@ -92,7 +92,7 @@ Open <http://127.0.0.1:8001/> to view the Explorer.
 
 ## Python API
 
-The previous example was built by the [Python-authored example specification](examples/pump_analytics/). The specification describes profiles, grains, features and operators. Functions remain pure Python.
+The previous example was built by the [Python-authored example specification](example/). The specification describes profiles, grains, features and operators. Functions remain pure Python.
 
 Here is even more simplified example.
 
@@ -184,7 +184,7 @@ result = Engine(bundle).run()
 | Path | Purpose |
 | --- | --- |
 | [`docs/`](docs/index.md) | Architecture, specification, and development documentation. |
-| [`examples/`](examples/README.md) | Runnable examples and generated artifacts. |
+| [`example/`](example/README.md) | Runnable examples and generated artifacts. |
 | [`scripts/`](scripts) | Code snippets for repository management |
 | [`src/uptimely/`](src/uptimely/) | Package implementation for analytics, compilation, dependencies, documentation, and execution. |
 | [`tests/`](tests/) | Automated tests for the package and examples. |

@@ -91,9 +91,9 @@ module; discovery does not make an otherwise unavailable package importable.
 ### Examples
 
 ```console
-uptimely build examples/pump_analytics
-uptimely build examples/pump_analytics --log-level debug
-uptimely build examples/pump_analytics --features pump_health_score
+uptimely build example
+uptimely build example --log-level debug
+uptimely build example --features pump_health_score
 ```
 
 ### Build behavior

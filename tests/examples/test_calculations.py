@@ -2,7 +2,7 @@ import math
 
 import polars as pl
 import pytest
-from examples.pump_analytics.functions import analytics
+from example.functions import analytics
 
 
 @pytest.mark.parametrize("rename", [{}, {"value": "reading", "other": "secondary"}])

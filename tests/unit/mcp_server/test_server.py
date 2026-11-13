@@ -8,7 +8,7 @@ import shlex
 import sys
 
 import pytest
-from examples.pump_analytics.functions import external_workflow
+from example.functions import external_workflow
 from support import examples as example_support
 
 fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed")
@@ -23,8 +23,8 @@ from uptimely.project import paths  # noqa: E402
 from uptimely.run import store as run_store  # noqa: E402
 from uptimely.spec import model as spec_model  # noqa: E402
 
-PROJECT_ROOT = example_support.EXAMPLES_ROOT / "pump_analytics"
-CONFIG_PATH = example_support.EXAMPLES_ROOT / "pump_analytics" / "config" / "config.json"
+PROJECT_ROOT = example_support.EXAMPLES_ROOT
+CONFIG_PATH = example_support.EXAMPLES_ROOT / "config" / "config.json"
 
 
 @pytest.fixture()
@@ -32,7 +32,7 @@ def state(
     tmp_path: pathlib.Path, example_project_factory: example_support.ProjectFactory
 ) -> mcp_state.ServerState:
     """Provide server state bound to the pump analytics build."""
-    root = example_project_factory(tmp_path / "pump_analytics")
+    root = example_project_factory(tmp_path / "project")
     config = mcp_state.ServerState.load_config(CONFIG_PATH, root)
     return mcp_state.ServerState(
         project_root=root,
@@ -167,7 +167,7 @@ async def test_describe_function_reports_bindings_and_derived_operator_usage(
     definition.functions.root["external_audit"] = spec_model.FunctionTemplate(
         id="external_audit",
         returns="any",
-        entrypoint="examples.pump_analytics.functions.analytics:aggregate",
+        entrypoint="example.functions.analytics:aggregate",
     )
     dataset = definition.profiles["pump_telemetry"]
     dataset.assembly["external_audit"] = spec_model.Operator(
