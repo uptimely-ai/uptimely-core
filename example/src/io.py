@@ -36,7 +36,7 @@ def read_pump_telemetry(
 
     Returns
     -------
-    Cooling-pump telemetry joined with asset metadata and an ``operation_mode`` column.
+    Cooling-pump telemetry joined with asset metadata and a ``mode`` flow-band column.
 
     Examples
     --------
@@ -77,7 +77,7 @@ def read_pump_telemetry(
             pl.when(pl.col("flow_rate") < pl.col("rated_flow_rate"))
             .then(pl.lit("below_rated_flow"))
             .otherwise(pl.lit("at_or_above_rated_flow"))
-            .alias("operation_mode"),
+            .alias("mode"),
             pl.col("timestamp").dt.truncate("1m").alias("minute"),
             pl.col("timestamp").dt.truncate("1h").alias("hour"),
             pl.col("timestamp").dt.truncate("1d").alias("day"),

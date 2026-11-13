@@ -49,11 +49,19 @@ class TelemetryFeatures(FeatureSet):
         unit="kW",
         description="Active electric power consumed by the cooling-pump motor.",
     )
-    operation_mode = Feature(
+    mode = Feature(
         type="string",
         description=(
             "Flow band: below_rated_flow or at_or_above_rated_flow, based on rated "
             "cooling-water flow."
+        ),
+    )
+    pump_mode = Feature(
+        type="string",
+        description=(
+            "Illustrative condition mode: warning when bearing temperature is at least "
+            "90 C or vibration is at least 4.5 mm/s, otherwise operational. Null for "
+            "incomplete or non-finite readings unless a warning is established."
         ),
     )
     recommended_flow_rate = Feature(
@@ -154,7 +162,7 @@ class PumpTelemetry(Profile):
                         features.bearing_temperature,
                         features.vibration_rms,
                         features.motor_power,
-                        features.operation_mode,
+                        features.mode,
                     ],
                 ),
                 compute=Binding(
@@ -168,6 +176,23 @@ class PumpTelemetry(Profile):
             ),
         ],
         calculations=[
+            Operator(
+                id="pump_mode",
+                interface=Interface(
+                    outputs=[features.pump_mode],
+                ),
+                compute=Binding(
+                    function=analytics.pump_mode,
+                    arguments=dict(
+                        dataset=ref.dataset(),
+                        bearing_temperature=features.bearing_temperature,
+                        vibration_rms=features.vibration_rms,
+                        output=features.pump_mode,
+                        bearing_temperature_warning_limit=90.0,
+                        vibration_warning_limit=4.5,
+                    ),
+                ),
+            ),
             Operator(
                 id="recommended_flow_rate",
                 interface=Interface(
@@ -352,6 +377,8 @@ class PumpTelemetry(Profile):
                             features.vibration_rms,
                         ],
                         output=features.operating_point_recommendation,
+                        bearing_temperature_warning_limit=90.0,
+                        vibration_warning_limit=4.5,
                     ),
                 ),
             ),
@@ -369,7 +396,8 @@ class PumpTelemetry(Profile):
                         features=[
                             features.recommended_flow_rate,
                             features.recommended_differential_pressure,
-                            features.operation_mode,
+                            features.mode,
+                            features.pump_mode,
                             features.differential_pressure,
                             features.flow_rate,
                             features.bearing_temperature,

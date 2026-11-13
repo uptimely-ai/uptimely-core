@@ -5,6 +5,79 @@ import pytest
 from example.src import analytics
 
 
+@pytest.mark.parametrize(
+    ("temperature", "vibration", "expected"),
+    [
+        (89.9, 4.4, "operational"),
+        (90.0, 4.4, "warning"),
+        (89.9, 4.5, "warning"),
+        (91.0, 5.0, "warning"),
+        (None, 4.4, None),
+        (89.9, None, None),
+        (None, None, None),
+        (None, 4.5, "warning"),
+        (90.0, None, "warning"),
+        (math.nan, 4.4, None),
+        (89.9, math.nan, None),
+        (math.inf, 4.4, None),
+        (89.9, -math.inf, None),
+        (math.nan, 4.5, "warning"),
+        (90.0, math.inf, "warning"),
+    ],
+)
+def test_pump_mode_handles_limits_and_invalid_readings(
+    temperature: float | None, vibration: float | None, expected: str | None
+) -> None:
+    frame = pl.LazyFrame(
+        {
+            "pump": ["one"],
+            "temperature": pl.Series([temperature], dtype=pl.Float64),
+            "vibration": pl.Series([vibration], dtype=pl.Float64),
+        }
+    )
+
+    result = analytics.pump_mode(frame, "temperature", "vibration", "mode", 90.0, 4.5).collect()
+
+    assert result["mode"].dtype == pl.String
+    assert result["mode"].to_list() == [expected]
+    assert result.drop("mode").equals(frame.collect())
+
+
+@pytest.mark.parametrize(
+    ("temperature_limit", "vibration_limit", "expected_mode", "expected_converged"),
+    [
+        (70.0, 4.0, "warning", False),
+        (80.0, 3.0, "warning", False),
+        (80.0, 4.0, "operational", True),
+    ],
+)
+def test_condition_calculations_use_supplied_limits(
+    temperature_limit: float,
+    vibration_limit: float,
+    expected_mode: str,
+    expected_converged: bool,
+) -> None:
+    frame = pl.LazyFrame(
+        {"pressure": [4.0], "flow": [10.0], "power": [5.0], "temp": [70.0], "vib": [3.0]}
+    )
+
+    mode = analytics.pump_mode(
+        frame, "temp", "vib", "mode", temperature_limit, vibration_limit
+    ).collect()
+    recommendation = analytics.operation_point_optimization(
+        frame,
+        ["pressure", "flow", "power", "temp", "vib"],
+        "recommendation",
+        temperature_limit,
+        vibration_limit,
+    ).collect()
+
+    assert mode["mode"].to_list() == [expected_mode]
+    assert recommendation["recommendation"].struct.field("converged").to_list() == [
+        expected_converged
+    ]
+
+
 @pytest.mark.parametrize("rename", [{}, {"value": "reading", "other": "secondary"}])
 def test_select_columns_preserves_order_rows_and_nulls(rename: dict[str, str]) -> None:
     frame = pl.LazyFrame(
@@ -146,7 +219,11 @@ def test_optimization_struct_and_extraction_respect_convergence_boundaries() -> 
     )
 
     result = analytics.operation_point_optimization(
-        frame, ["pressure", "flow", "power", "temperature", "vibration"], "recommendation"
+        frame,
+        ["pressure", "flow", "power", "temperature", "vibration"],
+        "recommendation",
+        90.0,
+        4.5,
     )
     expected_fields = {
         "recommended_flow_rate": [120.0, 100.0, 80.0, 60.0, 40.0],
@@ -182,6 +259,8 @@ def test_optimization_retains_zero_flow_and_null_power_costs() -> None:
         ),
         ["pressure", "flow", "power", "temperature", "vibration"],
         "recommendation",
+        90.0,
+        4.5,
     ).collect()
     costs = result["recommendation"].struct.field("energy_cost_score").to_list()
 

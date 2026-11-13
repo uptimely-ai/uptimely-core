@@ -10,6 +10,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- The cooling-pump example derives an illustrative `pump_mode` of `operational`
+  or `warning` from bearing temperature and vibration, with a sample warning.
+  Warning limits are supplied by the operator bindings.
 - Project runtime configuration supports a `paths` section. Bindings can
   reference paths separately from scalar parameters, and relative paths resolve
   against the project root.
@@ -34,6 +37,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- The cooling-pump telemetry flow-band feature is now named `mode` instead of
+  `operation_mode`. Rebuild example bundles after updating.
 - Rebranded the included analytics example and its user-facing guides around
   data-center cooling pumps, with data-center/server-room hierarchy and
   explicitly illustrative health and operating-point calculations.

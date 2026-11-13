@@ -244,7 +244,7 @@ def test_feature_graph_summary_subset_and_tree(
         "debug",
     )
     text = capsys.readouterr().out
-    assert "Feature graph: 19 features" in text
+    assert "Feature graph: 20 features" in text
     assert "Selected feature subset: 2 features" in text
     assert "health_signal_normalized" in text
     assert "Selected feature subset\n" in text
@@ -266,7 +266,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     assert "Engine processed 4 profiles in " in text
     assert "Scope:" not in text
     assert "Processed profile pump: 9 features" in text
-    assert "Processed profile pump_telemetry: 17 features" in text
+    assert "Processed profile pump_telemetry: 18 features" in text
 
 
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
