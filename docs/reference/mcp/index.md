@@ -13,7 +13,7 @@ dependencies in the same Python environment.
 
 ```sh
 python -m pip install --upgrade "uptimely-core[mcp]"
-uptimely examples
+uptimely example
 uptimely build example
 ```
 

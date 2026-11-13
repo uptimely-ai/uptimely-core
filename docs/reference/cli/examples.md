@@ -1,20 +1,20 @@
-# `uptimely examples`
+# `uptimely example`
 
-Run `uptimely examples` to download examples into the default `example/`
+Run `uptimely example` to download examples into the default `example/`
 directory. Use `--output` or `--ref` to customize the download:
 
 ```console
-uptimely examples [--output PATH] [--ref REVISION]
+uptimely example [--output PATH] [--ref REVISION]
 ```
 
-The explicit `uptimely examples download` form accepts the same options.
+The explicit `uptimely example download` form accepts the same options.
 
-## `examples download`
+## `example download`
 
 Download the example directory from the public GitHub repository:
 
 ```console
-uptimely examples download [--output PATH] [--ref REVISION]
+uptimely example download [--output PATH] [--ref REVISION]
 ```
 
 | Option | Required | Default | Purpose |
@@ -25,6 +25,6 @@ uptimely examples download [--output PATH] [--ref REVISION]
 Example:
 
 ```console
-uptimely examples
-uptimely examples download --output example --ref HEAD
+uptimely example
+uptimely example download --output example --ref HEAD
 ```

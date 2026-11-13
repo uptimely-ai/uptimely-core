@@ -50,7 +50,7 @@ source filenames and line numbers; other log levels retain concise errors.
 | --- | --- | --- |
 | `uptimely spec feature-graph` | [Spec feature-graph](spec.md) | Inspect feature dependencies. |
 | `uptimely engine` | [Engine](engine.md) | Run an analytics workflow. |
-| `uptimely examples` | [Examples](examples.md) | Download runnable example projects. |
+| `uptimely example` | [Examples](examples.md) | Download runnable example projects. |
 | `uptimely explorer` | [Explorer](explorer.md) | Preview or export the Analytics Explorer. |
 | `uptimely project` | [Project](project.md) | Build and publish a complete active bundle. |
 | `uptimely build` | [Project build](project.md) | Shortcut for `uptimely project build`. |
@@ -63,7 +63,7 @@ From an installed package, download examples and build the complete active
 bundle, including its spec, execution plan, and Explorer data snapshot:
 
 ```console
-uptimely examples
+uptimely example
 uptimely build example
 ```
 

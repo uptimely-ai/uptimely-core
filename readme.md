@@ -56,7 +56,7 @@ With Poetry, prefix these commands with `poetry run`.
 Download the example project:
 
 ```sh
-uptimely examples
+uptimely example
 ```
 
 Build the project:

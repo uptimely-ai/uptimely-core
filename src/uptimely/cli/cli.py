@@ -80,7 +80,7 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, handlers=[handler], force=True)
     parser = _ArgumentParser(prog="uptimely")
     commands = parser.add_subparsers(dest="command", required=True)
-    examples.configure_parser(commands.add_parser("examples", help="Manage example projects"))
+    examples.configure_parser(commands.add_parser("example", help="Manage example projects"))
     explorer.configure_parser(
         commands.add_parser("explorer", help="Explore spec, feature lineage, and execution plans")
     )
@@ -97,7 +97,7 @@ def main() -> None:
         commands.add_parser("explore", help="Serve the Analytics Explorer frontend")
     )
     args = parser.parse_args()
-    if args.command == "examples":
+    if args.command == "example":
         examples.run(args, parser)
     elif args.command == "explorer":
         explorer.run(args, parser)
