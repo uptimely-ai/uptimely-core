@@ -47,8 +47,6 @@ class PumpTelemetryByDay(Profile):
                         dimension.MACHINE_TIMESTAMP.resolution("day").key,
                     ],
                     output=features.bearing_temperature_max,
-                    filter_column="",
-                    filter_value="",
                 ),
             ),
             merge=merge.default(),

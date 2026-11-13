@@ -139,7 +139,5 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "dataset": "pump_telemetry",
         "dimensions": ["pump_id"],
         "output": "bearing_temperature_max",
-        "filter_column": "",
-        "filter_value": "",
     }
     assert collapse_invocation["output_features"] == ["bearing_temperature_max"]

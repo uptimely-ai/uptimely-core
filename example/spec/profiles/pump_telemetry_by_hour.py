@@ -47,8 +47,6 @@ class PumpTelemetryByHour(Profile):
                         dimension.MACHINE_TIMESTAMP.resolution("hour").key,
                     ],
                     output=features.bearing_temperature_max,
-                    filter_column="",
-                    filter_value="",
                 ),
             ),
             merge=merge.default(),

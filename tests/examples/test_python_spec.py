@@ -323,8 +323,6 @@ def test_sources_and_transforms_python_spec() -> None:
                         "dimensions": python_spec.ref.profile().grain.ids,
                         "output": python_spec.ref.feature("collapsed_feature").id,
                         "method": "max",
-                        "filter_column": "",
-                        "filter_value": "",
                     },
                 ),
             )
@@ -352,8 +350,6 @@ def test_sources_and_transforms_python_spec() -> None:
         "dimensions": "$profiles.@.grain.ids",
         "output": "$features.collapsed_feature.id",
         "method": "max",
-        "filter_column": "",
-        "filter_value": "",
     }
     assert collapse.output_features == ["collapsed_feature"]
     assert spec_definition.operator_kinds[("summary", "collapse_data")] == "collapse"

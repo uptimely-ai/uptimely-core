@@ -61,8 +61,6 @@ class PumpCategory(Profile):
                     method="max",
                     dimensions=[dimension.MACHINE_DIMENSION.resolution("machine_category").key],
                     output=features.bearing_temperature_max,
-                    filter_column="",
-                    filter_value="",
                 ),
             ),
             merge=merge.default(),

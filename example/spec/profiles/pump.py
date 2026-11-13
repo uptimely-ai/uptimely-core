@@ -163,8 +163,6 @@ class Pump(Profile):
                     method="max",
                     dimensions=ref.profile().grain.ids,
                     output=features.bearing_temperature_max,
-                    filter_column="",
-                    filter_value="",
                 ),
             ),
             merge=merge.default(),
