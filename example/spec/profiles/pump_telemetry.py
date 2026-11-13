@@ -128,7 +128,7 @@ class PumpTelemetry(Profile):
     """Cooling-water and condition readings at pump-and-timestamp grain."""
 
     id = "pump_telemetry"
-    name = "Cooling Pump Telemetry"
+    name = "Telemetry"
     description = (
         "Cooling-water and condition readings from data-center pumps, sampled "
         "at one-minute intervals."

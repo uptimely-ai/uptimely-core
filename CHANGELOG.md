@@ -37,6 +37,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Example telemetry profile names omit the "Cooling Pump" prefix.
 - The cooling-pump telemetry flow-band feature is now named `mode` instead of
   `operation_mode`. Rebuild example bundles after updating.
 - Rebranded the included analytics example and its user-facing guides around

@@ -21,7 +21,7 @@ class PumpTelemetryByMinute(Profile):
     """Maximum motor-bearing temperature at cooling-pump-and-minute grain."""
 
     id = "pump_telemetry_by_minute"
-    name = "Cooling Pump Telemetry by Minute"
+    name = "Telemetry by Minute"
     description = "Maximum motor-bearing temperature per cooling pump and minute."
     category = "Telemetry"
     grain = [
