@@ -330,12 +330,15 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
         if invocation.operator_kind == "vectorize"
         for feature in invocation.output_features
     ] == [
+        "max_capacity",
         "health_signal_normalized",
     ]
     assert {invocation.operator_kind for invocation in plan.invocations} == {
         "read",
         "collapse",
+        "expand",
         "vectorize",
+        "write",
     }
     assert {
         feature
@@ -343,6 +346,7 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
         if invocation.operator_kind == "vectorize"
         for feature in invocation.output_features
     } == {
+        "max_capacity",
         "health_signal_normalized",
     }
 
@@ -363,7 +367,10 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
         spec.load_spec(spec_path), features=["health_signal_normalized"]
     )
     vectorize_invocations = [
-        invocation for invocation in plan.invocations if invocation.operator_kind == "vectorize"
+        invocation
+        for invocation in plan.invocations
+        if invocation.operator_kind == "vectorize"
+        and "health_signal_normalized" in invocation.output_features
     ]
 
     assert len(vectorize_invocations) == 1

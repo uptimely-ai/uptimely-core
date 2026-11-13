@@ -263,9 +263,10 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     monkeypatch.setattr("uptimely.compiler.Compiler.compile", fail_compile)
     invoke(monkeypatch, "run", str(project_root), "--log-level", "debug")
     text = capsys.readouterr().out
-    assert "Engine processed 2 profiles in " in text
+    assert "Engine processed 4 profiles in " in text
     assert "Scope:" not in text
     assert "Processed profile pump: 9 features" in text
+    assert "Processed profile pump_telemetry: 17 features" in text
 
 
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
@@ -400,7 +401,7 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
 
     result = capsys.readouterr()
     assert not result.err
-    dataset_count = 2 if scoped else 8
+    dataset_count = 4 if scoped else 8
     lines = result.out.splitlines()
     assert lines[0] == "INFO     | Start Uptimely engine run"
     assert "Start building the project bundle" not in result.out

@@ -666,6 +666,7 @@ def test_engine_executes_requested_feature_and_its_dependencies(
         if operation.operator_kind == "vectorize"
         for feature in operation.output_features
     ] == [
+        "max_capacity",
         "health_signal_normalized",
     ]
     assert {
@@ -673,7 +674,9 @@ def test_engine_executes_requested_feature_and_its_dependencies(
     } == {
         "read",
         "collapse",
+        "expand",
         "vectorize",
+        "write",
     }
 
     result = engine.run()

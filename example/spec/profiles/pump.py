@@ -233,4 +233,25 @@ class Pump(Profile):
                 },
             ),
         ),
+        Operator(
+            id="write_pump",
+            interface=Interface(outputs=[]),
+            compute=Binding(
+                function=io.write_file,
+                arguments=dict(
+                    dataset=ref.dataset(),
+                    features=[
+                        features.pump_max_capacity,
+                        features.series_max_capacity,
+                        features.category_max_capacity,
+                        features.max_capacity,
+                        features.measurement,
+                        features.reference_value,
+                        features.bearing_temperature_max,
+                        features.health_signal_normalized,
+                    ],
+                    output=ref.paths("pump_output"),
+                ),
+            ),
+        ),
     ]

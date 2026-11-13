@@ -195,7 +195,7 @@ def test_automatic_capacity_merge_preserves_pumps_with_missing_series(
 
 
 @pytest.mark.parametrize("validate", [False, True])
-def test_automatic_capacity_merge_reports_identifier_missing_from_pump_data(
+def test_selected_feature_runs_full_profile_writer_dependencies(
     tmp_path: pathlib.Path,
     example_bundle_factory: example_support.BundleFactory,
     engine_for_plan: execution_support.EngineFactory,
@@ -219,9 +219,13 @@ def test_automatic_capacity_merge_reports_identifier_missing_from_pump_data(
     ).run(validate=validate)
 
     assert len(result.failures) == 1
-    assert "Matching keys are missing from the dataset: machine_series_id" in next(
-        iter(result.failures.values())
+    failure_id = next(iter(result.failures))
+    failed_invocation = next(
+        invocation
+        for invocation in bundle.execution_plan.invocations
+        if invocation.id == failure_id
     )
+    assert failed_invocation.operator_id == "read_pump_telemetry"
 
 
 @pytest.mark.parametrize(

@@ -49,5 +49,17 @@ class Constants(Profile):
                 ),
             ),
             merge=merge.default(),
-        )
+        ),
+        Operator(
+            id="write_constants",
+            interface=Interface(outputs=[]),
+            compute=Binding(
+                function=io.write_file,
+                arguments=dict(
+                    dataset=ref.dataset(),
+                    features=[features.gravity, features.room_temperature],
+                    output=ref.paths("constants_output"),
+                ),
+            ),
+        ),
     ]

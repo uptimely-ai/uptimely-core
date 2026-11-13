@@ -48,3 +48,25 @@ def test_read_file_rejects_missing_columns_and_invalid_types(tmp_path: pathlib.P
         io.read_file(str(path), schema={"value": "unknown"})
     with pytest.raises(pl.exceptions.InvalidOperationError):
         io.read_file(str(path), schema={"value": "float"}).collect()
+
+
+@pytest.mark.parametrize("extension", ["csv", "json"])
+def test_write_file_creates_parent_and_writes_complete_profile(
+    tmp_path: pathlib.Path, extension: str
+) -> None:
+    frame = pl.DataFrame({"pump_id": ["CWP-101"], "efficiency": [0.5]})
+    output = tmp_path / "nested" / f"profile.{extension}"
+
+    io.write_file(frame.lazy(), ["efficiency"], str(output))
+
+    assert io.read_file(str(output)).collect().equals(frame)
+
+
+def test_write_file_rejects_missing_features_and_unsupported_extensions(
+    tmp_path: pathlib.Path,
+) -> None:
+    frame = pl.DataFrame({"pump_id": ["CWP-101"]}).lazy()
+    with pytest.raises(ValueError, match="Missing profile features: efficiency"):
+        io.write_file(frame, ["efficiency"], str(tmp_path / "profile.csv"))
+    with pytest.raises(ValueError, match="Unsupported file extension: .txt"):
+        io.write_file(frame, [], str(tmp_path / "profile.txt"))

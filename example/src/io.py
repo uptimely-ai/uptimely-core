@@ -87,25 +87,49 @@ def read_pump_telemetry(
 
 
 @function(category="write")
-def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
-    """Write calculated cooling-pump telemetry features to the configured sink.
+def write_file(dataset: pl.LazyFrame, features: list[str], output: str) -> None:
+    """Write the complete profile frame to a configured JSON or CSV file.
 
     Parameters
     ----------
     dataset
-        DataFrame containing the calculated telemetry features.
+        Complete profile dataframe, including identifiers and relations.
     features
-        Names of the feature columns to write.
+        Declared profile features that must be present in the dataframe.
+    output
+        Resolved path to the output file.
 
     Returns
     -------
-    This mock sink discards the dataset.
+    This function writes the dataframe to the configured file.
+
+    Raises
+    ------
+    ValueError
+        If a declared feature is missing or the file extension is unsupported.
 
     Examples
     --------
-    >>> write_pump_telemetry(pl.LazyFrame({"efficiency": [0.5]}), ["efficiency"])
+    >>> write_file(
+    ...     pl.LazyFrame({"pump_id": ["CWP-101"], "efficiency": [0.5]}),
+    ...     ["efficiency"],
+    ...     "data/output/telemetry.csv",
+    ... )  # doctest: +SKIP
     """
-    return
+    output_path = pathlib.Path(output)
+    if output_path.suffix.lower() not in {".csv", ".json"}:
+        raise ValueError(f"Unsupported file extension: {output_path.suffix}")
+
+    frame = dataset.collect()
+    missing_features = sorted(set(features) - set(frame.columns))
+    if missing_features:
+        raise ValueError("Missing profile features: " + ", ".join(missing_features))
+
+    output_path.parent.mkdir(parents=True, exist_ok=True)
+    if output_path.suffix.lower() == ".csv":
+        frame.write_csv(output_path)
+    else:
+        frame.write_json(output_path)
 
 
 @function(category="read")
@@ -172,7 +196,7 @@ def process_pump_external_workflow(source: str, output: str) -> None:
 
     Returns
     -------
-    Results are written to the generated output CSV as a side effect.
+    Results are written to the output CSV as a side effect.
 
     Examples
     --------

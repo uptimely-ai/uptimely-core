@@ -65,4 +65,16 @@ class PumpSeries(Profile):
             ),
             merge=merge.default(),
         ),
+        Operator(
+            id="write_pump_series",
+            interface=Interface(outputs=[]),
+            compute=Binding(
+                function=io.write_file,
+                arguments=dict(
+                    dataset=ref.dataset(),
+                    features=[features.bearing_temperature_max, features.max_capacity],
+                    output=ref.paths("pump_series_output"),
+                ),
+            ),
+        ),
     ]
