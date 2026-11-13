@@ -150,7 +150,7 @@ def test_optimization_struct_and_extraction_respect_convergence_boundaries() -> 
     )
     expected_fields = {
         "recommended_flow_rate": [120.0, 100.0, 80.0, 60.0, 40.0],
-        "recommended_discharge_pressure": [6.0, 5.0, 4.0, 3.0, 2.0],
+        "recommended_differential_pressure": [6.0, 5.0, 4.0, 3.0, 2.0],
         "energy_cost_score": [0.2, 0.1, 0.1, 0.2, 0.1],
         "converged": [True, False, False, False, None],
     }

@@ -170,7 +170,7 @@ def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> No
     ]
 
     assert {feature for invocation in invocations for feature in invocation.output_features} == {
-        "recommended_discharge_pressure",
+        "recommended_differential_pressure",
         "energy_cost_score",
         "converged",
     }

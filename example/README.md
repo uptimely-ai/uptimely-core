@@ -1,14 +1,19 @@
-# Pump analytics example
+# Data-center cooling pump analytics example
 
-This example uses Uptimely Core to analyze six pumps, their sensor readings,
-model groups, categories, and external measurements.
+This example uses Uptimely Core to analyze six cooling-system pumps across two
+data centers and four server rooms. It combines pump telemetry, asset metadata,
+category and series rollups, and external measurements.
+
+The sample data is synthetic. Health scores and operating-point recommendations
+are illustrative calculations, not validated operating limits or control advice.
 
 ## Setup and installation
 
 Requires Python 3.13 or newer. Uptimely Core 0.10 is not yet
 published, so installation will fail until it is available.
 
-Use or copy this directory as `example/`, since its modules use that name.
+The installed example exposes its source modules under the Python package name
+`example`.
 
 ### Dev container
 
@@ -77,9 +82,9 @@ To save a copy of the browser view and its data, export it to a folder or ZIP
 file:
 
 ```sh
-uptimely explorer export . --output pump-analytics-explorer
+uptimely explorer export . --output cooling-pump-analytics-explorer
 
-uptimely explorer export . --output pump-analytics-explorer.zip
+uptimely explorer export . --output cooling-pump-analytics-explorer.zip
 ```
 
 For an explanation of the folders in an Uptimely project, see the

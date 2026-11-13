@@ -1,26 +1,26 @@
-# Release 14: Live pump demo, Spec editing, and MCP chat
+# Release 14: Live cooling-pump demo, Spec editing, and MCP chat
 
 This is a planned release grouping, not a published software version.
 Work packages remain ordered by their stated prerequisites. They can proceed
 independently of the Explorer navigation and lineage changes.
 
-## Work package: Live pump analytics demo deployment
+## Work package: Live data-center cooling pump demo deployment
 
-Move the pump example demo to a managed Python server rather than GitHub Pages.
-Keep the documentation site on Pages. Use one paid Render web service with a
-persistent disk as the initial recommendation. See the
-[deployment and AI plan](pump-demo-deployment.md) for alternatives and rollout.
+Move the data-center cooling pump example to a managed Python server rather
+than GitHub Pages. Keep the documentation site on Pages. Use one paid Render
+web service with a persistent disk as the initial recommendation. See the
+[deployment and AI plan](data-center-cooling-pump-demo-deployment.md) for alternatives and rollout.
 
 **Prerequisites:** Existing live Explorer server and project build operations.
 This package does not depend on isolated runtime launchers or deployment adapters.
 
 | title | breaking | description |
 |---|---|---|
-| Deploy the live pump example | No | Add a reproducible server deployment with runtime project seeding, persistent demo data and generated files, health checks, and backup recovery. Verify restart and upgrade behavior without overwriting edits. Initially expose browsing and saved-run diagnostics only. After verification, move public demo links and replace the static demo landing page with a live-service link, keeping documentation on GitHub Pages. Document host setup, resource measurements, operating costs, and rollback. |
+| Deploy the live data-center cooling pump example | No | Add a reproducible server deployment with runtime project seeding, persistent demo data and generated files, health checks, and backup recovery. Verify restart and upgrade behavior without overwriting edits. Initially expose browsing and saved-run diagnostics only. After verification, move public demo links and replace the static demo landing page with a live-service link, keeping documentation on GitHub Pages. Document host setup, resource measurements, operating costs, and rollback. |
 
 ## Work package: Safe demo Spec editing and execution
 
-**Prerequisites:** Live pump analytics demo deployment.
+**Prerequisites:** Live data-center cooling pump demo deployment.
 
 | title | breaking | description |
 |---|---|---|

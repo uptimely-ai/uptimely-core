@@ -37,7 +37,7 @@ output. No web port or separate background server is needed.
 ### VS Code in this repository
 
 The checked-in [`.vscode/mcp.json`](https://github.com/uptimely-ai/uptimely-core/blob/main/.vscode/mcp.json)
-launches the pump example through Poetry.
+launches the data-center cooling pump example through Poetry.
 
 1. Open the repository in VS Code, inside the Dev Container if you use one.
 2. Run **MCP: List Servers** from the Command Palette.
@@ -81,7 +81,7 @@ Use your interpreter and project paths. VS Code uses a `servers` root field
 instead of `mcpServers`.
 
 Set the client's working directory to the directory containing `example`
-for the pump example. `--project-root` does not change the working directory.
+for the repository's data-center cooling pump example. `--project-root` does not change the working directory.
 If the client cannot set it, use absolute data paths in the project's
 `config/config.json`.
 
@@ -101,10 +101,10 @@ Start by exploring the model, then ask for the calculation you want:
 | Ask | What the assistant can do |
 | --- | --- |
 | "How many features does my spec have?" | Count features and summarize profiles. |
-| "Which calculations are available for pumps?" | List operators, functions, inputs, and outputs. |
-| "What does the pump health score depend on?" | Explain its inputs and earlier calculations. |
-| "Give me the pump optimization result. Show three rows." | Run optimization and its dependencies. |
-| "Run the pressure-flow ratio for the pump telemetry profile." | Run `pressure_flow_efficiency`, which uses the `ratio` function. |
+| "Which calculations are available for cooling pumps?" | List operators, functions, inputs, and outputs. |
+| "What does the cooling-pump health score depend on?" | Explain its inputs and earlier calculations. |
+| "Show three cooling-pump operating-point recommendations." | Run the illustrative recommendation and its dependencies. |
+| "Run the hydraulic-efficiency proxy for the cooling-pump telemetry profile." | Run `pressure_flow_efficiency`, which uses the `ratio` function. |
 | "Which warnings were logged in the last engine run?" | Read warnings without starting another run. |
 | "Which calculation failed in the last run?" | Inspect saved failures and logs. |
 | "I rebuilt the project. Reload it and list the calculations." | Refresh the server's saved build. |
@@ -144,7 +144,8 @@ latest-run logs and previews, so inspect earlier warnings before starting
 another run.
 
 The server does not apply a "today" filter or guarantee data freshness.
-The example optimization is a demonstration, not a production optimizer.
+The example operating-point recommendation is illustrative, not a production
+optimizer. The sample data and health-score thresholds are synthetic.
 
 Only connect trusted projects. Tools execute project code and may read or write
 data. Standard output is reserved for MCP messages, so analytical functions

@@ -19,8 +19,16 @@ EXAMPLE_ROOT = example_support.EXAMPLES_ROOT
 def test_telemetry_relations_are_identifiers_not_features(pump_bundle: project.BuildBundle) -> None:
     document = pump_bundle.spec_definition
     telemetry = document.profiles["pump_telemetry"]
-    relations = {"machine_series_id", "machine_category_id", "minute", "hour", "day"}
-    assert len(telemetry.relations) == 5
+    relations = {
+        "server_room_id",
+        "data_center_id",
+        "machine_series_id",
+        "machine_category_id",
+        "minute",
+        "hour",
+        "day",
+    }
+    assert len(telemetry.relations) == 7
     assert not relations.intersection(telemetry.features)
     invocation = next(
         invocation

@@ -11,7 +11,7 @@ def merge_pump_inputs(
     fragment: pl.DataFrame | pl.LazyFrame,
     dataset_identifiers: list[str],
 ) -> pl.DataFrame | pl.LazyFrame:
-    """Full-join external inputs into the pump profile's current dataset."""
+    """Full-join external inputs into the cooling-pump profile's current dataset."""
     if dataset is None:
         return fragment
     if isinstance(dataset, pl.DataFrame) and isinstance(fragment, pl.LazyFrame):

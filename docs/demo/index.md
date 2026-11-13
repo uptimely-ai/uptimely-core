@@ -1,6 +1,6 @@
-The demo site is available here: [Pump Analytics](../example/index.html)
+The demo site is available here: [Data-center Cooling Pump Analytics](../example/index.html)
 
-It is created from the repository's [pump analytics example](https://github.com/uptimely-ai/uptimely-core/tree/main/example).
+It is created from the repository's [data-center cooling pump example](https://github.com/uptimely-ai/uptimely-core/tree/main/example).
 
 The Explorer is a static frontend backed by the project's generated snapshot.
 Build and preview it locally, or export the same frontend and data for hosting:

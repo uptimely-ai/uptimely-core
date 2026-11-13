@@ -18,10 +18,10 @@ def test_custom_pump_merge_full_joins_on_dataset_identifiers(
     dataset_lazy: bool, fragment_lazy: bool
 ) -> None:
     dataset: pl.DataFrame | pl.LazyFrame = pl.DataFrame(
-        {"pump_id": ["PUMP-101", "PUMP-201"], "bearing_temperature_max": [60.0, 70.0]}
+        {"pump_id": ["CWP-101", "CWP-201"], "bearing_temperature_max": [60.0, 70.0]}
     )
     fragment: pl.DataFrame | pl.LazyFrame = pl.DataFrame(
-        {"pump_id": ["PUMP-201", "PUMP-301"], "measurement": [8.0, 9.0]}
+        {"pump_id": ["CWP-201", "CWP-301"], "measurement": [8.0, 9.0]}
     )
     if dataset_lazy:
         dataset = dataset.lazy()
@@ -33,9 +33,9 @@ def test_custom_pump_merge_full_joins_on_dataset_identifiers(
         result = result.collect()
 
     assert result.sort("pump_id").rows() == [
-        ("PUMP-101", 60.0, None),
-        ("PUMP-201", 70.0, 8.0),
-        ("PUMP-301", None, 9.0),
+        ("CWP-101", 60.0, None),
+        ("CWP-201", 70.0, 8.0),
+        ("CWP-301", None, 9.0),
     ]
 
 
@@ -86,6 +86,6 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     assert "ratio" not in dataset.collect_schema().names()
     assert ("pump", "ratio") not in result.calculated_outputs
     assert pl.read_csv(output_path).select("pump_id", "ratio").rows() == [
-        ("PUMP-101", 0.75),
-        ("PUMP-201", 1.0),
+        ("CWP-101", 0.75),
+        ("CWP-201", 1.0),
     ]

@@ -51,7 +51,7 @@ def test_build_presentation_data_returns_versioned_json_structures(
         for operator in profile["assembly"].values()
     )
     assert data["catalogs"]["configuration"]["profiles"]["pump"]["scope"] == (
-        "Pump-level telemetry and external workflow inputs"
+        "Cooling-pump telemetry and external workflow inputs for data centers"
     )
     assert data["graphs"]["feature_lineage"]["nodes"]
     assert data["graphs"]["invocation_lineage"]["nodes"]

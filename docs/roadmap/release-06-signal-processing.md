@@ -1,4 +1,4 @@
-# Release 6: Pump analytics signal processing and sliding-window examples
+# Release 6: Cooling-pump signal processing and sliding-window examples
 
 This is a planned release grouping, not a published software version.
 This example work can ship when its own callable and operator contracts are ready.
@@ -12,4 +12,4 @@ from earlier work packages.
 
 | title | breaking | description |
 |---|---|---|
-| Add signal processing to `pump_analytics` | No | Add NumPy-based signal processing and sliding-window calculations with meaningful aggregation and bounded windows. |
+| Add signal processing to the data-center cooling pump example | No | Add NumPy-based signal processing and sliding-window calculations with meaningful aggregation and bounded windows. |

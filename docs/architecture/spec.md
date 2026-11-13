@@ -43,7 +43,7 @@ For example, dimensions and profiles use their identifiers as object keys:
   },
   "profiles": {
     "pump_telemetry": {
-      "name": "Pump Telemetry",
+      "name": "Cooling Pump Telemetry",
       "grain": [
         {"dimension": "machine", "resolution": "pump"},
         {"dimension": "measurement_time", "resolution": "timestamp"}
@@ -86,7 +86,7 @@ can identify their generator in `name` and set `generated` to `true`.
 
 ```json
 {
-  "name": "Pump analytics",
+  "name": "Data-center cooling pump analytics",
   "dimensions": {
     "machine": {
       "resolutions": {

@@ -1,4 +1,4 @@
-"""Pump-level profile and declarative dataframe transformations."""
+"""Cooling-pump profile and declarative dataframe transformations."""
 
 from example.spec import dimension
 from example.src import analytics, io
@@ -9,37 +9,40 @@ from uptimely.spec import feature_types
 
 
 class PumpFeatures(FeatureSet):
-    """Features declared by the pump profile."""
+    """Features declared by the cooling-pump profile."""
 
     pump_max_capacity = Feature(
         type=feature_types.FLOAT,
         unit="m3/h",
-        description="Maximum flow capacity specified for this individual pump.",
+        description="Maximum chilled-water flow capacity specified for this pump.",
     )
     series_max_capacity = Feature(
         type=feature_types.FLOAT,
         unit="m3/h",
-        description="Maximum flow capacity inherited from the pump series.",
+        description="Maximum chilled-water flow capacity inherited from the pump series.",
     )
     category_max_capacity = Feature(
         type=feature_types.FLOAT,
         unit="m3/h",
-        description="Maximum flow capacity inherited from the pump category.",
+        description="Maximum chilled-water flow capacity inherited from the pump category.",
     )
     max_capacity = Feature(
         type=feature_types.FLOAT,
         unit="m3/h",
-        description="First available maximum capacity at pump, series, then category resolution.",
+        description=(
+            "First available maximum chilled-water flow capacity at pump, series, "
+            "then category resolution."
+        ),
     )
     measurement = Feature(
         id="measurement",
         type=feature_types.FLOAT,
-        description="Measured pump value provided to the external workflow.",
+        description="Measured cooling-system value provided to the external workflow.",
     )
     reference_value = Feature(
         id="reference_value",
         type=feature_types.FLOAT,
-        description="Reference value used to normalize the pump measurement.",
+        description="Reference value used to normalize the cooling-system measurement.",
     )
     ratio = Feature(
         id="ratio",
@@ -55,23 +58,25 @@ class PumpFeatures(FeatureSet):
     health_signal_normalized = Feature(
         id="health_signal_normalized",
         type=feature_types.FLOAT,
-        description="Normalized bearing-temperature health signal by pump.",
+        description="Normalized motor-bearing temperature signal by cooling pump.",
     )
 
 
 class Pump(Profile):
-    """One observation per pump with collapsed telemetry and external inputs."""
+    """One observation per cooling pump with collapsed telemetry and external inputs."""
 
     id = "pump"
-    name = "Pump"
-    description = "One row per pump with collapsed condition and workflow inputs."
-    category = "Machines"
+    name = "Cooling Pump"
+    description = "One row per cooling pump with condition and workflow inputs."
+    category = "Cooling System"
     grain = [dimension.MACHINE_DIMENSION.resolution("machine")]
     relations = [
+        dimension.FACILITY_DIMENSION.resolution("server_room"),
+        dimension.FACILITY_DIMENSION.resolution("data_center"),
         dimension.MACHINE_DIMENSION.resolution("machine_series"),
         dimension.MACHINE_DIMENSION.resolution("machine_category"),
     ]
-    scope = "Pump-level telemetry and external workflow inputs"
+    scope = "Cooling-pump telemetry and external workflow inputs for data centers"
     features = PumpFeatures()
 
     assembly = [
@@ -206,7 +211,11 @@ class Pump(Profile):
                 arguments={
                     "dataset": ref.dataset(),
                     "fragment": ref.fragment(),
-                    "dataset_identifiers": ref.profile().grain.ids,
+                    "dataset_identifiers": [
+                        dimension.MACHINE_DIMENSION.resolution("machine").key,
+                        dimension.FACILITY_DIMENSION.resolution("server_room").key,
+                        dimension.FACILITY_DIMENSION.resolution("data_center").key,
+                    ],
                 },
             ),
         ),

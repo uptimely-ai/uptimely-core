@@ -1,4 +1,4 @@
-"""Pump-category profile declaration."""
+"""Cooling-pump category profile declaration."""
 
 from example.spec import dimension
 from example.src import analytics, io
@@ -7,31 +7,31 @@ from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile,
 
 
 class PumpCategoryFeatures(FeatureSet):
-    """Features declared by the pump-category profile."""
+    """Features declared by the cooling-pump category profile."""
 
     bearing_temperature_max = Feature(
         id="bearing_temperature_category_max",
         type="float",
         unit="C",
-        description="Maximum observed bearing temperature at this profile's grain.",
+        description="Maximum observed motor-bearing temperature at this profile's grain.",
     )
     max_capacity = Feature(
         id="max_capacity_category",
         type="float",
         unit="m3/h",
-        description="Default maximum flow capacity for the pump category.",
+        description="Default maximum chilled-water flow capacity for the pump category.",
     )
 
 
 class PumpCategory(Profile):
-    """Maximum bearing temperature by pump category."""
+    """Maximum motor-bearing temperature by cooling-pump category."""
 
     id = "pump_category"
-    name = "Pump Category"
-    description = "Maximum bearing temperature for each pump category."
-    category = "Machines"
+    name = "Cooling Pump Category"
+    description = "Maximum motor-bearing temperature for each cooling-pump category."
+    category = "Cooling System"
     grain = [dimension.MACHINE_DIMENSION.resolution("machine_category")]
-    scope = "Pump categories declared in the asset registry"
+    scope = "Cooling-pump categories declared in the data-center asset registry"
     features = PumpCategoryFeatures()
     assembly = [
         Operator(

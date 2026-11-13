@@ -42,15 +42,15 @@ files or contact external services, so execution is not a read-only operation.
 The tools support three main kinds of question:
 
 - **Explore the model:** "How many features does my spec have?" or
-  "What does the pump health score depend on?"
-- **Run analytics:** "Give me the pump optimization result" or
-  "Run the pressure-flow ratio and show five rows."
+  "What does the cooling-pump health score depend on?"
+- **Run analytics:** "Show the cooling-pump operating-point recommendation" or
+  "Run the hydraulic-efficiency proxy and show five rows."
 - **Review execution:** "Which warnings were logged in the last engine run?"
   or "Which calculation failed?"
 
-Results include a limited sample of rows with identifiers such as pump ID and
-timestamp. Sampling limits response size, not the amount of data used by the
-calculation. Functions must return data through their operator to expose
+Results include a limited sample of rows with identifiers such as data-center,
+server-room, and pump IDs, plus timestamps. Sampling limits response size, not
+the amount of data used by the calculation. Functions must return data through their operator to expose
 analytical rows. Results written only inside a function are not automatically
 read back.
 

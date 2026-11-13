@@ -90,6 +90,8 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         "pump_id",
         "machine_series_id",
         "machine_category_id",
+        "server_room_id",
+        "data_center_id",
     }
     assert reader.output_features == ["pump_max_capacity"]
     series_compute = next(
@@ -127,22 +129,22 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
     assert result.datasets["pump"].collect().sort("pump_id").select(
         "pump_id", "machine_series_id", "machine_category_id"
     ).rows() == [
-        ("PUMP-101", "SERIES-1", "CAT-1"),
-        ("PUMP-102", "SERIES-1", "CAT-1"),
-        ("PUMP-201", "SERIES-2", "CAT-1"),
-        ("PUMP-301", "SERIES-3", "CAT-2"),
-        ("PUMP-302", "SERIES-4", "CAT-2"),
-        ("PUMP-401", "SERIES-5", "CAT-3"),
+        ("CWP-101", "SERIES-1", "CHILLED-WATER"),
+        ("CWP-102", "SERIES-1", "CHILLED-WATER"),
+        ("CWP-201", "SERIES-2", "CHILLED-WATER"),
+        ("CWP-301", "SERIES-3", "CONDENSER-WATER"),
+        ("CWP-302", "SERIES-4", "CONDENSER-WATER"),
+        ("CWP-401", "SERIES-5", "DISTRIBUTION"),
     ]
     assert result.datasets["pump"].collect().sort("pump_id").select(
         "pump_id", "max_capacity"
     ).rows() == [
-        ("PUMP-101", 125.0),
-        ("PUMP-102", 130.0),
-        ("PUMP-201", 100.0),
-        ("PUMP-301", 190.0),
-        ("PUMP-302", 220.0),
-        ("PUMP-401", 70.0),
+        ("CWP-101", 125.0),
+        ("CWP-102", 130.0),
+        ("CWP-201", 100.0),
+        ("CWP-301", 190.0),
+        ("CWP-302", 220.0),
+        ("CWP-401", 70.0),
     ]
 
 
@@ -171,7 +173,7 @@ def test_automatic_capacity_merge_preserves_pumps_with_missing_series(
     assert not result.failures
     pumps = result.datasets["pump"].collect()
     assert pumps.height == 6
-    assert pumps.filter(pl.col("pump_id") == "PUMP-102").select(
+    assert pumps.filter(pl.col("pump_id") == "CWP-102").select(
         "series_max_capacity", "max_capacity"
     ).rows() == [(None, 100.0)]
 
@@ -251,11 +253,11 @@ def test_engine_resolves_capacity_with_validation(
     assert not result.failures
     pumps = result.datasets["pump"].collect().sort("pump_id")
     assert pumps["pump_id"].to_list() == [
-        "PUMP-101",
-        "PUMP-102",
-        "PUMP-201",
-        "PUMP-301",
-        "PUMP-302",
-        "PUMP-401",
+        "CWP-101",
+        "CWP-102",
+        "CWP-201",
+        "CWP-301",
+        "CWP-302",
+        "CWP-401",
     ]
     assert pumps["max_capacity"].to_list() == [expected] * 6

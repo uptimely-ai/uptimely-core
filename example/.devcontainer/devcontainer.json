@@ -1,11 +1,11 @@
 {
-    "name": "Pump analytics example",
+    "name": "Data-center cooling pump analytics example",
     "image": "python:3.13-slim",
     "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/example,type=bind",
     "workspaceFolder": "/workspaces/example",
     // Optional persistent Docker volume.
     // "mounts": [
-    //     "source=pump-example-cache,target=/home/vscode/.cache,type=volume"
+    //     "source=cooling-pump-example-cache,target=/home/vscode/.cache,type=volume"
     // ],
     "containerEnv": {
         "UV_LINK_MODE": "copy"

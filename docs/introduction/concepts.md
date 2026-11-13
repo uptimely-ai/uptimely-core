@@ -1,6 +1,6 @@
 # Concepts
 
-The examples below use pump measurements to show how dimensions, resolutions,
+The examples below use data-center cooling pump measurements to show how dimensions, resolutions,
 profiles, features, function contracts, and operators describe an analytical system.
 
 ## Grain
@@ -12,12 +12,12 @@ A **dimension** describes an observation axis, such as a machine or time. Its
 can name a coarser parent, so the root is the coarsest level and its children are
 finer. A profile's grain selects one resolution per dimension.
 
-P-01 is one key of the `machine` resolution. Pressure and flow are measured
-features, not dimensions.
+P-01 is one key of the `machine` resolution. Differential pressure and flow
+are measured cooling-pump features, not dimensions.
 
 <div class="concepts-visual">
   <div class="cv-grain-hierarchies">
-    <section class="cv-grain-dimension" aria-label="Machine dimension">
+    <section class="cv-grain-dimension" aria-label="Cooling pump dimension">
       <span class="cv-tag">DIMENSION / machine_dimension</span>
       <ul class="cv-res-tree" aria-label="Resolution hierarchy">
         <li>
@@ -55,7 +55,7 @@ features, not dimensions.
       </ul>
     </section>
   </div>
-  <p class="cv-detail">Highlighted resolutions form the grain of the telemetry profile below: one pump at one timestamp.</p>
+  <p class="cv-detail">Highlighted resolutions form the grain of the telemetry profile below: one cooling pump at one timestamp.</p>
 </div>
 
 ## Profile
@@ -69,16 +69,16 @@ A profile is more than data. It is an analytical specification with three parts:
 - A **unique set of features**. Each feature belongs to exactly one profile and has exactly one producing operator.
 
 A profile selects one resolution per dimension in its ordered `grain`. This
-profile selects pump and timestamp keys for minute-by-minute observations.
+profile selects cooling-pump and timestamp keys for minute-by-minute observations.
 
 Other profiles could represent:
 
 | Profile | What one row represents | Example features |
 | --- | --- | --- |
-| Pump reference data | One pump | Rated flow, installation date |
-| Minute-level telemetry | One pump at one timestamp | Pressure, flow |
-| Daily pump summaries | One pump on one day | Maximum pressure, average flow |
-| Maintenance events | One maintenance event for a pump | Event type, downtime |
+| Cooling-pump reference data | One cooling pump | Rated flow, installation date |
+| Minute-level telemetry | One cooling pump at one timestamp | Differential pressure, flow |
+| Daily cooling-pump summaries | One cooling pump on one day | Maximum differential pressure, average flow |
+| Maintenance events | One maintenance event for a cooling pump | Event type, downtime |
 
 Note that this is analytical representation.
 Data might be stored physically in different way.
@@ -86,15 +86,15 @@ Data might be stored physically in different way.
 <div class="concepts-visual">
   <div class="cv-profile">
     <div class="cv-scope">
-      <div><span>GRAIN</span><strong>One pump at one timestamp</strong></div>
-      <div><span>SCOPE / DESCRIPTIVE ONLY</span><strong>Pump telemetry observations</strong></div>
+      <div><span>GRAIN</span><strong>One cooling pump at one timestamp</strong></div>
+      <div><span>SCOPE / DESCRIPTIVE ONLY</span><strong>Data-center cooling pump observations</strong></div>
       <div><span>CATEGORY</span><strong>Telemetry</strong></div>
     </div>
     <div class="cv-table-scroll">
       <table class="cv-table cv-model-table">
         <thead>
           <tr class="cv-bands"><th colspan="2" class="cv-key">DIMENSIONS / observation keys</th><th colspan="2" class="cv-teal">TELEMETRY / operator A</th><th class="cv-violet">LIMITS / operator B</th><th class="cv-amber">CALCULATED</th></tr>
-          <tr><th class="cv-key">pump</th><th class="cv-key">timestamp</th><th class="cv-teal">pressure</th><th class="cv-teal">flow</th><th class="cv-violet">limit</th><th class="cv-amber">ratio</th></tr>
+          <tr><th class="cv-key">cooling pump</th><th class="cv-key">timestamp</th><th class="cv-teal">differential pressure</th><th class="cv-teal">flow</th><th class="cv-violet">limit</th><th class="cv-amber">ratio</th></tr>
         </thead>
         <tbody>
           <tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-teal">12</td><td class="cv-violet">8</td><td class="cv-amber">0.75</td></tr>
@@ -168,9 +168,9 @@ accepts a fixed number of dataframe arguments and returns a dataframe or nothing
 <div class="concepts-visual">
   <div class="cv-operation">
     <div class="cv-transform">
-      <div class="cv-endpoint"><span class="cv-endpoint-icon" aria-hidden="true">&#8645;</span><strong>Telemetry source</strong><span>Database or file</span><code>pump = P-01<br/>09:00 through 09:02</code></div>
+      <div class="cv-endpoint"><span class="cv-endpoint-icon" aria-hidden="true">&#8645;</span><strong>Telemetry source</strong><span>Database or file</span><code>cooling pump = P-01<br/>09:00 through 09:02</code></div>
       <div class="cv-arrow"><span>retrieve</span><b aria-hidden="true">&#8594;</b></div>
-      <div><span class="cv-tag">OUTPUT / 3 observations</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-teal">pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-teal">6</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:01</td><td class="cv-teal">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:02</td><td class="cv-teal">4</td></tr></tbody></table></div>
+      <div><span class="cv-tag">OUTPUT / 3 observations</span><table class="cv-table"><thead><tr><th class="cv-key">cooling pump</th><th class="cv-key">time</th><th class="cv-teal">differential pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-teal">6</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:01</td><td class="cv-teal">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:02</td><td class="cv-teal">4</td></tr></tbody></table></div>
     </div>
   </div>
 </div>

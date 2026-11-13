@@ -139,7 +139,7 @@ Example:
         "telemetry = read_pump_telemetry(\n"
         '    "data/input/pump_telemetry.json",\n'
         '    "data/input/pump_assets.json",\n'
-        '    production_line_id="line_1",\n'
+        '    server_room_id="SR-A",\n'
         ")"
     ]
 

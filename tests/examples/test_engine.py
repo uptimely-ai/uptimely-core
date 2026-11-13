@@ -41,7 +41,7 @@ def test_engine_returns_calculated_features_without_writing_output(
         "operating_point_recommendation",
         "pressure_flow_efficiency",
         "pump_health_score",
-        "recommended_discharge_pressure",
+        "recommended_differential_pressure",
         "recommended_flow_rate",
         "vibration_delta",
     ]
@@ -50,6 +50,16 @@ def test_engine_returns_calculated_features_without_writing_output(
         pl.LazyFrame,
     )
     pump_frame = result.datasets["pump"].collect()
+    assert pump_frame.select("pump_id", "data_center_id", "server_room_id").sort("pump_id").select(
+        "data_center_id", "server_room_id"
+    ).rows() == [
+        ("DC-01", "SR-A"),
+        ("DC-01", "SR-A"),
+        ("DC-01", "SR-B"),
+        ("DC-02", "SR-C"),
+        ("DC-02", "SR-C"),
+        ("DC-02", "SR-D"),
+    ]
     assert pump_frame.select(
         "pump_id",
         "pump_max_capacity",
@@ -57,12 +67,12 @@ def test_engine_returns_calculated_features_without_writing_output(
         "category_max_capacity",
         "max_capacity",
     ).sort("pump_id").rows() == [
-        ("PUMP-101", 125.0, 130.0, 100.0, 125.0),
-        ("PUMP-102", None, 130.0, 100.0, 130.0),
-        ("PUMP-201", None, None, 100.0, 100.0),
-        ("PUMP-301", 190.0, 200.0, 220.0, 190.0),
-        ("PUMP-302", None, None, 220.0, 220.0),
-        ("PUMP-401", None, 70.0, 80.0, 70.0),
+        ("CWP-101", 125.0, 130.0, 100.0, 125.0),
+        ("CWP-102", None, 130.0, 100.0, 130.0),
+        ("CWP-201", None, None, 100.0, 100.0),
+        ("CWP-301", 190.0, 200.0, 220.0, 190.0),
+        ("CWP-302", None, None, 220.0, 220.0),
+        ("CWP-401", None, 70.0, 80.0, 70.0),
     ]
     pump_frame = pump_frame.sort("pump_id")
     assert pump_frame["bearing_temperature_max"].to_list() == [68.7, 66.0, 64.5, 75.0, 72.0, 60.0]
@@ -71,16 +81,17 @@ def test_engine_returns_calculated_features_without_writing_output(
     )
     telemetry_frame = result.datasets["pump_telemetry"].collect()
     assert "health_signal_normalized" not in telemetry_frame.columns
+    assert {"data_center_id", "server_room_id"} <= set(telemetry_frame.columns)
     telemetry_frame = telemetry_frame.sort("pump_id", "timestamp")
     assert telemetry_frame.height == 10
     assert telemetry_frame.select("pump_id", "timestamp").n_unique() == 10
     assert telemetry_frame["pump_id"].unique().sort().to_list() == pump_frame["pump_id"].to_list()
-    telemetry_frame = telemetry_frame.filter(pl.col("pump_id").is_in(["PUMP-101", "PUMP-201"]))
-    assert telemetry_frame["pump_id"].to_list() == ["PUMP-101", "PUMP-101", "PUMP-201"]
+    telemetry_frame = telemetry_frame.filter(pl.col("pump_id").is_in(["CWP-101", "CWP-201"]))
+    assert telemetry_frame["pump_id"].to_list() == ["CWP-101", "CWP-101", "CWP-201"]
     assert telemetry_frame["operation_mode"].to_list() == [
-        "low_speed",
-        "high_speed",
-        "low_speed",
+        "below_rated_flow",
+        "at_or_above_rated_flow",
+        "below_rated_flow",
     ]
     assert result.datasets["constants"].collect().to_dicts() == [
         {"gravity": 9.81, "room_temperature": 20.0}
@@ -99,7 +110,7 @@ def test_engine_returns_calculated_features_without_writing_output(
         [None, efficiency[1] - 0.05 - 0.05, None]
     )
     assert telemetry_frame["recommended_flow_rate"].to_list() == [118.0, 119.5, 83.0]
-    assert telemetry_frame["recommended_discharge_pressure"].to_list() == [5.3, 5.4, 4.1]
+    assert telemetry_frame["recommended_differential_pressure"].to_list() == [5.3, 5.4, 4.1]
     assert telemetry_frame["energy_cost_score"].to_list() == pytest.approx(
         [17.9 / 118.0, 18.1 / 119.5, 11.7 / 83.0]
     )
@@ -115,11 +126,12 @@ def test_engine_returns_calculated_features_without_writing_output(
         assert recommendation == pytest.approx(
             {
                 "recommended_flow_rate": flow,
-                "recommended_discharge_pressure": pressure,
+                "recommended_differential_pressure": pressure,
                 "energy_cost_score": cost,
                 "converged": True,
             }
         )
+
     assert result.datasets["pump_series"].collect().select(
         "machine_series_id", "bearing_temperature_series_max", "max_capacity_series"
     ).sort("machine_series_id").rows() == [
@@ -132,40 +144,52 @@ def test_engine_returns_calculated_features_without_writing_output(
     assert result.datasets["pump_category"].collect().select(
         "machine_category_id", "bearing_temperature_category_max", "max_capacity_category"
     ).sort("machine_category_id").rows() == [
-        ("CAT-1", 68.7, 100.0),
-        ("CAT-2", 75.0, 220.0),
-        ("CAT-3", 60.0, 80.0),
+        ("CHILLED-WATER", 68.7, 100.0),
+        ("CONDENSER-WATER", 75.0, 220.0),
+        ("DISTRIBUTION", 60.0, 80.0),
     ]
     assert result.datasets["pump_telemetry_by_minute"].collect().sort(
         "pump_id", "minute"
     ).rows() == [
-        ("PUMP-101", telemetry_frame["minute"][0], 68.2),
-        ("PUMP-101", telemetry_frame["minute"][1], 68.7),
-        ("PUMP-102", telemetry_frame["minute"][0], 65.5),
-        ("PUMP-102", telemetry_frame["minute"][1], 66.0),
-        ("PUMP-201", telemetry_frame["minute"][2], 64.5),
-        ("PUMP-301", telemetry_frame["minute"][0], 74.0),
-        ("PUMP-301", telemetry_frame["minute"][1], 75.0),
-        ("PUMP-302", telemetry_frame["minute"][0], 71.5),
-        ("PUMP-302", telemetry_frame["minute"][1], 72.0),
-        ("PUMP-401", telemetry_frame["minute"][0], 60.0),
+        ("CWP-101", telemetry_frame["minute"][0], 68.2),
+        ("CWP-101", telemetry_frame["minute"][1], 68.7),
+        ("CWP-102", telemetry_frame["minute"][0], 65.5),
+        ("CWP-102", telemetry_frame["minute"][1], 66.0),
+        ("CWP-201", telemetry_frame["minute"][2], 64.5),
+        ("CWP-301", telemetry_frame["minute"][0], 74.0),
+        ("CWP-301", telemetry_frame["minute"][1], 75.0),
+        ("CWP-302", telemetry_frame["minute"][0], 71.5),
+        ("CWP-302", telemetry_frame["minute"][1], 72.0),
+        ("CWP-401", telemetry_frame["minute"][0], 60.0),
     ]
     assert result.datasets["pump_telemetry_by_hour"].collect().sort("pump_id").rows() == [
-        ("PUMP-101", telemetry_frame["hour"][0], 68.7),
-        ("PUMP-102", telemetry_frame["hour"][0], 66.0),
-        ("PUMP-201", telemetry_frame["hour"][2], 64.5),
-        ("PUMP-301", telemetry_frame["hour"][0], 75.0),
-        ("PUMP-302", telemetry_frame["hour"][0], 72.0),
-        ("PUMP-401", telemetry_frame["hour"][0], 60.0),
+        ("CWP-101", telemetry_frame["hour"][0], 68.7),
+        ("CWP-102", telemetry_frame["hour"][0], 66.0),
+        ("CWP-201", telemetry_frame["hour"][2], 64.5),
+        ("CWP-301", telemetry_frame["hour"][0], 75.0),
+        ("CWP-302", telemetry_frame["hour"][0], 72.0),
+        ("CWP-401", telemetry_frame["hour"][0], 60.0),
     ]
     assert result.datasets["pump_telemetry_by_day"].collect().sort("pump_id").rows() == [
-        ("PUMP-101", telemetry_frame["day"][0], 68.7),
-        ("PUMP-102", telemetry_frame["day"][0], 66.0),
-        ("PUMP-201", telemetry_frame["day"][2], 64.5),
-        ("PUMP-301", telemetry_frame["day"][0], 75.0),
-        ("PUMP-302", telemetry_frame["day"][0], 72.0),
-        ("PUMP-401", telemetry_frame["day"][0], 60.0),
+        ("CWP-101", telemetry_frame["day"][0], 68.7),
+        ("CWP-102", telemetry_frame["day"][0], 66.0),
+        ("CWP-201", telemetry_frame["day"][2], 64.5),
+        ("CWP-301", telemetry_frame["day"][0], 75.0),
+        ("CWP-302", telemetry_frame["day"][0], 72.0),
+        ("CWP-401", telemetry_frame["day"][0], 60.0),
     ]
+
+
+def test_cooling_pump_telemetry_filters_by_server_room() -> None:
+    telemetry = io.read_pump_telemetry(
+        "data/input/pump_telemetry.json",
+        "data/input/pump_assets.json",
+        server_room_id="SR-A",
+    ).collect()
+
+    assert telemetry["data_center_id"].unique().to_list() == ["DC-01"]
+    assert telemetry["server_room_id"].unique().to_list() == ["SR-A"]
+    assert telemetry["pump_id"].unique().sort().to_list() == ["CWP-101", "CWP-102"]
 
 
 def test_engine_cli_reports_processed_profiles(
@@ -298,13 +322,13 @@ def test_engine_merges_fragments_by_profile_grain_keys(
     )
     existing = pl.LazyFrame(
         {
-            "pump_id": ["PUMP-101", "PUMP-201"],
+            "pump_id": ["CWP-101", "CWP-201"],
             "existing": [1, 2],
         }
     )
     fragment = pl.LazyFrame(
         {
-            "pump_id": ["PUMP-201", "PUMP-101"],
+            "pump_id": ["CWP-201", "CWP-101"],
             "new": [20, 10],
         }
     )
@@ -325,8 +349,8 @@ def test_engine_merges_fragments_by_profile_grain_keys(
     merged = main.dataframe.collect()
 
     assert merged.select("pump_id", "existing", "new").sort("pump_id").rows() == [
-        ("PUMP-101", 1, 10),
-        ("PUMP-201", 2, 20),
+        ("CWP-101", 1, 10),
+        ("CWP-201", 2, 20),
     ]
 
 
@@ -514,7 +538,7 @@ def test_engine_assembly_rejects_feature_collisions(
         (None, "must return a Polars DataFrame or LazyFrame"),
         (pl.LazyFrame({"plant": ["PLANT-01"]}), "missing identifier columns"),
         (
-            pl.LazyFrame({"pump_id": ["PUMP-101", "PUMP-101"]}),
+            pl.LazyFrame({"pump_id": ["CWP-101", "CWP-101"]}),
             "duplicate identifiers",
         ),
     ],
@@ -555,7 +579,7 @@ def test_engine_looks_up_profiles_by_project_wide_id() -> None:
 def test_example_deltas_are_partitioned_and_ordered() -> None:
     frame = pl.DataFrame(
         {
-            "pump": ["PUMP-101", "PUMP-201", "PUMP-101", "PUMP-201"],
+            "pump": ["CWP-101", "CWP-201", "CWP-101", "CWP-201"],
             "timestamp": [2, 2, 1, 1],
             "bearing_temperature": [11.5, 22.5, 10.0, 20.0],
             "vibration_rms": [1.2, 2.4, 1.0, 2.0],
@@ -584,10 +608,10 @@ def test_example_deltas_are_partitioned_and_ordered() -> None:
     )
 
     assert result["pump"].to_list() == [
-        "PUMP-101",
-        "PUMP-101",
-        "PUMP-201",
-        "PUMP-201",
+        "CWP-101",
+        "CWP-101",
+        "CWP-201",
+        "CWP-201",
     ]
     assert result["temperature_delta"].null_count() == 2
     assert result["temperature_delta"].drop_nulls().to_list() == pytest.approx([1.5, 2.5])

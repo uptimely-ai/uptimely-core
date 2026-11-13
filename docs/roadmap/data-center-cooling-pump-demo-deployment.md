@@ -1,6 +1,6 @@
-# Pump analytics live demo deployment plan
+# Data-center cooling pump live demo deployment plan
 
-Move the public pump analytics demo from a static GitHub Pages export to a
+Move the public data-center cooling pump demo from a static GitHub Pages export to a
 live Python server. Keep the documentation site on GitHub Pages. The live demo
 will support server-backed features as they are implemented, including Spec
 editing, analytical execution, and MCP access.
@@ -47,7 +47,7 @@ but resource consumption can exceed that allowance.
    for an explicit project directory. Bind to `0.0.0.0` and the provider's
    assigned port. Add a health endpoint and a checked-in deployment definition.
 3. At runtime, seed a project under a persistent mount such as
-   `/var/data/pump-demo` only when it does not exist. Include sample input data,
+   `/var/data/cooling-pump-demo` only when it does not exist. Include sample input data,
    runtime configuration, and an editable JSON Spec. Build it with the existing
    Project API before marking the service ready.
 4. Point every input and output location at this project. Some current example
@@ -64,7 +64,7 @@ but resource consumption can exceed that allowance.
 7. Verify HTTPS, asset loading, readiness, build and run behavior, restart
    persistence, backup restoration, and deployment failure recovery.
 8. Switch README and documentation demo links to the live URL after verification.
-   Remove the pump demo export from the Pages workflow and replace its old
+   Remove the cooling-pump demo export from the Pages workflow and replace its old
    landing page with a link to the live service. Continue publishing MkDocs
    documentation and retain static export as a supported user feature.
 
@@ -162,7 +162,7 @@ and hosting are not free.
 Each item is a separate work package in
 [Release 14](release-14-live-demo-mcp.md):
 
-1. **Live pump analytics demo deployment:** browsing, persistence, health checks,
+1. **Live data-center cooling pump demo deployment:** browsing, persistence, health checks,
    backup and link migration.
 2. **Safe demo Spec editing and execution:** validated mutations and bounded
    runs, protected by maintainer authentication.

@@ -104,7 +104,7 @@ def test_system_graph_connects_operator_to_feature_outputs() -> None:
         if isinstance(neighbor.reference, models.FeatureNode)
     }
     assert recommendation_outputs == {
-        "recommended_discharge_pressure",
+        "recommended_differential_pressure",
         "energy_cost_score",
         "converged",
     }
@@ -126,7 +126,10 @@ def test_system_graph_connects_operator_to_feature_outputs() -> None:
     assert ("bearing_temperature_by_pump", "bearing_temperature_max") in actual_edges
     assert ("health_signal_normalized", "health_signal_normalized") in actual_edges
     assert ("recommended_flow_rate", "recommended_flow_rate") in actual_edges
-    assert ("recommended_discharge_pressure", "recommended_discharge_pressure") in actual_edges
+    assert (
+        "recommended_differential_pressure",
+        "recommended_differential_pressure",
+    ) in actual_edges
     assert ("energy_cost_score", "energy_cost_score") in actual_edges
     assert ("converged", "converged") in actual_edges
 
