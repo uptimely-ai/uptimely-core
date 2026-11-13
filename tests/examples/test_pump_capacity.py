@@ -155,7 +155,9 @@ def test_automatic_capacity_merge_preserves_pumps_with_missing_series(
     parameters = json.loads(
         (bundle.project_root / "config/config.json").read_text(encoding="utf-8")
     )["params"]
-    records = json.loads(pathlib.Path(parameters["pump_series_source"]).read_text(encoding="utf-8"))
+    records = json.loads(
+        (bundle.project_root / parameters["pump_series_source"]).read_text(encoding="utf-8")
+    )
     records = [record for record in records if record["machine_series_id"] != "SERIES-1"]
     records.append({"machine_series_id": "unused", "max_capacity": 999.0})
     path = tmp_path / "series.json"
@@ -185,7 +187,9 @@ def test_automatic_capacity_merge_reports_identifier_missing_from_pump_data(
     parameters = json.loads(
         (bundle.project_root / "config/config.json").read_text(encoding="utf-8")
     )["params"]
-    records = json.loads(pathlib.Path(parameters["pump_assets_source"]).read_text(encoding="utf-8"))
+    records = json.loads(
+        (bundle.project_root / parameters["pump_assets_source"]).read_text(encoding="utf-8")
+    )
     for record in records:
         record.pop("machine_series_id")
     path = tmp_path / "pumps.json"
@@ -229,7 +233,9 @@ def test_engine_resolves_capacity_with_validation(
         ("pump_series_source", series_value),
         ("pump_category_source", category_value),
     ]:
-        records = json.loads(pathlib.Path(parameters[parameter]).read_text(encoding="utf-8"))
+        records = json.loads(
+            (pump_bundle.project_root / parameters[parameter]).read_text(encoding="utf-8")
+        )
         for record in records:
             record["max_capacity"] = value
         path = tmp_path / f"{parameter}.json"

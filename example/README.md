@@ -1,63 +1,58 @@
 # Pump analytics example
 
-This example shows how to use Uptimely Core to read pump data, calculate
-operational measures, and view the results. It includes information about six
-pumps, five model groups, three categories, sensor readings, and a small set
-of external measurements.
+This example uses Uptimely Core to analyze six pumps, their sensor readings,
+model groups, categories, and external measurements.
 
-## What the example does
+## Setup and installation
 
-- Combines pump details with sensor readings and configured values.
-- Chooses a pump's capacity from its own value, its model group, or its
-  category, in that order. It uses the first available value, not the largest.
-  Capacities are measured in cubic metres per hour (m3/h).
-- Shows the highest bearing temperature for each model group, category, minute,
-  hour, and day.
-- Runs a separate calculation using external measurements and saves its results
-  to `_generated/pump_external_workflow_results.csv`.
+Requires Python 3.13 or newer. Uptimely Core 0.10 is not yet
+published, so installation will fail until it is available.
 
-The sample data has ten sensor readings across the six pumps. External
-measurements are included for PUMP-101 and PUMP-201.
-For example, PUMP-101 uses its own capacity of 125 m3/h even though its model
-group has a value of 130 m3/h. PUMP-201 has no individual or model-group value,
-so it uses its category's value of 100 m3/h. A capacity of zero is a valid
-value, and a pump with no value at any level remains blank.
+Use or copy this directory as `example/`, since its modules use that name.
 
-The example's importable Python modules are in `src/`: `analytics.py` contains
-calculations, `io.py` handles file input and output, and `merge.py` defines
-custom merge behavior.
-Source files are stored in `data/input/`. Use `data/output/` for results to
-keep, share, or reuse.
+### Dev container
 
-## Quick start
+With Docker and the VS Code Dev Containers extension installed, open `example/`
+in VS Code and select **Dev Containers: Reopen in Container**.
+The container installs uv and uses it to set up the example. Use uv to manage
+the environment inside the dev container.
 
-Python 3.13 or newer is required.
+### Local setup
 
-Install Uptimely Core with pip:
+From `example/`, choose one of the following.
+
+**pip**
+
+Use a Python 3.13 environment prepared for installing packages:
 
 ```sh
-pip install uptimely-core
+python3.13 -m pip install -e .
 ```
 
-Or add it to a Poetry project:
+**Poetry**
 
 ```sh
-poetry add uptimely-core
+poetry install
 ```
 
-When using Poetry, prefix the commands below with `poetry run`.
-
-If you installed Uptimely Core outside this repository, download the example
-files into a new `example` directory:
+**uv**
 
 ```sh
-uptimely examples
+uv sync
 ```
 
-Prepare the example for running:
+## Run the example
+
+For a local Poetry setup, prefix the commands below with `poetry run`. For a
+local uv setup, prefix them with `uv run`. In the dev container, run them
+directly.
+
+### Build and run
+
+From the `example/` folder, prepare the example for running:
 
 ```sh
-uptimely build example
+uptimely build
 ```
 
 Repeat the build after changing the example files.
@@ -65,15 +60,15 @@ Repeat the build after changing the example files.
 Run the calculations:
 
 ```sh
-uptimely run example
+uptimely run
 ```
 
-## View the results
+### View the results
 
 Start a local browser view of the example:
 
 ```sh
-uptimely explore example
+uptimely explore
 ```
 
 Open <http://127.0.0.1:8001/> in your browser.
@@ -82,8 +77,9 @@ To save a copy of the browser view and its data, export it to a folder or ZIP
 file:
 
 ```sh
-uptimely explorer export example --output pump-analytics-explorer
-uptimely explorer export example --output pump-analytics-explorer.zip
+uptimely explorer export . --output pump-analytics-explorer
+
+uptimely explorer export . --output pump-analytics-explorer.zip
 ```
 
 For an explanation of the folders in an Uptimely project, see the

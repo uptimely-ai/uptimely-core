@@ -28,9 +28,7 @@ async def test_documented_stdio_launchers_build_and_execute(
     root = example_project_factory(tmp_path / "workspace with spaces" / "example")
     config_path = root / "config" / "config.json"
     config = json.loads(config_path.read_text(encoding="utf-8"))
-    config["params"] = {
-        name: str(REPOSITORY_ROOT / value) for name, value in config["params"].items()
-    }
+    config["params"] = {name: str(root / value) for name, value in config["params"].items()}
     config_path.write_text(json.dumps(config), encoding="utf-8")
     executable = pathlib.Path(sys.executable).with_name("uptimely")
     built = subprocess.run(

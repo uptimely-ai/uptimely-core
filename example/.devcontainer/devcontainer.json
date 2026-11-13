@@ -1,0 +1,40 @@
+{
+    "name": "Pump analytics example",
+    "image": "python:3.13-slim",
+    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/example,type=bind",
+    "workspaceFolder": "/workspaces/example",
+    // Optional persistent Docker volume.
+    // "mounts": [
+    //     "source=pump-example-cache,target=/home/vscode/.cache,type=volume"
+    // ],
+    "containerEnv": {
+        "UV_LINK_MODE": "copy"
+    },
+    "remoteEnv": {
+        "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:PATH}"
+    },
+    "postCreateCommand": "python -m pip install uv && uv sync",
+    "forwardPorts": [8001],
+    "portsAttributes": {
+        "8001": {
+            "label": "Uptimely Explorer",
+            "onAutoForward": "notify"
+        }
+    },
+    // Optional tools installed when the container is built.
+    // "features": {
+    //     "ghcr.io/devcontainers/features/common-utils:2.5.5": {},
+    //     "ghcr.io/devcontainers/features/github-cli:1": {},
+    //     "ghcr.io/devcontainers/features/node:1": {}
+    // },
+    "customizations": {
+        "vscode": {
+            "extensions": [
+                // "ms-toolsai.jupyter",
+                // "charliermarsh.ruff",
+                "ms-python.python",
+                "ms-python.vscode-pylance"
+            ]
+        }
+    }
+}

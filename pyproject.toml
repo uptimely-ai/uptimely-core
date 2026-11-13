@@ -53,9 +53,9 @@ docs = ["mkdocs>=1.6,<2.0", "mkdocs-material>=9.7,<10.0", "mkdocstrings[python]>
 [tool.poetry]
 packages = [
   { include = "uptimely", from = "src" },
-  { include = "example" },
+  # Include the example in editable development installs only.
+  { include = "example", format = [] },
 ]
-exclude = ["example/_generated"]
 
 [tool.poetry.group.docs]
 optional = true

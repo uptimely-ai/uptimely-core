@@ -65,14 +65,16 @@ jobs:
         uses: actions/setup-python@v6
         with:
           python-version: "3.13"
-      - run: poetry build --format wheel
+      - run: poetry build
       - name: Build the installed project wheel
         working-directory: tests/fixtures/installed_project
         run: poetry build --format wheel --output ../../../dist
-      - name: Install both wheels in a clean environment
+      - name: Install wheels and standalone example in a clean environment
         run: |
           python -m venv "${{ runner.temp }}/uptimely-installed"
           "${{ runner.temp }}/uptimely-installed/bin/python" -m pip install dist/*.whl
+          cp -R example "${{ runner.temp }}/example"
+          "${{ runner.temp }}/uptimely-installed/bin/python" -m pip install --no-deps -e "${{ runner.temp }}/example"
       - name: Test installed commands outside the checkout
         run: |
           "${{ runner.temp }}/uptimely-installed/bin/python" -I tests/packaging/check_installed.py -v
