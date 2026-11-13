@@ -1,7 +1,7 @@
 """Pump-category profile declaration."""
 
 from example.spec import dimension
-from example.src import analytics, source
+from example.src import analytics, io
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 
@@ -38,7 +38,7 @@ class PumpCategory(Profile):
             id="read_pump_category",
             interface=Interface(outputs=[features.max_capacity]),
             compute=Binding(
-                function=source.read_file,
+                function=io.read_file,
                 arguments=dict(
                     source=ref.params("pump_category_source"),
                     rename={"max_capacity": features.max_capacity},

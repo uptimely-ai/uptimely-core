@@ -5,7 +5,7 @@ import pathlib
 
 import polars as pl
 import pytest
-from example.src import analytics, capacity, source
+from example.src import analytics, io
 from support import examples as example_support
 from support import execution as execution_support
 
@@ -22,7 +22,7 @@ def test_capacity_uses_specificity_not_numeric_maximum() -> None:
         }
     )
 
-    result = capacity.resolve_capacity(
+    result = analytics.resolve_capacity(
         frame,
         ["pump_capacity", "series_capacity", "category_capacity"],
         "max_capacity",
@@ -39,7 +39,7 @@ def test_capacity_reader_preserves_nulls_with_float_type(tmp_path: pathlib.Path)
         encoding="utf-8",
     )
 
-    result = source.read_file(
+    result = io.read_file(
         str(path),
         rename={"max_capacity": "series_capacity"},
         schema={"max_capacity": "float"},

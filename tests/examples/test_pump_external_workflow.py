@@ -5,7 +5,7 @@ import pathlib
 
 import polars as pl
 import pytest
-from example.src import external_workflow
+from example.src import io, merge
 from support import execution as execution_support
 
 from uptimely import plan as plan_module
@@ -28,7 +28,7 @@ def test_custom_pump_merge_full_joins_on_dataset_identifiers(
     if fragment_lazy:
         fragment = fragment.lazy()
 
-    result = external_workflow.merge_pump_inputs(dataset, fragment, ["pump_id"])
+    result = merge.merge_pump_inputs(dataset, fragment, ["pump_id"])
     if isinstance(result, pl.LazyFrame):
         result = result.collect()
 
@@ -52,7 +52,7 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     plan_module.export_json(bundle.execution_plan, plan_path)
     saved_plan = plan_module.from_json(plan_path)
     output_path = tmp_path / "pump_external_workflow_results.csv"
-    monkeypatch.setattr(external_workflow, "OUTPUT_PATH", output_path)
+    monkeypatch.setattr(io, "OUTPUT_PATH", output_path)
     parameters = json.loads(
         (bundle.project_root / "config" / "config.json").read_text(encoding="utf-8")
     )["params"]

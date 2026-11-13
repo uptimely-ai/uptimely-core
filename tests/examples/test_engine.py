@@ -4,7 +4,7 @@ import sys
 
 import polars as pl
 import pytest
-from example.src import analytics, source
+from example.src import analytics, io
 from support import examples as example_support
 from support import execution as execution_support
 
@@ -85,7 +85,7 @@ def test_engine_returns_calculated_features_without_writing_output(
     assert result.datasets["constants"].collect().to_dicts() == [
         {"gravity": 9.81, "room_temperature": 20.0}
     ]
-    assert source.read_file(
+    assert io.read_file(
         str(example_support.EXAMPLES_ROOT / "data/constants_dev.json")
     ).collect().to_dicts() == [{"gravity": 9.81, "room_temperature": 22.0}]
     efficiency = [5.3 * 118.0 / (36 * 17.9), 5.4 * 119.5 / (36 * 18.1), 4.1 * 83.0 / (36 * 11.7)]
