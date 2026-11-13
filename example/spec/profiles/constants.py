@@ -12,13 +12,13 @@ class ConstantsFeatures(FeatureSet):
         id="gravity",
         type="float",
         unit="m/s^2",
-        description="Gravitational acceleration used in pump analytics.",
+        description="Gravitational acceleration for engineering calculations.",
     )
     room_temperature = Feature(
         id="room_temperature",
         type="float",
         unit="C",
-        description="Ambient room temperature used as the thermal reference.",
+        description="Ambient pump-room temperature used as the thermal reference.",
     )
 
 
@@ -27,7 +27,7 @@ class Constants(Profile):
 
     id = "constants"
     name = "Project Constants"
-    description = "Physical constants used by pump analytics."
+    description = "Physical constants used by cooling pump analytics."
     category = "Configuration"
     features = ConstantsFeatures()
 

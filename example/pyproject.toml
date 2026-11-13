@@ -3,9 +3,9 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "uptimely-pump-example"
+name = "uptimely-data-center-cooling-example"
 version = "0.1.0"
-description = "Standalone pump analytics example using Uptimely Core"
+description = "Data-center cooling pump analytics example using Uptimely Core"
 requires-python = ">=3.13,<4.0"
 dependencies = ["uptimely-core>=0.10.0,<0.11.0"]
 

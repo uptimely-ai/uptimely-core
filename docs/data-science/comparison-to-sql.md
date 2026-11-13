@@ -47,7 +47,7 @@ Plain Python may be simpler for a small standalone calculation.
 
 ## Example: vibration spectrum
 
-Suppose a pump produces a vibration burst of 4,096 samples at 1,024 samples
+Suppose a data-center cooling pump produces a vibration burst of 4,096 samples at 1,024 samples
 per second. An analyst wants the strongest vibration frequency between 10 and
 200 Hz for each burst.
 

@@ -193,10 +193,10 @@ def test_document_validation_rejects_duplicate_output_producers() -> None:
 @pytest.mark.parametrize(
     ("argument_type", "argument_value"),
     [
-        ("array[string]", ["$features.discharge_pressure", "$profiles.@.dataset"]),
+        ("array[string]", ["$features.differential_pressure", "$profiles.@.dataset"]),
         (
             "object{str: string}",
-            {"nested": ["$features.discharge_pressure", "$profiles.@.dataset"]},
+            {"nested": ["$features.differential_pressure", "$profiles.@.dataset"]},
         ),
     ],
 )

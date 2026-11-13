@@ -38,7 +38,7 @@ meaning. Hundreds to a few thousand observations per entity are a useful startin
 point. Above roughly 10,000, review aggregation and memory needs rather than
 treating this as a hard limit.
 
-For example, calculate each pump's maximum pressure over the preceding 24 hours,
+For example, calculate each cooling pump's maximum differential pressure over the preceding 24 hours,
 updating every minute:
 
 | Input resolution | Calculation | Observations per full window |

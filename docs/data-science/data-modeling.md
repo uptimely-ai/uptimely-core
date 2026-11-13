@@ -9,7 +9,7 @@ Let's first take a short recap on dimension modeling, and then see how Uptimely 
 
 Dimensional modeling organizes data around business processes, facts, and
 dimensions. A fact table has a defined **grain**: what one row represents.
-For example, one row might represent one pump measurement at one timestamp.
+For example, one row might represent one cooling-pump measurement at one timestamp.
 
 A dimensional model can cover an entire organization or a single business
 process. It describes the data and its organization. But leaves open how data is calculated into those structures.
@@ -51,12 +51,12 @@ The advantage of long format is consistent schema and dense data population. Wid
 
 ## Uptimely profile describes analytical calculation model
 
-Dataset such as industrial pump telemetry can have several
+Data such as data-center cooling-pump telemetry can have several
 analytical views. This is what Uptimely **profiles** are for: An analytical model whose dataset is has in specific grain.
 
 What often might be a fact table in dimensionaly modeled data warehouse, would be multiple profile datasets in Uptimely's model. You can think it as a subset or a view of a physical fact table.
 
-You might have profile for pumps in category A:
+You might have a profile for cooling pumps in category A:
 
 | Machine | Machine Category | Date | Runtime | Energy | Downtime |
 |---|---|---|---:|---:|---:|
@@ -64,7 +64,7 @@ You might have profile for pumps in category A:
 | <span class="dm-profile-selected">M002</span> | <span class="dm-profile-selected">Category A</span>| <span class="dm-profile-selected">2026-01-01</span> | <span class="dm-profile-selected">22</span> | <span class="dm-profile-selected">165</span> | NULL |
 | M101 | Category B | 2026-01-01 | 18 | 130 | 52 |
 
-And another profile for pumps in category B:
+And another profile for cooling pumps in category B:
 
 | Machine | Machine Category | Date | Runtime | Energy | Downtime |
 |---|---|---|---:|---:|---:|
@@ -78,7 +78,7 @@ Uptimely profiles are more than data. They describe how the data was produced to
 
 ## Organizing calculations by profile
 
-An industrial company might want to detect overheating for different kinds of machines.
+A data-center operator might want to detect overheating for different kinds of cooling equipment.
 
 For example, `Energy` for one machine Category might be a directly available
 measurement, while another Category's value requires basic calculation, and a third one more specialized neural network.

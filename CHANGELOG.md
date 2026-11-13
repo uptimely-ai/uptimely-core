@@ -31,6 +31,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Rebranded the included analytics example and its user-facing guides around
+  data-center cooling pumps, with data-center/server-room hierarchy and
+  explicitly illustrative health and operating-point calculations.
 - The examples download command is now `uptimely example`.
 - The example is available in the repository's development environment but is
   no longer bundled in Uptimely Core distributions.

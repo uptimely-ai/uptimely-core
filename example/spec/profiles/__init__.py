@@ -1,1 +1,1 @@
-"""Profile declarations for the pump analytics example."""
+"""Profile declarations for the data-center cooling pump example."""

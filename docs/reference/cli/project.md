@@ -96,6 +96,9 @@ uptimely build example --log-level debug
 uptimely build example --features pump_health_score
 ```
 
+In the data-center cooling pump example, `pump_health_score` is illustrative,
+not a validated operational health limit.
+
 ### Build behavior
 
 Building may import Python declarations and inspect function signatures, but it

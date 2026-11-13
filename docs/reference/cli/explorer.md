@@ -80,7 +80,7 @@ Example:
 uptimely project build example
 uptimely run example --preview 10 --log-level debug
 uptimely explorer export example --output docs/example
-uptimely explorer export example --output pump-analytics-explorer.zip
+uptimely explorer export example --output cooling-pump-analytics-explorer.zip
 ```
 
 Export includes the complete saved log and bounded previews. These artifacts may

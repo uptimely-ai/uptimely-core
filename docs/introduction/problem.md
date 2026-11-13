@@ -6,12 +6,13 @@ Uptimely Core aims to reduce the specification and development process for massi
 
 The following story is imagined. However, it is inspired and compiled by discussions from developers and business managers across the industry. The example is not exceptional, and those ~60 steps could be easily multiplied in many occassions.
 
-Data scientist in a chemical production company is asked to develop a simple new calculation for a production line to monitor its performance.
+An analyst at a data-center operator is asked to add a calculation to monitor
+cooling-water delivery to a server room.
 
 Let's say the required calculation is simply picking lower value among two measurements in the process telemetry data:
 
 ```sql
-min(flow_rate_1, flow_rate_2)
+min(cooling_flow_sensor_1, cooling_flow_sensor_2)
 ```
 
 ## The development process
@@ -20,13 +21,13 @@ The workflow for data scientist might look something like this:
 
 1. Go to ticketing tool
 2. Find the right ticket
-3. Check description: "Apply `min(flow_rate_1, flow_rate_2)` for production line x"
+3. Check description: "Apply `min(cooling_flow_sensor_1, cooling_flow_sensor_2)` for server room x"
 4. Browse documentation wiki if existing analytics framework would allow such function
 5. Also go through each repository to double check if documentation was up to date
 4. Result: Documentation was outdated
 6. Ask in company chat if somebody has deployed anything similar
 7. Also check the database catalog if there are similar calculations running
-9. There is similar calculation running but it is not compatible with this type of production line
+9. There is a similar calculation running but it is not compatible with this cooling system
 10. Fire the deployment pipeline. But wait! There is a rivaling deployment running.
 11. Check for conflicts in the code.
 12. Conflict. Resolve in code editor.
@@ -46,9 +47,9 @@ The workflow for data scientist might look something like this:
 26. Finally results are ready. Check results manually.
 27. Run 25 queries to find out what data was persisted to database
 28. Results are not visible, not sure why
-29. Check that we have data for the production line
-30. Find the id of the production line by a complex SQL query
-31. Read wiki about how to add a new production line to database
+29. Check that we have data for the server room
+30. Find the server-room ID by a complex SQL query
+31. Read the wiki about how to add a server room to the data-center inventory
 32. The page was updated 3 years ago, the process does not work
 33. Try various things and make it work
 34. You verify from the project manager by email when the results are needed

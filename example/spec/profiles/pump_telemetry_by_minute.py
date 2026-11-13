@@ -1,4 +1,4 @@
-"""Pump telemetry by minute profile declaration."""
+"""Cooling-pump telemetry by minute profile declaration."""
 
 from example.spec import dimension
 from example.src import analytics
@@ -13,16 +13,16 @@ class PumpTelemetryByMinuteFeatures(FeatureSet):
         id="bearing_temperature_minute_max",
         type="float",
         unit="C",
-        description="Maximum observed bearing temperature at this profile's grain.",
+        description="Maximum observed motor-bearing temperature at this profile's grain.",
     )
 
 
 class PumpTelemetryByMinute(Profile):
-    """Maximum bearing temperature at pump-and-minute grain."""
+    """Maximum motor-bearing temperature at cooling-pump-and-minute grain."""
 
     id = "pump_telemetry_by_minute"
-    name = "Pump Telemetry by Minute"
-    description = "Maximum bearing temperature per pump and minute."
+    name = "Cooling Pump Telemetry by Minute"
+    description = "Maximum motor-bearing temperature per cooling pump and minute."
     category = "Telemetry"
     grain = [
         dimension.MACHINE_DIMENSION.resolution("machine"),

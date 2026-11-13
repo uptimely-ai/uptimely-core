@@ -6,11 +6,11 @@ Many data science teams stumble to the trap of standardization: Solutions are de
 
 But real life is full of exceptions, wanted or not.
 
-For indusrial pumps in a factory, exceptions could be:
+For cooling pumps in a data center, exceptions could be:
 
 - Maintenance period was not recorded
-- Production line sends corrupted values within normal value range
-- Pump drive was silently changed to twice as powerful without changes in telemetry schema
+- A server-room sensor sends corrupted values within the normal operating range
+- A cooling-pump drive was silently changed to twice the rated power without changes in the telemetry schema
 
 Uptimely's hierarchical profiles bridges scalability with exceptional scenarios. You can create global default while overriding the result all the way to the most detailed resolution.
 

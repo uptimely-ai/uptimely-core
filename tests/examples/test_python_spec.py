@@ -47,7 +47,7 @@ def test_aggregate_executes_independently() -> None:
 def test_pump_dimensions_are_declared_in_spec_order() -> None:
     inferred = pump_telemetry_spec.python_spec.to_model().dimensions
 
-    assert list(inferred) == ["machine_dimension", "machine_timestamp"]
+    assert list(inferred) == ["machine_dimension", "machine_timestamp", "facility_dimension"]
     assert list(inferred["machine_dimension"].resolutions) == [
         "machine",
         "machine_series",
@@ -66,10 +66,10 @@ def test_pump_dimensions_are_declared_in_spec_order() -> None:
     assert inferred["machine_timestamp"].resolutions["hour"].parent == "day"
     assert pump_dimensions.FACILITY_DIMENSION.id == "facility_dimension"
     assert [resolution.id for resolution in pump_dimensions.FACILITY_DIMENSION.resolutions] == [
-        "production_line",
-        "plant",
+        "server_room",
+        "data_center",
     ]
-    assert pump_dimensions.FACILITY_DIMENSION.resolutions[0].parent == "plant"
+    assert pump_dimensions.FACILITY_DIMENSION.resolutions[0].parent == "data_center"
 
 
 def test_pump_profiles_are_declared_in_spec_order() -> None:
@@ -88,10 +88,10 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         profile.category for profile in pump_telemetry_spec.python_spec.to_model().profiles.values()
     ] == [
         "Telemetry",
-        "Machines",
+        "Cooling System",
         "Configuration",
-        "Machines",
-        "Machines",
+        "Cooling System",
+        "Cooling System",
         "Telemetry",
         "Telemetry",
         "Telemetry",
@@ -162,7 +162,7 @@ def test_example_manifest_parses_complete_spec() -> None:
     spec_from_directory = spec.load_spec(SPEC_PATH.parent)
 
     assert spec_from_directory == spec_definition
-    assert "facility_dimension" not in spec_definition.dimensions
+    assert "facility_dimension" in spec_definition.dimensions
     assert set(spec_definition.profiles) == {
         "pump_telemetry",
         "pump",

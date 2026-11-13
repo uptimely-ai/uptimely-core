@@ -423,7 +423,7 @@ def test_system_and_subset_support_multiple_variables() -> None:
         "health_signal_normalized",
         "max_capacity",
         "recommended_flow_rate",
-        "recommended_discharge_pressure",
+        "recommended_differential_pressure",
         "energy_cost_score",
         "converged",
         "pressure_flow_efficiency",

@@ -1,4 +1,4 @@
-"""Analytical functions for pump telemetry."""
+"""Analytical functions for data-center cooling pump telemetry."""
 
 import collections.abc
 import functools
@@ -302,15 +302,14 @@ def operation_point_optimization(
 ) -> pl.LazyFrame:
     """Return recommended operating values and convergence as a struct column.
 
-    Mockup to demonstrate that a quantum optimization function could be used
-    to recommend operating points for a pump.
+    Illustrative mockup for a cooling-pump operating-point recommendation.
 
     Parameters
     ----------
     dataset
-        DataFrame containing the pump operating measurements.
+        DataFrame containing cooling-pump operating measurements.
     optimization_features
-        Names of the pressure, flow, power, temperature, and vibration
+        Names of the differential-pressure, flow, power, temperature, and vibration
         columns, in that order.
     output
         Name of the resulting struct column.
@@ -341,7 +340,7 @@ def operation_point_optimization(
     pressure, flow, power, temperature, vibration = map(pl.col, optimization_features)
     expression = pl.struct(
         recommended_flow_rate=flow,
-        recommended_discharge_pressure=pressure,
+        recommended_differential_pressure=pressure,
         energy_cost_score=power / flow,
         converged=(temperature < 90.0) & (vibration < 4.5),
     )
@@ -353,7 +352,7 @@ def operation_point_optimization(
 def pump_health_score(
     dataset: pl.LazyFrame, health_features: list[str], output: str
 ) -> pl.LazyFrame:
-    """Return efficiency reduced by temperature and vibration deterioration.
+    """Return a cooling-pump score reduced by temperature and vibration changes.
 
     Parameters
     ----------

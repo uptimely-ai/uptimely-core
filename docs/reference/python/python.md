@@ -22,29 +22,29 @@ def maximum(
     return dataset.group_by(dimensions).agg(pl.col(feature).max().alias(output))
 
 
-class Pump(up.Profile):
-    id = "pump_summary"
+class CoolingPump(up.Profile):
+    id = "cooling_pump_summary"
     grain = [machine.resolution("machine")]
     assembly = [
         up.Operator(
             id="temperature_max",
             interface=up.Interface(
-                outputs=[up.Feature(id="bearing_temperature_max")],
+                outputs=[up.Feature(id="motor_bearing_temperature_max")],
             ),
             compute=up.Binding(
                 function=maximum,
                 arguments={
-                    "dataset": up.ref.dataset("telemetry"),
-                    "feature": up.ref.feature("bearing_temperature"),
+                    "dataset": up.ref.dataset("cooling_pump_telemetry"),
+                    "feature": up.ref.feature("motor_bearing_temperature"),
                     "dimensions": up.ref.profile().grain.ids,
-                    "output": up.ref.feature("bearing_temperature_max").id,
+                    "output": up.ref.feature("motor_bearing_temperature_max").id,
                 },
             ),
         ),
     ]
 
 
-specification = up.Spec(profiles=[Pump], name="Pump analytics")
+specification = up.Spec(profiles=[CoolingPump], name="Data-center cooling pump analytics")
 ```
 
 ## Profiles and features

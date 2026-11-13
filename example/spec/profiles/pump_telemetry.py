@@ -1,4 +1,4 @@
-"""Minute-level pump profile and declarative dataframe transformations."""
+"""Minute-level cooling-pump telemetry and dataframe transformations."""
 
 import polars as pl
 from example.spec import dimension
@@ -22,46 +22,49 @@ HYDRAULIC_POWER_SCALE = 1.0 / 36.0
 
 
 class TelemetryFeatures(FeatureSet):
-    """Features declared by the telemetry profile."""
+    """Features declared by the cooling-pump telemetry profile."""
 
-    discharge_pressure = Feature(
+    differential_pressure = Feature(
         type="float",
         unit="bar",
-        description="Pump discharge pressure",
+        description="Differential pressure across the cooling-water pump.",
     )
     flow_rate = Feature(
         type="float",
         unit="m3/h",
-        description="Pump discharge flow rate",
+        description="Cooling-water circulation flow rate.",
     )
     bearing_temperature = Feature(
         type="float",
         unit="C",
-        description="Drive-end bearing temperature",
+        description="Drive-end motor-bearing temperature.",
     )
     vibration_rms = Feature(
         type="float",
         unit="mm/s",
-        description="Overall pump vibration RMS",
+        description="Overall cooling-pump vibration RMS.",
     )
     motor_power = Feature(
         type="float",
         unit="kW",
-        description="Electric motor active power consumption",
+        description="Active electric power consumed by the cooling-pump motor.",
     )
     operation_mode = Feature(
         type="string",
-        description="Pump speed mode: low_speed below rated flow, otherwise high_speed.",
+        description=(
+            "Flow band: below_rated_flow or at_or_above_rated_flow, based on rated "
+            "cooling-water flow."
+        ),
     )
     recommended_flow_rate = Feature(
         type="float",
         unit="m3/h",
-        description="Recommended flow rate for efficient operation",
+        description="Illustrative recommended cooling-water flow rate.",
     )
-    recommended_discharge_pressure = Feature(
+    recommended_differential_pressure = Feature(
         type="float",
         unit="bar",
-        description="Recommended discharge pressure for efficient operation",
+        description="Illustrative recommended differential pressure across the pump.",
     )
     energy_cost_score = Feature(
         type="float",
@@ -73,59 +76,70 @@ class TelemetryFeatures(FeatureSet):
     )
     pressure_flow_efficiency = Feature(
         type="float",
-        description="Hydraulic efficiency proxy from pressure, flow, and motor power",
+        description=(
+            "Hydraulic efficiency proxy from cooling-water differential pressure, "
+            "flow, and motor power."
+        ),
     )
     room_temperature_reference = Feature(
         type="float",
         unit="C",
-        description="Room-temperature constant broadcast to every telemetry row.",
+        description="Pump-room ambient-temperature reference broadcast to each row.",
     )
     bearing_temperature_rise = Feature(
         type="float",
         unit="C",
-        description="Bearing-temperature rise above the room-temperature constant.",
+        description="Motor-bearing temperature rise above the pump-room ambient reference.",
     )
     bearing_temperature_delta = Feature(
         type="float",
         unit="C",
-        description="Bearing-temperature change from the previous pump reading.",
+        description="Motor-bearing temperature change from the previous pump reading.",
     )
     vibration_delta = Feature(
         unit="mm/s",
-        description="Vibration change from the previous pump reading.",
+        description="Vibration change from the previous cooling-pump reading.",
     )
     pump_health_score = Feature(
         type="float",
         description=(
-            "Composite pump health score from bearing-temperature trend, "
-            "vibration trend, and efficiency."
+            "Illustrative cooling-pump condition score from motor-bearing temperature "
+            "trend, vibration trend, and hydraulic efficiency proxy."
         ),
     )
     operating_point_recommendation = Feature(
         type="object",
-        description="Recommended pump operating point based on process demand and energy use",
+        description=(
+            "Illustrative cooling-pump operating point based on flow, differential "
+            "pressure, power, temperature, and vibration."
+        ),
     )
 
 
 class PumpTelemetry(Profile):
-    """Process and condition readings at pump-and-timestamp grain."""
+    """Cooling-water and condition readings at pump-and-timestamp grain."""
 
     id = "pump_telemetry"
-    name = "Pump Telemetry"
-    description = "Pump process and condition readings sampled at one-minute intervals."
+    name = "Cooling Pump Telemetry"
+    description = (
+        "Cooling-water and condition readings from data-center pumps, sampled "
+        "at one-minute intervals."
+    )
     category = "Telemetry"
     grain = [
         dimension.MACHINE_DIMENSION.resolution("machine"),
         dimension.MACHINE_TIMESTAMP.resolution("timestamp"),
     ]
     relations = [
+        dimension.FACILITY_DIMENSION.resolution("server_room"),
+        dimension.FACILITY_DIMENSION.resolution("data_center"),
         dimension.MACHINE_DIMENSION.resolution("machine_series"),
         dimension.MACHINE_DIMENSION.resolution("machine_category"),
         dimension.MACHINE_TIMESTAMP.resolution("minute"),
         dimension.MACHINE_TIMESTAMP.resolution("hour"),
         dimension.MACHINE_TIMESTAMP.resolution("day"),
     ]
-    scope = "Development telemetry selected by the read function"
+    scope = "Synthetic data-center cooling pump telemetry for demonstration"
     order = (Order(dimension.MACHINE_TIMESTAMP, "timestamp", direction="asc"),)
     features = TelemetryFeatures()
 
@@ -135,7 +149,7 @@ class PumpTelemetry(Profile):
                 id="read_pump_telemetry",
                 interface=Interface(
                     outputs=[
-                        features.discharge_pressure,
+                        features.differential_pressure,
                         features.flow_rate,
                         features.bearing_temperature,
                         features.vibration_rms,
@@ -174,17 +188,17 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                id="recommended_discharge_pressure",
+                id="recommended_differential_pressure",
                 interface=Interface(
-                    outputs=[features.recommended_discharge_pressure],
+                    outputs=[features.recommended_differential_pressure],
                 ),
                 compute=Binding(
                     function=analytics.extract_field,
                     arguments=dict(
                         dataset=ref.dataset(),
                         column=features.operating_point_recommendation,
-                        field="recommended_discharge_pressure",
-                        output=features.recommended_discharge_pressure,
+                        field="recommended_differential_pressure",
+                        output=features.recommended_differential_pressure,
                     ),
                 ),
             ),
@@ -228,7 +242,7 @@ class PumpTelemetry(Profile):
                     arguments=dict(
                         dataset=ref.dataset(),
                         numerator_features=[
-                            features.discharge_pressure,
+                            features.differential_pressure,
                             features.flow_rate,
                         ],
                         denominator_features=[features.motor_power],
@@ -331,7 +345,7 @@ class PumpTelemetry(Profile):
                     arguments=dict(
                         dataset=ref.dataset(),
                         optimization_features=[
-                            features.discharge_pressure,
+                            features.differential_pressure,
                             features.flow_rate,
                             features.motor_power,
                             features.bearing_temperature,
@@ -354,7 +368,7 @@ class PumpTelemetry(Profile):
                         dataset=ref.dataset(),
                         features=[
                             features.recommended_flow_rate,
-                            features.recommended_discharge_pressure,
+                            features.recommended_differential_pressure,
                             features.energy_cost_score,
                             features.converged,
                             features.pressure_flow_efficiency,

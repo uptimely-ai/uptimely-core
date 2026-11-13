@@ -226,7 +226,7 @@ async def test_list_calculated_features(state: mcp_state.ServerState) -> None:
         "operating_point_recommendation",
         "pressure_flow_efficiency",
         "pump_health_score",
-        "recommended_discharge_pressure",
+        "recommended_differential_pressure",
         "recommended_flow_rate",
         "vibration_delta",
     ]
@@ -477,11 +477,11 @@ async def test_targeted_optimization_returns_structured_numerical_results(
     assert payload["status"] == "ok"
     assert payload["datasets"][0]["features"] == ["operating_point_recommendation"]
     row = payload["datasets"][0]["rows"][0]
-    assert row["pump_id"] == "PUMP-101"
+    assert row["pump_id"] == "CWP-101"
     assert row["timestamp"] == "2026-09-01T08:00:00+00:00"
     assert row["operating_point_recommendation"] == {
         "recommended_flow_rate": 118.0,
-        "recommended_discharge_pressure": 5.3,
+        "recommended_differential_pressure": 5.3,
         "energy_cost_score": pytest.approx(17.9 / 118.0),
         "converged": True,
     }

@@ -48,8 +48,9 @@ poetry add uptimely-core
 
 ## End-to-end example
 
-This short workflow downloads, builds, and runs the included pump data science
-project. The build compiles its analytical definition into an execution plan.
+This short workflow downloads, builds, and runs the included data-center
+cooling-pump example. The build compiles its analytical definition into an
+execution plan.
 
 With Poetry, prefix these commands with `poetry run`.
 
@@ -65,7 +66,8 @@ Build the project:
 uptimely build pump-analytics
 ```
 
-The build creates the execution bundle under `pump-analytics/_generated/`.
+The build creates the execution bundle under
+`pump-analytics/_generated/`.
 
 Execute the data pipeline:
 

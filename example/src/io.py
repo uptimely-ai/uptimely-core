@@ -1,4 +1,4 @@
-"""Input, output, and workflow I/O functions for the pump example."""
+"""Input, output, and workflow I/O functions for the cooling-pump example."""
 
 import collections.abc
 import pathlib
@@ -38,9 +38,9 @@ def _project_path(source: str | pathlib.Path) -> pathlib.Path:
 def read_pump_telemetry(
     pump_telemetry_source: str,
     pump_source: str,
-    production_line_id: str | None = None,
+    server_room_id: str | None = None,
 ) -> pl.LazyFrame:
-    """Load pump telemetry and join its pump profile data.
+    """Load cooling-pump telemetry and join its asset metadata.
 
     Parameters
     ----------
@@ -50,19 +50,19 @@ def read_pump_telemetry(
     pump_source
         Path to the data for the ``pump`` profile, relative to the example
         project root or absolute.
-    production_line_id
-        Optional production line ID to filter the telemetry.
+    server_room_id
+        Optional server room ID to filter the telemetry.
 
     Returns
     -------
-    Telemetry joined with pump metadata and an ``operation_mode`` column.
+    Cooling-pump telemetry joined with asset metadata and an ``operation_mode`` column.
 
     Examples
     --------
     >>> telemetry = read_pump_telemetry(
     ...     "data/input/pump_telemetry.json",
     ...     "data/input/pump_assets.json",
-    ...     production_line_id="line_1",
+    ...     server_room_id="SR-A",
     ... )  # doctest: +SKIP
     """
     pump_telemetry = (
@@ -74,28 +74,28 @@ def read_pump_telemetry(
         pl.read_json(_project_path(pump_source))
         .lazy()
         .select(
-            "plant_id",
-            "production_line_id",
+            "data_center_id",
+            "server_room_id",
             "pump_id",
             "machine_series_id",
             "machine_category_id",
             "rated_flow_rate",
         )
     )
-    if production_line_id:
-        pump_telemetry = pump_telemetry.filter(pl.col("production_line_id") == production_line_id)
+    if server_room_id:
+        pump_telemetry = pump_telemetry.filter(pl.col("server_room_id") == server_room_id)
 
     return (
         pump_telemetry.join(
             pump,
-            on=["plant_id", "production_line_id", "pump_id"],
+            on=["data_center_id", "server_room_id", "pump_id"],
             how="left",
             validate="m:1",
         )
         .with_columns(
             pl.when(pl.col("flow_rate") < pl.col("rated_flow_rate"))
-            .then(pl.lit("low_speed"))
-            .otherwise(pl.lit("high_speed"))
+            .then(pl.lit("below_rated_flow"))
+            .otherwise(pl.lit("at_or_above_rated_flow"))
             .alias("operation_mode"),
             pl.col("timestamp").dt.truncate("1m").alias("minute"),
             pl.col("timestamp").dt.truncate("1h").alias("hour"),
@@ -107,7 +107,7 @@ def read_pump_telemetry(
 
 @function(category="write")
 def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
-    """Write calculated telemetry features as JSON to standard output.
+    """Write calculated cooling-pump telemetry features to the configured sink.
 
     Parameters
     ----------
@@ -180,7 +180,7 @@ def read_file(
 
 @function(returns="any", category="workflow")
 def process_pump_external_workflow() -> None:
-    """Read pump inputs, calculate ratios, and write results internally.
+    """Read cooling-pump inputs, calculate ratios, and write results internally.
 
     Returns
     -------
@@ -196,4 +196,4 @@ def process_pump_external_workflow() -> None:
     )
     output_path = _project_path(OUTPUT_PATH)
     output_path.parent.mkdir(parents=True, exist_ok=True)
-    result.select("plant_id", "production_line_id", "pump_id", "ratio").write_csv(output_path)
+    result.select("data_center_id", "server_room_id", "pump_id", "ratio").write_csv(output_path)

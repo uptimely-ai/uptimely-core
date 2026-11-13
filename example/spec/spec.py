@@ -1,4 +1,4 @@
-"""Combined spec declarations for the pump analytics project."""
+"""Combined spec declarations for the data-center cooling pump project."""
 
 from uptimely import Spec
 
@@ -22,5 +22,5 @@ python_spec = Spec(
         PumpTelemetryByHour,
         PumpTelemetryByDay,
     ],
-    name="Pump analytics",
+    name="Data center cooling pump analytics",
 )
