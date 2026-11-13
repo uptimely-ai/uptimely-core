@@ -7,6 +7,8 @@ watch: [src/uptimely]
 
 theme:
   name: material
+  features:
+    - content.code.copy
 
 plugins:
   - search
@@ -30,6 +32,11 @@ plugins:
             members_order: source
 
 markdown_extensions:
+  - pymdownx.highlight:
+      anchor_linenums: true
+      line_spans: __span
+      pygments_lang_class: true
+  - pymdownx.superfences
   - admonition
   - attr_list
   - def_list
