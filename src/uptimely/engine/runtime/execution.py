@@ -3,6 +3,7 @@
 import collections
 import functools
 import logging
+import pathlib
 import typing
 
 from uptimely import entrypoint as entrypoint_module
@@ -29,6 +30,8 @@ class InvocationExecutor:
         parameters: typing.Mapping[str, typing.Any],
         state: state_module.RuntimeState,
         *,
+        paths: typing.Mapping[str, str] | None = None,
+        project_root: pathlib.Path | None = None,
         validate: bool = False,
     ) -> None:
         """Create an executor with optional runtime contract validation."""
@@ -36,7 +39,12 @@ class InvocationExecutor:
         self.entrypoints = entrypoints
         self.state = state
         self.validate = validate
-        self.bindings = bindings_module.RuntimeBindings(state, parameters)
+        self.bindings = bindings_module.RuntimeBindings(
+            state,
+            parameters,
+            paths=paths,
+            project_root=project_root,
+        )
 
     def execute(self, invocation: plan_module.Invocation) -> None:
         """Execute one invocation, validating before side effects and state updates."""

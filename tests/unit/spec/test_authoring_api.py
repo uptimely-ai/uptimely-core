@@ -85,12 +85,14 @@ def test_feature_reference_defaults_to_id_binding() -> None:
 
 def test_global_parameter_and_feature_authoring() -> None:
     parameter = up.ref.params("asset_limit")
+    path = up.ref.paths("telemetry_source")
     feature = up.Feature(id="asset_limit").to_model()
 
     assert parameter == up.Params("asset_limit")
     assert parameter.to_model() == "$params.asset_limit"
     assert up.ref.params("telemetry_source").to_model() == "$params.telemetry_source"
     assert up.ref.params("results_path").to_model() == "$params.results_path"
+    assert path.to_model() == "$paths.telemetry_source"
     assert feature.id == "asset_limit"
     assert feature.name == "Asset Limit"
 

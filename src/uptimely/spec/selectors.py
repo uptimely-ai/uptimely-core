@@ -10,6 +10,7 @@ PROFILE_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}profiles."
 DIMENSION_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}dimensions."
 OPERATOR_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}operators."
 PARAMS_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}params."
+PATHS_PREFIX: typing.Final[str] = f"{REFERENCE_PREFIX}paths."
 CURRENT_ID: typing.Final[str] = "@"
 ROW_CONTEXT_PREFIX: typing.Final[str] = f"{OPERATOR_PREFIX}{CURRENT_ID}.row_context."
 ROW_CONTEXT_ATTRIBUTES: typing.Final[tuple[str, ...]] = ("before", "after", "dimension")
@@ -38,6 +39,7 @@ __all__ = [
     "ROW_CONTEXT_PREFIX",
     "ROW_CONTEXT_ATTRIBUTES",
     "PARAMS_PREFIX",
+    "PATHS_PREFIX",
     "FEATURE_PREFIX",
     "ID_SELECTOR",
     "REFERENCE_PREFIX",

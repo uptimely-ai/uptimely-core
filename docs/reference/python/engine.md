@@ -30,7 +30,7 @@ project, and each run replaces the latest saved run.
     options:
       heading_level: 2
       show_root_heading: false
-      members: [Config, EngineConfig, EngineBackendConfig, Params, ParameterConfig]
+      members: [Config, EngineConfig, EngineBackendConfig, Params, ParameterConfig, Paths]
 
 ## Results
 

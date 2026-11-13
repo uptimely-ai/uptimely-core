@@ -5,7 +5,7 @@ import pathlib
 
 import polars as pl
 import pytest
-from example.src import io, merge
+from example.src import merge
 from support import execution as execution_support
 
 from uptimely import plan as plan_module
@@ -41,7 +41,6 @@ def test_custom_pump_merge_full_joins_on_dataset_identifiers(
 
 def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     tmp_path: pathlib.Path,
-    monkeypatch: pytest.MonkeyPatch,
     pump_bundle: project.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
@@ -52,16 +51,24 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     plan_module.export_json(bundle.execution_plan, plan_path)
     saved_plan = plan_module.from_json(plan_path)
     output_path = tmp_path / "pump_external_workflow_results.csv"
-    monkeypatch.setattr(io, "OUTPUT_PATH", output_path)
-    parameters = json.loads(
+    configuration = json.loads(
         (bundle.project_root / "config" / "config.json").read_text(encoding="utf-8")
-    )["params"]
+    )
+    parameters = configuration["params"]
+    paths: dict[str, str] = {}
+    for name, value in configuration["paths"].items():
+        configured = pathlib.Path(value)
+        paths[name] = str(
+            configured if configured.is_absolute() else bundle.project_root / configured
+        )
+    paths["pump_external_workflow_output"] = str(output_path)
 
     result = engine_for_plan(
         saved_plan,
         parameters=parameters,
         project_root=bundle.project_root,
         spec_definition=spec_definition,
+        paths=paths,
     ).run()
 
     escape = next(

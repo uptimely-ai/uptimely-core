@@ -40,7 +40,7 @@ class PumpCategory(Profile):
             compute=Binding(
                 function=io.read_file,
                 arguments=dict(
-                    source=ref.params("pump_category_source"),
+                    source=ref.paths("pump_category_source"),
                     rename={"max_capacity": features.max_capacity},
                     schema={"max_capacity": "float"},
                 ),

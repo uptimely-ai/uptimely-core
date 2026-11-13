@@ -86,7 +86,7 @@ class Pump(Profile):
             compute=Binding(
                 function=io.read_file,
                 arguments=dict(
-                    source=ref.params("pump_assets_source"),
+                    source=ref.paths("pump_assets_source"),
                     rename={"max_capacity": features.pump_max_capacity},
                     schema={"max_capacity": "float"},
                 ),
@@ -198,7 +198,7 @@ class Pump(Profile):
             compute=Binding(
                 function=io.read_file,
                 arguments=dict(
-                    source=ref.params("pump_external_inputs_source"),
+                    source=ref.paths("pump_external_inputs_source"),
                     schema={"measurement": "float", "reference_value": "float"},
                     rename={
                         "measurement": features.measurement,
@@ -227,7 +227,10 @@ class Pump(Profile):
             ),
             compute=Binding(
                 function=io.process_pump_external_workflow,
-                arguments={},
+                arguments={
+                    "source": ref.paths("pump_external_inputs_source"),
+                    "output": ref.paths("pump_external_workflow_output"),
+                },
             ),
         ),
     ]

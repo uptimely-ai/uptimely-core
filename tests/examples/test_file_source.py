@@ -38,20 +38,6 @@ def test_read_file_surfaces_missing_files(tmp_path: pathlib.Path, extension: str
         io.read_file(str(tmp_path / f"missing.{extension}")).collect()
 
 
-@pytest.mark.parametrize("from_parent", [False, True])
-def test_read_file_resolves_relative_paths_from_example_project(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, from_parent: bool
-) -> None:
-    project = tmp_path / "example"
-    (project / "config").mkdir(parents=True)
-    (project / "config/config.json").write_text("{}", encoding="utf-8")
-    (project / "data/input").mkdir(parents=True)
-    (project / "data/input/records.json").write_text('[{"id": "one"}]', encoding="utf-8")
-    monkeypatch.chdir(tmp_path if from_parent else project)
-
-    assert io.read_file("data/input/records.json").collect().to_dicts() == [{"id": "one"}]
-
-
 def test_read_file_rejects_missing_columns_and_invalid_types(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "records.json"
     path.write_text('[{"id": "one", "value": "invalid"}]', encoding="utf-8")

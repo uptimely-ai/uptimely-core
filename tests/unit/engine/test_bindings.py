@@ -1,4 +1,5 @@
 import copy
+import pathlib
 
 import polars as pl
 import pytest
@@ -16,10 +17,14 @@ PLAN = plan_module.from_json("tests/fixtures/plans/simple_engine.json")
 def _bindings(
     state: state_module.RuntimeState | None = None,
     parameters: dict[str, object] | None = None,
+    paths: dict[str, str] | None = None,
+    project_root: pathlib.Path | None = None,
 ) -> bindings_module.RuntimeBindings:
     return bindings_module.RuntimeBindings(
         state or state_module.RuntimeState(),
         parameters or {},
+        paths=paths,
+        project_root=project_root,
     )
 
 
@@ -69,6 +74,50 @@ def test_runtime_bindings_reject_invalid_runtime_references(reference: str, mess
 
     with pytest.raises(ValueError, match=message):
         bindings.resolve_parameter_reference(reference)
+
+
+@pytest.mark.parametrize(
+    "configured_path",
+    [
+        "data/input.json",
+        "/shared/input.json",
+    ],
+)
+def test_runtime_bindings_resolve_project_paths(
+    tmp_path: pathlib.Path, configured_path: str
+) -> None:
+    root = tmp_path / "project"
+    bindings = _bindings(
+        paths={"source": configured_path},
+        project_root=root,
+    )
+    expected = pathlib.Path(configured_path)
+    if not expected.is_absolute():
+        expected = root / expected
+
+    assert bindings.resolve_value("$paths.source") == str(expected)
+
+
+@pytest.mark.parametrize(
+    ("reference", "message"),
+    [
+        ("$paths.", "Malformed path reference"),
+        ("$paths.source.file", "Malformed path reference"),
+        ("$paths.unknown", "Unresolved path"),
+    ],
+)
+def test_runtime_bindings_reject_invalid_path_references(reference: str, message: str) -> None:
+    bindings = _bindings(paths={"source": "data/input.json"}, project_root=pathlib.Path("/project"))
+
+    with pytest.raises(ValueError, match=message):
+        bindings.resolve_value(reference)
+
+
+def test_runtime_bindings_require_a_project_root_for_relative_paths() -> None:
+    bindings = _bindings(paths={"source": "data/input.json"})
+
+    with pytest.raises(ValueError, match="without a project root"):
+        bindings.resolve_value("$paths.source")
 
 
 def test_runtime_bindings_reject_unavailable_dataframe_reference() -> None:
@@ -126,6 +175,16 @@ def test_parameter_config_accepts_only_flat_scalar_values() -> None:
         config_module.ParameterConfig.model_validate({"limit": {"value": 1}})
     with pytest.raises(ValueError, match="finite number"):
         config_module.ParameterConfig.model_validate({"limit": float("nan")})
+
+
+def test_path_config_accepts_only_named_string_values() -> None:
+    paths = config_module.Paths.model_validate(
+        {"input": "data/input.json", "absolute": "/shared/input.json"}
+    )
+
+    assert paths.root == {"input": "data/input.json", "absolute": "/shared/input.json"}
+    with pytest.raises(ValueError, match="Path input must be a string"):
+        config_module.Paths.model_validate({"input": {"value": "data/input.json"}})
 
 
 def test_runtime_bindings_resolve_nested_parameter_references() -> None:

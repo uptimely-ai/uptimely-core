@@ -43,7 +43,7 @@ project/
 | `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
 | `_generated/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
-| `config/config.json` | Engine settings under `engine` and runtime parameter values under `params`. |
+| `config/config.json` | Engine settings under `engine`, file locations under `paths`, and scalar runtime values under `params`. |
 
 Put source files consumed by the workflow in `data/input/`. Store results you
 want to keep, share, or reuse in `data/output/`. Use `_generated/` for disposable
@@ -54,7 +54,9 @@ previews and debugging files. Each run replaces
 ## Runtime configuration
 
 The spec defines the workflow, while `config/config.json` supplies the settings
-for a particular run. Reference parameter values with `$params.<name>`.
+for a particular run. Reference project paths with `$paths.<name>` and scalar
+parameters with `$params.<name>`. Relative paths resolve against the project
+root. Parameters pass through unchanged.
 
 Rebuild after changing operators, bindings, or profile grain. You can usually
 change runtime parameters, data locations, and validation options without
@@ -64,7 +66,7 @@ dependency graph.
 | Setting | Where it belongs | Rebuild required? |
 | --- | --- | --- |
 | Operators, bindings, and profile grain | `spec/` | Yes |
-| Runtime parameters, data locations, and validation options | Runtime configuration or run options | Usually no |
+| Paths, runtime parameters, and validation options | Runtime configuration or run options | Usually no |
 
 The runtime backend must be compatible with the saved execution plan.
 An incompatible configuration causes execution to fail rather than changing

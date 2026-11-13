@@ -104,6 +104,7 @@ class EngineFactory(typing.Protocol):
         parameters: dict[str, object] | None = None,
         project_root: pathlib.Path | None = None,
         spec_definition: spec.Spec | None = None,
+        paths: dict[str, str] | None = None,
     ) -> engine_module.Engine: ...
 
 
