@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- GitHub releases include a versioned ZIP archive of the tracked cooling-pump
+  example project.
 - The example filters warning telemetry into an intermediate profile and
   calculates operating-point recommendations from hourly warning aggregates.
 - The example aggregation function accepts multiple feature-method pairs in

@@ -150,8 +150,9 @@ version and repository state before tagging.
    ```
 
 Pushing either tag triggers the workflow to publish to PyPI and create a GitHub
-release. Stable tags require a matching dated changelog heading; development
-tags do not. Merge release-workflow changes before tagging.
+release with the example project as a ZIP asset. The archive contains tracked
+files from `example/`. Stable tags require a matching dated changelog heading;
+development tags do not. Merge release-workflow changes before tagging.
 
 ## Commit and PR conventions
 
