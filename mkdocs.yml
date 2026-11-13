@@ -85,6 +85,7 @@ nav:
       - Background: background.md
   - Architecture:
       - Overview: architecture/index.md
+      - Folder structure: architecture/folder-structure.md
       - Project: architecture/project.md
       - Spec: architecture/spec.md
       - Compiler: architecture/compiler.md
@@ -99,9 +100,6 @@ nav:
       - Platform comparison: data-science/platform-comparison.md
       - Data science work: data-science/way-of-work.md
       - Research: data-science/research.md
-  - Project layout:
-      - Project structure: project-layout/project-structure.md
-      - Organizing analytics: project-layout/organize.md
   - Roadmap:
       - Development roadmap: roadmap/index.md
       - Backlog: roadmap/backlog.md

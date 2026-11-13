@@ -11,7 +11,7 @@ Make sure the example functions and approaches are state of the art data science
 ## Approach
 
 1. Read the root [`AGENTS.md`](../../AGENTS.md), the Concepts guide,
-   project-structure guide, and relevant runnable examples.
+   folder-structure guide, and relevant runnable examples.
 2. Clarify the observation grain, dimension keys, feature meanings and units,
    input coverage, null behavior, and expected outputs.
 3. Keep physical storage separate from the analytical model. Model observation
