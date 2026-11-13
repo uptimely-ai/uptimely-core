@@ -1,4 +1,6 @@
-The demo site is available here: [Data-center Cooling Pump Analytics](../example/index.html)
+# Explorer demo
+
+[Open the Explorer demo](../example/index.html){ .md-button .md-button--primary }
 
 It is created from the repository's [data-center cooling pump example](https://github.com/uptimely-ai/uptimely-core/tree/main/example).
 
