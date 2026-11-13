@@ -24,53 +24,40 @@ OUTPUT_PATH = EXAMPLE_ROOT / "_generated" / "pump_external_workflow_results.csv"
 
 @function(category="read")
 def read_pump_telemetry(
-    source: str,
-    pump_assets_source: str,
-    production_line: str | None = None,
-    environment: str = "development",
+    pump_telemetry_source: str,
+    pump_source: str,
+    production_line_id: str | None = None,
 ) -> pl.LazyFrame:
-    """Load telemetry for an optional production line from a mock environment.
+    """Load pump telemetry and join its pump profile data.
 
     Parameters
     ----------
-    source
-        Path to the JSON file containing pump telemetry records.
-    pump_assets_source
-        Path to the JSON file containing pump asset metadata.
-    production_line
-        Production line to filter telemetry by. If ``None``, all lines
-        are included.
-    environment
-        Target environment name; one of ``"development"``, ``"qa"``, or
-        ``"production"``. Defaults to ``"development"``.
+    pump_telemetry_source
+        Path to the data for the ``pump_telemetry`` profile.
+    pump_source
+        Path to the data for the ``pump`` profile.
+    production_line_id
+        Optional production line ID to filter the telemetry.
 
     Returns
     -------
-    Telemetry joined with pump assets and an ``operation_mode`` column.
-
-    Raises
-    ------
-    ValueError
-        If ``environment`` is not a supported environment name.
+    Telemetry joined with pump metadata and an ``operation_mode`` column.
 
     Examples
     --------
     >>> telemetry = read_pump_telemetry(
     ...     "data/pump_telemetry.json",
     ...     "data/pump_assets.json",
-    ...     production_line="line_1",
+    ...     production_line_id="line_1",
     ... )  # doctest: +SKIP
     """
-    if environment not in {"development", "qa", "production"}:
-        raise ValueError(f"Unsupported environment: {environment}")
-
-    telemetry = (
-        pl.read_json(source)
+    pump_telemetry = (
+        pl.read_json(pump_telemetry_source)
         .lazy()
         .with_columns(pl.col("timestamp").str.to_datetime(time_zone="UTC"))
     )
-    pump_assets = (
-        pl.read_json(pump_assets_source)
+    pump = (
+        pl.read_json(pump_source)
         .lazy()
         .select(
             "plant_id",
@@ -81,9 +68,12 @@ def read_pump_telemetry(
             "rated_flow_rate",
         )
     )
-    data_read = (
-        telemetry.join(
-            pump_assets,
+    if production_line_id:
+        pump_telemetry = pump_telemetry.filter(pl.col("production_line_id") == production_line_id)
+
+    return (
+        pump_telemetry.join(
+            pump,
             on=["plant_id", "production_line_id", "pump_id"],
             how="left",
             validate="m:1",
@@ -99,9 +89,6 @@ def read_pump_telemetry(
         )
         .drop("rated_flow_rate")
     )
-    if production_line:
-        data_read = data_read.filter(pl.col("production_line_id") == production_line)
-    return data_read
 
 
 @function(category="write")

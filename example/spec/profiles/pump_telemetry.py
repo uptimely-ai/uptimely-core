@@ -146,9 +146,8 @@ class PumpTelemetry(Profile):
                 compute=Binding(
                     function=io.read_pump_telemetry,
                     arguments=dict(
-                        source=ref.params("telemetry_source"),
-                        pump_assets_source=ref.params("pump_assets_source"),
-                        environment="development",
+                        pump_telemetry_source=ref.params("telemetry_source"),
+                        pump_source=ref.params("pump_assets_source"),
                     ),
                 ),
                 merge=merge.default(),
