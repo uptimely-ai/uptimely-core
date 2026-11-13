@@ -2,27 +2,26 @@
 
 **Current spec version: 8**
 
-The spec definition is a single JSON document describing profiles, feature
-dependencies, and function bindings. JSON is the shared format used by
-analytical declarations and the tools that validate, document, and compile them.
+The Spec is a JSON document that describes profiles, feature dependencies, and
+the functions used by operators. The same format is used by tools that check,
+document, and prepare the declarations for execution.
 
 ## Document Conventions
 
-The root is one JSON object. Dimensions, profiles, function templates,
+The root is one JSON object. Dimensions, profiles, functions,
 features, arguments, and operators use object keys as identifiers. Their IDs
 are derived from those keys. Operator entries do not include an `id` field.
 Identifiers should be stable, lowercase, and descriptive.
 
-Tables describe the current parser contract. A default applies when a field is
-omitted, but it does not generally make explicit `null` valid. Unknown fields are
-rejected. The JSON structure defines the same contract regardless of how a
-document is authored or consumed.
+Tables list the fields and values accepted by the current Spec format. A default
+is used when a field is omitted, but it does not usually make explicit `null`
+valid. Unknown fields cause an error. The JSON has the same meaning regardless
+of which tool reads it.
 
-Reference syntax is defined by each field. `$...` selectors are not a
-universal notation for every link between declarations. Some fields name a
-catalog entry directly, some identify a resource by a structured set of IDs,
-and selectors are used where the field accepts a value resolved from the
-document. Follow the syntax documented for the specific field.
+References use field-specific syntax. A field may use a declared ID, a
+dimension-resolution pair, or a `$...` selector. Fields that accept selectors
+are marked in their schema tables. See [Selectors](#selectors) for their syntax
+and examples. For object and array fields, selectors may appear in their values.
 
 For example, dimensions and profiles use their identifiers as object keys:
 
@@ -58,35 +57,50 @@ For example, dimensions and profiles use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `8` | Spec format version. Only version `8` is supported. |
-| `source` | object | No | `{"name": "manual", "generated": false}` | Authoring metadata. |
+| `spec_version` | integer | No | `8` | Spec format version. Only version `8` is accepted. |
+| `source` | object | No | `{"name": "manual", "generated": false}` | Information about where the document came from. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
 | `profiles` | object | No | `{}` | Profile definitions keyed by globally unique identifier. |
 
-`spec_version` versions the Spec JSON format, not a particular analytics
-project. Increment it when the format changes incompatibly. Readers reject
-unsupported values.
+Selectors not accepted as values.
 
-The Spec defines the build-time workflow. Project/runtime configuration supplies
-values and controls for execution. Runtime parameters can change results without
-changing the invocation graph.
+`spec_version` identifies the Spec JSON format, not a particular analytics
+project. Increment it when the format changes in a way that older readers
+cannot handle. Documents with another version are rejected.
 
-| Setting | Ownership | Rebuild required? |
+The Spec defines the workflow. Project configuration supplies values and
+settings for each run. These values can change results without changing which
+operations run or requiring the workflow to be rebuilt.
+
+| Setting | Where it is set | Rebuild required? |
 | --- | --- | --- |
-| Operators, bindings, and profile grain | Build-time workflow definition in the Spec | Yes |
-| Runtime parameters, source/sink locations, and validation controls | Project/runtime configuration and run options | Normally no |
+| Spec declarations, including dimensions, functions, profiles, and operators | Spec | Yes |
+| Runtime parameters and resource paths | `params` and `paths` in project runtime configuration | No |
+| Check returned data during a run | Run option: `uptimely run --validate` or `Engine.run(validate=True)` | No |
+| Engine backend | `engine.backend` in project runtime configuration | No, if it matches the backend required by the saved plan |
 
-The saved plan records its required backend. Runtime configuration cannot
-reinterpret it for an incompatible backend, which fails explicitly.
+The saved plan specifies which backend it uses. Choosing a different backend in
+project configuration causes an error.
 
-When supplied, `source` requires `name` (string) and `generated` (boolean).
-The default is `{"name": "manual", "generated": false}`. Generated documents
-can identify their generator in `name` and set `generated` to `true`.
+`source` records how the document was authored. Its fields are:
+
+| Field | JSON type | Required | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `name` | string | Yes, when `source` is supplied | N/A | Identifies the authoring source or generator. |
+| `generated` | boolean | Yes, when `source` is supplied | N/A | Indicates whether the document was generated. |
+
+Selectors not accepted as values.
+
+This example shows every document-root field, with one dimension and one
+profile. The `functions` object is empty because no reusable functions are
+declared.
 
 ```json
 {
   "name": "Data-center cooling pump analytics",
+  "spec_version": 8,
+  "source": {"name": "manual", "generated": false},
   "dimensions": {
     "machine": {
       "resolutions": {
@@ -94,6 +108,7 @@ can identify their generator in `name` and set `generated` to `true`.
       }
     }
   },
+  "functions": {},
   "profiles": {
     "pump_telemetry": {
       "grain": [{"dimension": "machine", "resolution": "pump"}]
@@ -104,10 +119,12 @@ can identify their generator in `name` and set `generated` to `true`.
 
 ## Dimensions
 
-A dimension identifies an observation axis and declares one or more keyed
-resolutions. Each resolution names a dataframe `key`, its logical `type`, and
-optionally a parent resolution from the same dimension. Parent links describe
+A dimension describes one aspect of observations and lists its resolutions.
+Each resolution names a dataframe column (`key`), its declared type, and
+optionally a parent resolution in the same dimension. Parent links describe a
 hierarchy and must not form cycles.
+
+Fields for dimensions:
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
@@ -115,65 +132,157 @@ hierarchy and must not form cycles.
 | `name` | string or null | No | Generated from the dimension identifier | Human-readable display name. |
 | `description` | string or null | No | `null` | Explanation of the dimension. |
 
+Selectors not accepted as values.
+
 Each resolution has the following fields:
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `key` | string | Yes | N/A | Dataframe column used for this resolution. |
-| `type` | string | Yes | N/A | Logical key type, such as `string`, `integer`, or `datetime`. |
+| `type` | string | Yes | N/A | Declared key type, such as `string`, `integer`, or `datetime`. |
 | `parent` | string or null | No | `null` | Identifier of a parent resolution in this dimension. |
 | `name` | string or null | No | `null` | Human-readable resolution label used by Explorer instead of the identifier when provided. |
 
+Selectors not accepted as values.
+
 Resolution IDs are local to their dimension, and the identity of a resolution is
 the pair of dimension and resolution IDs. The `parent` field names a resolution
-within its containing dimension, so it uses that resolution's bare ID rather
-than a selector. A parent link does not add a parent key to a profile or expand
-its observations.
+within its containing dimension. A parent link does not add a parent key to a
+profile or expand its observations.
+
+## Functions
+
+Each function declaration describes an operation by naming its implementation,
+the kind of result it returns, and the arguments it accepts. Operators use
+these declarations and supply values, feature inputs, and outputs.
+
+Functions are expressed as objects keyed by globally unique function
+identifiers.
+
+| Field | JSON type | Required | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `name` | string or null | No | Generated from the function identifier | Human-readable display name. |
+| `category` | string or null | No | `null` | Optional descriptive grouping. It does not change how the function is called or what it returns. |
+| `returns` | string | Yes | N/A | Result type: `dataframe`, `none`, or `any` when the result is ignored. |
+| `entrypoint` | string | Yes | N/A | Reference used to locate the function implementation. |
+| `validate_signature` | boolean | No | `true` | Whether to inspect the implementation signature during compilation and in Explorer. |
+| `args` | object | No | `{}` | Argument definitions keyed by argument name. |
+| `description` | string or null | No | `null` | Explanation of the function. |
+
+Selectors not accepted as values.
+
+When enabled, compilation checks that the implementation accepts the declared
+arguments as keywords, has no undeclared required parameters, and that any
+available parameter and return annotations are compatible. Explorer inspects
+the implementation signature to show its details. Neither check verifies
+calculated results. See the [Compiler](compiler.md) page for details.
+
+```json
+"sum_features": {
+  "returns": "dataframe",
+  "entrypoint": "spec:sum_features",
+  "validate_signature": false,
+  "args": {
+    "dataset": {"type": "dataframe"},
+    "left_feature": {"type": "string"},
+    "right_feature": {"type": "string"},
+    "output": {"type": "string"}
+  }
+}
+```
+
+### Arguments
+
+The `args` object lists the types of values a function accepts. A dataframe
+argument passes a dataframe value. Other arguments may pass identifiers,
+feature names, or resource settings. Each dataframe argument must be connected
+to a dataset in the operator declaration.
+
+| Field | JSON type | Required | Default | Meaning |
+| --- | --- | --- | --- | --- |
+| `type` | string | Yes | N/A | Argument type expression. |
+| `comment` | string or null | No | `null` | Optional explanatory comment. |
+
+Selectors not accepted as values.
+
+Argument definitions are keyed by argument name in the function's `args`
+object.
+
+### Argument Types
+
+Common argument type expressions are:
+
+| Type | Meaning |
+| --- | --- |
+| `string` | String value. |
+| `integer` | Integer value. |
+| `float` | Floating-point value. |
+| `boolean` | Boolean value. |
+| `dataframe` | Dataframe input. |
+| `dataframe | null` | Nullable dataframe input, used for a merge's initial dataset. |
+| `array` | Collection value. |
+| `object` | Dictionary value. |
+
+Homogeneous collections use recursive type expressions:
+
+```json
+"args": {
+  "dataset": {"type": "dataframe"},
+  "column": {"type": "string"},
+  "window": {"type": "string"},
+  "output": {"type": "string"},
+  "partition_by": {"type": "array[string]"},
+  "limits": {"type": "object{str: float}"}
+}
+```
+
+Use plain `array` or `object` for heterogeneous or unspecified contents.
+Argument types describe values passed to a function, not which features it
+uses.
+Nested expressions such as `object{str: array[string]}` are supported.
 
 ## Profiles
 
 A profile describes observations, their dimensions, features, operators, and
-optional metadata. Profiles are top-level and identified by a globally unique
-object key. Attributes must not include `id`. Its ordered `grain` selects one
-resolution per dimension and defines the dataframe key order. An empty grain
-represents a dimensionless profile.
+optional metadata. Each profile is identified by its globally unique object key. Do not include an
+`id` field. Its ordered `grain` selects one resolution per dimension and sets
+the dataframe key order. An empty grain means rows have no dimension
+keys.
 
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | Generated from the profile identifier | Human-readable display name. |
 | `description` | string or null | No | `null` | Explanation of the profile. |
 | `category` | string or null | No | `null` | Optional free-form grouping label. |
-| `scope` | string or null | No | `null` | Free-form descriptive metadata. It does not affect semantic validation or execution. |
+| `scope` | string or null | No | `null` | Free-form descriptive information. It does not affect validation or execution. |
 | `grain` | array of objects | No | `[]` | Ordered dimension-resolution references defining row detail. |
 | `relations` | array of objects | No | `[]` | Resolutions relating observations to foreign profiles without contributing to row identity. |
 | `order` | array of objects | No | `[]` | Logical ordering by selected grain references. |
 | `features` | object | No | `{}` | Feature metadata keyed by identifier. |
 | `assembly` | object | No | `{}` | Operators keyed by identifier, unique within this profile. |
 
+Selectors not accepted as values.
+
 Each grain reference contains a bare `dimension` identifier and a `resolution`
-identifier from that dimension. Together they identify the resolution, and neither
-value uses selector syntax. A profile cannot select multiple resolutions of
-one dimension, and selected dataframe keys must be distinct. Different
+identifier from that dimension. Together they identify the resolution. A
+profile cannot select multiple resolutions of one dimension, and selected
+dataframe keys must be distinct. Different
 dimensions remain independent axes, so a profile may select separate sales
 time and measurement time dimensions. The dimension registry describes what
 is available. A profile's grain declares what that profile actually selects.
 
-`relations` uses the same dimension-resolution reference shape as `grain`.
-It may include several resolutions of one dimension or resolutions from other
-dimensions. Relation columns must be distinct from each other, grain keys, and
-declared features. They do not change the profile's grain or imply a particular
-join or foreign-key constraint. The engine retains these keys when a fragment
-carries them. Declaring a relation does not calculate or load its values.
-Explorer labels grain resolutions **ID**, and lists related-profile columns
-as **Relation**, not as features. Identifiers define the profile grain.
-The term `keys` refers to both identifiers and relations.
+`relations` uses the same dimension and resolution references as `grain`. It
+may include several resolutions from one dimension or resolutions from other
+dimensions. Relation columns must be distinct from one another, grain keys,
+and declared features. Relations do not change which dimensions identify rows
+or specify how rows are joined. If a partial dataframe includes relation
+columns, the engine keeps them when assembling the result. Declaring a relation
+does not calculate or load its values. Explorer labels grain resolutions
+**ID** and related-profile columns **Relation**, not features. In this page,
+`keys` means both identifiers and relations.
 
-In Python, declare resolutions directly:
-
-```python
-grain = [machine.resolution("pump")]
-relations = [machine.resolution("fleet")]
-```
+In JSON, `grain`, `relations`, and `order` use dimension and resolution IDs
+directly:
 
 ```json
 "dimensions": {
@@ -211,14 +320,6 @@ relations = [machine.resolution("fleet")]
 }
 ```
 
-### Feature and Operator Identifiers
-
-Each key under `features` identifies a column's metadata. Each key under
-`assembly` identifies one operator, unique within its profile. An operator
-identifier names a compute instance, not a reusable function or an output
-feature. Multiple operators can invoke the same function with different
-arguments. The key supplies the operator ID. An `id` attribute is rejected.
-
 ### Scope
 
 `scope` is an optional free-form string for descriptive metadata, for example
@@ -226,32 +327,38 @@ an explanation of which observations are intended to belong to the profile.
 It is not interpreted: it does not filter observations, check coverage, or
 drive operator execution.
 
-The former `row_scope` object is not accepted.
+!!! info
+    Scope may support structural attributes in the future. For example, it
+    could include a list of values for a resolution in one of the profile's
+    dimensions.
 
-### Logical Order
+### Order
 
-| Field | JSON type | Required | Default | Description |
+| Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `dimension` | string | Yes | N/A | Dimension ID selected by the profile grain. |
 | `resolution` | string | Yes | N/A | Resolution ID selected for that dimension. |
 | `direction` | string | Yes | N/A | Sort direction: `asc` or `desc`. |
 
-Order references must be distinct members of the profile grain. Array position
-determines key precedence. Omission means no declared order. Null placement,
-collation, and ties are not specified. Time-based row context requires the
-selected resolution to have type `datetime`. Step-based row context requires
-type `integer`.
+Selectors not accepted as values.
 
-Order is a logical convention, not a physical sort or partition guarantee.
-Functions implement sorting and grouping themselves. Operator context inherits
-profile order to interpret preceding and following observations.
+Order references must be distinct members of the profile grain. Array position
+sets key precedence. If `order` is omitted, no order is declared. The format
+does not specify where null values appear, how text is sorted, or how ties are
+handled. Time-based row context requires the selected resolution to have type
+`datetime`. Step-based row context requires type `integer`.
+
+Declaring an order does not sort or divide the data. Functions handle sorting
+and grouping themselves. Operator context uses the profile's order to interpret
+preceding and following observations.
 
 ## Features
 
 A feature is a column describing a profile's observations, whether read from a
-source or calculated. Its profile registry declares the metadata once. The registry key
-is the feature ID. `name` is an optional human-readable label and defaults to
-the ID converted from snake or kebab case to title case:
+source or calculated. The profile's `features` object is keyed by feature ID,
+with each entry defining metadata for one column. `name` is an optional
+human-readable label and defaults to the ID converted from snake or kebab case
+to title case:
 
 ```json
 "features": {
@@ -271,11 +378,14 @@ the ID converted from snake or kebab case to title case:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | Generated from the feature identifier | Human-readable display name. |
-| `type` | string or null | No | `null` | Logical type of the feature. |
+| `type` | string or null | No | `null` | Declared type of the feature. |
 | `description` | string or null | No | `null` | Explanation of the feature. |
 | `unit` | string or null | No | `null` | Unit of measurement for the feature. |
 
-The built-in engine supports these feature types:
+Selectors not accepted as values.
+
+When runtime validation is enabled, the built-in engine checks feature columns
+against these types:
 
 | Type | Meaning |
 | --- | --- |
@@ -289,165 +399,24 @@ The built-in engine supports these feature types:
 | `object` | Structured value. |
 | `array` | List or array value. |
 
-Declare feature types explicitly: a tabular result's general type does not
+Declare feature types explicitly: a dataframe's general type does not
 describe the types of its individual columns.
 
-Feature identifiers must be globally unique and have exactly
-one producer. Dimension columns can recur across profiles.
+A non-dimension feature may belong to only one profile and may have at most one
+producing operator. Dimension columns can belong to more than one profile. A
+declared feature with no producer causes a warning, not an error.
 
-Feature and dimension registries describe the columns expected in tabular
-results. Runtime type checks and dataframe merge behavior are described in the
-execution engine guide.
+Feature and dimension registries describe the columns expected in returned
+dataframes. Runtime type checks and dataframe merge behavior are described in
+the execution engine guide.
 
-## Functions
+## Operator
 
-A function is a logical analytical function definition bound to an implementation. Each
-function declares an independent return contract and implementation entrypoint, plus the schema
-for its arguments. An operator binds a function to concrete arguments and feature
-inputs and outputs. When you build the project, each operator becomes a step in
-the execution plan. The engine runs those steps using the Python
-implementations.
-
-Functions are expressed as objects keyed by globally unique function
-identifiers.
-
-| Field | JSON type | Required | Default | Meaning |
-| --- | --- | --- | --- | --- |
-| `name` | string or null | No | Generated from the function identifier | Human-readable display name. |
-| `category` | string or null | No | `null` | Optional free-form function category for descriptive metadata. It does not affect execution or validation. |
-| `returns` | string | Yes | N/A | Independent return contract: `dataframe`, `none`, or `any` for an explicitly ignored result. |
-| `entrypoint` | string | Yes | N/A | Python import reference in `module.path:qualname` form. |
-| `validate_signature` | boolean | No | `true` | Whether compilation and documentation inspect the Python signature and check call compatibility and supported annotations. |
-| `args` | object | No | `{}` | Argument definitions keyed by argument name. |
-| `description` | string or null | No | `null` | Explanation of the function. Python declarations default it to the implementation's docstring summary line. |
-
-When `validate_signature` is `true`, the Python entrypoint is checked for
-keyword-call compatibility with declared arguments, undeclared required
-parameters, positional-only parameters, and supported annotation
-contradictions. Annotations are optional. A known incompatible annotation is
-invalid. When it is `false`, compilation and documentation do not inspect the
-callable signature. This disables only implementation signature checks:
-declared contracts, binding arguments, feature dependencies, package
-provenance, and entrypoint syntax are still validated.
-Execution still requires a loadable implementation. Function packages must be
-installed in both the build and runtime environments. Uptimely does not install
-them or add project paths to `sys.path`. Recorded distribution versions are
-provenance only and are not enforced at runtime. Ambiguous installed package
-namespaces are reported explicitly.
-
-An entrypoint identifies the implementation associated with a function. Python
-imports the module and resolves the callable's qualified name.
-
-```json
-"sum_features": {
-  "returns": "dataframe",
-  "entrypoint": "spec:sum_features",
-  "validate_signature": false,
-  "args": {
-    "dataset": {"type": "dataframe"},
-    "left_feature": {"type": "string"},
-    "right_feature": {"type": "string"},
-    "output": {"type": "string"}
-  }
-}
-```
-
-Python spec declarations execute during source loading. If an analytical
-implementation is unavailable in that environment, declare its entrypoint as a
-string and do not import the implementation from the spec declaration itself.
-
-Operator identifiers and feature names can differ from the function identifier.
-Function definitions have no `kind` field. A callable's argument and return
-contract must agree across all its bindings. Its role and operator relationships
-are established at each usage.
-
-### Binding roles and derived operator labels
-
-Compute bindings accept zero or one dataframe argument and declare an independent
-return contract. Merge bindings accept exactly two dataframe arguments and return
-a dataframe. A merge consumes its current dataset and its operator's staged
-fragment. The dataset may be nullable for initialization. Binding arity counts
-argument slots, not distinct referenced profiles, even when inspection is disabled.
-
-With a merge, compute returns a fragment. Without one, a dataframe result is
-the complete target. Omission never selects a default merge. Python authors
-can explicitly choose `merge=up.merge.default()`. JSON authors select the
-builtin merge binding:
-
-```json
-"merge": {
-  "function": "merge_by_grain",
-  "args": {
-    "dataset": "$profiles.@.dataset",
-    "fragment": "$operators.@.fragment",
-    "dataset_identifiers": "$profiles.@.grain.ids"
-  }
-}
-```
-
-The framework derives labels such as `read`, `vectorize`, `conform`, `expand`,
-and `collapse` from a binding's return contract, dataframe source, and target
-grain. They are not callable classifications: the same function can have
-different labels in different operators. Shared derived Spec views expose the
-grain relationship, execution form (`compute` or `compute + merge`), and binding
-roles separately.
-The grain relationship does not determine the execution form or runtime result
-contract. Categories remain descriptive and are used only for function
-catalog grouping in Explorer. `returns="any"` explicitly ignores a result and
-allows logical dependencies without materializing outputs. `returns="none"`
-declares no output and cannot declare materialized features.
-
-### Arguments
-
-The `args` schema declares reusable argument types. A dataframe argument
-represents a dataset input. Other arguments may carry identifiers, features, or
-external resource settings. Each dataframe argument must be
-explicitly bound to a dataset. The engine does not implicitly pass the
-operator's accumulated dataframe.
-
-| Field | JSON type | Required | Default | Meaning |
-| --- | --- | --- | --- | --- |
-| `type` | string | Yes | N/A | Argument type expression. |
-| `comment` | string or null | No | `null` | Optional explanatory comment. |
-
-Argument definitions are keyed by argument name in the function's `args`
-object.
-
-### Argument Types
-
-Common argument type expressions are:
-
-| Type | Meaning |
-| --- | --- |
-| `string` | String value. |
-| `integer` | Integer value. |
-| `float` | Floating-point value. |
-| `boolean` | Boolean value. |
-| `dataframe` | Tabular dataset input. |
-| `dataframe | null` | Nullable tabular input, used for a merge's initial dataset. |
-| `array` | Collection value. |
-| `object` | Dictionary value. |
-
-Homogeneous collections use recursive type expressions:
-
-```json
-"args": {
-  "dataset": {"type": "dataframe"},
-  "column": {"type": "string"},
-  "window": {"type": "string"},
-  "output": {"type": "string"},
-  "partition_by": {"type": "array[string]"},
-  "limits": {"type": "object{str: float}"}
-}
-```
-
-Use plain `array` or `object` for heterogeneous or unspecified contents.
-Argument types describe implementation values, not feature dependencies.
-Nested expressions such as `object{str: array[string]}` are supported.
-
-## Operator Interface and Compute
-
-An operator separates analytical requirements from its computation:
+An operator describes the inputs and outputs of one calculation and names the
+function that performs it. Each key under the profile's `assembly` object
+identifies one operator. Do not include an `id` field. The key names this
+calculation, not a reusable function or output feature. Multiple operators can
+use the same function with different arguments.
 
 ```json
 {
@@ -458,7 +427,7 @@ An operator separates analytical requirements from its computation:
         "outputs": ["$features.temperature_mean"]
       },
       "row_context": {
-        "dimension": "$dimensions.timestamp",
+        "dimension": "$dimensions.measurement_time",
         "before": {"time": "8h"},
         "after": {"time": "0s"}
       },
@@ -476,123 +445,103 @@ An operator separates analytical requirements from its computation:
 }
 ```
 
-| Field | JSON type | Required | Default | Meaning |
-| --- | --- | --- | --- | --- |
-| `interface` | object | No | Empty lists | Explicit prerequisites and outputs. |
-| `interface.inputs` | array of strings | No | `[]` | Materialized features required before the call. |
-| `interface.outputs` | array of strings | No | `[]` | Features produced in the owning profile. |
-| `row_context` | object or null | No | `null` | Surrounding-observation requirements. |
-| `compute` | object | Yes | N/A | Function invocation. |
-| `compute.function` | string | Yes | N/A | Function-catalog key identifying the definition to invoke. Use the bare function ID, not a `$functions` selector. |
-| `compute.args` | object | No | `{}` | Concrete arguments matching the template schema. |
-| `merge` | object or null | No | `null` | Optional merge function invocation for a staged fragment. |
-| `merge.function` | string | Yes when `merge` is set | N/A | Function-catalog key. Its binding position establishes the merge role. |
-| `merge.args` | object | No | `{}` | Arguments including the current dataset and this operator's staged fragment. |
+| Field | JSON type | Selector | Required | Default | Meaning |
+| --- | --- | --- | --- | --- | --- |
+| `interface` | object | No | No | Empty lists | Explicit prerequisites and outputs. |
+| `interface.inputs` | array of strings | Yes | No | `[]` | Features that must be available before the function runs. |
+| `interface.outputs` | array of strings | Yes | No | `[]` | Features produced in the owning profile. |
+| `row_context` | object or null | No | No | `null` | Surrounding-observation requirements. |
+| `compute` | object | No | Yes | N/A | Function call. |
+| `compute.function` | string | No | Yes | N/A | ID of the function to call. Use the function ID without a selector. |
+| `compute.args` | object | Yes | No | `{}` | Values passed to the function. |
+| `merge` | object or null | No | No | `null` | Optional function that combines the current dataset with the compute result. |
+| `merge.function` | string | No | Yes when `merge` is set | N/A | ID of the function that combines the data. |
+| `merge.args` | object | Yes | No | `{}` | Arguments including the current dataset and the compute result. |
 
-Input and output lists contain distinct `$features.<id>` references, without
-selectors. Inputs establish feature dependencies even when not passed as
-arguments.
-Identifiers and relations must not appear in either list: declare them through
-profile `grain` and `relations`. They are schema and assembly columns, not
-feature-lineage dependencies. Python authoring does not inject them into outputs
-and excludes them from inferred feature inputs. Explicit key references in an
-interface are rejected.
-Conversely, passing a feature identifier is not a declaration that its data
-must exist. Declare every consumed feature in `inputs`.
+### Compute
 
-Outputs reference the owning profile's feature registry and are the only
-declaration of features produced by an operator. Compute arguments may use
-feature references to pass identifiers, including output names. Those arguments
-do not infer inputs or outputs. Profile identifiers are required in every
-returned table, even when omitted from `outputs`.
-A write operator declares empty outputs and explicitly lists its required inputs.
-Data-producing operators require at least one feature output, except source
-readers that only supply profile identifiers or relations. No operator can
-redeclare identifiers or relations as feature outputs. Collapse must produce at
-least one feature. There is no binding-level `return` field.
+`compute.args` supplies values to the function named in `compute.function`.
+That function may accept at most one dataframe argument. If the operator also
+declares a merge, the compute function must return a dataframe. This result is
+a partial dataframe, called a fragment. Without a merge, the returned dataframe
+becomes the target profile's dataframe. It must include the target keys and the
+operator's declared outputs, but it does not need every feature declared for
+the profile. Count dataframe arguments in the function declaration, even when
+more than one refers to the same profile. If the compute function has a
+dataframe argument, it receives the source profile's dataframe.
 
-Each `read`, `conform`, `collapse`, or `expand` result is a fragment containing
-the target dataset's complete dimension keys and that operator's declared
-outputs. An `expand` fragment may omit dimension keys its lower-dimensional
-source cannot supply. The engine left-joins it onto the accumulated dataset by
-the keys it carries. The engine validates required columns, types, and unique
-keys, then
-assembles same-profile fragments by key with a full outer join. Partial
-coverage is retained. Duplicate keys and overlapping feature outputs are
-rejected. See the [engine fragment contract](engine.md#datasets-and-fragments) for runtime
-details.
+Input and output lists contain distinct `$features.<id>` references. Inputs
+list the features the calculation reads, even when they are not passed as
+arguments. Do not list identifiers or relations there. Declare those through
+the profile's `grain` and `relations`. Passing a feature name as an argument
+does not list it as an input. The `inputs` list describes features needed by
+the compute function, not data used by the merge function.
 
-### Merge bindings
+Outputs must name features declared for the profile. They are the only way to
+declare which features an operator produces. Passing a feature name as an
+argument does not declare it as an input or output. A target dataframe must
+include all target dimension keys and the operator's declared outputs. A
+column transform of an existing target dataframe must retain its existing
+columns.
 
-Declare `merge` explicitly to stage and assemble a fragment. Without a merge,
-a dataframe compute result publishes the complete target. The binding is part of the build-time Spec and
-plan. Changing it requires rebuilding. Runtime configuration does not select or
-change the merge function.
+A write operator has no outputs and lists its required inputs. Other operators
+that produce data must declare at least one feature output, except source
+readers that provide only profile identifiers or relations. A collapse
+operator must produce at least one feature. The function declaration specifies
+what kind of result it returns.
 
-When declared, `merge.args.dataset` must be `$profiles.@.dataset` and
-`merge.args.fragment` must be `$operators.@.fragment`. The dataset is nullable
-for the first merge. Python declarations use `ref.dataset()` and `ref.fragment()`.
-Merge bindings cannot reference features. Assembly
-uses the target profile's declared dimensions to determine join keys.
-`interface.inputs` declares compute dependencies only.
+When a merge is declared, the compute result is a fragment. It must include the
+target keys available in its source profile and the operator's declared
+outputs. For an `expand` operation, the fragment may omit target keys that its
+source profile does not have. See the [Engine guide](engine.md#datasets-and-fragments)
+for details on combining and checking fragments.
 
-### Compute syntax
+Use selectors in `compute.args` only where the argument accepts them. See
+[Selectors](#selectors) for supported references and their value types.
 
-| Argument reference | Argument type | Value supplied to the implementation |
-| --- | --- | --- |
-| `$features.<id>.id` | `string` | Feature identifier string. |
-| `$dimensions.<id>.id` | `string` | Dimension identifier string. |
-| `$dimensions.<id>.resolutions.<resolution_id>.id` | `string` | Resolution identifier string. |
-| `$dimensions.<id>.resolutions.<resolution_id>.key` | `string` | Dataframe key declared for that resolution. |
-| `$dimensions.<id>.resolutions.<resolution_id>.type` | `string` | Logical key type declared for that resolution. |
-| `$dimensions.<id>.resolutions.<resolution_id>.parent` | `string` or `null` | Parent resolution ID, if declared. |
-| `$profiles.<id>.grain.ids` | `array[string]` | Dataframe key names selected by that profile's grain. |
-| `$profiles.@.grain.ids` | `array[string]` | Dataframe key names selected by the operator's target profile. |
-| `$profiles.<id>.dataset` | `dataframe` | Materialized table for that profile. |
-| `$profiles.@.dataset` | `dataframe` | Current profile's input-ready table. |
-| `$profiles.<id>.id` | `string` | Profile identifier string. |
-| `$features.@.id` | `string` | The sole vectorize or collapse feature output. |
+### Merge
 
-These selectors apply to compute and merge argument values. They are not a general
-replacement for the references elsewhere in the document. For example,
-`compute.function` uses a function-catalog key, grain uses a
-`dimension`/`resolution` pair, and a resolution's `parent` uses a bare
-resolution ID scoped to its dimension. Compute arguments can select resolution
-metadata with `$dimensions.<id>.resolutions.<resolution_id>.<property>`.
-`row_context.dimension` accepts `$dimensions.<id>` as its dimension reference.
+The merge is optional, but declare it explicitly. Its function must accept
+exactly two dataframe arguments, `dataset` and `fragment`. It may also accept
+other arguments. Set `dataset` to `$profiles.@.dataset` and `fragment` to
+`$operators.@.fragment`. Before the first merge, `dataset` may be null. The
+function must return a dataframe containing the accumulated dataset and
+fragment columns, with no additional columns. Merge arguments cannot reference
+features.
 
-Unsuffixed references remain supported. Their template argument type determines
-whether a profile identifier is resolved to data. Prefer explicit selectors
-when writing new declarations. `.id` arguments require `string`, and
-`.dataset` arguments require `dataframe`. Grain-key selectors require
-`array[string]`, and their keys must be selected by the target and every referenced
-dataframe profile. Use only the listed forms for compute arguments.
+To use the built-in merge, set its function key in the JSON Spec:
 
-Merge arguments additionally support `$operators.@.fragment`, which supplies
-the current operator's staged fragment as a dataframe. `$profiles.@.dataset`
-in a merge binding supplies the current dataset, or null before initialization.
+```json
+"merge": {
+  "function": "merge_by_grain",
+  "args": {
+    "dataset": "$profiles.@.dataset",
+    "fragment": "$operators.@.fragment",
+    "dataset_identifiers": "$profiles.@.grain.ids"
+  }
+}
+```
 
-In Python declarations, use `ref.profile().grain.ids` or
-`ref.profile("source").grain.ids` for the corresponding selector. Grain-key
-selectors are explicit binding values. Grouping, ordering, and other dimension
-references do not implicitly declare matching keys. For a dimensional
-operation, pass the selected dataset keys as its explicit matching-key argument.
-The operation's source dataframe remains its only dataframe argument.
+The built-in merge matches rows using the target profile's dimension keys.
+Custom merge functions may use different rules. See the
+[Engine guide](engine.md#fragment-and-merge) for details.
 
 ### Row Context
 
-`row_context` belongs to the operator, not its features or function template.
-It describes the greatest required input reach across all calculations in that
-operator. It does not describe returned rows or alter full-table execution.
+`row_context` belongs to the operator, not its features or function
+declaration. It describes how much surrounding input data its calculations
+need. It does not change which rows a function returns or limit execution to a
+subset of rows.
 
-| Field | Required | Default | Meaning |
-| --- | --- | --- | --- |
-| `dimension` | Conditional | N/A | Reference to a declared input dimension. Required for `time` or `steps`. |
-| `before` | No | `{}` | Required preceding context. |
-| `after` | No | `{}` | Required following context. |
+| Field | JSON type | Selector | Required | Default | Meaning |
+| --- | --- | --- | --- | --- | --- |
+| `dimension` | string | Yes | Conditional | N/A | Reference to a declared input dimension. Required for `time` or `steps`. |
+| `before` | object, string, or integer | No | No | `{}` | Required preceding context. A nonnegative integer is a row-count shorthand. |
+| `after` | object, string, or integer | No | No | `{}` | Required following context. A nonnegative integer is a row-count shorthand. |
 
-Each direction is an object containing at most one measurement, or the string
-`"unbounded"`. Both directions use the same measurement:
+Each direction can be an object with at most one of these measurements, the
+string `"unbounded"`, or a nonnegative integer shorthand for a row count. When
+both directions use a measurement, they must use the same one:
 
 | Measurement | Allowed bound | Dimension |
 | --- | --- | --- |
@@ -600,8 +549,8 @@ Each direction is an object containing at most one measurement, or the string
 | `steps` | Nonnegative integer or `"unbounded"`. | Integer. |
 | `rows` | Nonnegative integer or `"unbounded"`. | None. Ordering follows the profile order. |
 
-Only fixed dimension-based windows and row counts are supported. Feature-valued
-axes and data-dependent window sizes are not supported.
+Only fixed time or step windows and row counts are supported. A window cannot
+depend on feature values or on a size calculated from the data.
 
 ```json
 "row_context": {
@@ -610,16 +559,17 @@ axes and data-dependent window sizes are not supported.
 }
 ```
 
-An omitted or null context is unknown. Empty or zero directions explicitly mean
-current-row-only context. Two unbounded directions require the whole input and
-need no order. One unbounded direction still needs logical ordering.
-Functions handle grouping and sorting themselves.
+Omitting `row_context` or setting it to null means the required range is
+unspecified. Empty or zero directions mean only the current row is needed. Two
+unbounded directions require the whole input and no declared order. One
+unbounded direction still requires an order. Functions handle grouping and
+sorting themselves.
 
-Nonzero directional requirements need profile order. A time/step dimension must
-belong to the input profile and have the matching type. When directional context
-requires ordering, that dimension must also occur in the profile's order.
-For dimension-removing operations, validation uses the inferred source profile
-rather than the target. Other operations use the target profile.
+Nonzero directional requirements need a profile order. A time or step dimension
+must belong to the input profile and have the matching type. If the context
+requires ordering by that dimension, include it in the profile's `order`. For
+operations that remove dimensions, checks use the source profile identified
+from the inputs. Other operations use the target profile.
 
 Fixed durations use these distinct lowercase suffixes:
 
@@ -635,34 +585,96 @@ Fixed durations use these distinct lowercase suffixes:
 | `ns` | Nanoseconds |
 
 Durations are nonnegative, contain no whitespace, and have nanosecond or
-coarser precision.
+coarser precision. A duration may combine units, such as `"1h30m"`, but may
+use each unit suffix only once.
 
 An eight-row rolling window including the current row needs seven preceding
 rows. An eight-hour window ending two hours ago needs ten hours before.
-Declarations must describe actual reach, not merely the window parameter.
+The declaration must cover the data the calculation actually needs, not just
+repeat its window parameter.
+
+## Selectors
+
+Selectors let a field refer to a declared resource, one of its attributes, or
+a runtime value. Use them only in fields marked `Yes` in the `Selector` column
+of the schema tables. For object and array fields, a selector may appear inside
+the value.
+
+Some fields use a selector to identify a resource directly. For example,
+`interface.inputs` and `interface.outputs` use feature selectors such as
+`$features.temperature_mean`, while `row_context.dimension` uses a dimension
+selector such as `$dimensions.measurement_time`. Other fields require a plain
+identifier or a structured value instead. For example, `compute.function`
+takes a function ID, and `grain` uses a `dimension` and `resolution` pair.
+
+### Function argument selectors
+
+Function arguments can use these structural selectors:
+
+| Argument reference | Argument type | Value passed to the function |
+| --- | --- | --- |
+| `$features.<id>.id` | `string` | Feature identifier string. |
+| `$dimensions.<id>.id` | `string` | Dimension identifier string. |
+| `$dimensions.<id>.resolutions.<resolution_id>.id` | `string` | Resolution identifier string. |
+| `$dimensions.<id>.resolutions.<resolution_id>.key` | `string` | Dataframe key declared for that resolution. |
+| `$dimensions.<id>.resolutions.<resolution_id>.type` | `string` | Declared type of that key. |
+| `$dimensions.<id>.resolutions.<resolution_id>.parent` | `string` | Parent resolution ID, or `null` when no parent is declared. |
+| `$profiles.<id>.grain.ids` | `array[string]` | Dataframe key names selected by that profile's grain. |
+| `$profiles.@.grain.ids` | `array[string]` | Dataframe key names selected by the operator's target profile. |
+| `$profiles.<id>.dataset` | `dataframe` | Dataframe for that profile. |
+| `$profiles.@.dataset` | `dataframe` | Dataframe for the current target profile. |
+| `$profiles.<id>.id` | `string` | Profile identifier string. |
+| `$features.@.id` | `string` | The operator's feature output ID when it declares exactly one output. |
+| `$operators.@.fragment` | `dataframe` | Fragment produced by the compute function for the merge function. |
+
+Use `$profiles.@.dataset` as the merge dataset and `$operators.@.fragment` as
+the merge fragment. The fragment selector is accepted only in `merge.args`.
+
+Use the declared argument type that matches the selected value. For example,
+`.id` requires `string`, `.dataset` requires `dataframe` (or `dataframe | null`
+for the initial merge dataset), and grain-key selectors require
+`array[string]`. Grain keys must be selected by the target profile and every
+profile whose dataframe is passed to the function. The `.parent` selector must
+be declared as `string` and names a resolution in the same dimension, though
+it resolves to `null` when no parent is set.
+
+The `@` marker refers to the current target profile in `$profiles.@` and the
+current operator in `$features.@` or `$operators.@`. `$features.@.id` is only
+available when the operator declares exactly one output.
+
+Compute arguments can also use feature metadata, such as
+`$features.<id>.name`. Function arguments can select other resource metadata,
+such as `$profiles.<id>.category`, and the current operator's row context
+through `$operators.@.row_context.dimension`,
+`$operators.@.row_context.before`, and `$operators.@.row_context.after`.
+Compute and merge arguments can select runtime values with `$params.<name>` and
+`$paths.<name>`. These values come from project runtime configuration and are
+resolved during execution. Merge arguments cannot reference features.
+
+Selecting a dimension or resolution does not pass its dataframe key
+automatically. Use a key selector or pass the selected dataset keys as an
+explicit argument when the function needs them, such as for grouping or
+matching rows across dimensions.
 
 ## Validation
 
-Document-model validation checks the Spec version, field types, required
-values, and rejects unknown fields. Semantic Spec validation checks that
-declarations fit together: references and feature dependencies are valid and
-unambiguous, function bindings match their argument and return contracts,
-binding roles obey dataframe arity, feature producers are unique, row-context
-requirements match their dimensions and ordering, and feature dependencies
-are acyclic. `returns="any"` must be declared explicitly when a callable's
-result is intentionally ignored. Spec validation does
-not require escape inputs to be produced by a `read` operator. Escape outputs
-count as logical feature producers for dependency validation, but are not
-materialized by the engine. A declared feature without a producing operator
-triggers a warning rather than preventing the Spec from loading. Validation
-does not import implementations or inspect calculated data.
+Spec validation checks the version, field types, required values, and rejects
+unknown fields. It checks structural references against declared resources,
+function arguments and return rules against their operator roles, row context
+against input dimensions and order, and feature requirements for cycles. Each
+non-dimension feature may have at most one producer. Declare `returns: "any"`
+when the function's result is intentionally ignored. Outputs from an `escape`
+operator satisfy feature requirements during validation, but the engine does
+not create their data. A declared feature with no producing operator causes a
+warning, but does not prevent the Spec from loading. Spec validation does not
+import implementations or inspect calculated data. Parameter and path
+references are resolved from project configuration during execution.
 
-Compilation checks whether a Spec can produce a selected, schedulable plan.
-The engine checks runtime values and returned data, including whether declared
-feature types match actual columns. For the `validate_spec()` API and its
-ordered semantic checks, see the
-[Python validation reference](../reference/python/spec/validation.md).
+Compilation checks whether the declared workflow can be run for the selected
+profiles. During execution, the engine always checks dataframe types and
+required columns. When run validation is enabled with `uptimely run --validate`
+or `Engine.run(validate=True)`, it also checks input-feature availability, key
+uniqueness, preservation rules, and declared column types.
 
 The built-in engine currently accepts Polars `DataFrame` and `LazyFrame`
-values only. Other dataframe representations and custom adapters are not part
-of this contract.
+values only. It does not accept other dataframe types or custom adapters.
