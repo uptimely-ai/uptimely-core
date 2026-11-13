@@ -2,11 +2,10 @@
 
 Uptimely Core is evolving from batch-oriented analytics toward more reliable,
 extensible execution and easier exploration of analytical dependencies.
-near-term work improves Explorer navigation and lineage views and moves the
+Near-term work improves Explorer navigation and lineage views and moves the
 data-center cooling pump demo to a live server for protected Spec editing,
-calculations, and MCP chat. The
-[demo deployment plan](data-center-cooling-pump-demo-deployment.md) recommends
-a managed Python service and hosted model API rather than operating a local model first.
+calculations, and MCP chat. The [live demo release](release-14-live-demo-mcp.md)
+plans Scaleway hosting and a hosted model API rather than operating a local model first.
 Other packages strengthen
 data adapters, validation, configuration, and execution planning.
 The [automated testing release](release-16-automated-testing.md) adds named
