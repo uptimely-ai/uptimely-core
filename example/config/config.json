@@ -7,11 +7,11 @@
     }
   },
   "params": {
-    "constants_source": "example/data/input/constants.json",
-    "pump_assets_source": "example/data/input/pump_assets.json",
-    "pump_series_source": "example/data/input/pump_series.json",
-    "pump_category_source": "example/data/input/pump_category.json",
-    "pump_external_inputs_source": "example/data/input/pump_external_workflow.csv",
-    "telemetry_source": "example/data/input/pump_telemetry.json"
+    "constants_source": "data/input/constants.json",
+    "pump_assets_source": "data/input/pump_assets.json",
+    "pump_series_source": "data/input/pump_series.json",
+    "pump_category_source": "data/input/pump_category.json",
+    "pump_external_inputs_source": "data/input/pump_external_workflow.csv",
+    "telemetry_source": "data/input/pump_telemetry.json"
   }
 }

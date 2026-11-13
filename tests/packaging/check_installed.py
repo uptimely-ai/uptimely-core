@@ -4,9 +4,9 @@ import importlib.metadata
 import json
 import os
 import pathlib
-import shutil
 import subprocess
 import sys
+import tarfile
 import tempfile
 import unittest
 
@@ -33,10 +33,12 @@ class InstalledImportsTest(unittest.TestCase):
         self.assertTrue(executable.is_file(), f"Missing installed console script: {executable}")
         self.executable = executable
 
-    def command(self, *arguments: str, succeeds: bool = True) -> subprocess.CompletedProcess[str]:
+    def command(
+        self, *arguments: str, succeeds: bool = True, cwd: pathlib.Path | None = None
+    ) -> subprocess.CompletedProcess[str]:
         result = subprocess.run(
             [str(self.executable), *arguments],
-            cwd=self.root,
+            cwd=cwd or self.root,
             env=self.environment,
             capture_output=True,
             text=True,
@@ -52,26 +54,39 @@ class InstalledImportsTest(unittest.TestCase):
         return result
 
     def test_environment_is_not_editable_or_using_the_checkout(self) -> None:
-        for module in (uptimely, example, installed_analytics):
+        for module in (uptimely, installed_analytics):
             with self.subTest(module=module.__name__):
                 self.assertIsNotNone(module.__file__)
                 location = pathlib.Path(module.__file__).resolve()
                 self.assertTrue(location.is_relative_to(sys.prefix), str(location))
                 self.assertFalse(location.is_relative_to(REPOSITORY_ROOT), str(location))
         for entry in sys.path:
+            if entry.endswith(".__path_hook__"):
+                continue
             self.assertFalse(pathlib.Path(entry).resolve().is_relative_to(REPOSITORY_ROOT), entry)
         distribution = importlib.metadata.distribution("uptimely-core")
         direct_url = json.loads(distribution.read_text("direct_url.json") or "{}")
         self.assertFalse(direct_url.get("dir_info", {}).get("editable", False))
         packaged_files = [str(path) for path in distribution.files or []]
-        self.assertTrue(any(path.startswith("example/") for path in packaged_files))
-        self.assertFalse(any("/_generated/" in path for path in packaged_files))
+        self.assertFalse(any(path.startswith("example/") for path in packaged_files))
+        distribution_directory = pathlib.Path(
+            os.environ.get("UPTIMELY_DIST_DIR", REPOSITORY_ROOT / "dist")
+        )
+        source_distribution = distribution_directory / (
+            f"uptimely_core-{importlib.metadata.version('uptimely-core')}.tar.gz"
+        )
+        with tarfile.open(source_distribution) as archive:
+            self.assertFalse(any("/example/" in name for name in archive.getnames()))
+        self.assertIsNotNone(example.__file__)
+        self.assertFalse(pathlib.Path(example.__file__).resolve().is_relative_to(REPOSITORY_ROOT))
+        self.assertEqual(
+            importlib.metadata.packages_distributions()["example"], ["uptimely-pump-example"]
+        )
 
-    def test_all_examples_build_and_run_from_installed_wheel(self) -> None:
-        examples_root = pathlib.Path(example.__file__).parent
-        project = self.root / "example"
-        shutil.copytree(examples_root, project)
-        result = self.command("project", "build", "--project-root", str(project))
+    def test_standalone_example_builds_and_runs(self) -> None:
+        self.assertIsNotNone(example.__file__)
+        project = pathlib.Path(example.__file__).parent
+        result = self.command("project", "build", "--project-root", str(project), cwd=project)
         self.assertIn("Build files created", result.stdout)
         build = project / "_generated" / "build"
         snapshot = json.loads(
@@ -91,13 +106,13 @@ class InstalledImportsTest(unittest.TestCase):
         for entrypoint, package in packages.items():
             top_level_package = entrypoint.partition(":")[0].partition(".")[0]
             expected_distribution = {
-                "example": "uptimely-core",
+                "example": "uptimely-pump-example",
                 "polars": "polars",
                 "uptimely": "uptimely-core",
             }[top_level_package]
             self.assertEqual(package["distribution"], expected_distribution)
             self.assertEqual(package["version"], importlib.metadata.version(expected_distribution))
-        result = self.command("run", str(project), "--preview", "2")
+        result = self.command("run", str(project), "--preview", "2", cwd=project)
         self.assertIn("Engine processed", result.stdout)
         self.assertIn("Profile:", result.stdout)
 

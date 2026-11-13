@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- The pump example installs as a Python package, with setup instructions for
+  pip, Poetry, and uv.
 - MCP tools can execute a selected analytical function or operator with its saved
   prerequisites, excluding downstream sinks. They also summarize spec feature
   counts and inspect the latest engine run and its filtered logs.
@@ -28,6 +30,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- The example is available in the repository's development environment but is
+  no longer bundled in Uptimely Core distributions.
 - The example project organizes its importable functions in `src/analytics.py`,
   `src/io.py`, and `src/merge.py`. Rebuild existing example bundles after updating.
 - Example input data now lives in `data/input/`. Project guidance reserves
