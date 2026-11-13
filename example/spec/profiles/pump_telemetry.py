@@ -1,8 +1,8 @@
 """Minute-level pump profile and declarative dataframe transformations."""
 
 import polars as pl
-from example.functions import analytics
 from example.spec import dimension
+from example.src import analytics
 
 from uptimely import (
     Binding,

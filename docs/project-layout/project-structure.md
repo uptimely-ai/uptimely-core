@@ -11,7 +11,7 @@ project/
 ├── data/
 │   ├── input/
 │   └── output/
-├── functions/
+├── src/
 │   └── analytics.py
 ├── config/
 │   └── config.json
@@ -38,7 +38,7 @@ project/
 | --- | --- |
 | `data/input/` | Raw data and reference datasets used by the workflow. |
 | `data/output/` | Results you want to keep, share, or reuse. |
-| `functions/` | Reusable Python code for data access, calculations, and output. |
+| `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
 | `_generated/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
 | `config/config.json` | Engine settings under `engine` and runtime parameter values under `params`. |

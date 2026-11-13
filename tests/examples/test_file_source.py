@@ -4,7 +4,7 @@ import pathlib
 
 import polars as pl
 import pytest
-from example.functions import source
+from example.src import source
 
 
 @pytest.mark.parametrize("extension", ["json", "csv"])

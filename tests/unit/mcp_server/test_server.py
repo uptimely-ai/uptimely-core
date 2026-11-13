@@ -8,7 +8,7 @@ import shlex
 import sys
 
 import pytest
-from example.functions import external_workflow
+from example.src import external_workflow
 from support import examples as example_support
 
 fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed")
@@ -167,7 +167,7 @@ async def test_describe_function_reports_bindings_and_derived_operator_usage(
     definition.functions.root["external_audit"] = spec_model.FunctionTemplate(
         id="external_audit",
         returns="any",
-        entrypoint="example.functions.analytics:aggregate",
+        entrypoint="example.src.analytics:aggregate",
     )
     dataset = definition.profiles["pump_telemetry"]
     dataset.assembly["external_audit"] = spec_model.Operator(
