@@ -12,7 +12,7 @@ Author the data science workflow in Python. Build and run from command line. Exp
 
 > [!WARNING]
 > This project is still at version `0.x`: minor
-> releases may include breaking changes. See the [changelog](CHANGELOG.md)
+> releases may include breaking changes. See the [changelog](https://github.com/uptimely-ai/uptimely-core/blob/main/CHANGELOG.md)
 > for details.
 
 ## Demo
@@ -52,13 +52,21 @@ This short workflow downloads, builds, and runs the included data-center
 cooling-pump example. The build compiles its analytical definition into an
 execution plan.
 
-With Poetry, prefix these commands with `poetry run`.
+With Poetry, prefix the `uptimely` commands with `poetry run`.
 
 Download the example project:
 
 ```sh
 uptimely example --dir pump-analytics
 ```
+
+Install the downloaded example in the same environment:
+
+```sh
+python -m pip install -e ./pump-analytics
+```
+
+In a Poetry project, use `poetry add ./pump-analytics` instead.
 
 Build the project:
 
@@ -94,7 +102,7 @@ Open <http://127.0.0.1:8001/> to view the Explorer.
 
 ## Python API
 
-The previous example was built by the [Python-authored example specification](example/). The specification describes profiles, grains, features and operators. Functions remain pure Python.
+The previous example was built by the [Python-authored example specification](https://github.com/uptimely-ai/uptimely-core/tree/main/example). The specification describes profiles, grains, features and operators. Functions remain pure Python.
 
 Here is even more simplified example.
 
@@ -185,20 +193,20 @@ result = Engine(bundle).run()
 
 | Path | Purpose |
 | --- | --- |
-| [`docs/`](docs/index.md) | Architecture, specification, and development documentation. |
-| [`example/`](example/README.md) | Runnable examples and generated artifacts. |
-| [`scripts/`](scripts) | Code snippets for repository management |
-| [`src/uptimely/`](src/uptimely/) | Package implementation for analytics, compilation, dependencies, documentation, and execution. |
-| [`tests/`](tests/) | Automated tests for the package and examples. |
+| [`docs/`](https://github.com/uptimely-ai/uptimely-core/tree/main/docs) | Architecture, specification, and development documentation. |
+| [`example/`](https://github.com/uptimely-ai/uptimely-core/tree/main/example) | Runnable examples and generated artifacts. |
+| [`scripts/`](https://github.com/uptimely-ai/uptimely-core/tree/main/scripts) | Code snippets for repository management |
+| [`src/uptimely/`](https://github.com/uptimely-ai/uptimely-core/tree/main/src/uptimely) | Package implementation for analytics, compilation, dependencies, documentation, and execution. |
+| [`tests/`](https://github.com/uptimely-ai/uptimely-core/tree/main/tests) | Automated tests for the package and examples. |
 
 ## Development
 
 See
-[CONTRIBUTING.md](CONTRIBUTING.md) for the full workflow.
+[CONTRIBUTING.md](https://github.com/uptimely-ai/uptimely-core/blob/main/CONTRIBUTING.md) for the full workflow.
 
 ## License
 
-Released under the [MIT license](LICENSE). Contributions are welcome — see [CONTRIBUTING.md](CONTRIBUTING.md).
+Released under the [MIT license](https://github.com/uptimely-ai/uptimely-core/blob/main/LICENSE). Contributions are welcome — see [CONTRIBUTING.md](https://github.com/uptimely-ai/uptimely-core/blob/main/CONTRIBUTING.md).
 
 ## Feedback
 

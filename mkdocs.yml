@@ -31,6 +31,7 @@ plugins:
 
 markdown_extensions:
   - admonition
+  - attr_list
   - def_list
   - md_in_html
   - toc:
@@ -57,11 +58,11 @@ validation:
     unrecognized_links: warn
 
 nav:
-  - Quick start: index.md
-  - Introduction:
-      - The problem: introduction/problem.md
-      - Concepts: introduction/concepts.md
-      - Demo explorer: example/index.html
+  - Getting started:
+      - Quick start: index.md
+      - Tutorial: getting-started/tutorial.md
+      - Explorer demo: getting-started/explorer-demo.md
+      - Background: background.md
   - Architecture:
       - Overview: architecture/index.md
       - Project: architecture/project.md

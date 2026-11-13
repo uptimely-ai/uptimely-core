@@ -17,6 +17,10 @@ jobs:
     steps:
       - name: Download project files
         uses: actions/checkout@v5
+      - name: Check documentation copies match
+        run: |
+          diff -u readme.md docs/index.md
+          diff -u example/README.md docs/getting-started/tutorial.md
       - run: pipx install poetry
       - name: Set up Python
         uses: actions/setup-python@v6
@@ -27,13 +31,20 @@ jobs:
       - run: poetry install --without dev,test --with docs
       - name: Build pump analytics demo site
         run: |
-          poetry run uptimely project build --project-root example
+          poetry run uptimely build example
       - name: Run pump analytics demo
         run: |
-          poetry run uptimely engine run \
-            --project-root example \
+          poetry run uptimely run example \
             --preview 10 \
             --log-level debug
+      - name: Check tutorial commands
+        run: |
+          UPTIMELY="$(poetry env info --path)/bin/uptimely"
+          cd example
+          "$UPTIMELY" build
+          "$UPTIMELY" run
+          "$UPTIMELY" explorer export . --output "$RUNNER_TEMP/example-explorer.zip"
+          test -s "$RUNNER_TEMP/example-explorer.zip"
       - name: Export static Explorer to the docs
         run: |
           poetry run uptimely explorer export \

@@ -7,27 +7,16 @@ category and series rollups, and external measurements.
 The sample data is synthetic. Health scores and operating-point recommendations
 are illustrative calculations, not validated operating limits or control advice.
 
-## Warning-only telemetry
-
-**Telemetry when Warning** filters Telemetry to readings whose `pump_mode` is
-`warning`, preserving the pump-and-timestamp grain. This intermediate profile
-does not write a result.
-
-**Telemetry by Hour when Warning** groups these readings by pump and UTC hour.
-It calculates mean pressure, flow and power, and maximum bearing temperature and
-vibration from warning readings only. Null readings are excluded from each
-aggregate and an all-null input yields null. The illustrative operating-point
-recommendation and its derived features are calculated from those aggregates.
-Hours without warning readings are absent. Health scores and trends remain in
-Telemetry so they retain the full reading history.
-
-The hourly measurements are produced together by one aggregation operator,
-using a mapping of source features to methods and a mapping of output names.
-
-Results are written to `data/output/pump_telemetry_by_hour_when_warning.json`.
-When no readings are warnings, both warning profiles are empty.
-
 ## Setup and installation
+
+If you do not already have the example project, [install Uptimely Core](https://github.com/uptimely-ai/uptimely-core#install)
+and download the example matching your installed version:
+
+```sh
+uptimely example --dir pump-analytics
+```
+
+The downloaded `pump-analytics/` directory is the example project.
 
 Requires Python 3.13 or newer. Uptimely Core 0.10 is not yet
 published, so installation will fail until it is available.
@@ -37,14 +26,14 @@ The installed example exposes its source modules under the Python package name
 
 ### Dev container
 
-With Docker and the VS Code Dev Containers extension installed, open `example/`
+With Docker and the VS Code Dev Containers extension installed, open the example folder
 in VS Code and select **Dev Containers: Reopen in Container**.
 The container installs uv and uses it to set up the example. Use uv to manage
 the environment inside the dev container.
 
 ### Local setup
 
-From `example/`, choose one of the following.
+From the example project directory, choose one of the following.
 
 **pip**
 
@@ -74,7 +63,7 @@ directly.
 
 ### Build and run
 
-From the `example/` folder, prepare the example for running:
+From the example project directory, prepare the example for running:
 
 ```sh
 uptimely build
@@ -108,4 +97,4 @@ uptimely explorer export . --output cooling-pump-analytics-explorer.zip
 ```
 
 For an explanation of the folders in an Uptimely project, see the
-[project structure guide](https://uptimely-ai.github.io/uptimely-core/development/project-structure/).
+[project structure guide](https://uptimely-ai.github.io/uptimely-core/project-layout/project-structure/).
