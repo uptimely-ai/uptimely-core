@@ -410,7 +410,7 @@ def test_system_and_subset_support_multiple_variables() -> None:
     collapse = spec_definition.profiles["pump"].assembly["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.compute.function == "aggregate"
-    assert collapse.compute.args["feature"].root == "$features.bearing_temperature"
+    assert collapse.compute.args["aggregations"].root == {"bearing_temperature": "max"}
     system = spec.FeatureGraph(spec_definition)
 
     assert system.feature_names == {
@@ -432,6 +432,11 @@ def test_system_and_subset_support_multiple_variables() -> None:
         "vibration_delta",
         "pump_health_score",
         "pump_mode",
+        "warning_hour_mean_differential_pressure",
+        "warning_hour_mean_flow_rate",
+        "warning_hour_mean_motor_power",
+        "warning_hour_max_bearing_temperature",
+        "warning_hour_max_vibration_rms",
         "operating_point_recommendation",
         "ratio",
     }
@@ -519,9 +524,9 @@ def test_spec_validation_rejects_unknown_vectorize_template(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_telemetry"]["assembly"]["recommended_flow_rate"]["compute"][
-        "function"
-    ] = "missing_vectorize_template"
+    configuration["profiles"]["pump_telemetry_by_hour_when_warning"]["assembly"][
+        "recommended_flow_rate"
+    ]["compute"]["function"] = "missing_vectorize_template"
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -537,7 +542,7 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profile = configuration["profiles"]["pump_telemetry"]
-    collision = json.loads(json.dumps(profile["assembly"]["converged"]))
+    collision = json.loads(json.dumps(profile["assembly"]["pump_mode"]))
     profile["assembly"]["pump_collision"] = {
         **collision,
         "interface": {"inputs": [], "outputs": ["$features.pump_id"]},

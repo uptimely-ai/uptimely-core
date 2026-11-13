@@ -10,6 +10,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- The example filters warning telemetry into an intermediate profile and
+  calculates operating-point recommendations from hourly warning aggregates.
+- The example aggregation function accepts multiple feature-method pairs in
+  one operation. Rebuild existing example bundles after updating.
 - The cooling-pump example derives an illustrative `pump_mode` of `operational`
   or `warning` from bearing temperature and vibration, with a sample warning.
   Warning limits are supplied by the operator bindings.

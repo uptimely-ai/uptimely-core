@@ -163,7 +163,7 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
 def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     operator = configuration["profiles"]["pump"]["assembly"]["bearing_temperature_by_pump"]
-    operator["compute"]["args"]["output"] = "$features.@.id"
+    operator["compute"]["args"]["rename"] = {"bearing_temperature": "$features.@.id"}
     path = tmp_path / "collapse_feature_placeholder.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -176,7 +176,7 @@ def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Pat
     )
 
     assert "bearing_temperature_max" in invocation.output_features
-    assert invocation.arguments["output"] == "bearing_temperature_max"
+    assert invocation.arguments["rename"] == {"bearing_temperature": "bearing_temperature_max"}
 
 
 def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> None:
@@ -200,7 +200,7 @@ def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> No
     assert len(direct_invocations) == 1
     assert direct_invocations[0].operator_id == "recommended_flow_rate"
     assert direct_invocations[0].output_features == ["recommended_flow_rate"]
-    assert direct_invocations[0].arguments["recommended_flow_rate"] == "flow_rate"
+    assert direct_invocations[0].arguments["recommended_flow_rate"] == "warning_hour_mean_flow_rate"
 
 
 def test_compact_invocation_ids_are_stable_across_recompilation_and_selection() -> None:

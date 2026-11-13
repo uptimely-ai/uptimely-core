@@ -10,7 +10,9 @@ from example.spec.profiles import (
     pump_telemetry,
     pump_telemetry_by_day,
     pump_telemetry_by_hour,
+    pump_telemetry_by_hour_when_warning,
     pump_telemetry_by_minute,
+    pump_telemetry_when_warning,
 )
 from example.src import analytics
 from support import examples as example_support
@@ -34,7 +36,9 @@ def expand_data(source: pl.DataFrame) -> pl.DataFrame:
 def test_aggregate_executes_independently() -> None:
     frame = pl.LazyFrame({"pump": ["a", "a"], "temperature": [10.0, 20.0]})
 
-    result = analytics.aggregate(frame, "temperature", "max", ["pump"], "maximum")
+    result = analytics.aggregate(
+        frame, {"temperature": "max"}, ["pump"], {"temperature": "maximum"}
+    )
 
     assert isinstance(result, pl.LazyFrame)
     assert result.collect().to_dicts() == [{"pump": "a", "maximum": 20.0}]
@@ -80,6 +84,8 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         pump_series.PumpSeries,
         pump_category.PumpCategory,
         pump_telemetry_by_minute.PumpTelemetryByMinute,
+        pump_telemetry_when_warning.PumpTelemetryWhenWarning,
+        pump_telemetry_by_hour_when_warning.PumpTelemetryByHourWhenWarning,
         pump_telemetry_by_hour.PumpTelemetryByHour,
         pump_telemetry_by_day.PumpTelemetryByDay,
     ]
@@ -95,6 +101,8 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         "Telemetry",
         "Telemetry",
         "Telemetry",
+        "Telemetry",
+        "Telemetry",
     ]
     assert [type(profile) for profile in pump_telemetry_spec.python_spec.profiles] == expected
     assert [profile.id for profile in pump_telemetry_spec.python_spec.profiles] == [
@@ -104,6 +112,8 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         "pump_series",
         "pump_category",
         "pump_telemetry_by_minute",
+        "pump_telemetry_when_warning",
+        "pump_telemetry_by_hour_when_warning",
         "pump_telemetry_by_hour",
         "pump_telemetry_by_day",
     ]
@@ -146,14 +156,16 @@ def test_function_catalog_contracts_are_independent_of_operator_kinds() -> None:
 
 def test_recommended_flow_rate_binds_polars_with_columns() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    operator = spec_definition.profiles["pump_telemetry"].assembly["recommended_flow_rate"]
+    operator = spec_definition.profiles["pump_telemetry_by_hour_when_warning"].assembly[
+        "recommended_flow_rate"
+    ]
     template = spec_definition.functions.root[operator.compute.function]
 
     assert template.entrypoint == "polars.lazyframe.frame:LazyFrame.with_columns"
     assert template.returns == "dataframe"
     assert "kind" not in template.model_dump()
     assert template.validate_signature is False
-    assert operator.compute.inferred_feature_inputs == ("flow_rate",)
+    assert operator.compute.inferred_feature_inputs == ("warning_hour_mean_flow_rate",)
     assert operator.output_features == ["recommended_flow_rate"]
 
 
@@ -170,6 +182,8 @@ def test_example_manifest_parses_complete_spec() -> None:
         "pump_series",
         "pump_category",
         "pump_telemetry_by_minute",
+        "pump_telemetry_when_warning",
+        "pump_telemetry_by_hour_when_warning",
         "pump_telemetry_by_hour",
         "pump_telemetry_by_day",
     }
@@ -193,6 +207,7 @@ def test_example_manifest_parses_complete_spec() -> None:
         "write",
         "vectorize",
         "collapse",
+        "conform",
         "expand",
         "escape",
     }
@@ -218,6 +233,8 @@ def test_spec_from_profiles_python_api() -> None:
         "pump_series",
         "pump_category",
         "pump_telemetry_by_minute",
+        "pump_telemetry_when_warning",
+        "pump_telemetry_by_hour_when_warning",
         "pump_telemetry_by_hour",
         "pump_telemetry_by_day",
     }
@@ -319,10 +336,9 @@ def test_sources_and_transforms_python_spec() -> None:
                     function=python_spec.ref.function(analytics.aggregate, returns="dataframe"),
                     arguments={
                         "dataset": python_spec.ref.profile("target").dataset,
-                        "feature": python_spec.ref.feature("input_2").id,
+                        "aggregations": {"input_2": "max"},
                         "dimensions": python_spec.ref.profile().grain.ids,
-                        "output": python_spec.ref.feature("collapsed_feature").id,
-                        "method": "max",
+                        "rename": {"input_2": python_spec.ref.feature("collapsed_feature").id},
                     },
                 ),
             )
@@ -346,10 +362,9 @@ def test_sources_and_transforms_python_spec() -> None:
     assert collapse.compute.function == "aggregate"
     assert collapse.compute.model_dump()["args"] == {
         "dataset": "$profiles.target.dataset",
-        "feature": "$features.input_2.id",
+        "aggregations": {"input_2": "max"},
         "dimensions": "$profiles.@.grain.ids",
-        "output": "$features.collapsed_feature.id",
-        "method": "max",
+        "rename": {"input_2": "$features.collapsed_feature.id"},
     }
     assert collapse.output_features == ["collapsed_feature"]
     assert spec_definition.operator_kinds[("summary", "collapse_data")] == "collapse"

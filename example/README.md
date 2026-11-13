@@ -7,6 +7,26 @@ category and series rollups, and external measurements.
 The sample data is synthetic. Health scores and operating-point recommendations
 are illustrative calculations, not validated operating limits or control advice.
 
+## Warning-only telemetry
+
+**Telemetry when Warning** filters Telemetry to readings whose `pump_mode` is
+`warning`, preserving the pump-and-timestamp grain. This intermediate profile
+does not write a result.
+
+**Telemetry by Hour when Warning** groups these readings by pump and UTC hour.
+It calculates mean pressure, flow and power, and maximum bearing temperature and
+vibration from warning readings only. Null readings are excluded from each
+aggregate and an all-null input yields null. The illustrative operating-point
+recommendation and its derived features are calculated from those aggregates.
+Hours without warning readings are absent. Health scores and trends remain in
+Telemetry so they retain the full reading history.
+
+The hourly measurements are produced together by one aggregation operator,
+using a mapping of source features to methods and a mapping of output names.
+
+Results are written to `data/output/pump_telemetry_by_hour_when_warning.json`.
+When no readings are warnings, both warning profiles are empty.
+
 ## Setup and installation
 
 Requires Python 3.13 or newer. Uptimely Core 0.10 is not yet
