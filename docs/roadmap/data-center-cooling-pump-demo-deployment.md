@@ -50,9 +50,9 @@ but resource consumption can exceed that allowance.
    `/var/data/cooling-pump-demo` only when it does not exist. Include sample input data,
    runtime configuration, and an editable JSON Spec. Build it with the existing
    Project API before marking the service ready.
-4. Point every input and output location at this project. Some current example
-   parameters are relative paths, and the external workflow uses module-relative
-   paths. Do not assume moving the project automatically moves these resources.
+4. Point every input and output location at this project. Configure locations
+   under `paths` so relative paths resolve from the project root, and pass them
+   into the external workflow as binding arguments.
    Disable that uncontrolled workflow in the public demo until its file access
    is explicitly scoped to demo storage.
 5. Preserve existing edits on restart and redeploy. Rebuild saved artifacts

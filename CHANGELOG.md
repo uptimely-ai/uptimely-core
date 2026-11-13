@@ -10,6 +10,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Project runtime configuration supports a `paths` section. Bindings can
+  reference paths separately from scalar parameters, and relative paths resolve
+  against the project root.
 - The example download command accepts `--dir` to choose its destination.
 - The pump example installs as a Python package, with setup instructions for
   pip, Poetry, and uv.

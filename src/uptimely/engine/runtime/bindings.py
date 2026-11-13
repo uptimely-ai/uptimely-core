@@ -1,5 +1,6 @@
 """Resolve portable plan values against execution resources and runtime state."""
 
+import pathlib
 import typing
 from collections import abc
 
@@ -16,10 +17,14 @@ class RuntimeBindings:
         self,
         state: state_module.RuntimeState,
         parameters: abc.Mapping[str, typing.Any],
+        paths: abc.Mapping[str, str] | None = None,
+        project_root: pathlib.Path | None = None,
     ) -> None:
-        """Create a resolver for one execution's parameters and runtime state."""
+        """Create a resolver for one execution's values and project context."""
         self.state = state
         self.parameters = parameters
+        self.paths = paths or {}
+        self.project_root = project_root
 
     def resolve_args(
         self,
@@ -62,11 +67,16 @@ class RuntimeBindings:
             return frame
         if isinstance(value, str) and value.startswith(selectors.PARAMS_PREFIX):
             return self.resolve_parameter_reference(value)
+        if isinstance(value, str) and value.startswith(selectors.PATHS_PREFIX):
+            return self.resolve_path_reference(value)
         if isinstance(value, str) and value == "$params":
             raise ValueError(f"Malformed parameter reference: {value}")
+        if isinstance(value, str) and value == "$paths":
+            raise ValueError(f"Malformed path reference: {value}")
         if isinstance(value, str) and value.startswith("?"):
             raise ValueError(
-                f"Legacy runtime reference {value!r} is unsupported; use a $params.<name> reference"
+                f"Legacy runtime reference {value!r} is unsupported; use a $params.<name> "
+                "or $paths.<name> reference"
             )
         if isinstance(value, list):
             element_type = (
@@ -94,3 +104,17 @@ class RuntimeBindings:
         if name not in self.parameters:
             raise ValueError(f"Unresolved parameter: {name}")
         return self.parameters[name]
+
+    def resolve_path_reference(self, value: str) -> str:
+        """Resolve a required ``$paths.<name>`` value against the project root."""
+        name = value.removeprefix(selectors.PATHS_PREFIX)
+        if not name or "." in name or not name.isidentifier():
+            raise ValueError(f"Malformed path reference: {value}")
+        if name not in self.paths:
+            raise ValueError(f"Unresolved path: {name}")
+        path = pathlib.Path(self.paths[name])
+        if path.is_absolute():
+            return str(path)
+        if self.project_root is None:
+            raise ValueError(f"Cannot resolve project-relative path without a project root: {name}")
+        return str(self.project_root / path)

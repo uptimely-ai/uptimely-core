@@ -29,7 +29,7 @@ After a successful run and any requested previews, an info log shows the
 | `PROJECT_ROOT` | No | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--build` | No | Disabled | Build and publish the project before execution, then run the newly published build. |
-| `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine settings and required runtime control parameter values in JSON. |
+| `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine settings, project paths, and runtime parameters in JSON. |
 | `--validate` | No | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
 | `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
 | `--preview [ROWS]` | No | Console display disabled; 5 rows when supplied without a count | Set the saved preview row limit and log those rows from each final profile after successful execution at info level. Without this option, five rows per profile are still saved. |
@@ -132,19 +132,26 @@ settings:
 }
 ```
 
-Global scalar values are stored in the `params` object. A parameter referenced
-by `$params.<name>` must have an entry. Use these for framework controls such
-as environment-specific read and write locations, not dataset contents or
-analytical values:
+Put file and directory locations in `paths`, and scalar runtime values in
+`params`:
 
 ```json
 {
   "engine": {"backend": {}},
-  "params": {
+  "paths": {
     "source_path": "data/input.parquet"
+  },
+  "params": {
+    "dummy": "not_used"
   }
 }
 ```
+
+Paths referenced by `$paths.<name>` must have an entry. Relative paths resolve
+against the project root and absolute paths are preserved. Parameters referenced
+by `$params.<name>` must also have an entry and are passed unchanged. Use
+parameters for values such as optional filters, not file locations. The example
+`dummy` parameter is intentionally not referenced by the Spec.
 
 See the [execution engine specification](../../architecture/engine.md) for parameter
 references and backend settings.

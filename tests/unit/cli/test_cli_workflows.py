@@ -812,7 +812,7 @@ def test_engine_operation_failures_are_reported(
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "Engine flow failed:" in result.err
-    assert "Unresolved parameter:" in result.err
+    assert "Unresolved path:" in result.err
     assert "Engine processed" not in result.out
     assert "Profile:" not in result.out
 

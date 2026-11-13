@@ -65,10 +65,14 @@ def engine_for_plan(bundle_for_plan: execution.BundleFactory) -> execution.Engin
         parameters: dict[str, object] | None = None,
         project_root: pathlib.Path | None = None,
         spec_definition: spec.Spec | None = None,
+        paths: dict[str, str] | None = None,
     ) -> engine.Engine:
+        configuration: engine.Config | engine.EngineConfig = (
+            engine.Config(paths=paths) if paths is not None else engine.EngineConfig()
+        )
         return engine.Engine(
             bundle_for_plan(execution_plan, project_root, spec_definition),
-            engine.EngineConfig(),
+            configuration,
             parameters,
         )
 

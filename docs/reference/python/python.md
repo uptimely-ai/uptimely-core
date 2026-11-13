@@ -70,7 +70,10 @@ to infer dependencies. Set `inputs=[]` to disable that inference.
 Use `up.ref` to refer to profile data, features, and other Spec values without
 loading data during authoring. `up.ref.feature("name")` refers to a feature's
 value; append `.id` when the function needs its identifier, such as an output
-column name.
+column name. Use `up.ref.paths("name")` for a file or directory configured in
+the project's `paths` map. The Engine resolves relative paths against the
+project root before invoking the function. Use `up.ref.params("name")` for a
+scalar configured in `params`, which is passed unchanged.
 
 `@up.function(returns=...)` describes what a function returns. Use
 `"dataframe"` for a dataframe, `"none"` for no result, or `"any"` when the

@@ -36,31 +36,31 @@ class Engine:
         self.spec_definition = bundle.spec_definition
         if isinstance(config, config_module.Config):
             self.config = config.engine
-            configured_parameters = config.params.root
-            if parameters is not None:
-                configured_parameters = config_module.Params.model_validate(dict(parameters)).root
         else:
             self.config = config_module.EngineConfig() if config is None else config
-            configured_parameters = self._load_parameters(bundle, parameters)
+        if isinstance(config, config_module.Config):
+            project_config = config
+        else:
+            project_config = self._load_project_config(bundle)
+        configured_parameters = project_config.params.root
+        if parameters is not None:
+            configured_parameters = config_module.Params.model_validate(dict(parameters)).root
         self.parameters = configured_parameters
+        self.paths = project_config.paths.root
         self.backend = backend_module.create_backend(self.config.backend)
         self.check_plan_backend()
 
     @staticmethod
-    def _load_parameters(
+    def _load_project_config(
         bundle: build_models.BuildBundle,
-        parameters: abc.Mapping[str, object] | None,
-    ) -> dict[str, object]:
-        """Validate explicit values or load parameters from the project config file."""
-        if parameters is not None:
-            return config_module.Params.model_validate(dict(parameters)).root
+    ) -> config_module.Config:
+        """Load project paths and parameters from the project config file."""
         path = bundle.project_root / paths.CONFIG_FILE
         if not path.is_file():
             if path.exists():
-                raise ValueError(f"Parameter configuration is not a file: {path}")
-            return {}
-        configuration = config_module.Config.model_validate_json(path.read_text(encoding="utf-8"))
-        return configuration.params.root
+                raise ValueError(f"Project configuration is not a file: {path}")
+            return config_module.Config()
+        return config_module.Config.model_validate_json(path.read_text(encoding="utf-8"))
 
     def check_plan_backend(self) -> None:
         """Require the configured backend to support the saved plan.
@@ -139,6 +139,8 @@ class Engine:
             entrypoints,
             self.parameters,
             state,
+            paths=self.paths,
+            project_root=self.bundle.project_root,
             validate=validate,
         )
         statuses: dict[str, result_module.InvocationStatus] = {}

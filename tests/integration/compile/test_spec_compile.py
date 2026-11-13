@@ -26,15 +26,31 @@ def _add_escape_mapping(
     output_features: list[str] | None = None,
 ) -> None:
     """Add one escape operator with logical feature dependencies."""
+    arguments = (
+        {
+            "source": {"type": "string"},
+            "output": {"type": "string"},
+        }
+        if entrypoint == "example.src.io:process_pump_external_workflow"
+        else {}
+    )
+    bound_arguments = (
+        {
+            "source": "$paths.pump_external_inputs_source",
+            "output": "$paths.pump_external_workflow_output",
+        }
+        if arguments
+        else {}
+    )
     configuration["functions"][function_id] = {
         "returns": "any",
         "entrypoint": entrypoint,
-        "args": {},
+        "args": arguments,
     }
     configuration["profiles"]["pump_telemetry"]["assembly"][operator_id] = {
         "compute": {
             "function": function_id,
-            "args": {},
+            "args": bound_arguments,
         },
         "interface": {
             "inputs": [f"$features.{feature_id}" for feature_id in input_features],

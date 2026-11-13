@@ -18,6 +18,7 @@ __all__ = [
     "dataset",
     "fragment",
     "params",
+    "paths",
     "row_context",
     "function",
 ]
@@ -69,3 +70,8 @@ def row_context(attribute: typing.Literal["before", "after", "dimension"]) -> re
 def params(name: str) -> references.Params:
     """Reference a required configuration value without reading configuration."""
     return references.Params(name)
+
+
+def paths(name: str) -> references.Paths:
+    """Reference a configured project path without resolving it during authoring."""
+    return references.Paths(name)

@@ -40,7 +40,7 @@ class Constants(Profile):
             compute=Binding(
                 function=io.read_file,
                 arguments=dict(
-                    source=ref.params("constants_source"),
+                    source=ref.paths("constants_source"),
                     schema={"gravity": "float", "room_temperature": "float"},
                     rename={
                         "gravity": features.gravity,

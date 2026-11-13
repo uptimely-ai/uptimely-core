@@ -14,9 +14,11 @@ from . import profile as profile_module
 from . import row_context as row_context_module
 
 
-def resource_reference(value: object) -> references.Reference | references.Params | None:
+def resource_reference(
+    value: object,
+) -> references.Reference | references.Params | references.Paths | None:
     """Normalize declaration instances and deferred lookups at one boundary."""
-    if isinstance(value, (references.Reference, references.Params)):
+    if isinstance(value, (references.Reference, references.Params, references.Paths)):
         return value
     if isinstance(value, feature_module.Feature):
         return references.FeatureReference(kind="feature", value=f"$features.{value.id}")

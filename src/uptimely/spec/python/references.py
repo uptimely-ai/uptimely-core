@@ -158,3 +158,25 @@ class Params:
     def to_model(self) -> str:
         """Return the runtime parameter selector."""
         return f"{selectors.PARAMS_PREFIX}{self.name}"
+
+
+@dataclasses.dataclass(frozen=True)
+class Paths:
+    """A project path resolved by the engine.
+
+    Args:
+        name: A nonempty Python identifier naming a configured path.
+
+    Raises:
+        ValueError: If the path name is invalid.
+    """
+
+    name: str
+
+    def __post_init__(self) -> None:
+        if not isinstance(self.name, str) or not self.name.isidentifier():
+            raise ValueError("Path names must be nonempty Python identifiers")
+
+    def to_model(self) -> str:
+        """Return the runtime path selector."""
+        return f"{selectors.PATHS_PREFIX}{self.name}"

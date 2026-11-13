@@ -6,12 +6,16 @@
       "evaluation": "eager"
     }
   },
-  "params": {
+  "paths": {
     "constants_source": "data/input/constants.json",
     "pump_assets_source": "data/input/pump_assets.json",
     "pump_series_source": "data/input/pump_series.json",
     "pump_category_source": "data/input/pump_category.json",
     "pump_external_inputs_source": "data/input/pump_external_workflow.csv",
-    "telemetry_source": "data/input/pump_telemetry.json"
+    "telemetry_source": "data/input/pump_telemetry.json",
+    "pump_external_workflow_output": "_generated/pump_external_workflow_results.csv"
+  },
+  "params": {
+    "dummy": "not_used"
   }
 }

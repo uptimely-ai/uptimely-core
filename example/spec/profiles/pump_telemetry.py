@@ -160,8 +160,8 @@ class PumpTelemetry(Profile):
                 compute=Binding(
                     function=io.read_pump_telemetry,
                     arguments=dict(
-                        pump_telemetry_source=ref.params("telemetry_source"),
-                        pump_source=ref.params("pump_assets_source"),
+                        pump_telemetry_source=ref.paths("telemetry_source"),
+                        pump_source=ref.paths("pump_assets_source"),
                     ),
                 ),
                 merge=merge.default(),

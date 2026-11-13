@@ -12,6 +12,20 @@ from support import execution as execution_support
 from uptimely import plan, project
 
 
+def _configured_parameters(project_root: pathlib.Path) -> dict[str, object]:
+    configuration = json.loads((project_root / "config/config.json").read_text(encoding="utf-8"))
+    return configuration["params"]
+
+
+def _configured_paths(project_root: pathlib.Path) -> dict[str, str]:
+    configuration = json.loads((project_root / "config/config.json").read_text(encoding="utf-8"))
+    paths: dict[str, str] = {}
+    for name, value in configuration["paths"].items():
+        configured = pathlib.Path(value)
+        paths[name] = str(configured if configured.is_absolute() else project_root / configured)
+    return paths
+
+
 def test_capacity_uses_specificity_not_numeric_maximum() -> None:
     frame = pl.LazyFrame(
         {
@@ -116,13 +130,15 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
     )
     assert reader_merge.id not in series_merge.dependency_ids
     assert "key_columns" not in series_merge.arguments
-    parameters = json.loads(
-        (bundle.project_root / "config/config.json").read_text(encoding="utf-8")
-    )["params"]
+    paths = _configured_paths(bundle.project_root)
 
-    result = engine_for_plan(restored, parameters, spec_definition=bundle.spec_definition).run(
-        validate=validate
-    )
+    result = engine_for_plan(
+        restored,
+        parameters=_configured_parameters(bundle.project_root),
+        project_root=bundle.project_root,
+        spec_definition=bundle.spec_definition,
+        paths=paths,
+    ).run(validate=validate)
 
     assert not result.failures
     assert "rated_flow_rate" not in result.datasets["pump"].collect_schema().names()
@@ -154,20 +170,20 @@ def test_automatic_capacity_merge_preserves_pumps_with_missing_series(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     bundle = example_bundle_factory(features=("max_capacity",))
-    parameters = json.loads(
-        (bundle.project_root / "config/config.json").read_text(encoding="utf-8")
-    )["params"]
-    records = json.loads(
-        (bundle.project_root / parameters["pump_series_source"]).read_text(encoding="utf-8")
-    )
+    paths = _configured_paths(bundle.project_root)
+    records = json.loads(pathlib.Path(paths["pump_series_source"]).read_text(encoding="utf-8"))
     records = [record for record in records if record["machine_series_id"] != "SERIES-1"]
     records.append({"machine_series_id": "unused", "max_capacity": 999.0})
     path = tmp_path / "series.json"
     path.write_text(json.dumps(records), encoding="utf-8")
-    parameters["pump_series_source"] = str(path)
+    paths["pump_series_source"] = str(path)
 
     result = engine_for_plan(
-        bundle.execution_plan, parameters, spec_definition=bundle.spec_definition
+        bundle.execution_plan,
+        parameters=_configured_parameters(bundle.project_root),
+        project_root=bundle.project_root,
+        spec_definition=bundle.spec_definition,
+        paths=paths,
     ).run(validate=True)
 
     assert not result.failures
@@ -186,20 +202,20 @@ def test_automatic_capacity_merge_reports_identifier_missing_from_pump_data(
     validate: bool,
 ) -> None:
     bundle = example_bundle_factory(features=("max_capacity",))
-    parameters = json.loads(
-        (bundle.project_root / "config/config.json").read_text(encoding="utf-8")
-    )["params"]
-    records = json.loads(
-        (bundle.project_root / parameters["pump_assets_source"]).read_text(encoding="utf-8")
-    )
+    paths = _configured_paths(bundle.project_root)
+    records = json.loads(pathlib.Path(paths["pump_assets_source"]).read_text(encoding="utf-8"))
     for record in records:
         record.pop("machine_series_id")
     path = tmp_path / "pumps.json"
     path.write_text(json.dumps(records), encoding="utf-8")
-    parameters["pump_assets_source"] = str(path)
+    paths["pump_assets_source"] = str(path)
 
     result = engine_for_plan(
-        bundle.execution_plan, parameters, spec_definition=bundle.spec_definition
+        bundle.execution_plan,
+        parameters=_configured_parameters(bundle.project_root),
+        project_root=bundle.project_root,
+        spec_definition=bundle.spec_definition,
+        paths=paths,
     ).run(validate=validate)
 
     assert len(result.failures) == 1
@@ -227,27 +243,25 @@ def test_engine_resolves_capacity_with_validation(
     category_value: float | None,
     expected: float | None,
 ) -> None:
-    parameters = json.loads(
-        (pump_bundle.project_root / "config/config.json").read_text(encoding="utf-8")
-    )["params"]
+    paths = _configured_paths(pump_bundle.project_root)
     for parameter, value in [
         ("pump_assets_source", pump_value),
         ("pump_series_source", series_value),
         ("pump_category_source", category_value),
     ]:
-        records = json.loads(
-            (pump_bundle.project_root / parameters[parameter]).read_text(encoding="utf-8")
-        )
+        records = json.loads(pathlib.Path(paths[parameter]).read_text(encoding="utf-8"))
         for record in records:
             record["max_capacity"] = value
         path = tmp_path / f"{parameter}.json"
         path.write_text(json.dumps(records), encoding="utf-8")
-        parameters[parameter] = str(path)
+        paths[parameter] = str(path)
 
     result = engine_for_plan(
         pump_bundle.execution_plan,
-        parameters,
+        parameters=_configured_parameters(pump_bundle.project_root),
+        project_root=pump_bundle.project_root,
         spec_definition=pump_bundle.spec_definition,
+        paths=paths,
     ).run(validate=True)
 
     assert not result.failures

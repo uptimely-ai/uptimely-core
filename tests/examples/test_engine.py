@@ -19,13 +19,25 @@ def _engine_parameters() -> dict[str, object]:
     return json.loads(path.read_text(encoding="utf-8"))["params"]
 
 
+def _engine_paths(project_root: pathlib.Path) -> dict[str, str]:
+    path = project_root / "config/config.json"
+    configured_paths = json.loads(path.read_text(encoding="utf-8"))["paths"]
+    paths: dict[str, str] = {}
+    for name, value in configured_paths.items():
+        configured = pathlib.Path(value)
+        paths[name] = str(configured if configured.is_absolute() else project_root / configured)
+    return paths
+
+
 def test_engine_returns_calculated_features_without_writing_output(
     pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     engine = engine_for_plan(
         pump_bundle.execution_plan,
         _engine_parameters(),
+        project_root=pump_bundle.project_root,
         spec_definition=pump_bundle.spec_definition,
+        paths=_engine_paths(pump_bundle.project_root),
     )
 
     result = engine.run()
@@ -181,9 +193,10 @@ def test_engine_returns_calculated_features_without_writing_output(
 
 
 def test_cooling_pump_telemetry_filters_by_server_room() -> None:
+    project_root = example_support.EXAMPLES_ROOT
     telemetry = io.read_pump_telemetry(
-        "data/input/pump_telemetry.json",
-        "data/input/pump_assets.json",
+        str(project_root / "data/input/pump_telemetry.json"),
+        str(project_root / "data/input/pump_assets.json"),
         server_room_id="SR-A",
     ).collect()
 
@@ -268,38 +281,23 @@ def test_engine_cli_reports_scoped_saved_build(
     assert "Processed profile pump: 9 features" in output
 
 
-def test_engine_rejects_missing_parameter(
+def test_engine_rejects_missing_path(
     pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
-    parameters = _engine_parameters()
-    parameters.pop("telemetry_source")
-    engine = engine_for_plan(
-        pump_bundle.execution_plan, parameters, spec_definition=pump_bundle.spec_definition
-    )
-
-    result = engine.run()
-
-    assert any(
-        "Unresolved parameter: telemetry_source" in message for message in result.failures.values()
-    )
-
-
-def test_engine_rejects_unknown_parameter_name(
-    pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
-) -> None:
-    parameters = _engine_parameters()
-    parameters.pop("telemetry_source")
-    parameters["another_parameter"] = "value"
+    paths = _engine_paths(pump_bundle.project_root)
+    paths.pop("telemetry_source")
     engine = engine_for_plan(
         pump_bundle.execution_plan,
-        parameters,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
         spec_definition=pump_bundle.spec_definition,
+        paths=paths,
     )
 
     result = engine.run()
 
     assert any(
-        "Unresolved parameter: telemetry_source" in message for message in result.failures.values()
+        "Unresolved path: telemetry_source" in message for message in result.failures.values()
     )
 
 
@@ -309,8 +307,10 @@ def test_engine_rejects_non_scalar_parameter_value(
     with pytest.raises(ValueError, match="must be a JSON scalar"):
         engine_for_plan(
             pump_bundle.execution_plan,
-            {"telemetry_source": {"path": "input.json"}},
+            {"dummy": {"value": "not_used"}},
+            project_root=pump_bundle.project_root,
             spec_definition=pump_bundle.spec_definition,
+            paths=_engine_paths(pump_bundle.project_root),
         )
 
 
@@ -318,7 +318,11 @@ def test_engine_merges_fragments_by_profile_grain_keys(
     pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     engine = engine_for_plan(
-        pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
+        pump_bundle.execution_plan,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
+        spec_definition=pump_bundle.spec_definition,
+        paths=_engine_paths(pump_bundle.project_root),
     )
     existing = pl.LazyFrame(
         {
@@ -362,7 +366,11 @@ def test_engine_assembly_accepts_mixed_eager_and_lazy_frames(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
-        pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
+        pump_bundle.execution_plan,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
+        spec_definition=pump_bundle.spec_definition,
+        paths=_engine_paths(pump_bundle.project_root),
     )
     existing: pl.DataFrame | pl.LazyFrame = pl.DataFrame({"key": ["A"], "old": [1]})
     fragment: pl.DataFrame | pl.LazyFrame = pl.DataFrame({"key": ["B"], "new": [2]})
@@ -403,7 +411,11 @@ def test_engine_assembly_preserves_partial_and_disjoint_keys(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
-        pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
+        pump_bundle.execution_plan,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
+        spec_definition=pump_bundle.spec_definition,
+        paths=_engine_paths(pump_bundle.project_root),
     )
     existing = pl.DataFrame({"key": existing_keys, "old": list(range(len(existing_keys)))})
     fragment = pl.DataFrame({"key": fragment_keys, "new": list(range(10, 10 + len(fragment_keys)))})
@@ -436,7 +448,11 @@ def test_engine_assembly_rejects_duplicate_keys_on_either_side(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
-        pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
+        pump_bundle.execution_plan,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
+        spec_definition=pump_bundle.spec_definition,
+        paths=_engine_paths(pump_bundle.project_root),
     )
     existing = pl.DataFrame({"key": ["A", "A"], "old": [1, 2]})
     fragment = pl.DataFrame({"key": ["A"], "new": [3]})
@@ -464,7 +480,11 @@ def test_engine_validates_required_fragment_columns_and_types(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
-        pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
+        pump_bundle.execution_plan,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
+        spec_definition=pump_bundle.spec_definition,
+        paths=_engine_paths(pump_bundle.project_root),
     )
     invocation = next(
         item
@@ -505,7 +525,11 @@ def test_engine_assembly_rejects_feature_collisions(
     lazy: bool, pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     engine = engine_for_plan(
-        pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
+        pump_bundle.execution_plan,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
+        spec_definition=pump_bundle.spec_definition,
+        paths=_engine_paths(pump_bundle.project_root),
     )
     invocation = next(
         item
@@ -550,7 +574,11 @@ def test_engine_rejects_invalid_fragments(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
-        pump_bundle.execution_plan, spec_definition=pump_bundle.spec_definition
+        pump_bundle.execution_plan,
+        _engine_parameters(),
+        project_root=pump_bundle.project_root,
+        spec_definition=pump_bundle.spec_definition,
+        paths=_engine_paths(pump_bundle.project_root),
     )
     operation = next(
         operation for operation in engine.plan.invocations if operation.profile_id == "pump"
@@ -625,7 +653,11 @@ def test_engine_executes_requested_feature_and_its_dependencies(
 ) -> None:
     bundle = example_bundle_factory(features=("health_signal_normalized",))
     engine = engine_for_plan(
-        bundle.execution_plan, _engine_parameters(), spec_definition=bundle.spec_definition
+        bundle.execution_plan,
+        _engine_parameters(),
+        project_root=bundle.project_root,
+        spec_definition=bundle.spec_definition,
+        paths=_engine_paths(bundle.project_root),
     )
     assert [
         feature

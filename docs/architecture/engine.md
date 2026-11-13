@@ -52,8 +52,11 @@ libraries and custom adapters are not supported.
 
 Configuration is separate from the Spec and is supplied when the Engine is
 created. Project configuration is read from `config/config.json`. Its `engine`
-section contains backend settings, while the flat `params` map supplies scalar
-values referenced by function arguments such as `$params.source_path`.
+section contains backend settings. The `paths` map supplies project file
+locations referenced by `$paths.<name>`. Relative paths are resolved against
+the project root before invocation, while absolute paths are preserved. The
+flat `params` map supplies scalar values referenced by `$params.<name>` and
+passes them to functions unchanged.
 
 | Setting | Purpose |
 | --- | --- |
@@ -72,8 +75,13 @@ validation mode.
 
 The flat `params` map supplies required scalar values for function arguments
 referenced as `$params.<name>`. Missing values fail when the function is
-invoked. Parameters provide runtime controls such as input and output
-locations, not profile data or analytical values.
+invoked. Parameters provide runtime controls such as optional filters and
+thresholds, not paths, profile data, or analytical values.
+
+Use the separate `paths` map for file and directory locations. Bind a path with
+`ref.paths("name")`; the Engine resolves a relative value against the project's
+root. Use `ref.params("name")` for other scalar settings, such as a filter or
+threshold.
 
 ## Runtime validation
 

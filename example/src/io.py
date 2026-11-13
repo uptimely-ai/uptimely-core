@@ -17,23 +17,6 @@ COLUMN_TYPES = {
 }
 
 
-SOURCE_PATH = pathlib.Path("data/input/pump_external_workflow.csv")
-OUTPUT_PATH = pathlib.Path("_generated/pump_external_workflow_results.csv")
-
-
-def _project_path(source: str | pathlib.Path) -> pathlib.Path:
-    """Resolve a source path from the example project directory."""
-    path = pathlib.Path(source)
-    if path.is_absolute():
-        return path
-    current_directory = pathlib.Path.cwd()
-    project_roots = (current_directory, current_directory / "example")
-    for project_root in project_roots:
-        if (project_root / "config/config.json").is_file():
-            return project_root / path
-    return path
-
-
 @function(category="read")
 def read_pump_telemetry(
     pump_telemetry_source: str,
@@ -45,11 +28,9 @@ def read_pump_telemetry(
     Parameters
     ----------
     pump_telemetry_source
-        Path to the data for the ``pump_telemetry`` profile, relative to the
-        example project root or absolute.
+        Resolved path to the data for the ``pump_telemetry`` profile.
     pump_source
-        Path to the data for the ``pump`` profile, relative to the example
-        project root or absolute.
+        Resolved path to pump asset metadata.
     server_room_id
         Optional server room ID to filter the telemetry.
 
@@ -66,12 +47,12 @@ def read_pump_telemetry(
     ... )  # doctest: +SKIP
     """
     pump_telemetry = (
-        pl.read_json(_project_path(pump_telemetry_source))
+        pl.read_json(pump_telemetry_source)
         .lazy()
         .with_columns(pl.col("timestamp").str.to_datetime(time_zone="UTC"))
     )
     pump = (
-        pl.read_json(_project_path(pump_source))
+        pl.read_json(pump_source)
         .lazy()
         .select(
             "data_center_id",
@@ -139,8 +120,8 @@ def read_file(
     Parameters
     ----------
     source
-        Path to a JSON array of records or a CSV file. Relative paths are
-        resolved from the example project root.
+        Path to a JSON array of records or a CSV file. The Engine resolves
+        configured project paths before calling this function.
     columns
         Source columns to select, in order. If omitted, read all columns.
     rename
@@ -158,7 +139,7 @@ def read_file(
     ValueError
         If the file extension or a requested column type is unsupported.
     """
-    path = _project_path(source)
+    path = pathlib.Path(source)
     suffix = path.suffix.lower()
     if suffix == ".json":
         dataset = pl.read_json(path).lazy()
@@ -179,8 +160,15 @@ def read_file(
 
 
 @function(returns="any", category="workflow")
-def process_pump_external_workflow() -> None:
+def process_pump_external_workflow(source: str, output: str) -> None:
     """Read cooling-pump inputs, calculate ratios, and write results internally.
+
+    Parameters
+    ----------
+    source
+        Resolved path to the external workflow input CSV.
+    output
+        Resolved path for the workflow output CSV.
 
     Returns
     -------
@@ -188,12 +176,12 @@ def process_pump_external_workflow() -> None:
 
     Examples
     --------
-    >>> process_pump_external_workflow()  # doctest: +SKIP
+    >>> process_pump_external_workflow("input.csv", "output.csv")  # doctest: +SKIP
     """
-    observations = pl.read_csv(_project_path(SOURCE_PATH))
+    observations = pl.read_csv(source)
     result = observations.with_columns(
         (pl.col("measurement") / pl.col("reference_value")).alias("ratio")
     )
-    output_path = _project_path(OUTPUT_PATH)
+    output_path = pathlib.Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     result.select("data_center_id", "server_room_id", "pump_id", "ratio").write_csv(output_path)

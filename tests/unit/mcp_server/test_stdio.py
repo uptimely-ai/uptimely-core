@@ -26,10 +26,6 @@ async def test_documented_stdio_launchers_build_and_execute(
 ) -> None:
     """Build a copied project and verify discovery and data access over stdio."""
     root = example_project_factory(tmp_path / "workspace with spaces" / "example")
-    config_path = root / "config" / "config.json"
-    config = json.loads(config_path.read_text(encoding="utf-8"))
-    config["params"] = {name: str(root / value) for name, value in config["params"].items()}
-    config_path.write_text(json.dumps(config), encoding="utf-8")
     executable = pathlib.Path(sys.executable).with_name("uptimely")
     built = subprocess.run(
         [str(executable), "build", str(root)],

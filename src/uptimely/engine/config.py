@@ -68,13 +68,33 @@ class Params(pydantic.RootModel[dict[str, typing.Any]]):
         return value
 
 
+class Paths(pydantic.RootModel[dict[str, str]]):
+    """Project-relative or absolute paths available to function bindings."""
+
+    model_config = pydantic.ConfigDict(strict=True, frozen=True)
+
+    @pydantic.model_validator(mode="before")
+    @classmethod
+    def validate_values(cls, value: object) -> object:
+        """Require a flat mapping of Python identifiers to path strings."""
+        if not isinstance(value, dict):
+            raise ValueError("Path configuration must be a flat JSON object")
+        for name, path in value.items():
+            if not isinstance(name, str) or re.fullmatch(r"[A-Za-z_]\w*", name) is None:
+                raise ValueError(f"Invalid path name: {name!r}")
+            if not isinstance(path, str):
+                raise ValueError(f"Path {name} must be a string")
+        return value
+
+
 class Config(pydantic.BaseModel):
-    """Project runtime configuration for engine settings and parameter values."""
+    """Project runtime configuration for engine settings, paths, and parameters."""
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True)
 
     engine: EngineConfig = pydantic.Field(default_factory=EngineConfig)
     params: Params = pydantic.Field(default_factory=lambda: Params(root={}))
+    paths: Paths = pydantic.Field(default_factory=lambda: Paths(root={}))
 
 
 ParameterConfig = Params
