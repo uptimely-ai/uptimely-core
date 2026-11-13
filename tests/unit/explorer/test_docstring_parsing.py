@@ -2,7 +2,7 @@
 
 import inspect
 
-from example.src import analytics, external_workflow
+from example.src import analytics, io
 
 from uptimely.explorer.sections import spec as spec_section
 
@@ -130,7 +130,7 @@ Example:
     assert documentation["params"] == {"x": "Input value."}
     assert documentation["examples"] == ["compute(1)\n2"]
 
-    legacy = inspect.getdoc(analytics.read_pump_telemetry)
+    legacy = inspect.getdoc(io.read_pump_telemetry)
     assert legacy is not None
     legacy = legacy.replace("Examples\n", "Examples:\n")
     documentation = spec_section._parse_docstring(legacy)
@@ -145,7 +145,7 @@ Example:
 
 
 def test_example_function_docstrings_use_numpy_section_headers() -> None:
-    for module in (analytics, external_workflow):
+    for module in (analytics, io):
         for _, function in inspect.getmembers(module, inspect.isfunction):
             if function.__module__ != module.__name__:
                 continue

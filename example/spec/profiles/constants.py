@@ -1,6 +1,6 @@
 """Project-wide physical constants profile."""
 
-from example.src import source
+from example.src import io
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 
@@ -38,7 +38,7 @@ class Constants(Profile):
                 outputs=[features.gravity, features.room_temperature],
             ),
             compute=Binding(
-                function=source.read_file,
+                function=io.read_file,
                 arguments=dict(
                     source=ref.params("constants_source"),
                     schema={"gravity": "float", "room_temperature": "float"},

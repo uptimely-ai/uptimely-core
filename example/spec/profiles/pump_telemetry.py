@@ -2,7 +2,7 @@
 
 import polars as pl
 from example.spec import dimension
-from example.src import analytics
+from example.src import analytics, io
 
 from uptimely import (
     Binding,
@@ -144,7 +144,7 @@ class PumpTelemetry(Profile):
                     ],
                 ),
                 compute=Binding(
-                    function=analytics.read_pump_telemetry,
+                    function=io.read_pump_telemetry,
                     arguments=dict(
                         source=ref.params("telemetry_source"),
                         pump_assets_source=ref.params("pump_assets_source"),
@@ -350,7 +350,7 @@ class PumpTelemetry(Profile):
                     outputs=[],
                 ),
                 compute=Binding(
-                    function=analytics.write_pump_telemetry,
+                    function=io.write_pump_telemetry,
                     arguments=dict(
                         dataset=ref.dataset(),
                         features=[

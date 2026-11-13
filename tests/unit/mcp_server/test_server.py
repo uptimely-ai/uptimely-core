@@ -8,7 +8,7 @@ import shlex
 import sys
 
 import pytest
-from example.src import external_workflow
+from example.src import io
 from support import examples as example_support
 
 fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed")
@@ -621,7 +621,7 @@ async def test_targeted_execution_reports_failed_previews(
 async def test_targeted_execution_does_not_fabricate_side_effect_only_results(
     state: mcp_state.ServerState, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.setattr(external_workflow, "process_pump_external_workflow", lambda: None)
+    monkeypatch.setattr(io, "process_pump_external_workflow", lambda: None)
 
     payload = await _call(
         state, "execute_function", {"function_id": "process_pump_external_workflow", "max_rows": 1}

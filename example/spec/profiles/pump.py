@@ -1,7 +1,8 @@
 """Pump-level profile and declarative dataframe transformations."""
 
 from example.spec import dimension
-from example.src import analytics, capacity, external_workflow, source
+from example.src import analytics, io
+from example.src import merge as merge_functions
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 from uptimely.spec import feature_types
@@ -78,7 +79,7 @@ class Pump(Profile):
             id="read_pump_capacity",
             interface=Interface(outputs=[features.pump_max_capacity]),
             compute=Binding(
-                function=source.read_file,
+                function=io.read_file,
                 arguments=dict(
                     source=ref.params("pump_assets_source"),
                     rename={"max_capacity": features.pump_max_capacity},
@@ -136,7 +137,7 @@ class Pump(Profile):
                 outputs=[features.max_capacity],
             ),
             compute=Binding(
-                function=capacity.resolve_capacity,
+                function=analytics.resolve_capacity,
                 arguments=dict(
                     dataset=ref.dataset(),
                     features=[
@@ -192,7 +193,7 @@ class Pump(Profile):
                 outputs=[features.measurement, features.reference_value],
             ),
             compute=Binding(
-                function=source.read_file,
+                function=io.read_file,
                 arguments=dict(
                     source=ref.params("pump_external_inputs_source"),
                     schema={"measurement": "float", "reference_value": "float"},
@@ -203,7 +204,7 @@ class Pump(Profile):
                 ),
             ),
             merge=Binding(
-                function=external_workflow.merge_pump_inputs,
+                function=merge_functions.merge_pump_inputs,
                 arguments={
                     "dataset": ref.dataset(),
                     "fragment": ref.fragment(),
@@ -218,7 +219,7 @@ class Pump(Profile):
                 outputs=[features.ratio],
             ),
             compute=Binding(
-                function=external_workflow.process_pump_external_workflow,
+                function=io.process_pump_external_workflow,
                 arguments={},
             ),
         ),

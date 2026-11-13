@@ -124,7 +124,7 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
         "returns": "dataframe",
-        "entrypoint": "example.src.analytics:read_pump_telemetry",
+        "entrypoint": "example.src.io:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
         },
@@ -328,7 +328,7 @@ def test_higher_dimensional_source_derives_collapse(tmp_path: pathlib.Path) -> N
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
         "returns": "dataframe",
-        "entrypoint": "example.src.analytics:read_pump_telemetry",
+        "entrypoint": "example.src.io:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
         },
@@ -358,7 +358,7 @@ def test_shared_callable_can_derive_collapse(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_telemetry"] = {
         "returns": "dataframe",
-        "entrypoint": "example.src.analytics:read_pump_telemetry",
+        "entrypoint": "example.src.io:read_pump_telemetry",
         "args": {
             "source": {"type": "dataframe"},
         },
@@ -388,7 +388,7 @@ def _matching_key_configuration(key_selector: object, *, key_type: str = "array[
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_with_keys"] = {
         "returns": "dataframe",
-        "entrypoint": "example.src.analytics:read_pump_telemetry",
+        "entrypoint": "example.src.io:read_pump_telemetry",
         "validate_signature": False,
         "args": {
             "source": {"type": "dataframe"},
@@ -510,7 +510,7 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["conform_telemetry"] = {
         "returns": "dataframe",
-        "entrypoint": "example.src.analytics:read_pump_telemetry",
+        "entrypoint": "example.src.io:read_pump_telemetry",
         "args": {"source": {"type": "dataframe"}},
     }
     target = configuration["profiles"]["pump"]

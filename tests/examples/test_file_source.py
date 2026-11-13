@@ -4,7 +4,7 @@ import pathlib
 
 import polars as pl
 import pytest
-from example.src import source
+from example.src import io
 
 
 @pytest.mark.parametrize("extension", ["json", "csv"])
@@ -18,24 +18,24 @@ def test_read_file_supports_all_columns_selection_and_renaming(
     else:
         frame.write_csv(path)
 
-    assert source.read_file(str(path)).collect().equals(frame)
+    assert io.read_file(str(path)).collect().equals(frame)
     assert (
-        source.read_file(str(path), columns=["value", "id"], rename={"value": "capacity"})
+        io.read_file(str(path), columns=["value", "id"], rename={"value": "capacity"})
         .collect()
         .equals(frame.select(pl.col("value").alias("capacity"), "id"))
     )
-    assert source.read_file(str(path), columns=[]).collect().columns == []
+    assert io.read_file(str(path), columns=[]).collect().columns == []
 
 
 def test_read_file_rejects_unsupported_extensions(tmp_path: pathlib.Path) -> None:
     with pytest.raises(ValueError, match="Unsupported file extension: .txt"):
-        source.read_file(str(tmp_path / "records.txt"))
+        io.read_file(str(tmp_path / "records.txt"))
 
 
 @pytest.mark.parametrize("extension", ["json", "csv"])
 def test_read_file_surfaces_missing_files(tmp_path: pathlib.Path, extension: str) -> None:
     with pytest.raises(FileNotFoundError):
-        source.read_file(str(tmp_path / f"missing.{extension}")).collect()
+        io.read_file(str(tmp_path / f"missing.{extension}")).collect()
 
 
 def test_read_file_rejects_missing_columns_and_invalid_types(tmp_path: pathlib.Path) -> None:
@@ -43,8 +43,8 @@ def test_read_file_rejects_missing_columns_and_invalid_types(tmp_path: pathlib.P
     path.write_text('[{"id": "one", "value": "invalid"}]', encoding="utf-8")
 
     with pytest.raises(pl.exceptions.ColumnNotFoundError):
-        source.read_file(str(path), columns=["missing"]).collect()
+        io.read_file(str(path), columns=["missing"]).collect()
     with pytest.raises(ValueError, match="Unsupported column type for value: unknown"):
-        source.read_file(str(path), schema={"value": "unknown"})
+        io.read_file(str(path), schema={"value": "unknown"})
     with pytest.raises(pl.exceptions.InvalidOperationError):
-        source.read_file(str(path), schema={"value": "float"}).collect()
+        io.read_file(str(path), schema={"value": "float"}).collect()

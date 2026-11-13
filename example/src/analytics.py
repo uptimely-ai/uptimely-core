@@ -1,4 +1,4 @@
-"""Analytical, source, and sink functions for pump telemetry."""
+"""Analytical functions for pump telemetry."""
 
 import collections.abc
 import functools
@@ -35,110 +35,6 @@ def select_columns(
     Selected columns with optional renaming, preserving rows and nulls.
     """
     return dataset.select(columns).rename(rename)
-
-
-@function(category="read")
-def read_pump_telemetry(
-    source: str,
-    pump_assets_source: str,
-    production_line: str | None = None,
-    environment: str = "development",
-) -> pl.LazyFrame:
-    """Load telemetry for an optional production line from a mock environment.
-
-    Parameters
-    ----------
-    source
-        Path to the JSON file containing pump telemetry records.
-    pump_assets_source
-        Path to the JSON file containing pump asset metadata.
-    production_line
-        Production line to filter telemetry by. If ``None``, all lines
-        are included.
-    environment
-        Target environment name; one of ``"development"``, ``"qa"``, or
-        ``"production"``. Defaults to ``"development"``.
-
-    Returns
-    -------
-    Telemetry joined with pump assets and an ``operation_mode`` column.
-
-    Raises
-    ------
-    ValueError
-        If ``environment`` is not a supported environment name.
-
-    Examples
-    --------
-    >>> telemetry = read_pump_telemetry(
-    ...     "data/pump_telemetry.json",
-    ...     "data/pump_assets.json",
-    ...     production_line="line_1",
-    ... )  # doctest: +SKIP
-    """
-    if environment not in {"development", "qa", "production"}:
-        raise ValueError(f"Unsupported environment: {environment}")
-
-    telemetry = (
-        pl.read_json(source)
-        .lazy()
-        .with_columns(pl.col("timestamp").str.to_datetime(time_zone="UTC"))
-    )
-    pump_assets = (
-        pl.read_json(pump_assets_source)
-        .lazy()
-        .select(
-            "plant_id",
-            "production_line_id",
-            "pump_id",
-            "machine_series_id",
-            "machine_category_id",
-            "rated_flow_rate",
-        )
-    )
-    data_read = (
-        telemetry.join(
-            pump_assets,
-            on=["plant_id", "production_line_id", "pump_id"],
-            how="left",
-            validate="m:1",
-        )
-        .with_columns(
-            pl.when(pl.col("flow_rate") < pl.col("rated_flow_rate"))
-            .then(pl.lit("low_speed"))
-            .otherwise(pl.lit("high_speed"))
-            .alias("operation_mode"),
-            pl.col("timestamp").dt.truncate("1m").alias("minute"),
-            pl.col("timestamp").dt.truncate("1h").alias("hour"),
-            pl.col("timestamp").dt.truncate("1d").alias("day"),
-        )
-        .drop("rated_flow_rate")
-    )
-    if production_line:
-        data_read = data_read.filter(pl.col("production_line_id") == production_line)
-    return data_read
-
-
-@function(category="write")
-def write_pump_telemetry(dataset: pl.LazyFrame, features: list[str]) -> None:
-    """Write calculated telemetry features as JSON to standard output.
-
-    Parameters
-    ----------
-    dataset
-        DataFrame containing the calculated telemetry features.
-    features
-        Names of the feature columns to write.
-
-    Returns
-    -------
-    This mock sink discards the dataset.
-
-    Examples
-    --------
-    >>> write_pump_telemetry(pl.LazyFrame({"efficiency": [0.5]}), ["efficiency"])
-    """
-    return
 
 
 @function(category="aggregate")
@@ -510,3 +406,23 @@ def pump_health_score(
         (efficiency - temperature_delta.abs() / 10.0 - vibration_delta.abs() / 2.0).alias(output)
     )
     return data_vectorized
+
+
+@function(category="calculate")
+def resolve_capacity(dataset: pl.LazyFrame, features: list[str], output: str) -> pl.LazyFrame:
+    """Choose the first non-null capacity in most-to-least-specific order.
+
+    Parameters
+    ----------
+    dataset
+        Pump profile with capacities from each resolution.
+    features
+        Capacity columns ordered from most to least accurate resolution.
+    output
+        Name of the resolved capacity feature.
+
+    Returns
+    -------
+    Pump profile with the resolved capacity, preserving all source columns.
+    """
+    return dataset.with_columns(pl.coalesce(features).alias(output))
