@@ -32,12 +32,16 @@ assigned when releases are published.
    release files. Name prerequisites using the corresponding work-package
    titles, and keep independent work schedulable without inventing dependencies.
    Update links and the release directory when a package moves or is renamed.
-5. Keep each work package small enough for one pull request, with a clear
-   outcome and bounded implementation, testing, and documentation scope. A
-   backlog item can require one or more commits within that package. Split
-   broader work into smaller work packages, ordered by their actual
-   dependencies. Avoid unrelated work in the same package.
-6. Review all affected roadmap pages for stale references, contradictory
+5. Treat each work package as one pull request with a clear outcome and
+   bounded implementation, testing, and documentation scope. Within its table,
+   make each row a concise planned change roughly the size of one commit.
+   Split rows that combine multiple commit-sized changes. Split broader or
+   unrelated work into separate work packages, ordered by their actual
+   dependencies.
+6. Keep table rows scannable. Put longer rationale, shared design notes, and
+   code examples in sections under the work-package heading, outside the table.
+   Add a row-specific subsection only when extra detail is needed for that row.
+7. Review all affected roadmap pages for stale references, contradictory
    ordering, duplicated items, and completed backlog work.
 
 ## Constraints
