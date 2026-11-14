@@ -22,6 +22,7 @@ DISTRIBUTION_NAME: str = "uptimely-core"
 RELEASE_TAG_PREFIX: str = "v"
 EXAMPLES_DOWNLOAD_TIMEOUT: int = 30
 TEMPORARY_DIRECTORY_PREFIX: str = ".uptimely-"
+SETUP_PATHS: frozenset[str] = frozenset({"pyproject.toml", "README.md", ".devcontainer"})
 
 
 def _repository_url() -> str:
@@ -51,7 +52,9 @@ def _archive_url(repository: str, ref: str) -> str:
     return f"https://codeload.github.com/{owner}/{name}/zip/{parse.quote(ref, safe='')}"
 
 
-def _extract_examples(archive: zipfile.ZipFile, destination: pathlib.Path) -> None:
+def _extract_examples(
+    archive: zipfile.ZipFile, destination: pathlib.Path, *, no_setup: bool = False
+) -> None:
     """Copy regular files under EXAMPLES_FOLDER relative to the repository root."""
     source_parts = EXAMPLES_FOLDER.split("/")
     prefix_length = 1 + len(source_parts)
@@ -72,6 +75,8 @@ def _extract_examples(archive: zipfile.ZipFile, destination: pathlib.Path) -> No
         file_type = stat.S_IFMT(member.external_attr >> 16)
         if file_type not in {0, stat.S_IFREG}:
             raise ValueError(f"Unsupported example archive entry: {member.filename!r}")
+        if no_setup and parts[prefix_length] in SETUP_PATHS:
+            continue
         target = destination.joinpath(*parts[prefix_length:])
         target.parent.mkdir(parents=True, exist_ok=True)
         with archive.open(member) as source, target.open("xb") as output:
@@ -79,6 +84,27 @@ def _extract_examples(archive: zipfile.ZipFile, destination: pathlib.Path) -> No
         copied = True
     if not copied:
         raise ValueError("The repository archive contains no example files")
+
+
+def _copy_into_existing(staging: pathlib.Path, destination: pathlib.Path) -> None:
+    """Copy staged files into an existing directory without replacing anything."""
+    files = sorted(path for path in staging.rglob("*") if path.is_file())
+    for source in files:
+        relative = source.relative_to(staging)
+        target = destination / relative
+        for path in (destination, *(destination / parent for parent in relative.parents[:-1])):
+            if path.is_symlink() or (path.exists() and not path.is_dir()):
+                raise FileExistsError(f"Cannot use example destination directory: {path}")
+        if target.exists() or target.is_symlink():
+            raise FileExistsError(
+                f"Example file already exists: {target}. Nothing was overwritten."
+            )
+
+    for source in files:
+        target = destination / source.relative_to(staging)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with source.open("rb") as input_file, target.open("xb") as output_file:
+            shutil.copyfileobj(input_file, output_file)
 
 
 def _ensure_destination_available(output: pathlib.Path) -> None:
@@ -91,20 +117,23 @@ def _ensure_destination_available(output: pathlib.Path) -> None:
         )
 
 
-def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.Path:
-    """Download the public repository's examples into a new directory.
+def download_examples(
+    output: pathlib.Path, ref: str | None = None, *, no_setup: bool = False
+) -> pathlib.Path:
+    """Download the public repository's examples.
 
     Args:
         output: Destination for the contents of the repository's example directory.
         ref: GitHub branch, tag, or commit. If omitted, use the release tag
             matching the installed package version (v<version>).
             Explicit HEAD selects the default branch.
+        no_setup: Exclude setup files and allow an existing destination directory.
 
     Returns:
         Absolute path to the downloaded examples.
 
     Raises:
-        FileExistsError: The destination already exists.
+        FileExistsError: The destination or an example file already exists.
         PackageNotFoundError: The distribution metadata is not installed.
         ValueError: Repository metadata, revision, or archive entries are invalid,
             or the matching release tag is unavailable.
@@ -113,7 +142,10 @@ def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.P
         OSError: The files cannot be written.
     """
     output = output.absolute()
-    _ensure_destination_available(output)
+    if not no_setup:
+        _ensure_destination_available(output)
+    elif output.is_symlink() or (output.exists() and not output.is_dir()):
+        raise FileExistsError(f"Cannot use example destination directory: {output}")
     revision = f"{RELEASE_TAG_PREFIX}{metadata.version(DISTRIBUTION_NAME)}" if ref is None else ref
     url = _archive_url(_repository_url(), revision)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -135,9 +167,12 @@ def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.P
                 raise
             downloaded.seek(0)
             with zipfile.ZipFile(downloaded) as archive:
-                _extract_examples(archive, staging)
-        _ensure_destination_available(output)
-        staging.rename(output)
+                _extract_examples(archive, staging, no_setup=no_setup)
+        if no_setup and output.exists():
+            _copy_into_existing(staging, output)
+        else:
+            _ensure_destination_available(output)
+            staging.rename(output)
     return output
 
 
@@ -174,12 +209,18 @@ def configure_download_parser(
         default=ref_default,
         help="Branch, tag, or commit (default: v<installed package version>)",
     )
+    parser.add_argument(
+        "--no-setup",
+        action="store_true",
+        default=argparse.SUPPRESS if suppress_defaults else False,
+        help="Exclude project setup files and allow an existing destination",
+    )
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Download examples using parsed command-line arguments."""
     try:
-        destination = download_examples(args.output, args.ref)
+        destination = download_examples(args.output, args.ref, no_setup=args.no_setup)
     except (
         OSError,
         urllib_error.URLError,

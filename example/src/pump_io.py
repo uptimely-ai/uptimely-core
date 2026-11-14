@@ -1,4 +1,4 @@
-"""Input, output, and workflow I/O functions for the cooling-pump example."""
+"""Input, output, and workflow functions for the cooling-pump example."""
 
 import collections.abc
 import pathlib

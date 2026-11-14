@@ -1,4 +1,4 @@
-"""Analytical functions for data-center cooling pump telemetry."""
+"""Analytical functions for cooling-pump telemetry."""
 
 import collections.abc
 import functools
@@ -6,10 +6,9 @@ import operator
 import types
 
 import polars as pl
+import pump_util as util
 
 from uptimely import function
-
-from . import util
 
 SUPPORTED_AGGREGATIONS = ("max", "min", "mean", "sum")
 EMPTY_COLUMN_RENAMES: collections.abc.Mapping[str, str] = types.MappingProxyType({})

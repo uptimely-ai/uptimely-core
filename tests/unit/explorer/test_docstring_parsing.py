@@ -2,7 +2,8 @@
 
 import inspect
 
-from example.src import analytics, io
+import pump_analytics as analytics
+import pump_io as io
 
 from uptimely.explorer.sections import spec as spec_section
 

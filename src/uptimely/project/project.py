@@ -36,6 +36,7 @@ class Project:
         python_spec: str | None = None,
         json_spec: source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
+        src_path: pathlib.Path | None = None,
     ) -> models.BuildBundle:
         """Build and publish the project's spec, plan, and Explorer snapshot.
 
@@ -43,6 +44,8 @@ class Project:
             python_spec: Optional ``module:attribute`` containing a Python Spec.
             json_spec: Optional explicit spec JSON path.
             features: Optional output features to compile with their dependencies.
+            src_path: Optional source directory, relative to the project root unless absolute.
+                Defaults to ``src``.
 
         Returns:
             The validated newly published bundle.
@@ -52,7 +55,10 @@ class Project:
             ProjectBuildError: Loading, compilation, generation, or publication fails.
         """
         return builder.ProjectBuilder(self.root).build(
-            python_spec=python_spec, json_spec=json_spec, features=features
+            python_spec=python_spec,
+            json_spec=json_spec,
+            features=features,
+            src_path=src_path,
         )
 
     def load_build_bundle(self, *, validate: bool = True) -> models.BuildBundle:

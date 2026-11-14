@@ -282,7 +282,12 @@ def test_engine_cli_forwards_validation_flag(
     config.write_text("{}", encoding="utf-8")
     received: list[bool] = []
 
-    def run(self: engine_module.Engine, *, validate: bool = False) -> engine_module.ExecutionResult:
+    def run(
+        self: engine_module.Engine,
+        *,
+        validate: bool = False,
+        src_path: pathlib.Path | None = None,
+    ) -> engine_module.ExecutionResult:
         received.append(validate)
         return engine_module.ExecutionResult(
             datasets={},
@@ -317,8 +322,11 @@ def test_engine_cli_builds_before_running(
     config = tmp_path / "config.json"
     config.write_text("{}", encoding="utf-8")
     events: list[str] = []
+    src_path = pathlib.Path("local_python")
 
-    def build(root: pathlib.Path) -> project_module.BuildBundle:
+    def build(
+        root: pathlib.Path, *, src_path: pathlib.Path | None = None
+    ) -> project_module.BuildBundle:
         output = capsys.readouterr().out
         assert "Start Uptimely engine run" in output
         assert "Start building the project bundle" in output
@@ -327,10 +335,17 @@ def test_engine_cli_builds_before_running(
         )
         events.append("build")
         assert root == tmp_path
+        assert src_path == pathlib.Path("local_python")
         return project_module.load_build_bundle(root)
 
-    def run(self: engine_module.Engine, *, validate: bool = False) -> engine_module.ExecutionResult:
+    def run(
+        self: engine_module.Engine,
+        *,
+        validate: bool = False,
+        src_path: pathlib.Path | None = None,
+    ) -> engine_module.ExecutionResult:
         events.append("run")
+        assert src_path == pathlib.Path("local_python")
         return engine_module.ExecutionResult(
             datasets={},
             calculated_outputs={},
@@ -350,6 +365,8 @@ def test_engine_cli_builds_before_running(
         "--config",
         str(config),
         "--build",
+        "--src-path",
+        str(src_path),
     )
 
     assert events == ["build", "run"]
@@ -362,7 +379,9 @@ def test_engine_cli_does_not_run_after_build_failure(
     capsys: pytest.CaptureFixture[str],
     command: tuple[str, ...],
 ) -> None:
-    def fail_build(root: pathlib.Path) -> project_module.BuildBundle:
+    def fail_build(
+        root: pathlib.Path, *, src_path: pathlib.Path | None = None
+    ) -> project_module.BuildBundle:
         raise project_module.ProjectBuildError("generation", "invalid source")
 
     monkeypatch.setattr(project_module, "build", fail_build)
@@ -441,7 +460,12 @@ def test_run_log_level_filters_uptimely_only_and_restores_configuration(
     dependency_level = dependency_logger.level
     runtime_logger = logging.getLogger("uptimely.engine.test")
 
-    def run(self: engine_module.Engine, *, validate: bool = False) -> engine_module.ExecutionResult:
+    def run(
+        self: engine_module.Engine,
+        *,
+        validate: bool = False,
+        src_path: pathlib.Path | None = None,
+    ) -> engine_module.ExecutionResult:
         assert validate
         assert logging.getLogger().level == logging.INFO
         assert dependency_logger.level == dependency_level
@@ -529,7 +553,9 @@ def test_engine_previews_final_profiles(
         plan_version=execution_plan.PLAN_VERSION,
     )
     monkeypatch.setattr(
-        engine_module.Engine, "run", lambda self, *, validate=False, preview_rows=5: result
+        engine_module.Engine,
+        "run",
+        lambda self, *, validate=False, preview_rows=5, src_path=None: result,
     )
     collected_heights: list[int] = []
     original_collect = pl.LazyFrame.collect
@@ -614,7 +640,9 @@ def test_engine_preview_errors_are_reported(
         plan_version=execution_plan.PLAN_VERSION,
     )
     monkeypatch.setattr(
-        engine_module.Engine, "run", lambda self, *, validate=False, preview_rows=5: result
+        engine_module.Engine,
+        "run",
+        lambda self, *, validate=False, preview_rows=5, src_path=None: result,
     )
     with pytest.raises(SystemExit) as error:
         invoke(

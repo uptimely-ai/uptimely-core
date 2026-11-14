@@ -1,7 +1,8 @@
 """Cooling-pump telemetry by minute profile declaration."""
 
-from example.spec import dimension
-from example.src import analytics, io
+import pump_analytics as analytics
+import pump_io as io
+from spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 

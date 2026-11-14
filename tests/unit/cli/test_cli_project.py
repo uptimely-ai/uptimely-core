@@ -111,7 +111,7 @@ def test_project_build_examples(
         assert result.out.endswith(f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n")
         assert "| Build   | Build scope" in result.out
         assert "| all features" in result.out
-        source = REPOSITORY_ROOT / "example" / project.SPEC_PYTHON_ENTRY_FILE
+        source = root / project.SPEC_PYTHON_ENTRY_FILE
         assert f"| {source}" in result.out
     else:
         assert result.out == (
@@ -127,6 +127,19 @@ def test_project_build_examples(
     assert set(bundle_files(root)) == {"build.json", "execution_plan.json", "spec.json"}
     explorer_data = json.loads((root / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert explorer_data["format_version"] == 3
+
+
+def test_project_build_accepts_custom_src_path(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = copy_unbuilt_example(tmp_path)
+    (root / "src").rename(root / "python")
+    monkeypatch.chdir(tmp_path)
+
+    invoke(monkeypatch, str(root), "--src-path", "python")
+
+    assert project.load_build_bundle(root).execution_plan.invocations
 
 
 def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None:
@@ -261,13 +274,13 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     bundle = project.load_build_bundle(root)
     assert not result.err
     if debug:
-        source_file = root / "declaration.py" if source_kind != "json" else source
+        spec_source = "declaration:definition" if source_kind != "json" else str(source)
         rows = [
             [cell.strip() for cell in line.split("|")[1:-1]]
             for line in result.out.splitlines()
             if line.startswith("|")
         ]
-        assert ["Spec", "Spec source file", str(source_file)] in rows
+        assert ["Spec", "Spec source", spec_source] in rows
         assert ["Spec", "Number of functions", "1"] in rows
         assert ["Spec", "Number of profiles", "1"] in rows
         assert ["Spec", "Number of features", "1"] in rows
@@ -316,7 +329,7 @@ def test_project_build_debug_summary(
         ["Build", "Duration", "1.234 s"],
         ["Build", "Output folder", str(bundle.root)],
         ["Build", "Build scope", scope],
-        ["Spec", "Spec source file", str(source)],
+        ["Spec", "Spec source", str(source)],
         ["Spec", "Number of functions", str(len(definition.functions))],
         ["Spec", "Number of profiles", str(len(profiles))],
         ["Spec", "Number of features", str(sum(len(profile.features) for profile in profiles))],

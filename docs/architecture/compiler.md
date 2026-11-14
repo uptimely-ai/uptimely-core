@@ -68,7 +68,7 @@ The versioned JSON object has four root fields:
       "function_id": "read_pump_data",
       "operator_id": "read",
       "profile_id": "pump_telemetry",
-      "entrypoint": "example.src.io:read_pump_data",
+      "entrypoint": "pump_io:read_pump_data",
       "arguments": {},
       "input_features": [],
       "output_features": ["pressure"],

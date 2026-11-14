@@ -4,8 +4,8 @@ import json
 import pathlib
 
 import polars as pl
+import pump_merge as merge
 import pytest
-from example.src import merge
 from support import execution as execution_support
 
 from uptimely import plan as plan_module

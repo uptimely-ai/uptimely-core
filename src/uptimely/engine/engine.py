@@ -1,6 +1,7 @@
 """Execution engine for plans in validated project build bundles."""
 
 import logging
+import pathlib
 import time
 from collections import abc
 
@@ -8,6 +9,7 @@ from uptimely import entrypoint as entrypoint_module
 from uptimely import plan as plan_module
 from uptimely.project import paths
 from uptimely.project.build import models as build_models
+from uptimely.project.build import source as build_source
 from uptimely.run import recording
 
 from . import config as config_module
@@ -85,6 +87,7 @@ class Engine:
         validate: bool = False,
         preview_rows: int = config_module.DEFAULT_PREVIEW_ROWS,
         operator: tuple[str, str] | None = None,
+        src_path: pathlib.Path | None = None,
     ) -> result_module.ExecutionResult:
         """Execute the plan and overwrite the project's latest-run artifacts.
 
@@ -97,6 +100,8 @@ class Engine:
                 and its saved prerequisites, without downstream sinks. An
                 explicitly selected sink still runs. Unselected invocations
                 are recorded as skipped.
+            src_path: Optional source directory, relative to the project root unless absolute.
+                Defaults to ``src``.
 
         Returns:
             Main dataframes, invocation results, execution duration, collected
@@ -108,9 +113,12 @@ class Engine:
                 The requested operator is absent from the saved execution scope.
         """
         plan = self.plan if operator is None else self.plan.for_operator(*operator)
-        with recording.RunRecorder(
-            self.bundle, self.config, validate=validate, preview_rows=preview_rows
-        ) as recorder:
+        with (
+            build_source.project_source_path(self.bundle.project_root, src_path=src_path),
+            recording.RunRecorder(
+                self.bundle, self.config, validate=validate, preview_rows=preview_rows
+            ) as recorder,
+        ):
             return recorder.finish(self._execute(validate=validate, plan=plan))
 
     def _execute(

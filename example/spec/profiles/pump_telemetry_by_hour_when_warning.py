@@ -1,8 +1,9 @@
 """Hourly operating-point calculations on warning-only telemetry."""
 
 import polars as pl
-from example.spec import dimension
-from example.src import analytics, io
+import pump_analytics as analytics
+import pump_io as io
+from spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Order, Profile, merge, ref
 

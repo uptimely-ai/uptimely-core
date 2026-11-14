@@ -10,8 +10,14 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
-- GitHub releases include a versioned ZIP archive of the tracked cooling-pump
-  example project.
+- Project build and run commands accept `--src-path` to select a Python source
+  directory other than the default `src/`.
+- Project builds and runs can import local modules from the project root and
+  `src/` without installing the project or setting `PYTHONPATH`.
+- `uptimely example --no-setup` downloads example files into an existing
+  project without replacing setup files or overwriting existing files.
+- GitHub releases include a ZIP archive of the tracked cooling-pump example
+  project, downloadable from the latest stable release.
 - The example filters warning telemetry into an intermediate profile and
   calculates operating-point recommendations from hourly warning aggregates.
 - The example aggregation function accepts multiple feature-method pairs in
@@ -23,8 +29,6 @@ While the version is `0.x`, minor releases may include breaking changes.
   reference paths separately from scalar parameters, and relative paths resolve
   against the project root.
 - The example download command accepts `--dir` to choose its destination.
-- The pump example installs as a Python package, with setup instructions for
-  pip, Poetry, and uv.
 - MCP tools can execute a selected analytical function or operator with its saved
   prerequisites, excluding downstream sinks. They also summarize spec feature
   counts and inspect the latest engine run and its filtered logs.
@@ -43,6 +47,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- The cooling-pump example keeps its importable functions directly under
+  `src/` and no longer needs to be installed as a package. Rebuild existing bundles.
 - Example telemetry profile names omit the "Cooling Pump" prefix.
 - The cooling-pump telemetry flow-band feature is now named `mode` instead of
   `operation_mode`. Rebuild example bundles after updating.
@@ -52,8 +58,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 - The examples download command is now `uptimely example`.
 - The example is available in the repository's development environment but is
   no longer bundled in Uptimely Core distributions.
-- The example project organizes its importable functions in `src/analytics.py`,
-  `src/io.py`, and `src/merge.py`. Rebuild existing example bundles after updating.
+- The example project organizes its importable functions in `src/pump_analytics.py`,
+  `src/pump_io.py`, `src/pump_merge.py`, and `src/pump_util.py`. Rebuild existing
+  example bundles after updating.
 - Example input data now lives in `data/input/`. Project guidance reserves
   `data/output/` for results to keep, share, or reuse.
 - The pump example writes each profile to a configured file under `data/output/`.

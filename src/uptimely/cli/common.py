@@ -43,6 +43,15 @@ def configure_project_root_arguments(parser: argparse.ArgumentParser, *, option_
     )
 
 
+def configure_src_path_argument(parser: argparse.ArgumentParser) -> None:
+    """Add an optional project-local Python source directory."""
+    parser.add_argument(
+        "--src-path",
+        type=pathlib.Path,
+        help="Python source directory (relative to the project root or absolute; default: src)",
+    )
+
+
 def resolve_project_root(args: argparse.Namespace, parser: argparse.ArgumentParser) -> pathlib.Path:
     """Resolve the project root and reject passing both supported forms."""
     positional = args.project_root_argument

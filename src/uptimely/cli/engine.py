@@ -29,6 +29,7 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
         parser,
         option_help="Project root containing the active build and function entrypoints",
     )
+    common.configure_src_path_argument(parser)
     parser.add_argument(
         "--build",
         action="store_true",
@@ -72,7 +73,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
         try:
             if args.build:
                 logger.info("Start building the project bundle")
-                bundle = project.build(root)
+                bundle = project.build(root, src_path=args.src_path)
                 logger.info("Build files created to %s", bundle.root)
             with project.read_build_bundle(root) as bundle:
                 settings = engine_module.Config.model_validate_json(
@@ -81,9 +82,13 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 engine = engine_module.Engine(bundle, settings)
                 started = time.perf_counter()
                 if args.preview is None:
-                    result = engine.run(validate=args.validate)
+                    result = engine.run(validate=args.validate, src_path=args.src_path)
                 else:
-                    result = engine.run(validate=args.validate, preview_rows=args.preview)
+                    result = engine.run(
+                        validate=args.validate,
+                        preview_rows=args.preview,
+                        src_path=args.src_path,
+                    )
                 elapsed = time.perf_counter() - started
                 duration = (
                     result.duration_seconds if result.duration_seconds is not None else elapsed

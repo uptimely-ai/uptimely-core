@@ -12,9 +12,11 @@ project/
 │   ├── input/
 │   └── output/
 ├── src/
-│   ├── analytics.py
-│   ├── io.py
-│   └── merge.py
+│   └── project_functions/
+│       ├── __init__.py
+│       ├── analytics.py
+│       ├── io.py
+│       └── merge.py
 ├── config/
 │   └── config.json
 ├── spec/
@@ -34,6 +36,10 @@ project/
             └── <profile>.json
 ```
 
+The included cooling-pump example uses distinctively named Python files
+directly under `src/` instead of the package directory shown above. Both
+layouts work with project source imports.
+
 ## Folder responsibilities
 
 | Path | Responsibility |
@@ -49,6 +55,15 @@ Put source files consumed by the workflow in `data/input/`. Store results you
 want to keep, share, or reuse in `data/output/`. Use `_generated/` for disposable
 previews and debugging files. Each run replaces
 `_generated/run/`, so it does not retain a history of earlier runs.
+
+Uptimely makes the project root and `src/` importable during builds and runs.
+Use `--src-path` to select a different source directory for a build or run.
+Use a distinctive module name under the source directory to avoid conflicts
+with dependencies and Python's standard library. The `uptimely` name is reserved
+for the framework.
+Python import state is process-wide. Uptimely serializes its project imports, but
+other threads can see the active paths and modules. Use separate processes when
+independently importing different projects concurrently.
 
 ## Runtime configuration
 

@@ -3,8 +3,9 @@ import pathlib
 import sys
 
 import polars as pl
+import pump_analytics as analytics
+import pump_io as io
 import pytest
-from example.src import analytics, io
 from support import examples as example_support
 from support import execution as execution_support
 

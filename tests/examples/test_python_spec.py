@@ -1,4 +1,5 @@
 import polars as pl
+import pump_analytics as analytics
 import pytest
 from example.spec import dimension as pump_dimensions
 from example.spec import spec as pump_telemetry_spec
@@ -14,7 +15,6 @@ from example.spec.profiles import (
     pump_telemetry_by_minute,
     pump_telemetry_when_warning,
 )
-from example.src import analytics
 from support import examples as example_support
 
 from uptimely import spec
@@ -147,7 +147,7 @@ def test_function_catalog_contracts_are_independent_of_operator_kinds() -> None:
     user_functions = {
         function_id: function
         for function_id, function in spec_definition.functions.root.items()
-        if function.entrypoint.startswith("example.src.")
+        if function.entrypoint.startswith(("pump_analytics:", "pump_io:", "pump_merge:"))
     }
     assert all(function.category for function in user_functions.values())
     assert user_functions["aggregate"].category == "aggregate"

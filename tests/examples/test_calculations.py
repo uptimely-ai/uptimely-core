@@ -1,8 +1,8 @@
 import math
 
 import polars as pl
+import pump_analytics as analytics
 import pytest
-from example.src import analytics
 
 
 @pytest.mark.parametrize("value", ["warning", "absent"])

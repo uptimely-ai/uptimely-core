@@ -3,8 +3,8 @@
 import json
 import pathlib
 
+import pump_analytics as analytics
 import pytest
-from example.src import analytics
 from support import examples as example_support
 
 from uptimely import project
@@ -193,7 +193,7 @@ def test_project_build_persists_source_origin(
         builder.ProjectBuilder, "_load_spec_definition", lambda *args: pump_bundle.spec_definition
     )
 
-    project.build(tmp_path)
+    project.build(tmp_path, json_spec=tmp_path / "source.json")
 
     snapshot = json.loads((tmp_path / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert snapshot["catalogs"]["configuration"]["functions"]["ratio"]["source_origin"] == "project"

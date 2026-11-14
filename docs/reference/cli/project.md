@@ -8,7 +8,8 @@ For the direct shortcut, use `uptimely build` with the same options.
 
 ```console
 uptimely build [PROJECT_ROOT] \
-  [--project-root PATH] [--python-spec MODULE:ATTRIBUTE | --json-spec PATH] \
+  [--project-root PATH] [--src-path PATH] \
+  [--python-spec MODULE:ATTRIBUTE | --json-spec PATH] \
   [--features FEATURE [FEATURE ...]] [--log-level LEVEL]
 ```
 
@@ -47,12 +48,13 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
-| `PROJECT_ROOT` | No | Current working directory | Project directory for source discovery and generated output paths. Function packages must already be installed in the build and runtime environments. May be passed as `--project-root PATH` instead. |
-| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. It does not add the project directory to Python's import path. |
-| `--python-spec MODULE:ATTRIBUTE` | No | Discover standard sources | Select an importable Python attribute containing a `Spec` instance. The module must already be importable; the project root is not added to `sys.path`. Mutually exclusive with `--json-spec`. |
+| `PROJECT_ROOT` | No | Current working directory | Project directory for source discovery and generated output paths. The project root and source directory are importable during the build. May be passed as `--project-root PATH` instead. |
+| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
+| `--src-path PATH` | No | `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the default for this command. |
+| `--python-spec MODULE:ATTRIBUTE` | No | Discover standard sources | Select an importable Python attribute containing a `Spec` instance. The project root and configured source directory are added while loading it. Mutually exclusive with `--json-spec`. |
 | `--json-spec PATH` | No | Discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Relative to the current working directory. |
 | `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
-| `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes build duration, output folder, source file, resource counts, and plan size. |
+| `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes build duration, output folder, spec source, resource counts, and plan size. |
 
 ### Build logging
 
@@ -62,7 +64,7 @@ printed after the build debug trace and before the final success message,
 grouped into:
 
 - **Build:** duration in seconds, output folder, and feature scope.
-- **Spec:** source file and numbers of functions, profiles, and features.
+- **Spec:** source identifier and numbers of functions, profiles, and features.
 - **Plan:** numbers of execution stages and invocations.
 
 Build logs stream as the build runs. Failed builds do not print a success summary.
@@ -70,8 +72,8 @@ Build logs stream as the build runs. Failed builds do not print a success summar
 Duration covers building, validating, and publishing the bundle, not workflow
 execution. Spec counts cover the complete specification, including for scoped
 builds; features are counted per profile, excluding dimensions. Plan counts
-describe the compiled feature scope. The source file is the original JSON or
-Python declaration, not the generated spec export.
+describe the compiled feature scope. The source identifier is the original JSON
+path or Python module entrypoint, not the generated spec export.
 
 ### Specification source discovery
 
@@ -85,8 +87,10 @@ Without `--python-spec` or `--json-spec`, source discovery checks
 - If neither exists, the build fails and reports the expected paths.
 
 Use `--python-spec` or `--json-spec` to select a source explicitly, including
-one outside the standard paths. A discovered Python spec is imported as a
-module; discovery does not make an otherwise unavailable package importable.
+one outside the standard paths. A Python spec is imported as a module, with
+the project root and configured source directory available for local imports.
+Third-party packages still need to be installed in the active environment.
+Use `--src-path` when project modules are in a directory other than `src/`.
 
 ### Examples
 

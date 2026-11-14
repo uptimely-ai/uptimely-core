@@ -60,7 +60,7 @@ def _get(app: ASGIApp, path: str) -> tuple[int, bytes, dict[str, str]]:
         url = urllib.parse.urlsplit(path)
         scope: Scope = {
             "type": "http",
-            "asgi": {"version": "3.0", "spec_version": "2.3"},
+            "asgi": {"version": "3.0", "spec_version": "2.4"},
             "http_version": "1.1",
             "method": "GET",
             "scheme": "http",

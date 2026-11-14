@@ -69,12 +69,13 @@ jobs:
       - name: Build the installed project wheel
         working-directory: tests/fixtures/installed_project
         run: poetry build --format wheel --output ../../../dist
-      - name: Install wheels and standalone example in a clean environment
+      - name: Install wheels and copy standalone example
         run: |
           python -m venv "${{ runner.temp }}/uptimely-installed"
           "${{ runner.temp }}/uptimely-installed/bin/python" -m pip install dist/*.whl
           cp -R example "${{ runner.temp }}/example"
-          "${{ runner.temp }}/uptimely-installed/bin/python" -m pip install --no-deps -e "${{ runner.temp }}/example"
       - name: Test installed commands outside the checkout
+        env:
+          UPTIMELY_EXAMPLE_DIR: ${{ runner.temp }}/example
         run: |
           "${{ runner.temp }}/uptimely-installed/bin/python" -I tests/packaging/check_installed.py -v
