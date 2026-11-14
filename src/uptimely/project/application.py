@@ -5,10 +5,12 @@ from __future__ import annotations
 import contextlib
 import pathlib
 import tomllib
+import typing
 
 from uptimely import engine as engine_module
 
-from . import config, paths
+from . import config as config_module
+from . import paths
 from .build import builder, bundle, models, source
 from .build import features as feature_selection
 
@@ -16,27 +18,69 @@ from .build import features as feature_selection
 class Uptimely:
     """Entry point for an analytics project at a fixed filesystem path."""
 
+    @staticmethod
+    def _merge_config(
+        defaults: dict[str, typing.Any], overrides: dict[str, typing.Any]
+    ) -> dict[str, typing.Any]:
+        """Recursively apply configuration overrides to project defaults."""
+        merged = defaults.copy()
+        for key, override in overrides.items():
+            default = merged.get(key)
+            if isinstance(default, dict) and isinstance(override, dict):
+                merged[key] = Uptimely._merge_config(default, override)
+            else:
+                merged[key] = override
+        return merged
+
     def __init__(
-        self, root: str | pathlib.Path = ".", *, config_path: str | pathlib.Path | None = None
+        self,
+        root: str | pathlib.Path = ".",
+        *,
+        config: str | None = None,
+        config_path: str | pathlib.Path | None = None,
     ) -> None:
         """Resolve the project root and load its configuration once.
 
         Args:
             root: Project directory, defaulting to the current working directory.
+            config: Named config to overlay from ``config/<name>.toml``.
             config_path: Explicit TOML file, relative to the current directory if relative.
                 Defaults to ``uptimely.toml`` under the project root.
         """
         self.root = pathlib.Path(root).resolve()
-        self.config_path = (
-            self.root / paths.CONFIG_FILE
-            if config_path is None
-            else pathlib.Path(config_path).resolve()
-        )
-        if config_path is None and not self.config_path.exists():
-            self.config = config.ProjectConfig()
+        if config is not None and config_path is not None:
+            raise ValueError("config and config_path cannot both be provided")
+        default_config_path = self.root / paths.CONFIG_FILE
+        if config is not None:
+            if (
+                not config
+                or config in {".", ".."}
+                or pathlib.Path(config).name != config
+                or "\\" in config
+            ):
+                raise ValueError("config must be a name without a path")
+            self.config_path = (self.root / paths.CONFIG_DIR / f"{config}.toml").resolve()
+            defaults = (
+                self._read_config(default_config_path) if default_config_path.exists() else {}
+            )
+            overrides = self._read_config(self.config_path)
+            config_values = self._merge_config(defaults, overrides)
+        elif config_path is not None:
+            self.config_path = pathlib.Path(config_path).resolve()
+            config_values = self._read_config(self.config_path)
+        elif default_config_path.exists():
+            self.config_path = default_config_path
+            config_values = self._read_config(self.config_path)
         else:
-            with self.config_path.open("rb") as file:
-                self.config = config.ProjectConfig.model_validate(tomllib.load(file))
+            self.config_path = default_config_path
+            config_values = {}
+        self.config = config_module.ProjectConfig.model_validate(config_values)
+
+    @staticmethod
+    def _read_config(config_path: pathlib.Path) -> dict[str, typing.Any]:
+        """Read a TOML configuration file."""
+        with config_path.open("rb") as file:
+            return tomllib.load(file)
 
     def create_engine(self, build: models.BuildBundle) -> engine_module.Engine:
         """Create an engine with this project's configuration.
