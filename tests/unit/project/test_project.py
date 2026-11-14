@@ -57,12 +57,12 @@ def test_resolve_path_uses_root_from_construction(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    instance = project.Uptimely()
+    app = project.Uptimely()
     child = tmp_path / "child"
     child.mkdir()
     monkeypatch.chdir(child)
 
-    assert instance.resolve_path(None, project.CONFIG_FILE) == tmp_path / project.CONFIG_FILE
+    assert app.resolve_path(None, project.CONFIG_FILE) == tmp_path / project.CONFIG_FILE
 
 
 def _manifest_data() -> dict[str, object]:

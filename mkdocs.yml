@@ -88,10 +88,10 @@ nav:
       - Background: background.md
   - Components:
       - Uptimely config: architecture/config.md
+      - App: architecture/project.md
       - Spec document: architecture/spec.md
       - Compiler: architecture/compiler.md
       - Execution plan: architecture/execution-plan.md
-      - Project: architecture/project.md
       - Engine: architecture/engine.md
       - Explorer: architecture/explorer.md
       - AI agents: architecture/ai.md
@@ -119,7 +119,7 @@ nav:
           - Tool reference: reference/mcp/tools.md
       - Python:
           - Overview: reference/python/index.md
-          - Projects: reference/python/project.md
+          - App: reference/python/project.md
           - Spec:
               - Overview: reference/python/spec.md
               - Python authoring: reference/python/python.md

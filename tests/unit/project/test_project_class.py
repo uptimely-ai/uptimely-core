@@ -14,7 +14,7 @@ from uptimely.project.build import builder, bundle
 
 
 @pytest.fixture
-def project(tmp_path: pathlib.Path) -> project_module.Uptimely:
+def app(tmp_path: pathlib.Path) -> project_module.Uptimely:
     """Create a project with a minimal discoverable source Spec."""
     spec_path = tmp_path / project_module.SPEC_JSON_ENTRY_FILE
     spec_path.parent.mkdir(parents=True)
@@ -31,12 +31,12 @@ def test_project_resolves_root_at_construction(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, root: str | pathlib.Path | None
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    project = uptimely.Uptimely() if root is None else uptimely.Uptimely(root)
+    app = uptimely.Uptimely() if root is None else uptimely.Uptimely(root)
     child = tmp_path / "child"
     child.mkdir()
     monkeypatch.chdir(child)
 
-    assert project.root == tmp_path.resolve()
+    assert app.root == tmp_path.resolve()
     assert not (tmp_path / project_module.GENERATED_DIR).exists()
 
 
@@ -47,14 +47,14 @@ def test_project_loads_and_passes_config_to_engine(tmp_path: pathlib.Path) -> No
         '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 42\n',
         encoding="utf-8",
     )
-    instance = project_module.Uptimely(tmp_path)
+    app = project_module.Uptimely(tmp_path)
     config_path.write_text("[params]\nthreshold = 99\n", encoding="utf-8")
     (tmp_path / "spec").mkdir()
     (tmp_path / "spec/spec.json").write_text(
         '{"spec_version": 8, "name": "Config test"}', encoding="utf-8"
     )
 
-    runtime = instance.create_engine(instance.build())
+    runtime = app.create_engine(app.build())
 
     assert runtime.config.backend.dataframe == "POLARS"
     assert runtime.config.backend.evaluation == "lazy"
@@ -83,40 +83,40 @@ def test_project_resolves_explicit_config_from_working_directory(
 ) -> None:
     (tmp_path / "override.toml").write_text("[params]\nvalue = 7\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    instance = project_module.Uptimely(tmp_path / "other", config_path="override.toml")
+    app = project_module.Uptimely(tmp_path / "other", config_path="override.toml")
 
-    assert instance.config_path == tmp_path / "override.toml"
-    assert instance.config.params.root == {"value": 7}
+    assert app.config_path == tmp_path / "override.toml"
+    assert app.config.params.root == {"value": 7}
 
 
 def test_project_rejects_bundle_from_different_project(
-    project: project_module.Uptimely, tmp_path: pathlib.Path
+    app: project_module.Uptimely, tmp_path: pathlib.Path
 ) -> None:
-    build = project.build()
-    other = project_module.Uptimely(tmp_path / "other")
+    build = app.build()
+    other_app = project_module.Uptimely(tmp_path / "other")
     with pytest.raises(ValueError, match="different project"):
-        other.create_engine(build)
+        other_app.create_engine(build)
 
 
-def test_project_builds_and_loads_fresh_bundles(project: project_module.Uptimely) -> None:
-    first = project.build()
-    loaded = project.load_build_bundle()
-    assert first.project_root == project.root
+def test_project_builds_and_loads_fresh_bundles(app: project_module.Uptimely) -> None:
+    first = app.build()
+    loaded = app.load_build_bundle()
+    assert first.project_root == app.root
     assert loaded is not first
     assert loaded.spec_definition.name == "First build"
 
-    spec_path = project.root / project_module.SPEC_JSON_ENTRY_FILE
+    spec_path = app.root / project_module.SPEC_JSON_ENTRY_FILE
     spec_path.write_text('{"spec_version": 8, "name": "Second build"}', encoding="utf-8")
-    second = project.build()
+    second = app.build()
 
     assert second.spec_definition.name == "Second build"
     assert first.spec_definition.name == "First build"
-    assert project.load_build_bundle().spec_definition.name == "Second build"
+    assert app.load_build_bundle().spec_definition.name == "Second build"
     assert not uptimely.Engine(second).run().failures
 
 
-def test_run_forwards_options_and_holds_build_lock(project: project_module.Uptimely) -> None:
-    project.build()
+def test_run_forwards_options_and_holds_build_lock(app: project_module.Uptimely) -> None:
+    app.build()
     src_path = pathlib.Path("custom-src")
 
     def run(
@@ -127,7 +127,7 @@ def test_run_forwards_options_and_holds_build_lock(project: project_module.Uptim
         operator: tuple[str, str] | None,
         src_path: pathlib.Path | None,
     ) -> object:
-        assert runtime.bundle.project_root == project.root
+        assert runtime.bundle.project_root == app.root
         assert (validate, preview_rows, operator, src_path) == (
             True,
             3,
@@ -135,29 +135,29 @@ def test_run_forwards_options_and_holds_build_lock(project: project_module.Uptim
             pathlib.Path("custom-src"),
         )
         with pytest.raises(project_module.BuildLockError):
-            project.build()
+            app.build()
         return mock.sentinel.result
 
     with mock.patch.object(uptimely.Engine, "run", autospec=True, side_effect=run):
         assert (
-            project.run(
+            app.run(
                 validate=True, preview_rows=3, operator=("profile", "operator"), src_path=src_path
             )
             is mock.sentinel.result
         )
 
-    project.build()
+    app.build()
 
 
-def test_run_releases_build_lock_on_failure(project: project_module.Uptimely) -> None:
-    project.build()
+def test_run_releases_build_lock_on_failure(app: project_module.Uptimely) -> None:
+    app.build()
     with (
         mock.patch.object(uptimely.Engine, "run", side_effect=ValueError("run failed")),
         pytest.raises(ValueError, match="run failed"),
     ):
-        project.run()
+        app.run()
 
-    project.build()
+    app.build()
 
 
 def test_build_and_run_use_project_paths(
@@ -175,15 +175,15 @@ def test_build_and_run_use_project_paths(
 
 
 def test_project_build_forwards_source_and_feature_options(
-    project: project_module.Uptimely,
+    app: project_module.Uptimely,
 ) -> None:
-    source = project.root / project_module.SPEC_JSON_ENTRY_FILE
+    source = app.root / project_module.SPEC_JSON_ENTRY_FILE
     with mock.patch.object(builder, "ProjectBuilder", autospec=True) as builder_class:
-        result = project.build(
+        result = app.build(
             python_spec="spec.spec:python_spec", json_spec=source, features=["reading"]
         )
 
-    builder_class.assert_called_once_with(project.root)
+    builder_class.assert_called_once_with(app.root)
     builder_class.return_value.build.assert_called_once_with(
         python_spec="spec.spec:python_spec",
         json_spec=source,
@@ -194,36 +194,36 @@ def test_project_build_forwards_source_and_feature_options(
 
 
 @pytest.mark.parametrize("validate", [False, True])
-def test_project_load_forwards_validation(project: project_module.Uptimely, validate: bool) -> None:
+def test_project_load_forwards_validation(app: project_module.Uptimely, validate: bool) -> None:
     with mock.patch.object(bundle, "BundleStore", autospec=True) as store_class:
-        result = project.load_build_bundle(validate=validate)
+        result = app.load_build_bundle(validate=validate)
 
-    store_class.assert_called_once_with(project.root)
+    store_class.assert_called_once_with(app.root)
     store_class.return_value.load.assert_called_once_with(validate=validate)
     assert result is store_class.return_value.load.return_value
 
 
 @pytest.mark.parametrize("validate", [False, True])
 def test_project_read_holds_and_releases_build_lock(
-    project: project_module.Uptimely, validate: bool
+    app: project_module.Uptimely, validate: bool
 ) -> None:
-    project.build()
+    app.build()
 
-    with project.read_build_bundle(validate=validate) as saved:
-        assert saved.project_root == project.root
+    with app.read_build_bundle(validate=validate) as saved:
+        assert saved.project_root == app.root
         assert saved.spec_definition.name == "First build"
         with pytest.raises(project_module.BuildLockError):
-            project.build()
+            app.build()
 
-    assert project.build().spec_definition.name == "First build"
+    assert app.build().spec_definition.name == "First build"
 
 
-def test_project_load_reports_missing_build(project: project_module.Uptimely) -> None:
+def test_project_load_reports_missing_build(app: project_module.Uptimely) -> None:
     with pytest.raises(project_module.BuildError):
-        project.load_build_bundle()
+        app.load_build_bundle()
 
-    with pytest.raises(project_module.BuildError), project.read_build_bundle():
+    with pytest.raises(project_module.BuildError), app.read_build_bundle():
         pass
 
     with pytest.raises(project_module.BuildError):
-        project.run()
+        app.run()

@@ -10,13 +10,13 @@ from uptimely import project as project_module
 class ServerState:
     """Hold project configuration and cache its validated saved build."""
 
-    project: project_module.Uptimely
+    app: project_module.Uptimely
     bundle: project_module.BuildBundle | None = dataclasses.field(default=None, repr=False)
 
     @property
     def project_root(self) -> pathlib.Path:
         """Return the configured project root."""
-        return self.project.root
+        return self.app.root
 
     def load_bundle(self, *, reload: bool = False) -> project_module.BuildBundle:
         """Load and cache one validated saved build.
@@ -32,7 +32,7 @@ class ServerState:
         if reload:
             self.bundle = None
 
-        with self.project.read_build_bundle() as bundle:
+        with self.app.read_build_bundle() as bundle:
             loaded_bundle = bundle
         self.bundle = loaded_bundle
         return loaded_bundle
