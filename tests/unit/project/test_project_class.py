@@ -9,6 +9,7 @@ from support import examples as example_support
 
 import uptimely
 from uptimely import project as project_module
+from uptimely.project import application
 from uptimely.project.build import builder, bundle
 
 
@@ -22,7 +23,7 @@ def project(tmp_path: pathlib.Path) -> project_module.Uptimely:
 
 
 def test_uptimely_is_exported_from_package() -> None:
-    assert uptimely.Uptimely is project_module.Uptimely
+    assert uptimely.Uptimely is project_module.Uptimely is application.Uptimely
 
 
 @pytest.mark.parametrize("root", [None, "", ".", pathlib.Path(".")])
