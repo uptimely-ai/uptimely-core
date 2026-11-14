@@ -22,7 +22,7 @@ DISTRIBUTION_NAME: str = "uptimely-core"
 RELEASE_TAG_PREFIX: str = "v"
 EXAMPLES_DOWNLOAD_TIMEOUT: int = 30
 TEMPORARY_DIRECTORY_PREFIX: str = ".uptimely-"
-SETUP_PATHS: frozenset[str] = frozenset({"pyproject.toml", "README.md", ".devcontainer"})
+SETUP_PATHS: frozenset[str] = frozenset({"pyproject.toml", "README.md", "init.sh", ".devcontainer"})
 
 
 def _repository_url() -> str:
