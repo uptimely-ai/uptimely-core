@@ -8,6 +8,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- Named configs in `config/<name>.toml` recursively override
+  project defaults from `uptimely.toml`.
+
 ### Changed
 
 - The public `Project` class is now `Uptimely`. Use `app.build()` to publish a

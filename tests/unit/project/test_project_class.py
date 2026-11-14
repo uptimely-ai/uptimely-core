@@ -78,6 +78,38 @@ def test_project_explicit_config_and_failures(tmp_path: pathlib.Path) -> None:
         project_module.Uptimely(tmp_path, config_path=override)
 
 
+def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "uptimely.toml").write_text(
+        '[engine.backend]\ntype = "default"\nevaluation = "eager"\n'
+        '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 10\n',
+        encoding="utf-8",
+    )
+    profile_dir = tmp_path / project_module.CONFIG_DIR
+    profile_dir.mkdir()
+    (profile_dir / "prod.toml").write_text(
+        '[engine.backend]\ntype = "production"\n[params]\nthreshold = 42\n',
+        encoding="utf-8",
+    )
+
+    app = project_module.Uptimely(tmp_path, config="prod")
+
+    assert app.config_path == (profile_dir / "prod.toml").resolve()
+    assert app.config.engine.backend.type == "production"
+    assert app.config.engine.backend.evaluation == "eager"
+    assert app.config.paths.root == {"source": "data/source.csv"}
+    assert app.config.params.root == {"threshold": 42}
+
+
+def test_project_named_config_requires_profile_and_rejects_config_path_conflict(
+    tmp_path: pathlib.Path,
+) -> None:
+    with pytest.raises(FileNotFoundError):
+        project_module.Uptimely(tmp_path, config="prod")
+
+    with pytest.raises(ValueError, match="cannot both"):
+        project_module.Uptimely(tmp_path, config="prod", config_path=tmp_path / "config.toml")
+
+
 def test_project_resolves_explicit_config_from_working_directory(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

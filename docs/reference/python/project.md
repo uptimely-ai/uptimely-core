@@ -26,10 +26,12 @@ with app.read_build_bundle() as bundle:
 ```
 
 `Uptimely` loads and validates `uptimely.toml` when it is constructed. Pass
-`config_path` to use another TOML file. Explicit relative paths are resolved
-from the current working directory. If the default file is absent, configuration
-uses defaults. An explicitly requested file must exist. Construct a new `Uptimely`
-to pick up changes to the file.
+`config="prod"` to recursively override its values with `config/prod.toml`.
+Alternatively, pass `config_path` to load a different TOML file on its own.
+Explicit relative paths are resolved from the current working directory. If
+the default file is absent, configuration uses defaults. An explicitly
+requested config or file must exist. Construct a new `Uptimely` to pick up
+changes to the files.
 
 `create_engine()` passes the project's engine settings, paths, and parameters
 to the Engine. It rejects bundles from a different project.

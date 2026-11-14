@@ -54,10 +54,10 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
     )
     parser.add_argument(
         "--config",
-        type=pathlib.Path,
+        metavar="CONFIG_OR_PATH",
         help=(
-            "TOML engine settings, project paths, and runtime parameters "
-            f"(default: {project.CONFIG_FILE} under the project root or current directory)"
+            "Named config in config/ or explicit TOML file "
+            f"(default: {project.CONFIG_FILE} under the project root)"
         ),
     )
 
@@ -70,7 +70,20 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     with common.apply_log_level(args.log_level):
         logger.info("Start Uptimely engine run")
         try:
-            app = project.Uptimely(root, config_path=args.config)
+            if args.config is None:
+                app = project.Uptimely(root)
+            else:
+                config_path = pathlib.Path(args.config)
+                is_explicit_path = (
+                    config_path.is_absolute()
+                    or len(config_path.parts) > 1
+                    or config_path.suffix.lower() == ".toml"
+                    or config_path.is_file()
+                )
+                if is_explicit_path:
+                    app = project.Uptimely(root, config_path=config_path)
+                else:
+                    app = project.Uptimely(root, config=args.config)
             if args.build:
                 logger.info("Start building the project bundle")
                 bundle = app.build(src_path=args.src_path)

@@ -311,6 +311,44 @@ def test_engine_cli_forwards_validation_flag(
     assert received == [validate]
 
 
+def test_engine_cli_loads_named_config_profile_and_merges_defaults(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _write_empty_build(tmp_path)
+    (tmp_path / "uptimely.toml").write_text(
+        '[engine.backend]\nevaluation = "eager"\n[params]\nbase_value = 1\n',
+        encoding="utf-8",
+    )
+    profile_dir = tmp_path / project_module.CONFIG_DIR
+    profile_dir.mkdir()
+    (profile_dir / "prod.toml").write_text(
+        '[engine.backend]\ndataframe = "polars"\n[params]\nprofile_value = 2\n',
+        encoding="utf-8",
+    )
+
+    def run(
+        self: engine_module.Engine,
+        *,
+        validate: bool = False,
+        src_path: pathlib.Path | None = None,
+    ) -> engine_module.ExecutionResult:
+        assert self.config.backend.evaluation == "eager"
+        assert self.config.backend.dataframe == "polars"
+        assert self.parameters == {"base_value": 1, "profile_value": 2}
+        return engine_module.ExecutionResult(
+            datasets={},
+            calculated_outputs={},
+            invocation_statuses={},
+            durations={},
+            failures={},
+            plan_version=execution_plan.PLAN_VERSION,
+        )
+
+    monkeypatch.setattr(engine_module.Engine, "run", run)
+
+    invoke(monkeypatch, "run", str(tmp_path), "--config", "prod")
+
+
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
 def test_engine_cli_builds_before_running(
     tmp_path: pathlib.Path,
