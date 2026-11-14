@@ -1,4 +1,4 @@
-# Run the cooling-pump example
+# Example project for Data center cooling pumps
 
 This project uses synthetic telemetry for six cooling-system pumps across two
 data centers and four server rooms. It demonstrates asset hierarchies,
@@ -6,21 +6,29 @@ time-based telemetry, and externally calculated measurements in an Uptimely
 Core workflow.
 
 Health scores, warning thresholds, and operating-point recommendations are
-illustrative calculations. They are not validated operating limits or control
-advice.
+illustrative calculations.
 
-## Workflow
+## Analytical profiles
 
-- `pump_telemetry` combines pump readings with asset metadata.
-- `pump_series` and `pump_category` provide inherited capacity metadata. The
-  `pump` profile resolves capacity from the pump, series, then category level
-  and combines telemetry with external measurements.
-- Time-based profiles summarize telemetry by minute, hour, and day.
-- Warning profiles filter readings and summarize them by hour. The hourly
-  warning profile also demonstrates an illustrative operating-point
-  recommendation.
-- The external workflow reads a sample CSV, calculates a measurement ratio, and
-  writes its result as a separate output.
+Profile is Uptimely's primary concept to organize data science in manageable components.
+
+Each profile is declared in `spec/profiles/<profile_id>.py`.
+
+| Profile | Purpose |
+| --- | --- |
+| `pump_telemetry` | Combines pump readings with asset metadata. |
+| `pump` | Resolves capacity from the pump, series, then category and combines telemetry with external measurements. |
+| `constants` | Provides physical constants for cooling pump analytics. |
+| `pump_series` | Provides capacity metadata for pump series. |
+| `pump_category` | Provides capacity metadata for pump categories. |
+| `pump_telemetry_by_minute` | Summarizes maximum bearing temperature per pump and minute. |
+| `pump_telemetry_by_hour` | Summarizes maximum bearing temperature per pump and hour. |
+| `pump_telemetry_by_day` | Summarizes maximum bearing temperature per pump and day. |
+| `pump_telemetry_when_warning` | Filters telemetry to warning readings. |
+| `pump_telemetry_by_hour_when_warning` | Summarizes warning readings by hour and calculates an illustrative operating-point recommendation. |
+
+The external workflow reads a sample CSV, calculates a measurement ratio, and
+writes its result as a separate output.
 
 ## Project files
 
@@ -36,54 +44,18 @@ advice.
 | `config/config.json` | Engine settings and configured input and output paths. |
 | `_generated/` | The active build, Explorer snapshot, and latest run metadata. |
 
-The Python declarations are in `spec/`. The project entry point is
-`spec/spec.py`. Source modules live directly under `src/` and are imported from
-the project source path. They do not need to be installed as a separate package.
+The heart of the project is in `spec/spec.py`. It combines analytical specification of functions, profiles, operators and dimension into a single Python object.
 
-## Set up the project
+When a build is created the Python object is serialized to a json file. At the same time, a portable execution plan with resolved function arguments is generated. It can be consumed either by Uptimely's built-in engine, or deployed to any orcestrator that can execute Python functions.
 
-If you have not downloaded the example, follow the
-[quick start](https://uptimely-ai.github.io/uptimely-core/#install). It shows
-how to download the project. From the project root, sync its dependencies:
-
-```console
-uv sync
-```
-
-The example requires Python 3.13 or newer.
-
-## Project template
-
-Alternatively, fetch the full project template from the latest stable release.
-Install uv as described in the quick start.
-
-From outside an existing example
-project, run the following. On Debian or Ubuntu, install `curl` and `unzip` if
-needed:
-
-```sh
-sudo apt install curl unzip
-curl -fLO https://uptimely.ai/core/example.zip
-unzip example.zip -d pump-analytics
-cd pump-analytics
-uv sync
-uv run uptimely run --build --preview 10
-uv run uptimely explore
-```
-
-The Explorer runs until you stop it.
-
-## Dev Container
-
-The full example includes a Dev Container configuration. Install Docker and the
-VS Code Dev Containers extension, then open the example folder in VS Code and
-select **Dev Containers: Reopen in Container** from the Command Palette.
-
-The container installs uv and syncs dependencies automatically. Run the
-commands below in its terminal. Explorer port 8001 is forwarded to your host.
-The `--no-setup` download does not include the Dev Container configuration.
 
 ## Build and run
+
+Depending on the setup, use either of:
+
+* `uptimely <command>`
+* `uv run uptimely <command>`
+* `poetry run uptimely <command>`
 
 Build the project to compile its Python spec and publish the execution bundle:
 

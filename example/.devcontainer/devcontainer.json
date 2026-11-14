@@ -11,9 +11,10 @@
         "UV_LINK_MODE": "copy"
     },
     "remoteEnv": {
-        "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:PATH}"
+        "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:HOME}/.local/bin:${containerEnv:PATH}"
     },
-    "postCreateCommand": "python -m pip install uv && uv sync",
+    "onCreateCommand": "apt-get update && apt-get install -y --no-install-recommends curl",
+    "postCreateCommand": "bash init.sh",
     "forwardPorts": [8001],
     "portsAttributes": {
         "8001": {
