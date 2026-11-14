@@ -82,6 +82,7 @@ nav:
       - Quick start: index.md
       - Tutorial: getting-started/tutorial.md
       - Explorer demo: getting-started/explorer-demo.md
+      - Project template: getting-started/project-template.md
       - Background: background.md
   - Architecture:
       - Overview: architecture/index.md
