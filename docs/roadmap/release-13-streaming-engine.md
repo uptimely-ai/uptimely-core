@@ -18,41 +18,104 @@ Deleting state requires an explicit reset and replay policy, not silent
 continuation from an assumed position. Machine-local storage is not a durable,
 multi-node state service.
 
-## Work package: Micro-batch progress and state contracts
+## Work package: Stream identity and source progress
 
-Define continuity between otherwise independent engine invocations.
+Identify a logical stream and define how a bounded source advances.
 
-**Prerequisites:** Runtime configuration and scoped execution;
-Reproducible builds and diagnostics.
-
-| title | breaking | description |
-|---|---|---|
-| Define stream identity and source progress | No | Associate a stream with its build, effective execution scope, and non-sensitive source configuration. Define a source contract for bounded reads, checkpointable cursors or offsets, deterministic replay, and empty batches. Keep ingestion progress distinct from event time and result freshness. Reject sources that cannot meet the initial replay contract rather than claiming arbitrary batch readers are streaming readers. |
-| Define persisted analytical state | No | Declare which operators can process each batch independently and which need explicitly serialized state across batches. Define supported state schemas, initialization, update, and retention limits. Initially support stateless transformations and bounded stateful operations with explicit contracts. Reject ordinary batch aggregations or windows that cannot preserve their meaning incrementally. |
-| Define restart and compatibility rules | No | Specify checkpoint format versions, build and configuration compatibility, and explicit reset or replay behavior after incompatible changes. Define initial input-order assumptions and handling of repeated or out-of-order records. Defer general event-time watermarks, late-data corrections, and unbounded windows rather than treating a source cursor as an event-time completeness guarantee. |
-
-## Work package: Local checkpoint persistence and recovery
-
-Make committed progress and analytical state recoverable across process exits.
-
-**Prerequisites:** Micro-batch progress and state contracts.
+**Prerequisites:** Scoped run options, Runtime environments and preflight,
+Immutable build snapshots.
 
 | title | breaking | description |
 |---|---|---|
-| Persist checkpoint generations | No | Store source progress and analytical state together under `.cache/uptimely/streams/<stream-id>/` using versioned metadata and supported adapter serialization. Materialize required frames explicitly and preserve schema, grain keys, and types. Commit complete checkpoint generations atomically, retain the previous committed generation until success, and report corrupt or incompatible state instead of silently starting over. Keep secrets out of persisted metadata. |
-| Enforce single-writer ownership | No | Prevent overlapping invocations from updating the same stream state. Define lock ownership, interrupted-run recovery, and explicit state inspection and reset operations. Keep runtime installation cache cleanup separate from stream reset, and document backup, replay, retention, and disk-capacity requirements. |
-| Verify persistence failures | No | Test interrupted writes, process termination, corrupt state, disk failures, concurrent invocation attempts, incompatible builds, and explicit resets. Recovery must use the last complete checkpoint and must not advance input progress when corresponding analytical state was not committed. |
+| Identify a logical stream | No | Associate a stream with its build, effective execution scope, and non-sensitive source configuration. |
+| Define bounded source progress | No | Support bounded reads, checkpointable cursors or offsets, deterministic replay, and empty batches. Reject sources that cannot meet this contract. |
+| Separate ingestion progress from event time | No | Keep source progress distinct from event time and result freshness. Do not treat a source cursor as an event-time completeness guarantee. |
 
-## Work package: Resumable micro-batch execution
+## Work package: Incremental operator state contracts
 
-Reuse the batch engine while loading and committing stream state around each
-bounded run.
+Define which analytical operations can preserve their meaning across batches.
 
-**Prerequisites:** Local checkpoint persistence and recovery;
-Frame adapter contracts.
+**Prerequisites:** Stream identity and source progress.
 
 | title | breaking | description |
 |---|---|---|
-| Execute one resumable batch | No | Add explicit streaming options to the CLI and Python engine API using shared execution logic. Load the last committed state, read a bounded input batch, execute supported transformations and state updates, then commit progress only after successful processing and required output publication. Preserve existing batch execution when streaming is not selected. Handle empty input without a busy loop or unintended state changes. |
-| Define output and failure guarantees | No | Document at-least-once processing on replay. Require idempotent output publication or an explicit deduplication contract for supported sinks, using stable stream and batch identities. A crash after external output publication but before checkpoint commit can repeat that output. Do not claim exactly-once behavior across arbitrary external writes or allow retries to silently duplicate unsupported side effects. Preserve validation failures, execution errors, and actionable recovery diagnostics. |
-| Demonstrate and verify continuity | No | Add a replayable local-source example showing separate process invocations, restored progress, and a bounded stateful calculation. Compare incremental results with batch results for the supported semantics. Test multiple batches, restarts, empty input, repeated input, failed processing and publication, retention limits, and crash recovery. Document external scheduling, local-state limitations, reset and replay procedures, and deferred server and event-time capabilities. |
+| Define stateless and stateful operator contracts | No | Identify operators that process batches independently and those requiring serialized state across batches. |
+| Define state lifecycle and limits | No | Define supported state schemas, initialization, update, and retention limits. |
+| Reject unsupported batch semantics | No | Initially support stateless transformations and bounded stateful operations. Reject ordinary aggregations or windows that cannot preserve their meaning incrementally. |
+
+## Work package: Checkpoint and replay compatibility
+
+Define how stream state remains valid across restarts, configuration changes,
+and record ordering.
+
+**Prerequisites:** Incremental operator state contracts.
+
+| title | breaking | description |
+|---|---|---|
+| Define checkpoint compatibility | No | Version checkpoint formats and specify build/configuration compatibility plus explicit reset or replay behavior after incompatible changes. |
+| Define record ordering assumptions | No | Specify initial ordering assumptions and handling of repeated or out-of-order records. |
+| Defer general event-time semantics | No | Defer watermarks, late-data corrections, and unbounded windows. |
+
+## Work package: Checkpoint generation persistence
+
+Persist source progress and analytical state together as complete generations.
+
+**Prerequisites:** Checkpoint and replay compatibility.
+
+| title | breaking | description |
+|---|---|---|
+| Store versioned checkpoint generations | No | Store source progress and analytical state under `.cache/uptimely/streams/<stream-id>/` with versioned metadata and supported adapter serialization. |
+| Preserve frame data in checkpoints | No | Materialize required frames explicitly and preserve schema, grain keys, and types. Keep secrets out of persisted metadata. |
+| Commit checkpoint generations atomically | No | Retain the previous committed generation until the new generation succeeds. Report corrupt or incompatible state instead of starting over. |
+
+## Work package: Stream state ownership and recovery
+
+Prevent concurrent writers and expose explicit inspection, reset, and recovery
+operations.
+
+**Prerequisites:** Checkpoint generation persistence.
+
+| title | breaking | description |
+|---|---|---|
+| Enforce single-writer ownership | No | Prevent overlapping invocations from updating the same stream. Define lock ownership and interrupted-run recovery. |
+| Add state inspection and reset operations | No | Provide explicit state inspection and reset. Keep runtime cache cleanup separate from stream reset. |
+| Document state operations | No | Explain backup, replay, retention, and disk capacity requirements. |
+| Test checkpoint failure recovery | No | Cover interrupted writes, process termination, corrupt state, disk failures, concurrent invocations, incompatible builds, and explicit resets. Recover from the last complete checkpoint and never advance input progress without committing matching analytical state. |
+
+## Work package: Resumable batch execution
+
+Load stream state and process one bounded batch with shared engine execution.
+
+**Prerequisites:** Stream state ownership and recovery, Arrow conversion and
+assembly.
+
+| title | breaking | description |
+|---|---|---|
+| Add explicit streaming API options | No | Add streaming options to the CLI and Python engine API while keeping existing batch execution unchanged when streaming is not selected. |
+| Load state and execute one bounded batch | No | Load the last committed state, read one bounded batch, and execute supported transformations and state updates. |
+| Commit progress after successful publication | No | Commit progress only after processing and required output publication succeed. Handle empty input without a busy loop or unintended state changes. |
+
+## Work package: Streaming output guarantees
+
+Make replay behavior and failures explicit for external output publication.
+
+**Prerequisites:** Resumable batch execution.
+
+| title | breaking | description |
+|---|---|---|
+| Require replay-safe output publication | No | Document at-least-once replay and require idempotent publication or explicit deduplication using stable stream and batch identities. |
+| Handle output published before checkpoint commit | No | Document that a crash in this interval can repeat external output. |
+| Avoid unsupported exactly-once claims | No | Do not claim exactly-once behavior across arbitrary external writes. |
+| Preserve failures during replay | No | Prevent retries from silently duplicating unsupported side effects. Preserve validation and execution errors with actionable recovery diagnostics. |
+
+## Work package: Streaming continuity example and verification
+
+Demonstrate resumable state and verify continuity across process invocations.
+
+**Prerequisites:** Streaming output guarantees.
+
+| title | breaking | description |
+|---|---|---|
+| Demonstrate resumable execution | No | Show separate process invocations, restored progress, and a bounded stateful calculation using a replayable local source. Compare incremental and batch results for supported semantics. |
+| Verify batch, restart, and crash behavior | No | Test multiple batches, restarts, empty and repeated input, failed processing/publication, retention limits, and crash recovery. |
+| Document operational boundaries | No | Document external scheduling, local-state limitations, reset/replay procedures, and deferred server and event-time capabilities. |

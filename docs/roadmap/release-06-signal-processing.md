@@ -12,4 +12,5 @@ from earlier work packages.
 
 | title | breaking | description |
 |---|---|---|
-| Add signal processing to the data-center cooling pump example | No | Add NumPy-based signal processing and sliding-window calculations with meaningful aggregation and bounded windows. |
+| Add signal-processing features | No | Add NumPy-based signal processing to the data-center cooling pump example. |
+| Add bounded sliding-window calculations | No | Demonstrate meaningful aggregation over bounded sliding windows in the cooling-pump example. |

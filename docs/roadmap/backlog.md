@@ -1,9 +1,12 @@
 # Planned releases
 
 Work packages are grouped into planned releases by concrete user-facing changes.
-Each package names its prerequisites. Release order is a planning sequence, not
-a requirement to finish every preceding release. Unrelated work can proceed in
-parallel, and high-priority packages come first within their dependency constraints.
+Each package represents one pull request and names its prerequisites. Its table
+rows are concise work items roughly the size of one commit. Longer shared
+rationale, design notes, and code examples belong under the work-package heading,
+outside the table. Release order is a planning sequence, not a requirement to
+finish every preceding release. Unrelated work can proceed in parallel, and
+high-priority packages come first within their dependency constraints.
 
 These release groupings do not assign software version numbers. Versions are assigned when releases are published. The *breaking* column marks changes that require users to update their specifications, projects, functions or commands.
 

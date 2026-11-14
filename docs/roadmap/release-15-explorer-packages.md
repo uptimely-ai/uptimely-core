@@ -12,4 +12,7 @@ package.
 
 | title | breaking | description |
 |---|---|---|
-| Split Explorer frontend and FastAPI packages | No | Give the browser frontend and its assets a dedicated package, and give the FastAPI server and its integration a separate package under `src/uptimely`. Keep the frontend usable by both the live server and static export. Preserve existing Explorer behavior, supported imports, CLI entry points, and static-asset inclusion in built distributions, or provide clear compatibility imports where paths must change. Test package imports, installed asset availability, live serving, and static export. Update relevant documentation. |
+| Create a dedicated frontend package | No | Move browser code and assets into a package under `src/uptimely`. Keep it usable by both live serving and static export. |
+| Create a separate FastAPI package | No | Move the FastAPI server and frontend integration into a separate package under `src/uptimely`. |
+| Preserve Explorer entry points and assets | No | Preserve behavior, supported imports, CLI entry points, and installed static assets. Add compatibility imports where paths change. |
+| Verify Explorer package delivery | No | Test imports, installed asset availability, live serving, and static export. Update relevant documentation. |

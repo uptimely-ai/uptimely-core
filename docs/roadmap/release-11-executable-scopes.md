@@ -2,13 +2,14 @@
 
 This is a planned release grouping, not a published software version. Work packages remain ordered by their stated prerequisites.
 
-## Work package: Executable scopes
+## Work package: Reusable scope declarations
 
 Turn profile scope from descriptive text into reusable, executable row
 selection while keeping resolution (row detail) distinct from scope (included
 rows).
 
-**Prerequisites:** Specification model migration; Frame adapter contracts.
+**Prerequisites:** Specification model migration, Dataframe adapter API and
+registry, and Arrow conversion and assembly.
 
 For example, a profile can use machine/minute resolution while its scope selects
 machines by product category and limits the measurement-time range. A reusable
@@ -103,9 +104,65 @@ references are expressed.
 
 | title | breaking | description |
 |---|---|---|
-| Define reusable scope declarations and filter semantics | Yes | Replace descriptive profile scope text with references to reusable named scopes. Define each scope's `name` and exactly one of static `filters` or an `action`; define filter keys as dataset columns and the supported list and range forms, including empty selections, null handling, type compatibility, bound inclusivity, and how multiple filters combine. Define whether filters may refer to dimensions, features, or other columns, and how a scope can express custom reusable logic that is not a simple dimension/feature selection. Specify how a scope is interpreted at the profile's grain and resolution. |
-| Validate and normalize static scope filters | No | Validate scope references, filter structure, column references, value types, range bounds, and operator semantics against profile schemas and grain. Normalize valid filters into a deterministic internal representation and report errors with scope, profile, column, and source-path context. Do not silently ignore unsupported or inapplicable filters. |
-| Define and validate scope action contracts | No | Allow a scope to use an `action` bound to reusable project logic. Specify its arguments, dependencies, execution phase, purity and I/O expectations, and exact return contract. Require action-produced selections to use the same filter representation as static scopes, with an explicit extension point or diagnostic for custom selections that cannot be represented by lists or ranges. Validate bindings and return values without treating scope output as feature data or a dataframe fragment. |
-| Compile scope dependencies and execution | No | Carry scope references, static filters, action bindings, and required inputs through compilation and portable plans. Schedule scope actions before every invocation that relies on their result, include dependencies in cycle and invocation validation, and keep scope execution distinct from feature-producing actions. Fail preflight on missing scope actions or unavailable required capabilities before workflow data I/O. |
-| Apply scope consistently during execution | No | Apply resolved scope selections to profile observations at a defined engine boundary so all data-producing fragments and downstream calculations obey the same included-row semantics. Preserve eager/lazy behavior through the adapter contract, handle empty selections and range boundaries deterministically, and fail explicitly when a scope cannot be applied to a representation. Do not interpret descriptive text as executable or silently widen/narrow a scope. |
-| Test, document, and migrate executable scopes | No | Add unit, integration, and adapter conformance coverage for static and action-produced scopes, list and range filters, independent time dimensions, hierarchical resolutions, empty results, invalid columns and types, lazy execution, and custom-scope limitations. Update authoring, Python, CLI, engine, Explorer, examples, generated artifacts, and migration documentation to distinguish resolution from included-row scope. |
+| Reference reusable scopes from profiles | Yes | Replace descriptive profile scope text with references to named scopes. Keep resolution (row detail) distinct from scope (included rows). |
+| Define scope declaration forms | Yes | Give each scope a name and exactly one of static `filters` or an `action`. |
+| Define supported filter forms | Yes | Define list and range filters, empty selections, null handling, type compatibility, bound inclusivity, and how multiple filters combine. |
+| Define filter columns and profile semantics | Yes | Specify whether filters target dimensions, features, or other dataset columns and how they apply at a profile's grain and resolution. |
+
+## Work package: Static scope validation and documentation
+
+Validate static filters against profile schemas and explain the authoring
+contract.
+
+**Prerequisites:** Reusable scope declarations.
+
+| title | breaking | description |
+|---|---|---|
+| Validate filter references and values | No | Check scope references, structure, columns, value types, range bounds, and operators against profile schemas and grain. |
+| Normalize static filters | No | Convert valid filters into a deterministic internal representation. Reject unsupported and inapplicable filters instead of ignoring them. |
+| Report static filter diagnostics | No | Identify the scope, profile, column, and source path in validation errors. |
+| Test and document static scopes | No | Cover list/range filters, independent time dimensions, hierarchical resolutions, empty results, and invalid columns or types. Document profile authoring and migration. |
+
+## Work package: Action-driven scope contracts
+
+Allow reusable project logic to compute the same row filters supported by
+static scopes.
+
+**Prerequisites:** Reusable scope declarations, Static scope validation and
+documentation.
+
+| title | breaking | description |
+|---|---|---|
+| Bind actions to reusable scopes | No | Bind a scope action to reusable project logic with declared arguments and dependencies. |
+| Define action execution contracts | No | Define execution phase, purity and I/O expectations, and the exact return contract for scope actions. |
+| Reuse static filter results | No | Require action results to use the static filter representation. Diagnose custom selections that cannot be represented by lists or ranges. |
+| Validate action bindings and results | No | Validate action bindings and returned selections. Do not treat scope results as feature data or dataframe fragments. |
+| Test action-driven scopes | No | Cover valid and invalid bindings, return values, dependencies, and unsupported custom selection forms. |
+
+## Work package: Compile scope dependencies
+
+Carry scope declarations into the plan and schedule actions before dependent
+invocations.
+
+**Prerequisites:** Action-driven scope contracts.
+
+| title | breaking | description |
+|---|---|---|
+| Add scope data to portable plans | No | Carry scope references, static filters, action bindings, and required inputs through compilation and plan serialization. |
+| Schedule scope actions before consumers | No | Run each required scope action before invocations that use its result. Keep scope actions distinct from feature-producing actions. |
+| Validate scope dependency graphs | No | Include scope dependencies in cycle and invocation validation. |
+| Preflight required scope capabilities | No | Fail before workflow data I/O when scope actions or required capabilities are unavailable. |
+
+## Work package: Apply scopes during execution
+
+Apply one resolved row-selection policy to all profile data and downstream
+calculations.
+
+**Prerequisites:** Compile scope dependencies and Arrow conversion and assembly.
+
+| title | breaking | description |
+|---|---|---|
+| Apply resolved filters at the engine boundary | No | Apply selections to profile observations so all data-producing fragments and downstream calculations use the same included rows. |
+| Preserve adapter and boundary semantics | No | Preserve eager/lazy behavior, handle empty selections and range boundaries deterministically, and fail when a scope cannot be applied to a representation. |
+| Verify row-scope consistency | No | Test static and action-produced scopes, empty results, adapter behavior, and hierarchical resolutions. Never treat descriptive text as executable or silently widen/narrow a scope. |
+| Update scope interfaces and migration guidance | No | Update Python, CLI, engine, Explorer, examples, generated artifacts, and migration docs to distinguish resolution from included-row scope. |
