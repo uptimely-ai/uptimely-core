@@ -1,6 +1,7 @@
 import json
 import pathlib
 import sys
+import tomllib
 
 import polars as pl
 import pump_analytics as analytics
@@ -16,13 +17,13 @@ from uptimely.engine.runtime import state as state_module
 
 
 def _engine_parameters() -> dict[str, object]:
-    path = example_support.EXAMPLES_ROOT / "config/config.json"
-    return json.loads(path.read_text(encoding="utf-8"))["params"]
+    path = example_support.EXAMPLES_ROOT / "uptimely.toml"
+    return tomllib.loads(path.read_text(encoding="utf-8"))["params"]
 
 
 def _engine_paths(project_root: pathlib.Path) -> dict[str, str]:
-    path = project_root / "config/config.json"
-    configured_paths = json.loads(path.read_text(encoding="utf-8"))["paths"]
+    path = project_root / "uptimely.toml"
+    configured_paths = tomllib.loads(path.read_text(encoding="utf-8"))["paths"]
     paths: dict[str, str] = {}
     for name, value in configured_paths.items():
         configured = pathlib.Path(value)
@@ -447,7 +448,7 @@ def test_engine_rejects_missing_path(
 def test_engine_rejects_non_scalar_parameter_value(
     pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
-    with pytest.raises(ValueError, match="must be a JSON scalar"):
+    with pytest.raises(ValueError, match="must be a scalar"):
         engine_for_plan(
             pump_bundle.execution_plan,
             {"dummy": {"value": "not_used"}},

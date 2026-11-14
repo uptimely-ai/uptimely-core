@@ -82,14 +82,16 @@ nav:
       - Quick start: index.md
       - Tutorial: getting-started/tutorial.md
       - Explorer demo: getting-started/explorer-demo.md
+      - Architecture: architecture/index.md
+      - Folder structure: architecture/folder-structure.md
       - Project template: getting-started/project-template.md
       - Background: background.md
-  - Architecture:
-      - Overview: architecture/index.md
-      - Folder structure: architecture/folder-structure.md
-      - Project: architecture/project.md
-      - Spec: architecture/spec.md
+  - Components:
+      - Uptimely config: architecture/config.md
+      - Spec document: architecture/spec.md
       - Compiler: architecture/compiler.md
+      - Execution plan: architecture/execution-plan.md
+      - Project: architecture/project.md
       - Engine: architecture/engine.md
       - Explorer: architecture/explorer.md
       - AI agents: architecture/ai.md

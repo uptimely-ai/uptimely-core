@@ -8,6 +8,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- Engine runtime configuration now uses root `uptimely.toml` instead of
+  `config/config.json`. Explicit `--config` paths must also point to TOML files.
+
 ### Fixed
 
 - `uptimely example --no-setup` no longer downloads the example's `init.sh`.

@@ -49,7 +49,7 @@ def main() -> None:
         "--config",
         type=pathlib.Path,
         default=None,
-        help="JSON file with engine settings and global parameters",
+        help="TOML file with engine settings, project paths, and runtime parameters",
     )
     args = parser.parse_args()
 

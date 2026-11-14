@@ -56,7 +56,7 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
         "--config",
         type=pathlib.Path,
         help=(
-            "Engine settings and global parameters "
+            "TOML engine settings, project paths, and runtime parameters "
             f"(default: {project.CONFIG_FILE} under the project root or current directory)"
         ),
     )
@@ -76,9 +76,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 bundle = project.build(root, src_path=args.src_path)
                 logger.info("Build files created to %s", bundle.root)
             with project.read_build_bundle(root) as bundle:
-                settings = engine_module.Config.model_validate_json(
-                    config.read_text(encoding="utf-8")
-                )
+                settings = engine_module.Config.from_toml(config)
                 engine = engine_module.Engine(bundle, settings)
                 started = time.perf_counter()
                 if args.preview is None:

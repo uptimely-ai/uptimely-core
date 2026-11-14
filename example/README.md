@@ -41,7 +41,7 @@ writes its result as a separate output.
 | `src/pump_merge.py` | Custom merge for external measurements. |
 | `src/pump_util.py` | Small helper used by the analytical functions. |
 | `spec/` | Dimensions, profile declarations, and the combined Python spec. |
-| `config/config.json` | Engine settings and configured input and output paths. |
+| `uptimely.toml` | Engine settings and configured input and output paths. |
 | `_generated/` | The active build, Explorer snapshot, and latest run metadata. |
 
 The heart of the project is in `spec/spec.py`. It combines analytical specification of functions, profiles, operators and dimension into a single Python object.

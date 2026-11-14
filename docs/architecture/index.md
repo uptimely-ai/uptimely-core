@@ -78,8 +78,8 @@ Explorer can inspect the build without running the Engine.
 </div>
 
 The [Project](project.md) coordinates the build and publishes the outputs.
-See the [Compiler](compiler.md), [Engine](engine.md), and
-[Explorer](explorer.md) pages for details.
+See the [Compiler](compiler.md), [Execution plan](execution-plan.md),
+[Engine](engine.md), and [Explorer](explorer.md) pages for details.
 
 The following concepts describe an analytical system using data-center cooling
 pump measurements.

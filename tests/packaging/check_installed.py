@@ -136,9 +136,8 @@ class InstalledImportsTest(unittest.TestCase):
                 },
             },
         )
-        config = project / "config" / "config.json"
-        config.parent.mkdir()
-        config.write_text("{}", encoding="utf-8")
+        config = project / "uptimely.toml"
+        config.write_text("", encoding="utf-8")
         result = self.command("engine", "run", "--project-root", str(project), "--preview", "2")
         self.assertIn("Engine processed 1 profiles in ", result.stdout)
         self.assertIn("Profile: values", result.stdout)
@@ -186,8 +185,8 @@ class InstalledImportsTest(unittest.TestCase):
         source_path = self.root / "deferred.json"
         source_path.write_text(json.dumps(source), encoding="utf-8")
         self.command("build", str(project), "--json-spec", str(source_path))
-        config = self.root / "config.json"
-        config.write_text("{}", encoding="utf-8")
+        config = self.root / "config.toml"
+        config.write_text("", encoding="utf-8")
         result = self.command("run", str(project), "--config", str(config), succeeds=False)
         self.assertIn("uptimely_missing_runtime_dependency", result.stderr)
         self.assertIn("recorded package provenance: uptimely-import-fixture==1.2.3", result.stderr)

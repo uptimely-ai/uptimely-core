@@ -12,6 +12,7 @@ from uptimely import compiler as uptimely_compiler
 from uptimely import engine as uptimely_engine
 from uptimely import entrypoint as entrypoint_module
 from uptimely import plan as uptimely_plan
+from uptimely import project as project_module
 from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
@@ -1266,6 +1267,22 @@ def test_engine_uses_default_config_when_omitted(
 
     assert engine.config == uptimely_engine.EngineConfig()
     assert isinstance(engine.backend, uptimely_engine.PolarsBackend)
+
+
+def test_engine_loads_project_config_from_root_toml(
+    bundle_for_plan: execution_support.BundleFactory,
+) -> None:
+    bundle = bundle_for_plan(_plan())
+    (bundle.project_root / project_module.CONFIG_FILE).write_text(
+        '[engine.backend]\ndataframe = "polars"\n\n[paths]\nsource = "data/input.csv"\n\n'
+        "[params]\nthreshold = 10\n",
+        encoding="utf-8",
+    )
+
+    engine = uptimely_engine.Engine(bundle)
+
+    assert engine.paths == {"source": "data/input.csv"}
+    assert engine.parameters == {"threshold": 10}
 
 
 def test_engine_rejects_spec_paths_instead_of_compiling() -> None:

@@ -24,7 +24,7 @@ from uptimely.run import store as run_store  # noqa: E402
 from uptimely.spec import model as spec_model  # noqa: E402
 
 PROJECT_ROOT = example_support.EXAMPLES_ROOT
-CONFIG_PATH = example_support.EXAMPLES_ROOT / "config" / "config.json"
+CONFIG_PATH = example_support.EXAMPLES_ROOT / "uptimely.toml"
 
 
 @pytest.fixture()
@@ -41,10 +41,8 @@ def state(
 
 
 def test_load_config_defaults_to_project_config(tmp_path: pathlib.Path) -> None:
-    config_directory = tmp_path / "config"
-    config_directory.mkdir()
-    (config_directory / "config.json").write_text(
-        '{"engine": {"backend": {"dataframe": "polars"}}, "params": {"threshold": 10}}',
+    (tmp_path / paths.CONFIG_FILE).write_text(
+        '[engine.backend]\ndataframe = "polars"\n\n[params]\nthreshold = 10\n',
         encoding="utf-8",
     )
 
