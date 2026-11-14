@@ -32,10 +32,10 @@ from .paths import (
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
 )
-from .project import Project
+from .project import Uptimely
 
 __all__ = [
-    "Project",
+    "Uptimely",
     "ProjectConfig",
     "Params",
     "Paths",

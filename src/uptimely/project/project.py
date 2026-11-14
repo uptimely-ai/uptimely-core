@@ -13,8 +13,8 @@ from .build import builder, bundle, models, source
 from .build import features as feature_selection
 
 
-class Project:
-    """An analytics project rooted at a fixed, resolved filesystem path."""
+class Uptimely:
+    """Entry point for an analytics project at a fixed filesystem path."""
 
     def __init__(
         self, root: str | pathlib.Path = ".", *, config_path: str | pathlib.Path | None = None
@@ -101,6 +101,41 @@ class Project:
             features=features,
             src_path=src_path,
         )
+
+    def run(
+        self,
+        *,
+        validate: bool = False,
+        preview_rows: int = engine_module.config.DEFAULT_PREVIEW_ROWS,
+        operator: tuple[str, str] | None = None,
+        src_path: pathlib.Path | None = None,
+    ) -> engine_module.ExecutionResult:
+        """Run the saved build without rebuilding it.
+
+        Args:
+            validate: Validate inputs and dataframe contracts at every step.
+            preview_rows: Positive maximum sample size per profile.
+            operator: Optional profile and operator IDs selecting an operator
+                and its saved prerequisites.
+            src_path: Optional Python source directory, relative to the project root
+                unless absolute. Defaults to ``src``.
+
+        Returns:
+            Execution results, including any invocation failures.
+
+        Raises:
+            BuildError: The saved build is missing, incomplete, or invalid.
+            BuildLockError: A builder holds the project build lock.
+            OSError: Run artifacts cannot be persisted.
+            ValueError: The preview row limit or requested operator is invalid.
+        """
+        with self.read_build_bundle() as build:
+            return self.create_engine(build).run(
+                validate=validate,
+                preview_rows=preview_rows,
+                operator=operator,
+                src_path=src_path,
+            )
 
     def load_build_bundle(self, *, validate: bool = True) -> models.BuildBundle:
         """Load the saved build without holding a reader lock after loading.

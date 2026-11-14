@@ -5,6 +5,7 @@ from unittest import mock
 
 import pydantic
 import pytest
+from support import examples as example_support
 
 import uptimely
 from uptimely import project as project_module
@@ -12,16 +13,16 @@ from uptimely.project.build import builder, bundle
 
 
 @pytest.fixture
-def project(tmp_path: pathlib.Path) -> project_module.Project:
+def project(tmp_path: pathlib.Path) -> project_module.Uptimely:
     """Create a project with a minimal discoverable source Spec."""
     spec_path = tmp_path / project_module.SPEC_JSON_ENTRY_FILE
     spec_path.parent.mkdir(parents=True)
     spec_path.write_text('{"spec_version": 8, "name": "First build"}', encoding="utf-8")
-    return project_module.Project(tmp_path)
+    return project_module.Uptimely(tmp_path)
 
 
-def test_project_is_exported_from_package() -> None:
-    assert uptimely.Project is project_module.Project
+def test_uptimely_is_exported_from_package() -> None:
+    assert uptimely.Uptimely is project_module.Uptimely
 
 
 @pytest.mark.parametrize("root", [None, "", ".", pathlib.Path(".")])
@@ -29,7 +30,7 @@ def test_project_resolves_root_at_construction(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, root: str | pathlib.Path | None
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    project = uptimely.Project() if root is None else uptimely.Project(root)
+    project = uptimely.Uptimely() if root is None else uptimely.Uptimely(root)
     child = tmp_path / "child"
     child.mkdir()
     monkeypatch.chdir(child)
@@ -45,7 +46,7 @@ def test_project_loads_and_passes_config_to_engine(tmp_path: pathlib.Path) -> No
         '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 42\n',
         encoding="utf-8",
     )
-    instance = project_module.Project(tmp_path)
+    instance = project_module.Uptimely(tmp_path)
     config_path.write_text("[params]\nthreshold = 99\n", encoding="utf-8")
     (tmp_path / "spec").mkdir()
     (tmp_path / "spec/spec.json").write_text(
@@ -58,20 +59,22 @@ def test_project_loads_and_passes_config_to_engine(tmp_path: pathlib.Path) -> No
     assert runtime.config.backend.evaluation == "lazy"
     assert runtime.parameters == {"threshold": 42}
     assert runtime.paths == {"source": "data/source.csv"}
-    assert project_module.Project(tmp_path).config.params.root == {"threshold": 99}
+    assert project_module.Uptimely(tmp_path).config.params.root == {"threshold": 99}
 
 
 def test_project_explicit_config_and_failures(tmp_path: pathlib.Path) -> None:
     (tmp_path / "uptimely.toml").write_text("[params]\nvalue = 1\n", encoding="utf-8")
     override = tmp_path / "other.toml"
     override.write_text("[params]\nvalue = 2\n", encoding="utf-8")
-    assert project_module.Project(tmp_path, config_path=override).config.params.root == {"value": 2}
+    assert project_module.Uptimely(tmp_path, config_path=override).config.params.root == {
+        "value": 2
+    }
 
     with pytest.raises(FileNotFoundError):
-        project_module.Project(tmp_path, config_path=tmp_path / "missing.toml")
+        project_module.Uptimely(tmp_path, config_path=tmp_path / "missing.toml")
     override.write_text("[params]\nvalue = [1]\n", encoding="utf-8")
     with pytest.raises(pydantic.ValidationError):
-        project_module.Project(tmp_path, config_path=override)
+        project_module.Uptimely(tmp_path, config_path=override)
 
 
 def test_project_resolves_explicit_config_from_working_directory(
@@ -79,22 +82,22 @@ def test_project_resolves_explicit_config_from_working_directory(
 ) -> None:
     (tmp_path / "override.toml").write_text("[params]\nvalue = 7\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    instance = project_module.Project(tmp_path / "other", config_path="override.toml")
+    instance = project_module.Uptimely(tmp_path / "other", config_path="override.toml")
 
     assert instance.config_path == tmp_path / "override.toml"
     assert instance.config.params.root == {"value": 7}
 
 
 def test_project_rejects_bundle_from_different_project(
-    project: project_module.Project, tmp_path: pathlib.Path
+    project: project_module.Uptimely, tmp_path: pathlib.Path
 ) -> None:
     build = project.build()
-    other = project_module.Project(tmp_path / "other")
+    other = project_module.Uptimely(tmp_path / "other")
     with pytest.raises(ValueError, match="different project"):
         other.create_engine(build)
 
 
-def test_project_builds_and_loads_fresh_bundles(project: project_module.Project) -> None:
+def test_project_builds_and_loads_fresh_bundles(project: project_module.Uptimely) -> None:
     first = project.build()
     loaded = project.load_build_bundle()
     assert first.project_root == project.root
@@ -111,8 +114,67 @@ def test_project_builds_and_loads_fresh_bundles(project: project_module.Project)
     assert not uptimely.Engine(second).run().failures
 
 
+def test_run_forwards_options_and_holds_build_lock(project: project_module.Uptimely) -> None:
+    project.build()
+    src_path = pathlib.Path("custom-src")
+
+    def run(
+        runtime: uptimely.Engine,
+        *,
+        validate: bool,
+        preview_rows: int,
+        operator: tuple[str, str] | None,
+        src_path: pathlib.Path | None,
+    ) -> object:
+        assert runtime.bundle.project_root == project.root
+        assert (validate, preview_rows, operator, src_path) == (
+            True,
+            3,
+            ("profile", "operator"),
+            pathlib.Path("custom-src"),
+        )
+        with pytest.raises(project_module.BuildLockError):
+            project.build()
+        return mock.sentinel.result
+
+    with mock.patch.object(uptimely.Engine, "run", autospec=True, side_effect=run):
+        assert (
+            project.run(
+                validate=True, preview_rows=3, operator=("profile", "operator"), src_path=src_path
+            )
+            is mock.sentinel.result
+        )
+
+    project.build()
+
+
+def test_run_releases_build_lock_on_failure(project: project_module.Uptimely) -> None:
+    project.build()
+    with (
+        mock.patch.object(uptimely.Engine, "run", side_effect=ValueError("run failed")),
+        pytest.raises(ValueError, match="run failed"),
+    ):
+        project.run()
+
+    project.build()
+
+
+def test_build_and_run_use_project_paths(
+    tmp_path: pathlib.Path, example_project_factory: example_support.ProjectFactory
+) -> None:
+    root = example_project_factory(tmp_path / "example")
+    app = uptimely.Uptimely(root)
+    app.build(features=["health_signal_normalized"])
+
+    result = app.run(validate=True, preview_rows=2)
+
+    assert not result.failures
+    assert ("pump", "health_signal_normalized") in result.calculated_outputs
+    assert result.preview_frames["pump"].height == 2
+
+
 def test_project_build_forwards_source_and_feature_options(
-    project: project_module.Project,
+    project: project_module.Uptimely,
 ) -> None:
     source = project.root / project_module.SPEC_JSON_ENTRY_FILE
     with mock.patch.object(builder, "ProjectBuilder", autospec=True) as builder_class:
@@ -131,7 +193,7 @@ def test_project_build_forwards_source_and_feature_options(
 
 
 @pytest.mark.parametrize("validate", [False, True])
-def test_project_load_forwards_validation(project: project_module.Project, validate: bool) -> None:
+def test_project_load_forwards_validation(project: project_module.Uptimely, validate: bool) -> None:
     with mock.patch.object(bundle, "BundleStore", autospec=True) as store_class:
         result = project.load_build_bundle(validate=validate)
 
@@ -142,7 +204,7 @@ def test_project_load_forwards_validation(project: project_module.Project, valid
 
 @pytest.mark.parametrize("validate", [False, True])
 def test_project_read_holds_and_releases_build_lock(
-    project: project_module.Project, validate: bool
+    project: project_module.Uptimely, validate: bool
 ) -> None:
     project.build()
 
@@ -155,9 +217,12 @@ def test_project_read_holds_and_releases_build_lock(
     assert project.build().spec_definition.name == "First build"
 
 
-def test_project_load_reports_missing_build(project: project_module.Project) -> None:
+def test_project_load_reports_missing_build(project: project_module.Uptimely) -> None:
     with pytest.raises(project_module.BuildError):
         project.load_build_bundle()
 
     with pytest.raises(project_module.BuildError), project.read_build_bundle():
         pass
+
+    with pytest.raises(project_module.BuildError):
+        project.run()

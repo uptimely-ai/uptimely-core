@@ -71,6 +71,19 @@ def test_build_and_run_use_configured_source_path(tmp_path: pathlib.Path) -> Non
     assert result.datasets["values"].to_dict(as_series=False) == {"value": [7]}
 
 
+def test_uptimely_build_and_run_use_saved_build(tmp_path: pathlib.Path) -> None:
+    root = tmp_path / "project"
+    _write_project(root, 7)
+    app = project.Uptimely(root)
+    app.build()
+    (root / "spec/spec.py").write_text("raise RuntimeError('must not rebuild')\n", encoding="utf-8")
+
+    result = app.run(validate=True)
+
+    assert not result.failures
+    assert result.datasets["values"].to_dict(as_series=False) == {"value": [7]}
+
+
 def test_cli_run_uses_configured_source_path(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,

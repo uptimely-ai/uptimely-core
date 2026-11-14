@@ -1,11 +1,12 @@
 # Project
 
-`Project` is the public-facing API for working with an analytics project. It
-binds operations to a project root and provides methods to build or load the
+`Uptimely` is the public-facing API for working with an analytics project. It
+binds operations to a project root and provides methods to build, load, or run the
 active build bundle. At construction, it loads and validates project
 configuration and keeps it for its lifetime. It creates Engines with the
 relevant settings, paths, and parameters. The command-line project build and
-run use the same project workflow.
+run use the same project workflow. Its run operation holds the build reader lock throughout execution
+and does not rebuild the project.
 
 Internally, `ProjectBuilder` coordinates source discovery and loading,
 compilation, artifact generation, validation, and publication. A successful

@@ -1,15 +1,15 @@
 # Uptimely config
 
-Place `uptimely.toml` at the project root. Project loads and validates it at
+Place `uptimely.toml` at the project root. Uptimely loads and validates it at
 construction, then supplies component settings, paths, and parameters where
 needed. Use `uptimely run --config PATH` or the MCP server's `--config PATH`
 option to load a different TOML file instead. Explicit relative config paths
 resolve from the current working directory.
 
-If the default file is absent, Project uses defaults. An explicit config file
-must exist. Invalid configuration is reported when Project is constructed,
-including for builds. Construct a new Project to read file changes. CLI runs
-construct a fresh Project, while the MCP server retains its configuration until
+If the default file is absent, Uptimely uses defaults. An explicit config file
+must exist. Invalid configuration is reported when Uptimely is constructed,
+including for builds. Construct a new Uptimely instance to read file changes. CLI runs
+construct a fresh instance, while the MCP server retains its configuration until
 it is restarted.
 
 The Spec defines the workflow. The Engine receives runtime settings separately,

@@ -4,7 +4,7 @@ The Compiler transforms a Spec into a portable execution plan. It validates
 the declarations, resolves the work required for the selected features, and
 orders that work for the Engine. It does not execute analytical functions.
 
-The [Project](project.md) component uses the Compiler during a build. The
+The [project services](project.md) use the Compiler during a build. The
 resulting bundle contains both the Spec and plan, which the Engine consumes
 later.
 
