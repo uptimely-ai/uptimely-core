@@ -357,7 +357,7 @@ def test_failed_build_prints_trace_without_summary_and_preserves_logging(
         logging.getLogger("uptimely.project.build").warning("build warning")
         raise ValueError("injected failure")
 
-    monkeypatch.setattr(cli.project.project.Uptimely, "build", fail_build)
+    monkeypatch.setattr(project.Uptimely, "build", fail_build)
 
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch, "--project-root", str(tmp_path), "--log-level", "debug")

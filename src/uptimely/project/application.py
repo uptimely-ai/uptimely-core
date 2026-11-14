@@ -1,4 +1,4 @@
-"""Root-bound operations for an analytics project."""
+"""Application entry point for an analytics project."""
 
 from __future__ import annotations
 

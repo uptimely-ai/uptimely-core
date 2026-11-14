@@ -1,5 +1,6 @@
 """Standard project paths and active build bundle validation."""
 
+from .application import Uptimely
 from .build import (
     BUILD_VERSION,
     BuildArtifactPaths,
@@ -32,7 +33,6 @@ from .paths import (
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
 )
-from .project import Uptimely
 
 __all__ = [
     "Uptimely",
