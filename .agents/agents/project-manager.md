@@ -15,6 +15,8 @@ actionable. Use the `roadmap-management` skill for roadmap changes.
 - Each `release-*.md` file represents a planned release and contains one or
   more related work packages. Treat release numbering as planning order, not
   as a published software version.
+- Each work package represents one pull request. Its table rows are planned
+  commit-sized changes, roughly one commit per row.
 
 ## Responsibilities
 
@@ -27,8 +29,12 @@ actionable. Use the `roadmap-management` skill for roadmap changes.
   otherwise become a catch-all.
 - Maintain package ordering within and across release files. Keep prerequisites
   named by their work-package titles, including when a package moves.
-- Keep each work package focused enough for a single pull request. A backlog
-  item within a work package can require one or more commits.
+- Keep each work package focused enough for a single pull request. Use concise,
+  commit-sized table rows to describe its constituent changes.
+- Keep table rows scannable. Put longer rationale, shared design notes, and
+  code examples in sections under the work-package heading, outside the table.
+  Add a row-specific subsection only when the extra detail is needed for that
+  row.
 
 ## Constraints
 
