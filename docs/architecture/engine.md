@@ -50,38 +50,9 @@ libraries and custom adapters are not supported.
 
 ## Engine configuration
 
-Configuration is separate from the Spec and is supplied when the Engine is
-created. Project configuration is read from `config/config.json`. Its `engine`
-section contains backend settings. The `paths` map supplies project file
-locations referenced by `$paths.<name>`. Relative paths are resolved against
-the project root before invocation, while absolute paths are preserved. The
-flat `params` map supplies scalar values referenced by `$params.<name>` and
-passes them to functions unchanged.
-
-| Setting | Purpose |
-| --- | --- |
-| `engine.backend.type` | Names the configured engine environment. |
-| `engine.backend.definition` | Optional path to engine-specific configuration. |
-| `engine.backend.dataframe` | Selects the dataframe backend. The built-in Engine supports `polars`. |
-| `engine.backend.evaluation` | Reserved setting. It does not currently change evaluation behavior. |
-| `engine.backend.batch_size` | Reserved setting. It does not currently change data access or batching. |
-
-Runtime parameters and resource locations can change between runs without
-changing the plan. Changing Spec declarations or bindings requires a rebuild.
-Backend compatibility and configuration checks run regardless of runtime
-validation mode.
-
-### Global parameters
-
-The flat `params` map supplies required scalar values for function arguments
-referenced as `$params.<name>`. Missing values fail when the function is
-invoked. Parameters provide runtime controls such as optional filters and
-thresholds, not paths, profile data, or analytical values.
-
-Use the separate `paths` map for file and directory locations. Bind a path with
-`ref.paths("name")`; the Engine resolves a relative value against the project's
-root. Use `ref.params("name")` for other scalar settings, such as a filter or
-threshold.
+The Engine receives runtime configuration separately from the Spec. For the
+configuration file format, backend options, paths, and parameters, see
+[Uptimely config](config.md).
 
 ## Runtime validation
 
@@ -126,7 +97,7 @@ project data.
 
 ## Learn more
 
-See the [Compiler and plan reference](compiler.md) for the execution-plan
-contract, the [Engine CLI reference](../reference/cli/engine.md) for run options and
-artifacts, and the [Python Engine API](../reference/python/engine.md) for programmatic
-execution and result access.
+See the [Compiler](compiler.md) and [Execution plan](execution-plan.md)
+references, the [Engine CLI reference](../reference/cli/engine.md) for run
+options and artifacts, and the [Python Engine API](../reference/python/engine.md)
+for programmatic execution and result access.

@@ -83,10 +83,10 @@ instead of `mcpServers`.
 Set the client's working directory to the directory containing `example`
 for the repository's data-center cooling pump example. `--project-root` does not change the working directory.
 If the client cannot set it, use absolute data paths in the project's
-`config/config.json`.
+`uptimely.toml`.
 
-The server reads that configuration by default. An alternative can be supplied
-with `--config /path/to/config.json`.
+The server reads that configuration by default. An alternative TOML file can
+be supplied with `--config /path/to/uptimely.toml`.
 
 ### Containers and remote environments
 

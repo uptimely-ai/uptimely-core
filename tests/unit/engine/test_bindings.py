@@ -171,7 +171,7 @@ def test_parameter_config_accepts_only_flat_scalar_values() -> None:
         "empty": None,
         "path": "data/input.json",
     }
-    with pytest.raises(ValueError, match="must be a JSON scalar"):
+    with pytest.raises(ValueError, match="must be a scalar"):
         config_module.ParameterConfig.model_validate({"limit": {"value": 1}})
     with pytest.raises(ValueError, match="finite number"):
         config_module.ParameterConfig.model_validate({"limit": float("nan")})

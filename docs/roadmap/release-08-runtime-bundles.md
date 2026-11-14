@@ -30,8 +30,7 @@ project/
 │       └── predict.py
 ├── spec/
 │   └── spec.py                        # Deferred implementation references
-├── config/
-│   └── config.json                    # Runtime parameters and engine controls
+├── uptimely.toml                     # Runtime parameters and engine controls
 ├── deployment/                        # User-owned bundle submission functions
 │   ├── local.py
 │   └── prefect.py

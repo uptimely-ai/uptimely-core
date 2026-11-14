@@ -22,7 +22,7 @@ def test_default_spec_attribute() -> None:
         (project.SPEC_PYTHON_ENTRY_FILE, "spec/spec.py"),
         (project.SPEC_JSON_ENTRY_FILE, "spec/spec.json"),
         (project.COMPILER_CONFIG_FILE, "config/compiler.json"),
-        (project.CONFIG_FILE, "config/config.json"),
+        (project.CONFIG_FILE, "uptimely.toml"),
         (project.DATA_DIR, "data"),
         (project.FUNCTIONS_DIR, "functions"),
         (project.GENERATED_DIR, "_generated"),

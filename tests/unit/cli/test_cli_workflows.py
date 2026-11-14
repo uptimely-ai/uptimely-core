@@ -278,8 +278,8 @@ def test_engine_cli_forwards_validation_flag(
     validate: bool,
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "config.json"
-    config.write_text("{}", encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
     received: list[bool] = []
 
     def run(
@@ -319,8 +319,8 @@ def test_engine_cli_builds_before_running(
     command: tuple[str, ...],
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "config.json"
-    config.write_text("{}", encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
     events: list[str] = []
     src_path = pathlib.Path("local_python")
 
@@ -452,8 +452,8 @@ def test_run_log_level_filters_uptimely_only_and_restores_configuration(
     failed: bool,
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "config.json"
-    config.write_text("{}", encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
     uptimely_logger = logging.getLogger("uptimely")
     previous_level = uptimely_logger.level
     dependency_logger = logging.getLogger("test_run_dependency")
@@ -537,8 +537,8 @@ def test_engine_previews_final_profiles(
     row_limit: int | None,
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "config.json"
-    config.write_text("{}", encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
     frame = pl.DataFrame(
         {"value": [f"row_{index:02d}" for index in range(row_count)]},
         schema={"value": pl.String},
@@ -629,8 +629,8 @@ def test_engine_preview_errors_are_reported(
     frame: object,
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "config.json"
-    config.write_text("{}", encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
     result = engine_module.ExecutionResult(
         datasets={"values": frame},
         calculated_outputs={},
@@ -673,8 +673,8 @@ def test_engine_empty_plan_summary(
 ) -> None:
     tmp_path = tmp_path / directory
     _write_empty_build(tmp_path)
-    config = tmp_path / "config.json"
-    config.write_text("{}", encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("", encoding="utf-8")
     times = iter([10.0, 10.0])
     monkeypatch.setattr(cli.engine, "time", types.SimpleNamespace(perf_counter=lambda: next(times)))
     run_times = iter([10.0, 10.0])
@@ -795,7 +795,7 @@ def test_unknown_feature_is_reported(
     assert "unknown_feature" in capsys.readouterr().err
 
 
-@pytest.mark.parametrize("content", ["not JSON", "[]", '{"bind": []}', '{"unknown": true}'])
+@pytest.mark.parametrize("content", ["not TOML", "[]", "bind = []", "unknown = true"])
 def test_engine_invalid_config_is_reported(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -803,7 +803,7 @@ def test_engine_invalid_config_is_reported(
     content: str,
 ) -> None:
     _write_empty_build(tmp_path)
-    config = tmp_path / "config.json"
+    config = tmp_path / "config.toml"
     config.write_text(content, encoding="utf-8")
     with pytest.raises(SystemExit) as error:
         invoke(
@@ -824,8 +824,8 @@ def test_engine_invalid_config_is_reported(
 def test_engine_operation_failures_are_reported(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    config = tmp_path / "config.json"
-    config.write_text('{"params": {}}', encoding="utf-8")
+    config = tmp_path / "config.toml"
+    config.write_text("[params]\n", encoding="utf-8")
     project_root = _copy_pump_project(tmp_path, monkeypatch, features=("health_signal_normalized",))
     with pytest.raises(SystemExit) as error:
         invoke(
@@ -846,10 +846,13 @@ def test_engine_operation_failures_are_reported(
     assert "Profile:" not in result.out
 
 
-def test_engine_config_loads_backend_and_params() -> None:
-    settings = engine_module.Config.model_validate_json(
-        '{"engine": {"backend": {"dataframe": "polars"}}, "params": {"threshold": 10}}'
+def test_engine_config_loads_backend_and_params(tmp_path: pathlib.Path) -> None:
+    config = tmp_path / "uptimely.toml"
+    config.write_text(
+        '[engine.backend]\ndataframe = "polars"\n\n[params]\nthreshold = 10\n',
+        encoding="utf-8",
     )
+    settings = engine_module.Config.from_toml(config)
     assert settings.engine.backend.dataframe == "polars"
     assert settings.params.root == {"threshold": 10}
 

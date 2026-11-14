@@ -1,7 +1,7 @@
 """Run the pump example's uncontrolled workflow through a saved build."""
 
-import json
 import pathlib
+import tomllib
 
 import polars as pl
 import pump_merge as merge
@@ -51,8 +51,8 @@ def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     plan_module.export_json(bundle.execution_plan, plan_path)
     saved_plan = plan_module.from_json(plan_path)
     output_path = tmp_path / "pump_external_workflow_results.csv"
-    configuration = json.loads(
-        (bundle.project_root / "config" / "config.json").read_text(encoding="utf-8")
+    configuration = tomllib.loads(
+        (bundle.project_root / "uptimely.toml").read_text(encoding="utf-8")
     )
     parameters = configuration["params"]
     paths: dict[str, str] = {}

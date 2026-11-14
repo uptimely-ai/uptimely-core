@@ -2,6 +2,7 @@
 
 import json
 import pathlib
+import tomllib
 
 import polars as pl
 import pump_analytics as analytics
@@ -14,12 +15,12 @@ from uptimely import plan, project
 
 
 def _configured_parameters(project_root: pathlib.Path) -> dict[str, object]:
-    configuration = json.loads((project_root / "config/config.json").read_text(encoding="utf-8"))
+    configuration = tomllib.loads((project_root / "uptimely.toml").read_text(encoding="utf-8"))
     return configuration["params"]
 
 
 def _configured_paths(project_root: pathlib.Path) -> dict[str, str]:
-    configuration = json.loads((project_root / "config/config.json").read_text(encoding="utf-8"))
+    configuration = tomllib.loads((project_root / "uptimely.toml").read_text(encoding="utf-8"))
     paths: dict[str, str] = {}
     for name, value in configuration["paths"].items():
         configured = pathlib.Path(value)

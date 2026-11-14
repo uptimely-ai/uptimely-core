@@ -23,7 +23,7 @@ class ServerState:
         """Load runtime configuration from an explicit or project config file.
 
         Args:
-            config_path: Optional path to a JSON configuration file.
+            config_path: Optional path to a TOML configuration file.
             project_root: Project root used to find the default config file.
 
         Returns:
@@ -34,7 +34,7 @@ class ServerState:
             selected_path = project_root / paths.CONFIG_FILE
             if not selected_path.exists():
                 return engine.Config()
-        return engine.Config.model_validate_json(selected_path.read_text(encoding="utf-8"))
+        return engine.Config.from_toml(selected_path)
 
     def runtime_config(self) -> engine.Config:
         """Return the configured engine settings, loading project defaults once."""

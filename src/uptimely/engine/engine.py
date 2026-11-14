@@ -62,7 +62,7 @@ class Engine:
             if path.exists():
                 raise ValueError(f"Project configuration is not a file: {path}")
             return config_module.Config()
-        return config_module.Config.model_validate_json(path.read_text(encoding="utf-8"))
+        return config_module.Config.from_toml(path)
 
     def check_plan_backend(self) -> None:
         """Require the configured backend to support the saved plan.

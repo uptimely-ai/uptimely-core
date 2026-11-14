@@ -81,7 +81,7 @@ def test_cli_run_uses_configured_source_path(
     (root / "src").rename(root / "python")
     project.build(root, src_path=pathlib.Path("python"))
     (root / "config").mkdir()
-    (root / "config/config.json").write_text("{}", encoding="utf-8")
+    (root / project.CONFIG_FILE).write_text("", encoding="utf-8")
     monkeypatch.setattr(
         sys,
         "argv",

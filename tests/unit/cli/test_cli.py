@@ -206,7 +206,7 @@ def test_no_setup_merges_into_existing_directory(
             "project/example/src/analytics.py": "code",
             "project/example/src/init.sh": "nested script",
             "project/example/spec/spec.py": "spec",
-            "project/example/config/config.json": "{}",
+            "project/example/uptimely.toml": "",
             "project/example/data/input/sample.csv": "data",
         }
     )
@@ -232,7 +232,7 @@ def test_no_setup_merges_into_existing_directory(
         "src/analytics.py",
         "src/init.sh",
         "spec/spec.py",
-        "config/config.json",
+        "uptimely.toml",
         "data/input/sample.csv",
     ):
         assert (tmp_path / path).is_file()
@@ -284,10 +284,11 @@ def test_no_setup_example_builds_and_runs_in_existing_environment(
     source = pathlib.Path(__file__).resolve().parents[3] / "example"
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
-        for directory in ("src", "spec", "config", "data/input"):
+        for directory in ("src", "spec", "data/input"):
             for path in (source / directory).rglob("*"):
                 if path.is_file() and "__pycache__" not in path.parts:
                     archive.write(path, f"project/example/{path.relative_to(source)}")
+        archive.write(source / "uptimely.toml", "project/example/uptimely.toml")
         archive.write(source / "pyproject.toml", "project/example/pyproject.toml")
     monkeypatch.setattr(
         examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(buffer.getvalue())
