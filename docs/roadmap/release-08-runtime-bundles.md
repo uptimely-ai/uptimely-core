@@ -117,13 +117,13 @@ languages by the runtime contract.
 Define isolated dependency stacks as runtimes, separate from development,
 test, and production configuration environments.
 
-**Prerequisites:** Existing Spec JSON, deferred function references, and
-project layout.
+**Prerequisites:** Existing Spec JSON, deferred function references, project
+layout, and the source/import metadata from Release 7.
 
 | title | breaking | description |
 |---|---|---|
 | Define portable runtime declarations | Yes | Add language-neutral `runtimes/<id>/runtime.json` definitions with worker commands, protocol versions, dependency/build inputs, and required capabilities such as GPU support. Python targets reference dependency files and a Python version, while other languages can use their own ecosystem inputs. Keep host placement, credentials, and orchestration policy outside these definitions. Carry function runtime references through decorators, Python authoring, Spec JSON, and plans without making decorators mandatory. |
-| Organize functions by runtime | Yes | Use `src/<runtime-id>/` for implementations and `runtimes/<runtime-id>/` for their definitions. Discover the runtime from this mapping before importing a function, then validate any decorator runtime declaration against it. Require explicit associations for external implementation packages. Update project scaffolding, examples, entrypoints, and project structure documentation together. Avoid mixing incompatible runtime implementations in one Python module. |
+| Organize functions by runtime | Yes | Use `src/<runtime-id>/` for implementations and `runtimes/<runtime-id>/` for their definitions. Discover the runtime from this mapping before importing a function, then validate any decorator runtime declaration against it. Require explicit associations for external implementation packages. Use one resolved source root and Spec entrypoint consistently for build, engine, Explorer, and MCP operations. Support a small optional project-root `uptimely.toml` for the source path and Python Spec entrypoint, with explicit CLI options taking precedence and existing conventions as fallback. Do not add upward discovery, environment overrides, or a second `[tool.uptimely]` configuration source in this work. Preserve existing CLI and Python API parameters while resolving the layout internally. For projects that use `src` as a package, keep imports consistent and include qualified package names such as `src.*` in import-state isolation. Update project scaffolding, examples, entrypoints, and project structure documentation together. Avoid mixing incompatible runtime implementations in one Python module or adding a custom import finder. |
 | Separate runtime caches from generated outputs | No | Store reusable machine-local installations under project-root `.cache/uptimely/runtimes/<content-hash>/`, separate from `_generated/` build and run outputs. Ignore caches in version control and exclude them from bundles. Define cache identity from runtime and provisioning inputs, invalidation, and explicit cleanup. Docker images remain in Docker-managed storage. Test missing definitions, conflicting runtime references, and portable path validation. |
 
 ## Work package: Isolated Python runtime provisioning
