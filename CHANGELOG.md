@@ -17,6 +17,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Project-generated builds, Explorer snapshots, and run outputs now live in
+  `artifacts/`.
 - The public `Project` class is now `Uptimely`. Use `app.build()` to publish a
   build and `app.run()` to execute the saved build without rebuilding. Its
   implementation module is now `uptimely.project.application`.
@@ -220,7 +222,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
-- Every engine execution now replaces `_generated/run/` with latest-run
+- Every engine execution now replaces `artifacts/run/` with latest-run
   metadata, structured JSONL logs, invocation outcomes, and bounded profile
   previews, including partial results after failure. Previews collect lazy
   queries by default and report sampling errors separately. Explorer provides

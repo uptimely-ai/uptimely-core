@@ -84,7 +84,7 @@ def create_app(project_root: pathlib.Path) -> FastAPI:
     """Create an app serving packaged frontend files and the current data snapshot.
 
     Args:
-        project_root: Project directory containing ``_generated/explorer.json``.
+        project_root: Project directory containing ``artifacts/explorer.json``.
 
     Returns:
         A FastAPI app serving the packaged frontend and Explorer data API.

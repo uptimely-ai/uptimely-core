@@ -25,12 +25,12 @@ def test_default_spec_attribute() -> None:
         (project.CONFIG_FILE, "uptimely.toml"),
         (project.DATA_DIR, "data"),
         (project.FUNCTIONS_DIR, "functions"),
-        (project.GENERATED_DIR, "_generated"),
-        (project.EXPLORER_DATA_FILE, "_generated/explorer.json"),
-        (project.BUILD_OUTPUT_DIR, "_generated/build"),
-        (project.BUILD_MANIFEST_FILE, "_generated/build/build.json"),
-        (project.BUILD_SPEC_FILE, "_generated/build/spec.json"),
-        (project.BUILD_EXECUTION_PLAN_FILE, "_generated/build/execution_plan.json"),
+        (project.ARTIFACTS_DIR, "artifacts"),
+        (project.EXPLORER_DATA_FILE, "artifacts/explorer.json"),
+        (project.BUILD_OUTPUT_DIR, "artifacts/build"),
+        (project.BUILD_MANIFEST_FILE, "artifacts/build/build.json"),
+        (project.BUILD_SPEC_FILE, "artifacts/build/spec.json"),
+        (project.BUILD_EXECUTION_PLAN_FILE, "artifacts/build/execution_plan.json"),
     ],
 )
 def test_standard_paths(path: pathlib.Path, expected: str) -> None:

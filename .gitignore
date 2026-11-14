@@ -43,8 +43,8 @@ coverage.xml
 Thumbs.db
 
 *.html
-_generated/*.html
-example/_generated/output/
+artifacts/*.html
+example/artifacts/output/
 *Identifier
 
 # Local documentation preview
@@ -57,5 +57,5 @@ docs/vendor/
 docs/example/
 
 # Examples
-example/_generated/
+example/artifacts/
 example/data/output/

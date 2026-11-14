@@ -84,10 +84,8 @@ class InstalledImportsTest(unittest.TestCase):
         shutil.copytree(source, project)
         result = self.command("project", "build", "--project-root", str(project), cwd=project)
         self.assertIn("Build files created", result.stdout)
-        build = project / "_generated" / "build"
-        snapshot = json.loads(
-            (project / "_generated" / "explorer.json").read_text(encoding="utf-8")
-        )
+        build = project / "artifacts" / "build"
+        snapshot = json.loads((project / "artifacts" / "explorer.json").read_text(encoding="utf-8"))
         self.assertEqual(snapshot["format_version"], 3)
         frontend = pathlib.Path(uptimely.__file__).parent / "explorer" / "app" / "static"
         self.assertTrue((frontend / "index.html").is_file())
@@ -125,7 +123,7 @@ class InstalledImportsTest(unittest.TestCase):
         self.command(
             "build", str(project), "--python-spec", "installed_analytics.declaration:python_spec"
         )
-        build = project / "_generated" / "build"
+        build = project / "artifacts" / "build"
         plan = json.loads((build / "execution_plan.json").read_text(encoding="utf-8"))
         self.assertEqual(
             {invocation["entrypoint"]: invocation["package"] for invocation in plan["invocations"]},
@@ -177,7 +175,7 @@ class InstalledImportsTest(unittest.TestCase):
         self.command(
             "build", str(project), "--python-spec", "installed_analytics.declaration:python_spec"
         )
-        build = project / "_generated" / "build"
+        build = project / "artifacts" / "build"
         source = json.loads((build / "spec.json").read_text(encoding="utf-8"))
         function = next(iter(source["functions"].values()))
         function["entrypoint"] = "installed_analytics.unavailable:read"

@@ -20,12 +20,12 @@ not both. If omitted, the current working directory is used. The grouped form
 The command validates the complete source specification, compiles one execution
 plan, and prepares a versioned Explorer data snapshot. The active build manifest
 tracks the spec and execution plan; the snapshot is published separately at
-`_generated/explorer.json`.
+`artifacts/explorer.json`.
 
 ### Build output
 
 ```text
-_generated/
+artifacts/
 ├── build/
 │   ├── build.json
 │   ├── spec.json

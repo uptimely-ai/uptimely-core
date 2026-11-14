@@ -236,7 +236,7 @@ class ProjectBuilder:
         """Create a temporary directory for the next active bundle."""
         try:
             return pathlib.Path(
-                tempfile.mkdtemp(prefix=".build-staging-", dir=self.root / paths.GENERATED_DIR)
+                tempfile.mkdtemp(prefix=".build-staging-", dir=self.root / paths.ARTIFACTS_DIR)
             )
         except OSError as error:
             raise errors.ProjectBuildError("staging setup", str(error)) from error

@@ -13,7 +13,7 @@ from uptimely.compiler import validation
 from uptimely.spec import model as spec_model
 from uptimely.spec import operator_kinds
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 

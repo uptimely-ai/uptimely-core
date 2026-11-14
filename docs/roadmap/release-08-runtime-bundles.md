@@ -42,7 +42,7 @@ project/
 │       └── runtimes/
 │           └── <content-hash>/
 │               └── venv/
-└── _generated/                        # Generated artifacts, not installations
+└── artifacts/                        # Generated artifacts, not installations
     ├── build/
     ├── bundles/
     │   └── <build-id>.zip
@@ -150,7 +150,7 @@ Separate machine-local runtime installations from portable build outputs.
 
 | title | breaking | description |
 |---|---|---|
-| Separate runtime caches from generated outputs | No | Store machine-local installations under `.cache/uptimely/runtimes/<content-hash>/`, separate from `_generated/`. Ignore caches in version control and exclude them from bundles. |
+| Separate runtime caches from generated outputs | No | Store machine-local installations under `.cache/uptimely/runtimes/<content-hash>/`, separate from `artifacts/`. Ignore caches in version control and exclude them from bundles. |
 | Define runtime cache identity and cleanup | No | Derive cache identity from runtime and provisioning inputs. Define invalidation and explicit cleanup. Keep Docker images in Docker-managed storage. |
 | Validate runtime paths and references | No | Test missing definitions, conflicting runtime references, and portable path validation. |
 

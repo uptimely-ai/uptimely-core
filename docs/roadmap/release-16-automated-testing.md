@@ -62,7 +62,7 @@ Keep fixture execution separate from normal runs and make external I/O opt-in.
 
 | title | breaking | description |
 |---|---|---|
-| Isolate case state and production outputs | No | Start each case with fresh runtime state, continue independent cases after failures, and leave `_generated/run/` unchanged. |
+| Isolate case state and production outputs | No | Start each case with fresh runtime state, continue independent cases after failures, and leave `artifacts/run/` unchanged. |
 | Gate external I/O and document trust limits | No | Require explicit opt-in for read, write, and escape bindings. Do not claim to sandbox trusted Python functions. |
 | Verify fixture execution behavior | No | Test missing fixtures, invalid overrides, lazy failures, merge contracts, and unchanged production behavior. Document binding, chained-operator, and workflow test distinctions. |
 
@@ -78,7 +78,7 @@ automation, pytest, and Explorer.
 | Add the `uptimely test` command | No | Follow project-root, configuration, and logging conventions. Default to interface fixtures and support build, profile/operator/case filters, and explicit external-I/O opt-in. |
 | Define test command exit behavior | No | Require a valid saved build. Return 0 for successful nonempty runs, 1 for assertion/user-function failures, and 2 for invalid setup or no selected cases. |
 | Verify and document test invocation | No | Test the installed CLI and example project. Document the public Python runner. |
-| Save normalized suites and provenance | No | Atomically write `_generated/tests/test.json` with normalized suite data, source provenance, run ID, UTC timestamps, and build identity/scope. |
+| Save normalized suites and provenance | No | Atomically write `artifacts/tests/test.json` with normalized suite data, source provenance, run ID, UTC timestamps, and build identity/scope. |
 | Save case outcomes and diagnostics | No | Record case/assertion counts, statuses, durations, bounded differences, and preparation diagnostics. Mark interrupted runs incomplete and retain available failures. |
 | Prevent unsafe fallback reports | No | Never write success-shaped fallback reports. Exclude secrets and unrestricted actual datasets. |
 
@@ -118,7 +118,7 @@ requests.
 
 | title | breaking | description |
 |---|---|---|
-| Serve validated saved test reports | No | Read the current project's `_generated/tests/test.json` through a read-only FastAPI API. Validate versions and distinguish absent and malformed reports. |
+| Serve validated saved test reports | No | Read the current project's `artifacts/tests/test.json` through a read-only FastAPI API. Validate versions and distinguish absent and malformed reports. |
 | Detect stale build reports safely | No | Detect stale build identity. Do not accept arbitrary paths, import test functions, or execute checks from report endpoints. |
 
 ## Work package: Explorer test results

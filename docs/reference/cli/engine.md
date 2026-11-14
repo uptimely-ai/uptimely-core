@@ -87,7 +87,7 @@ rebuild the project to adopt them.
 
 ## Latest-run artifacts
 
-Every execution saves `_generated/run/run.json`, `log.jsonl`, and
+Every execution saves `artifacts/run/run.json`, `log.jsonl`, and
 `preview/<profile>.json`. This replaces the previous run completely, including
 previews for profiles that no longer appear. There is no run history or run
 format-version field.

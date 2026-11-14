@@ -13,7 +13,7 @@ def test_copied_example_runs_without_installation_or_pythonpath(tmp_path: pathli
     shutil.copytree(
         source,
         project,
-        ignore=shutil.ignore_patterns("_generated", "__pycache__", ".venv", "build", "*.egg-info"),
+        ignore=shutil.ignore_patterns("artifacts", "__pycache__", ".venv", "build", "*.egg-info"),
     )
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)

@@ -79,7 +79,7 @@ per-invocation statuses and durations, failures, and the plan version. A
 successful invocation is marked succeeded, a failed invocation is marked
 failed, and work that did not run after a failure is marked skipped.
 
-Each run replaces the latest diagnostic snapshot in `_generated/run/`.
+Each run replaces the latest diagnostic snapshot in `artifacts/run/`.
 It includes run metadata, logs, and a bounded preview for each available
 profile. The default preview is five rows. Previews are collected after
 execution, including from lazy frames, and do not replace the dataframes
