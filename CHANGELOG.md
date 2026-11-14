@@ -8,6 +8,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-11-14
+
 ### Added
 
 - Project build and run commands accept `--src-path` to select a Python source
@@ -31,7 +33,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 - The example download command accepts `--dir` to choose its destination.
 - MCP tools can execute a selected analytical function or operator with its saved
   prerequisites, excluding downstream sinks. They also summarize spec feature
-  counts and inspect the latest engine run and its filtered logs.
+  counts, report operator semantics derived from the Spec, and inspect the latest
+  engine run and its filtered logs.
 - `Engine.run(operator=(profile_id, operator_id))` executes a dependency-complete
   subset of the saved plan without recompiling.
 
@@ -44,6 +47,15 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Profiles can declare `relations` as additional dimension resolutions without
   changing their grain. Relation columns are retained during fragment assembly and
   shown in Explorer's profile schema rather than its feature catalog or lineage.
+- Python authoring offers `FeatureSet` to group feature declarations. Feature
+  IDs default to their attribute names, profile IDs can be inferred from names
+  or class names, and `uptimely.spec.feature_types` provides logical type constants.
+- Explorer shows dimension-resolution hierarchies, function source and
+  documentation, and redesigned profile, feature, and function pages. Its
+  feature and invocation lineage views expose merges, operator visibility, and
+  direct versus full dependency highlighting. Operator details distinguish
+  declared bindings from resolved arguments.
+- `uptimely run --build` builds and publishes the project before executing it.
 
 ### Changed
 
@@ -73,6 +85,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 - MCP setup uses the existing Poetry environment rather than assuming a local
   `.venv`. A dedicated guide covers installed packages, VS Code, other clients,
   and remote environments.
+- CLI log messages are color-coded by severity. Debug logging can include
+  tracebacks, and engine runs print a message to open Explorer.
 
 - Move `resolve_path` onto `Project`, using its stored root for default paths
   while preserving explicitly supplied paths unchanged.
@@ -136,6 +150,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 - **Breaking (Python authoring):** Renamed `row_context.dataset()` to
   `row_context.all_rows()` to describe its row-context behavior without implying
   a spec-level Dataset.
+- **Breaking (Python authoring):** `Profile.grain` now accepts selected
+  `Resolution` declarations returned by `Dimension.resolution()`. Replace
+  `Grain(dimension, resolution)` with `dimension.resolution(resolution)`.
 - **Breaking (spec Python API):** Renamed profile-reference and dataframe-input
   helpers, cached views, and validators to distinguish profile IDs from engine
   Datasets. The mapping-input validation error code is now
@@ -161,9 +178,16 @@ While the version is `0.x`, minor releases may include breaking changes.
   version 5 or older plans must be rebuilt from source; omitted fragment merge
   bindings resolve to the builtin default, while explicit bindings override it.
 - **Breaking:** Spec version 5 uses `assembly` instead of `actions` in profiles,
-  infers operator IDs from assembly keys, and renames the operator fields
-  `binding` and `features` to `compute` and `interface`. Version 4 documents
-  must be migrated and rebuilt; compatibility parsing is not provided.
+  renames Python `Action` to `Operator`, infers operator IDs from assembly keys,
+  and renames the operator fields `binding` and `features` to `compute` and
+  `interface`. Version 4 documents must be migrated and rebuilt; compatibility
+  parsing is not provided.
+
+### Fixed
+
+- Feature type mismatch errors list the available logical data types.
+- Fragment structure and output-column checks run even when optional runtime
+  content validation is disabled.
 
 ## [0.9.0] - 2026-11-03
 
