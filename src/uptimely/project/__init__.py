@@ -14,6 +14,7 @@ from .build import (
     load_spec_source,
     read_build_bundle,
 )
+from .config import Params, Paths, ProjectConfig
 from .paths import (
     BUILD_EXECUTION_PLAN_FILE,
     BUILD_MANIFEST_FILE,
@@ -35,6 +36,9 @@ from .project import Project
 
 __all__ = [
     "Project",
+    "ProjectConfig",
+    "Params",
+    "Paths",
     "BUILD_EXECUTION_PLAN_FILE",
     "BUILD_MANIFEST_FILE",
     "BUILD_OUTPUT_DIR",

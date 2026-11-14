@@ -3,46 +3,22 @@
 import dataclasses
 import pathlib
 
-from uptimely import engine, project
-from uptimely.project import paths
+from uptimely import project as project_module
 
 
 @dataclasses.dataclass
 class ServerState:
     """Hold project configuration and cache its validated saved build."""
 
-    project_root: pathlib.Path
-    config: engine.Config | None = None
-    bundle: project.BuildBundle | None = dataclasses.field(default=None, repr=False)
+    project: project_module.Project
+    bundle: project_module.BuildBundle | None = dataclasses.field(default=None, repr=False)
 
-    @staticmethod
-    def load_config(
-        config_path: pathlib.Path | None,
-        project_root: pathlib.Path,
-    ) -> engine.Config:
-        """Load runtime configuration from an explicit or project config file.
+    @property
+    def project_root(self) -> pathlib.Path:
+        """Return the configured project root."""
+        return self.project.root
 
-        Args:
-            config_path: Optional path to a TOML configuration file.
-            project_root: Project root used to find the default config file.
-
-        Returns:
-            Validated runtime configuration, or defaults when no project config exists.
-        """
-        selected_path = config_path
-        if selected_path is None:
-            selected_path = project_root / paths.CONFIG_FILE
-            if not selected_path.exists():
-                return engine.Config()
-        return engine.Config.from_toml(selected_path)
-
-    def runtime_config(self) -> engine.Config:
-        """Return the configured engine settings, loading project defaults once."""
-        if self.config is None:
-            self.config = self.load_config(None, self.project_root)
-        return self.config
-
-    def load_bundle(self, *, reload: bool = False) -> project.BuildBundle:
+    def load_bundle(self, *, reload: bool = False) -> project_module.BuildBundle:
         """Load and cache one validated saved build.
 
         Args:
@@ -56,7 +32,7 @@ class ServerState:
         if reload:
             self.bundle = None
 
-        with project.read_build_bundle(self.project_root) as bundle:
+        with self.project.read_build_bundle() as bundle:
             loaded_bundle = bundle
         self.bundle = loaded_bundle
         return loaded_bundle

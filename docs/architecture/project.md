@@ -2,8 +2,10 @@
 
 `Project` is the public-facing API for working with an analytics project. It
 binds operations to a project root and provides methods to build or load the
-active build bundle. The command-line project build uses the same project
-workflow.
+active build bundle. At construction, it loads and validates project
+configuration and keeps it for its lifetime. It creates Engines with the
+relevant settings, paths, and parameters. The command-line project build and
+run use the same project workflow.
 
 Internally, `ProjectBuilder` coordinates source discovery and loading,
 compilation, artifact generation, validation, and publication. A successful

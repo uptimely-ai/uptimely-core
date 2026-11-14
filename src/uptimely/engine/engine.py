@@ -7,7 +7,7 @@ from collections import abc
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely import plan as plan_module
-from uptimely.project import paths
+from uptimely.project import config as project_config
 from uptimely.project.build import models as build_models
 from uptimely.project.build import source as build_source
 from uptimely.run import recording
@@ -27,8 +27,10 @@ class Engine:
     def __init__(
         self,
         bundle: build_models.BuildBundle,
-        config: config_module.Config | config_module.EngineConfig | None = None,
+        config: config_module.EngineConfig | None = None,
         parameters: abc.Mapping[str, object] | None = None,
+        *,
+        paths: abc.Mapping[str, str] | None = None,
     ) -> None:
         """Prepare an engine using bundle resources and runtime configuration."""
         if not isinstance(bundle, build_models.BuildBundle):
@@ -36,33 +38,13 @@ class Engine:
         self.bundle = bundle
         self.plan = bundle.execution_plan
         self.spec_definition = bundle.spec_definition
-        if isinstance(config, config_module.Config):
-            self.config = config.engine
-        else:
-            self.config = config_module.EngineConfig() if config is None else config
-        if isinstance(config, config_module.Config):
-            project_config = config
-        else:
-            project_config = self._load_project_config(bundle)
-        configured_parameters = project_config.params.root
-        if parameters is not None:
-            configured_parameters = config_module.Params.model_validate(dict(parameters)).root
-        self.parameters = configured_parameters
-        self.paths = project_config.paths.root
+        self.config = config_module.EngineConfig() if config is None else config
+        self.parameters = project_config.Params.model_validate(
+            {} if parameters is None else dict(parameters)
+        ).root
+        self.paths = project_config.Paths.model_validate({} if paths is None else dict(paths)).root
         self.backend = backend_module.create_backend(self.config.backend)
         self.check_plan_backend()
-
-    @staticmethod
-    def _load_project_config(
-        bundle: build_models.BuildBundle,
-    ) -> config_module.Config:
-        """Load project paths and parameters from the project config file."""
-        path = bundle.project_root / paths.CONFIG_FILE
-        if not path.is_file():
-            if path.exists():
-                raise ValueError(f"Project configuration is not a file: {path}")
-            return config_module.Config()
-        return config_module.Config.from_toml(path)
 
     def check_plan_backend(self) -> None:
         """Require the configured backend to support the saved plan.

@@ -30,7 +30,7 @@ After a successful run and any requested previews, an info log shows the
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--src-path PATH` | No | `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the default for this command. |
 | `--build` | No | Disabled | Build and publish the project before execution, then run the newly published build. |
-| `--config PATH` | No | `uptimely.toml` under the project root or current working directory | Engine settings, project paths, and runtime parameters in TOML. |
+| `--config PATH` | No | `uptimely.toml` under the project root, or defaults if absent | Project configuration in TOML. Explicit relative paths are resolved from the current working directory. |
 | `--validate` | No | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
 | `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
 | `--preview [ROWS]` | No | Console display disabled; 5 rows when supplied without a count | Set the saved preview row limit and log those rows from each final profile after successful execution at info level. Without this option, five rows per profile are still saved. |

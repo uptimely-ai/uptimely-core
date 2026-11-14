@@ -6,10 +6,10 @@ import pytest
 from support import execution as execution_support
 
 from uptimely import plan as plan_module
-from uptimely.engine import config as config_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
+from uptimely.project import config as config_module
 
 PLAN = plan_module.from_json("tests/fixtures/plans/simple_engine.json")
 
@@ -161,7 +161,7 @@ def test_runtime_bindings_reject_staged_fragment_with_incompatible_type() -> Non
 
 
 def test_parameter_config_accepts_only_flat_scalar_values() -> None:
-    config = config_module.ParameterConfig.model_validate(
+    config = config_module.Params.model_validate(
         {"limit": 1.5, "enabled": True, "empty": None, "path": "data/input.json"}
     )
 
@@ -172,9 +172,9 @@ def test_parameter_config_accepts_only_flat_scalar_values() -> None:
         "path": "data/input.json",
     }
     with pytest.raises(ValueError, match="must be a scalar"):
-        config_module.ParameterConfig.model_validate({"limit": {"value": 1}})
+        config_module.Params.model_validate({"limit": {"value": 1}})
     with pytest.raises(ValueError, match="finite number"):
-        config_module.ParameterConfig.model_validate({"limit": float("nan")})
+        config_module.Params.model_validate({"limit": float("nan")})
 
 
 def test_path_config_accepts_only_named_string_values() -> None:
