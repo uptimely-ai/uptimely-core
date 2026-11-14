@@ -1,7 +1,7 @@
 """Filter telemetry to warning readings at the original timestamp grain."""
 
-from example.spec import dimension
-from example.src import analytics
+import pump_analytics as analytics
+from spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Order, Profile, merge, ref
 

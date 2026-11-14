@@ -68,6 +68,7 @@ def test_project_build_forwards_source_and_feature_options(
         python_spec="spec.spec:python_spec",
         json_spec=source,
         features=["reading"],
+        src_path=None,
     )
     assert result is builder_class.return_value.build.return_value
 

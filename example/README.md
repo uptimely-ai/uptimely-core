@@ -1,100 +1,98 @@
-# Data-center cooling pump analytics example
+# Run the cooling-pump example
 
-This example uses Uptimely Core to analyze six cooling-system pumps across two
-data centers and four server rooms. It combines pump telemetry, asset metadata,
-category and series rollups, and external measurements.
+This project uses synthetic telemetry for six cooling-system pumps across two
+data centers and four server rooms. It demonstrates asset hierarchies,
+time-based telemetry, and externally calculated measurements in an Uptimely
+Core workflow.
 
-The sample data is synthetic. Health scores and operating-point recommendations
-are illustrative calculations, not validated operating limits or control advice.
+Health scores, warning thresholds, and operating-point recommendations are
+illustrative calculations. They are not validated operating limits or control
+advice.
 
-## Setup and installation
+## Workflow
 
-If you do not already have the example project, [install Uptimely Core](https://github.com/uptimely-ai/uptimely-core#install)
-and download the example matching your installed version:
+- `pump_telemetry` combines pump readings with asset metadata.
+- `pump_series` and `pump_category` provide inherited capacity metadata. The
+  `pump` profile resolves capacity from the pump, series, then category level
+  and combines telemetry with external measurements.
+- Time-based profiles summarize telemetry by minute, hour, and day.
+- Warning profiles filter readings and summarize them by hour. The hourly
+  warning profile also demonstrates an illustrative operating-point
+  recommendation.
+- The external workflow reads a sample CSV, calculates a measurement ratio, and
+  writes its result as a separate output.
 
-```sh
-uptimely example --dir pump-analytics
-```
+## Project files
 
-The downloaded `pump-analytics/` directory is the example project.
+| Path | Purpose |
+| --- | --- |
+| `data/input/` | Synthetic telemetry, asset metadata, constants, and external workflow inputs. |
+| `data/output/` | Materialized profile results written by the workflow. |
+| `src/pump_analytics.py` | Analytical calculations and profile transformations. |
+| `src/pump_io.py` | Input readers, output writers, and the sample external workflow. |
+| `src/pump_merge.py` | Custom merge for external measurements. |
+| `src/pump_util.py` | Small helper used by the analytical functions. |
+| `spec/` | Dimensions, profile declarations, and the combined Python spec. |
+| `config/config.json` | Engine settings and configured input and output paths. |
+| `_generated/` | The active build, Explorer snapshot, and latest run metadata. |
 
-Requires Python 3.13 or newer. Uptimely Core 0.10 is not yet
-published, so installation will fail until it is available.
+The Python declarations are in `spec/`. The project entry point is
+`spec/spec.py`. Source modules live directly under `src/` and are imported from
+the project source path. They do not need to be installed as a separate package.
 
-The installed example exposes its source modules under the Python package name
-`example`.
+## Set up the project
 
-### Dev container
+If you have not downloaded the example, follow the
+[quick start](https://uptimely-ai.github.io/uptimely-core/#install). It shows
+how to download the project. From the project root, sync its dependencies:
 
-With Docker and the VS Code Dev Containers extension installed, open the example folder
-in VS Code and select **Dev Containers: Reopen in Container**.
-The container installs uv and uses it to set up the example. Use uv to manage
-the environment inside the dev container.
-
-### Local setup
-
-From the example project directory, choose one of the following.
-
-**pip**
-
-Use a Python 3.13 environment prepared for installing packages:
-
-```sh
-python3.13 -m pip install -e .
-```
-
-**Poetry**
-
-```sh
-poetry install
-```
-
-**uv**
-
-```sh
+```console
 uv sync
 ```
 
-## Run the example
+The example requires Python 3.13 or newer.
 
-For a local Poetry setup, prefix the commands below with `poetry run`. For a
-local uv setup, prefix them with `uv run`. In the dev container, run them
-directly.
+## Build and run
 
-### Build and run
+Build the project to compile its Python spec and publish the execution bundle:
 
-From the example project directory, prepare the example for running:
-
-```sh
-uptimely build
+```console
+uv run uptimely build
 ```
 
-Repeat the build after changing the example files.
+Rebuild after changing profile declarations, bindings, or source functions.
+Then run the workflow and preview up to ten rows from each resulting profile:
 
-Run the calculations:
-
-```sh
-uptimely run
+```console
+uv run uptimely run --preview 10
 ```
 
-### View the results
+The workflow writes its configured profile results under `data/output/`.
+Build artifacts, the Explorer snapshot, and metadata for the latest run live
+under `_generated/`. A new run replaces `_generated/run/`.
 
-Start a local browser view of the example:
+## Explore and export
 
-```sh
-uptimely explore
+To create a static copy for sharing or hosting, export the active build to a
+directory or ZIP file:
+
+```console
+uv run uptimely explorer export . --output cooling-pump-analytics-explorer
+uv run uptimely explorer export . --output cooling-pump-analytics-explorer.zip
 ```
 
-Open <http://127.0.0.1:8001/> in your browser.
+The export uses the current build and run snapshot. Rebuild, rerun, and export
+again to include later changes. See the
+[CLI Explorer guide](https://uptimely-ai.github.io/uptimely-core/reference/cli/explorer/)
+for export options and the
+[project folder guide](https://uptimely-ai.github.io/uptimely-core/architecture/folder-structure/)
+for generated and retained files.
 
-To save a copy of the browser view and its data, export it to a folder or ZIP
-file:
+To browse the active build locally, start the Explorer:
 
-```sh
-uptimely explorer export . --output cooling-pump-analytics-explorer
-
-uptimely explorer export . --output cooling-pump-analytics-explorer.zip
+```console
+uv run uptimely explore
 ```
 
-For an explanation of the folders in an Uptimely project, see the
-[folder structure guide](https://uptimely-ai.github.io/uptimely-core/architecture/folder-structure/).
+Open <http://127.0.0.1:8001/> in a browser. This command runs the local server
+until you stop it.

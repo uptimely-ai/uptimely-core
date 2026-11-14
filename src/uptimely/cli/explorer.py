@@ -61,6 +61,7 @@ def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
         parser,
         option_help="Project root containing the active build",
     )
+    common.configure_src_path_argument(parser)
     parser.add_argument(
         "--build",
         action="store_true",
@@ -99,7 +100,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
 
     try:
         if args.build:
-            bundle = project.build(project_root)
+            bundle = project.build(project_root, src_path=args.src_path)
             logger.info("Build files created to %s", bundle.root)
         bundle = project.load_build_bundle(project_root)
         scope = (

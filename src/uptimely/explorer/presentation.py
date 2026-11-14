@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import contextlib
 import dataclasses
 import enum
 import json
@@ -15,6 +16,7 @@ from uptimely import spec
 from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
+from uptimely.project.build import source as build_source
 
 EXPLORER_FORMAT_VERSION = 3
 
@@ -69,6 +71,7 @@ def build_presentation_data(
     features: list[str] | None = None,
     validate_spec: bool = True,
     project_root: pathlib.Path | None = None,
+    src_path: pathlib.Path | None = None,
 ) -> ExplorerPresentationData:
     """Prepare complete Explorer presentation data without writing files.
 
@@ -78,13 +81,21 @@ def build_presentation_data(
         features: Selected output features, or ``None`` for all features.
         validate_spec: Run semantic checks when building the feature graph.
         project_root: Project directory used to identify project-owned source files.
+        src_path: Optional source directory, relative to the project root unless absolute.
+            Defaults to ``src``.
 
     Returns:
         Versioned JSON-ready project, catalog, graph, plan, and animation data.
     """
-    spec_data = spec_section.build_context(
-        spec_section._build_context(spec_definition, False, project_root)
+    import_context = (
+        build_source.project_source_path(project_root, src_path=src_path)
+        if project_root is not None
+        else contextlib.nullcontext()
     )
+    with import_context:
+        spec_data = spec_section.build_context(
+            spec_section._build_context(spec_definition, False, project_root)
+        )
     feature_data = feature_lineage.build_context(
         spec.FeatureGraph(spec_definition, validate=validate_spec)
     )

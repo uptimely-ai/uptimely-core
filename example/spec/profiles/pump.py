@@ -1,8 +1,9 @@
 """Cooling-pump profile and declarative dataframe transformations."""
 
-from example.spec import dimension
-from example.src import analytics, io
-from example.src import merge as merge_functions
+import pump_analytics as analytics
+import pump_io as io
+import pump_merge as merge_functions
+from spec import dimension
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 from uptimely.spec import feature_types

@@ -49,7 +49,7 @@ Before making project-wide changes, consult the relevant guides:
   expressed by scripts or configuration.
 - Keep developer reference docs synced with code, avoid detailed lengthy text jargon
 - Keep root readme.md and docs/index.md synced
-- Keep example readme.md and docs/getting-started/tutorial.md synced
+- Keep example readme.md and getting-started/tutorial.md synced
 - Keep explorer docs minimal, users can easily see what's available
 - Docs architecture section should not have code examples
 - Do not use semicolons ;

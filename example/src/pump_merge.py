@@ -1,4 +1,4 @@
-"""Custom merge functions for example workflows."""
+"""Custom merge functions for the example workflow."""
 
 import polars as pl
 

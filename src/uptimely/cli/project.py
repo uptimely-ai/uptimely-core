@@ -42,6 +42,7 @@ def configure_build_parser(parser: argparse.ArgumentParser) -> None:
         parser,
         option_help="Root added to the import path and used to resolve the output bundle",
     )
+    common.configure_src_path_argument(parser)
     parser.add_argument(
         "--features",
         nargs="+",
@@ -63,9 +64,9 @@ def _log_build_details(
         python_spec=args.python_spec, json_spec=args.json_spec
     )
     if isinstance(source, build_source.PythonSource):
-        source_file = source.entrypoint.module.source_file
+        spec_source = str(source.path.resolve()) if args.python_spec is None else args.python_spec
     else:
-        source_file = str(source.path.resolve())
+        spec_source = str(source.path.resolve())
     scope = (
         "all features" if bundle.manifest.features is None else ", ".join(bundle.manifest.features)
     )
@@ -73,7 +74,7 @@ def _log_build_details(
         ("Build", "Duration", f"{duration:.3f} s"),
         ("Build", "Output folder", str(bundle.root)),
         ("Build", "Build scope", scope),
-        ("Spec", "Spec source file", str(source_file)),
+        ("Spec", "Spec source", spec_source),
         ("Spec", "Number of functions", str(len(definition.functions))),
         ("Spec", "Number of profiles", str(len(definition.profiles))),
         (
@@ -108,6 +109,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 python_spec=args.python_spec,
                 json_spec=args.json_spec,
                 features=args.features,
+                src_path=args.src_path,
             )
             duration = time.perf_counter() - started
             if logger.isEnabledFor(logging.DEBUG):

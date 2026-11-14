@@ -9,7 +9,7 @@ Execute the plan in the project's last successful active build:
 
 ```console
 uptimely run \
-  [PROJECT_ROOT] [--project-root PATH] [--build] [--config PATH] \
+  [PROJECT_ROOT] [--project-root PATH] [--src-path PATH] [--build] [--config PATH] \
   [--validate] [--log-level LEVEL] [--preview [ROWS]]
 ```
 
@@ -28,6 +28,7 @@ After a successful run and any requested previews, an info log shows the
 | --- | --- | --- | --- |
 | `PROJECT_ROOT` | No | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
+| `--src-path PATH` | No | `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the default for this command. |
 | `--build` | No | Disabled | Build and publish the project before execution, then run the newly published build. |
 | `--config PATH` | No | `config/config.json` under the project root or current working directory | Engine settings, project paths, and runtime parameters in JSON. |
 | `--validate` | No | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
@@ -63,6 +64,9 @@ uptimely run example --validate
 uptimely run example --validate --log-level debug
 uptimely run example --build
 ```
+
+If the project uses a non-default source directory, pass the same `--src-path`
+to both the build and each run that imports its local modules.
 
 The log level applies to Uptimely loggers, not third-party dependency loggers.
 It does not enable validation; use `--validate` to run the runtime checks.

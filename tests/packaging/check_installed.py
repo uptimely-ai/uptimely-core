@@ -4,19 +4,18 @@ import importlib.metadata
 import json
 import os
 import pathlib
+import shutil
 import subprocess
 import sys
 import tarfile
 import tempfile
 import unittest
 
-import example
 import installed_analytics
 
 import uptimely
 
 REPOSITORY_ROOT = pathlib.Path(__file__).resolve().parents[2]
-EXAMPLE_DISTRIBUTION = "uptimely-data-center-cooling-example"
 
 
 class InstalledImportsTest(unittest.TestCase):
@@ -78,15 +77,11 @@ class InstalledImportsTest(unittest.TestCase):
         )
         with tarfile.open(source_distribution) as archive:
             self.assertFalse(any("/example/" in name for name in archive.getnames()))
-        self.assertIsNotNone(example.__file__)
-        self.assertFalse(pathlib.Path(example.__file__).resolve().is_relative_to(REPOSITORY_ROOT))
-        self.assertEqual(
-            importlib.metadata.packages_distributions()["example"], [EXAMPLE_DISTRIBUTION]
-        )
 
     def test_standalone_example_builds_and_runs(self) -> None:
-        self.assertIsNotNone(example.__file__)
-        project = pathlib.Path(example.__file__).parent
+        source = pathlib.Path(os.environ["UPTIMELY_EXAMPLE_DIR"])
+        project = self.root / "pump-analytics"
+        shutil.copytree(source, project)
         result = self.command("project", "build", "--project-root", str(project), cwd=project)
         self.assertIn("Build files created", result.stdout)
         build = project / "_generated" / "build"
@@ -107,12 +102,20 @@ class InstalledImportsTest(unittest.TestCase):
         for entrypoint, package in packages.items():
             top_level_package = entrypoint.partition(":")[0].partition(".")[0]
             expected_distribution = {
-                "example": EXAMPLE_DISTRIBUTION,
+                "pump_analytics": None,
+                "pump_io": None,
+                "pump_merge": None,
+                "pump_util": None,
                 "polars": "polars",
                 "uptimely": "uptimely-core",
             }[top_level_package]
             self.assertEqual(package["distribution"], expected_distribution)
-            self.assertEqual(package["version"], importlib.metadata.version(expected_distribution))
+            expected_version = (
+                importlib.metadata.version(expected_distribution)
+                if expected_distribution is not None
+                else None
+            )
+            self.assertEqual(package["version"], expected_version)
         result = self.command("run", str(project), "--preview", "2", cwd=project)
         self.assertIn("Engine processed", result.stdout)
         self.assertIn("Profile:", result.stdout)

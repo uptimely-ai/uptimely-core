@@ -2,8 +2,10 @@
 
 import argparse
 import io
+import os
 import pathlib
 import stat
+import subprocess
 import sys
 import tomllib
 import zipfile
@@ -189,6 +191,118 @@ def test_existing_destination_is_preserved(
         assert output.is_symlink()
 
 
+def test_no_setup_merges_into_existing_directory(
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    data = _archive(
+        {
+            "project/example/README.md": "guide",
+            "project/example/pyproject.toml": "setup",
+            "project/example/.devcontainer/devcontainer.json": "{}",
+            "project/example/__init__.py": "",
+            "project/example/src/analytics.py": "code",
+            "project/example/spec/spec.py": "spec",
+            "project/example/config/config.json": "{}",
+            "project/example/data/input/sample.csv": "data",
+        }
+    )
+    monkeypatch.setattr(examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
+    (tmp_path / "pyproject.toml").write_text("existing setup")
+    (tmp_path / "README.md").write_text("existing guide")
+    (tmp_path / ".devcontainer").mkdir()
+    (tmp_path / ".devcontainer/devcontainer.json").write_text("existing container")
+    (tmp_path / "src").mkdir()
+    (tmp_path / "src/other.py").write_text("existing code")
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "--no-setup", "--dir", str(tmp_path)])
+
+    cli.main()
+
+    assert (tmp_path / "pyproject.toml").read_text() == "existing setup"
+    assert (tmp_path / "README.md").read_text() == "existing guide"
+    assert (tmp_path / ".devcontainer/devcontainer.json").read_text() == "existing container"
+    assert (tmp_path / "src/other.py").read_text() == "existing code"
+    for path in (
+        "__init__.py",
+        "src/analytics.py",
+        "spec/spec.py",
+        "config/config.json",
+        "data/input/sample.csv",
+    ):
+        assert (tmp_path / path).is_file()
+
+
+@pytest.mark.parametrize("kind", ["file", "directory", "symlink", "parent-symlink"])
+def test_no_setup_rejects_conflicts_before_copying(
+    tmp_path: pathlib.Path, github: list[str], kind: str
+) -> None:
+    output = tmp_path / "example"
+    output.mkdir()
+    if kind == "parent-symlink":
+        outside = tmp_path / "outside"
+        outside.mkdir()
+        (output / "data").symlink_to(outside, target_is_directory=True)
+    else:
+        target = output / "run.py"
+        if kind == "file":
+            target.write_text("existing")
+        elif kind == "directory":
+            target.mkdir()
+        else:
+            target.symlink_to(tmp_path / "missing")
+
+    with pytest.raises(FileExistsError):
+        examples.download_examples(output, no_setup=True)
+
+    assert not (output / "README.md").exists()
+    if kind == "parent-symlink":
+        assert not list(outside.iterdir())
+        assert not (output / "run.py").exists()
+    elif kind == "file":
+        assert target.read_text() == "existing"
+        assert not (output / "data/sample.csv").exists()
+
+
+def test_no_setup_example_builds_and_runs_in_existing_environment(
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    source = pathlib.Path(__file__).resolve().parents[3] / "example"
+    buffer = io.BytesIO()
+    with zipfile.ZipFile(buffer, "w") as archive:
+        for directory in ("src", "spec", "config", "data/input"):
+            for path in (source / directory).rglob("*"):
+                if path.is_file() and "__pycache__" not in path.parts:
+                    archive.write(path, f"project/example/{path.relative_to(source)}")
+        archive.write(source / "pyproject.toml", "project/example/pyproject.toml")
+    monkeypatch.setattr(
+        examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(buffer.getvalue())
+    )
+    output = tmp_path / "pump-analytics"
+    examples.download_examples(output, no_setup=True)
+    environment = os.environ.copy()
+    environment.pop("PYTHONPATH", None)
+    for action in ("build", "run"):
+        if action == "run":
+            renamed = tmp_path / "renamed-example"
+            output.rename(renamed)
+            output = renamed
+        subprocess.run(
+            [
+                sys.executable,
+                "-c",
+                "from uptimely.cli import cli; cli.main()",
+                action,
+                str(output),
+            ],
+            cwd=tmp_path,
+            env=environment,
+            check=True,
+            capture_output=True,
+            text=True,
+            timeout=90,
+        )
+    assert not (output / "pyproject.toml").exists()
+
+
 def test_examples_cli_reports_existing_default_destination(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -362,55 +476,60 @@ def test_cli_output_and_revision(
 def test_examples_without_action_downloads_default_destination(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    calls: list[tuple[pathlib.Path, str | None]] = []
+    calls: list[tuple[pathlib.Path, str | None, bool]] = []
     monkeypatch.setattr(
         examples,
         "download_examples",
-        lambda output, ref: calls.append((output, ref)) or output,
+        lambda output, ref, *, no_setup: calls.append((output, ref, no_setup)) or output,
     )
     monkeypatch.setattr(sys, "argv", ["uptimely", "example"])
 
     cli.main()
 
-    assert calls == [(pathlib.Path("example"), None)]
+    assert calls == [(pathlib.Path("example"), None, False)]
     assert "Downloaded examples to example" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
-    ("arguments", "expected_output", "expected_ref"),
+    ("arguments", "expected_output", "expected_ref", "expected_no_setup"),
     [
-        (["example", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
-        (["example", "--dir", "pump-analytics", "--ref", "HEAD"], "pump-analytics", "HEAD"),
-        (["example", "download", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
+        (["example", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD", False),
+        (["example", "--dir", "pump-analytics", "--ref", "HEAD"], "pump-analytics", "HEAD", False),
+        (["example", "download", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD", False),
         (
             ["example", "download", "--dir", "pump-analytics", "--ref", "HEAD"],
             "pump-analytics",
             "HEAD",
+            False,
         ),
         (
             ["example", "--output", "samples", "download", "--ref", "HEAD"],
             "samples",
             "HEAD",
+            False,
         ),
+        (["example", "--no-setup", "download"], "example", None, True),
+        (["example", "download", "--no-setup"], "example", None, True),
     ],
 )
 def test_examples_options_work_with_shortcut_and_download_action(
     monkeypatch: pytest.MonkeyPatch,
     arguments: list[str],
     expected_output: str,
-    expected_ref: str,
+    expected_ref: str | None,
+    expected_no_setup: bool,
 ) -> None:
-    calls: list[tuple[pathlib.Path, str | None]] = []
+    calls: list[tuple[pathlib.Path, str | None, bool]] = []
     monkeypatch.setattr(
         examples,
         "download_examples",
-        lambda output, ref: calls.append((output, ref)) or output,
+        lambda output, ref, *, no_setup: calls.append((output, ref, no_setup)) or output,
     )
     monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
 
     cli.main()
 
-    assert calls == [(pathlib.Path(expected_output), expected_ref)]
+    assert calls == [(pathlib.Path(expected_output), expected_ref, expected_no_setup)]
 
 
 def test_download_help_describes_version_default(

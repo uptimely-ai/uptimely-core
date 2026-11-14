@@ -45,6 +45,7 @@ class ProjectBuilder:
         python_spec: str | None = None,
         json_spec: build_source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
+        src_path: pathlib.Path | None = None,
     ) -> models.BuildBundle:
         """Build and publish a spec, execution plan, and Explorer snapshot.
 
@@ -52,6 +53,8 @@ class ProjectBuilder:
             python_spec: Optional ``module:attribute`` containing a Python Spec.
             json_spec: Optional explicit spec JSON path.
             features: Optional output features to compile with their dependencies.
+            src_path: Optional source directory, relative to the project root unless absolute.
+                Defaults to ``src``.
 
         Returns:
             The validated newly published bundle.
@@ -64,14 +67,20 @@ class ProjectBuilder:
             selected_features = feature_selection.normalize_features(features)
         except (ValueError, TypeError) as error:
             raise errors.ProjectBuildError("feature selection", str(error)) from error
-        spec_definition = self._load_spec_definition(python_spec, json_spec)
-
-        with locking.build_lock(self.root, exclusive=True, wait=False):
+        try:
+            build_source.SpecSource(self.root).resolve(python_spec, json_spec)
+        except _SPEC_PROCESSING_ERRORS as error:
+            raise errors.ProjectBuildError("source loading", str(error)) from error
+        with (
+            locking.build_lock(self.root, exclusive=True, wait=False),
+            build_source.project_source_path(self.root, src_path=src_path),
+        ):
+            spec_definition = self._load_spec_definition(python_spec, json_spec)
             staging_root = self._create_staging_root()
             try:
                 execution_plan = self._compile_plan(spec_definition, selected_features)
                 snapshot = self._generate_artifacts(
-                    spec_definition, execution_plan, selected_features, staging_root
+                    spec_definition, execution_plan, selected_features, staging_root, src_path
                 )
                 self._validate_staged_bundle(staging_root, selected_features)
                 self._publish_bundle(staging_root)
@@ -151,6 +160,7 @@ class ProjectBuilder:
         execution_plan: compiler.ExecutionPlan,
         selected_features: list[str] | None,
         staging_root: pathlib.Path,
+        src_path: pathlib.Path | None,
     ) -> str:
         """Write the spec and execution plan and prepare the Explorer snapshot."""
         try:
@@ -162,6 +172,7 @@ class ProjectBuilder:
                 features=selected_features,
                 validate_spec=False,
                 project_root=self.root,
+                src_path=src_path,
             )
             return presentation.serialize_presentation_data(presentation_data)
         except _SPEC_PROCESSING_ERRORS as error:
@@ -246,6 +257,7 @@ def build(
     python_spec: str | None = None,
     json_spec: build_source.JsonSourceInput = None,
     features: feature_selection.FeatureSelection = None,
+    src_path: pathlib.Path | None = None,
 ) -> models.BuildBundle:
     """Build and publish project artifacts through a root-bound builder.
 
@@ -254,6 +266,8 @@ def build(
         python_spec: Optional ``module:attribute`` containing a Python Spec.
         json_spec: Optional explicit spec JSON path.
         features: Optional output features to compile with their dependencies.
+        src_path: Optional source directory, relative to the project root unless absolute.
+            Defaults to ``src``.
 
     Returns:
         The validated newly published bundle.
@@ -263,5 +277,5 @@ def build(
         ProjectBuildError: Loading, compilation, generation, or publication fails.
     """
     return ProjectBuilder(project_root).build(
-        python_spec=python_spec, json_spec=json_spec, features=features
+        python_spec=python_spec, json_spec=json_spec, features=features, src_path=src_path
     )

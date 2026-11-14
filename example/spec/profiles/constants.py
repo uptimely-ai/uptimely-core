@@ -1,6 +1,6 @@
 """Project-wide physical constants profile."""
 
-from example.src import io
+import pump_io as io
 
 from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
 

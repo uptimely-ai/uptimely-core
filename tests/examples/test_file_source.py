@@ -3,8 +3,8 @@
 import pathlib
 
 import polars as pl
+import pump_io as io
 import pytest
-from example.src import io
 
 
 @pytest.mark.parametrize("extension", ["json", "csv"])
