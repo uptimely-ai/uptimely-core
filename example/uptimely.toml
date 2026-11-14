@@ -22,4 +22,4 @@ pump_telemetry_by_day_output = "data/output/pump_telemetry_by_day.csv"
 pump_external_workflow_output = "data/output/pump_external_workflow_results.csv"
 
 [params]
-dummy = "not_used"
+env = "dev"

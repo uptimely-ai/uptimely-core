@@ -146,7 +146,7 @@ Put file and directory locations in `paths`, and scalar runtime values in
     "source_path": "data/input.parquet"
   },
   "params": {
-    "dummy": "not_used"
+    "env": "dev"
   }
 }
 ```
@@ -155,7 +155,8 @@ Paths referenced by `$paths.<name>` must have an entry. Relative paths resolve
 against the project root and absolute paths are preserved. Parameters referenced
 by `$params.<name>` must also have an entry and are passed unchanged. Use
 parameters for values such as optional filters, not file locations. The example
-`dummy` parameter is intentionally not referenced by the Spec.
+`env` parameter is not referenced by the Spec and can be overridden by a named
+config.
 
 See the [execution engine specification](../../architecture/engine.md) for parameter
 references and backend settings.

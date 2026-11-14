@@ -42,6 +42,7 @@ writes its result as a separate output.
 | `src/pump_util.py` | Small helper used by the analytical functions. |
 | `spec/` | Dimensions, profile declarations, and the combined Python spec. |
 | `uptimely.toml` | Engine settings and configured input and output paths. |
+| `config/production.toml` | Production overrides for the project configuration. |
 | `_generated/` | The active build, Explorer snapshot, and latest run metadata. |
 
 The heart of the project is in `spec/spec.py`. It combines analytical specification of functions, profiles, operators and dimension into a single Python object.
