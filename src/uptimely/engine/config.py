@@ -30,12 +30,13 @@ class EngineBackendConfig(pydantic.BaseModel):
 
 
 class EngineConfig(pydantic.BaseModel):
-    """Runtime backend configuration.
+    """Runtime configuration for an execution engine.
 
     ``evaluation`` and ``batch_size`` are reserved and do not currently affect
-    execution.
+    execution. ``preview_rows`` controls the saved preview size.
     """
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True)
 
     backend: EngineBackendConfig = pydantic.Field(default_factory=EngineBackendConfig)
+    preview_rows: int = pydantic.Field(default=DEFAULT_PREVIEW_ROWS, gt=0, strict=True)

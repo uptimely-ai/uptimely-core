@@ -48,15 +48,16 @@ layouts work with project source imports.
 | `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
 | `_generated/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
-| `uptimely.toml` | Runtime settings for an engine run under `engine`, `paths`, and `params`. See [Uptimely config](config.md). |
+| `uptimely.toml` | Project defaults and runtime settings under `project`, `engine`, `paths`, and `params`. See [Uptimely config](config.md). |
 
 Put source files consumed by the workflow in `data/input/`. Store results you
 want to keep, share, or reuse in `data/output/`. Use `_generated/` for disposable
 previews and debugging files. Each run replaces
 `_generated/run/`, so it does not retain a history of earlier runs.
 
-Uptimely makes the project root and `src/` importable during builds and runs.
-Use `--src-path` to select a different source directory for a build or run.
+Uptimely makes the project root and the configured source directory importable
+during builds and runs. Set `project.src_path` or use `--src-path` to select a
+different source directory.
 Use a distinctive module name under the source directory to avoid conflicts
 with dependencies and Python's standard library. The `uptimely` name is reserved
 for the framework.

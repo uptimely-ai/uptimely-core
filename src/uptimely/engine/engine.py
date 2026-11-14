@@ -31,6 +31,7 @@ class Engine:
         parameters: abc.Mapping[str, object] | None = None,
         *,
         paths: abc.Mapping[str, str] | None = None,
+        project_settings: project_config.ProjectSettings | None = None,
     ) -> None:
         """Prepare an engine using bundle resources and runtime configuration."""
         if not isinstance(bundle, build_models.BuildBundle):
@@ -43,6 +44,9 @@ class Engine:
             {} if parameters is None else dict(parameters)
         ).root
         self.paths = project_config.Paths.model_validate({} if paths is None else dict(paths)).root
+        self.project_settings = (
+            project_config.ProjectSettings() if project_settings is None else project_settings
+        )
         self.backend = backend_module.create_backend(self.config.backend)
         self.check_plan_backend()
 
@@ -67,7 +71,7 @@ class Engine:
         self,
         *,
         validate: bool = False,
-        preview_rows: int = config_module.DEFAULT_PREVIEW_ROWS,
+        preview_rows: int | None = None,
         operator: tuple[str, str] | None = None,
         src_path: pathlib.Path | None = None,
     ) -> result_module.ExecutionResult:
@@ -76,14 +80,15 @@ class Engine:
         Args:
             validate: Validate inputs and dataframe contracts at every step.
                 Lazy value checks may execute upstream queries repeatedly.
-            preview_rows: Positive maximum sample size per profile. Lazy previews
-                execute bounded queries after execution; timing excludes previews.
+            preview_rows: Positive maximum sample size per profile. Defaults to the
+                Engine config value. Lazy previews execute bounded queries after
+                execution; timing excludes previews.
             operator: Optional (profile ID, operator ID) selecting an operator
                 and its saved prerequisites, without downstream sinks. An
                 explicitly selected sink still runs. Unselected invocations
                 are recorded as skipped.
             src_path: Optional source directory, relative to the project root unless absolute.
-                Defaults to ``src``.
+                Defaults to the project source path.
 
         Returns:
             Main dataframes, invocation results, execution duration, collected
@@ -94,6 +99,10 @@ class Engine:
             ValueError: The preview row limit is invalid.
                 The requested operator is absent from the saved execution scope.
         """
+        if preview_rows is None:
+            preview_rows = self.config.preview_rows
+        if src_path is None and self.project_settings.src_path is not None:
+            src_path = pathlib.Path(self.project_settings.src_path)
         plan = self.plan if operator is None else self.plan.for_operator(*operator)
         with (
             build_source.project_source_path(self.bundle.project_root, src_path=src_path),

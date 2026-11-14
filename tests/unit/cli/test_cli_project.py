@@ -111,8 +111,7 @@ def test_project_build_examples(
         assert result.out.endswith(f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n")
         assert "| Build   | Build scope" in result.out
         assert "| all features" in result.out
-        source = root / project.SPEC_PYTHON_ENTRY_FILE
-        assert f"| {source}" in result.out
+        assert "| spec.spec:python_spec" in result.out
     else:
         assert result.out == (
             "INFO     | Start spec validation\n"
@@ -140,6 +139,43 @@ def test_project_build_accepts_custom_src_path(
     invoke(monkeypatch, str(root), "--src-path", "python")
 
     assert project.load_build_bundle(root).execution_plan.invocations
+
+
+def test_project_build_uses_named_config_and_cli_spec_override(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    root = tmp_path / "project"
+    spec_dir = root / "spec"
+    spec_dir.mkdir(parents=True)
+    spec.write_document(spec.Spec(name="Default spec"), spec_dir / "default.json")
+    spec.write_document(spec.Spec(name="Production spec"), spec_dir / "production.json")
+    spec.write_document(spec.Spec(name="CLI spec"), tmp_path / "cli.json")
+    (root / "uptimely.toml").write_text(
+        '[project]\njson_spec = "spec/default.json"\n', encoding="utf-8"
+    )
+    config_dir = root / project.CONFIG_DIR
+    config_dir.mkdir()
+    (config_dir / "production.toml").write_text(
+        '[project]\njson_spec = "spec/production.json"\n', encoding="utf-8"
+    )
+    monkeypatch.chdir(tmp_path)
+
+    invoke(monkeypatch, "--project-root", str(root), "--config", "production")
+
+    assert project.load_build_bundle(root).spec_definition.name == "Production spec"
+
+    invoke(
+        monkeypatch,
+        "--project-root",
+        str(root),
+        "--config",
+        "production",
+        "--json-spec",
+        str(tmp_path / "cli.json"),
+    )
+
+    assert project.load_build_bundle(root).spec_definition.name == "CLI spec"
 
 
 def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None:

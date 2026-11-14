@@ -33,8 +33,15 @@ the default file is absent, configuration uses defaults. An explicitly
 requested config or file must exist. Construct a new `Uptimely` to pick up
 changes to the files.
 
-`create_engine()` passes the project's engine settings, paths, and parameters
-to the Engine. It rejects bundles from a different project.
+The `[project]` section can set `python_spec`, `json_spec`, and `src_path` as
+defaults for `build()` and `run()`. The `[engine]` section sets `preview_rows`
+for `run()`. Explicit method arguments override those settings. Configured JSON
+spec paths resolve relative to the project root. If no spec source is
+configured, Uptimely discovers the standard `spec/spec.py` or `spec/spec.json`
+source. The Python entrypoint attribute defaults to `python_spec`.
+
+`create_engine()` passes the project's engine settings, paths, parameters, and
+run defaults to the Engine. It rejects bundles from a different project.
 
 For lower-level build and bundle operations, see the functions listed below.
 
@@ -48,4 +55,4 @@ For lower-level build and bundle operations, see the functions listed below.
     options:
       heading_level: 2
       show_root_heading: false
-      members: [ProjectConfig, Params, Paths]
+      members: [ProjectConfig, ProjectSettings, Params, Paths]

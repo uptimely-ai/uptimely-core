@@ -19,7 +19,8 @@ refresh the browser to load it.
 
 ```console
 uptimely explore \
-  [PROJECT_ROOT] [--project-root PATH] [--src-path PATH] [--build] [--host ADDRESS] [--port PORT]
+  [PROJECT_ROOT] [--project-root PATH] [--src-path PATH] [--config CONFIG_OR_PATH] \
+  [--build] [--host ADDRESS] [--port PORT]
 ```
 
 Give the project directory positionally after `explore`, or use
@@ -31,7 +32,8 @@ directory is used. The grouped form is
 | --- | --- | --- | --- |
 | `PROJECT_ROOT` | No | Current working directory | Project root containing the active build. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
-| `--src-path PATH` | No | `src` | Python source directory, relative to the project root or given as an absolute path. Used when `--build` is supplied. |
+| `--config CONFIG_OR_PATH` | No | `uptimely.toml` under the project root, or defaults if absent | Load a named config or explicit TOML file. Used when `--build` is supplied. |
+| `--src-path PATH` | No | `project.src_path`, then `src` | Python source directory, relative to the project root or given as an absolute path. Used when `--build` is supplied. |
 | `--build` | No | Disabled | Build and publish the project bundle before serving. Uses the default full-project build options. |
 | `--host ADDRESS` | No | `127.0.0.1` | Address to bind. |
 | `--port PORT` | No | `8001` | TCP port; `0` selects an available port. |

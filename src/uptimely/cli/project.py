@@ -43,6 +43,7 @@ def configure_build_parser(parser: argparse.ArgumentParser) -> None:
         option_help="Root added to the import path and used to resolve the output bundle",
     )
     common.configure_src_path_argument(parser)
+    common.configure_project_config_argument(parser)
     parser.add_argument(
         "--features",
         nargs="+",
@@ -57,14 +58,18 @@ def _log_build_details(
     root: pathlib.Path,
     args: argparse.Namespace,
     duration: float,
+    app: project.Uptimely,
 ) -> None:
     """Log build details and full-spec counts alongside the compiled plan."""
     definition = bundle.spec_definition
-    source = build_source.SpecSource(root.resolve()).resolve(
+    python_spec, json_spec = app._resolve_spec_source(
         python_spec=args.python_spec, json_spec=args.json_spec
     )
+    source = build_source.SpecSource(root.resolve()).resolve(
+        python_spec=python_spec, json_spec=json_spec
+    )
     if isinstance(source, build_source.PythonSource):
-        spec_source = str(source.path.resolve()) if args.python_spec is None else args.python_spec
+        spec_source = str(source.path.resolve()) if python_spec is None else python_spec
     else:
         spec_source = str(source.path.resolve())
     scope = (
@@ -104,7 +109,8 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     started = time.perf_counter()
     with common.apply_log_level(args.log_level):
         try:
-            bundle = project.Uptimely(root).build(
+            app = common.create_project(root, args.config)
+            bundle = app.build(
                 python_spec=args.python_spec,
                 json_spec=args.json_spec,
                 features=args.features,
@@ -112,7 +118,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             )
             duration = time.perf_counter() - started
             if logger.isEnabledFor(logging.DEBUG):
-                _log_build_details(bundle, root, args, duration)
+                _log_build_details(bundle, root, args, duration, app)
             logger.info("Build files created to %s", bundle.root)
         except (
             BuildLockError,

@@ -41,7 +41,7 @@ writes its result as a separate output.
 | `src/pump_merge.py` | Custom merge for external measurements. |
 | `src/pump_util.py` | Small helper used by the analytical functions. |
 | `spec/` | Dimensions, profile declarations, and the combined Python spec. |
-| `uptimely.toml` | Engine settings and configured input and output paths. |
+| `uptimely.toml` | Project defaults, Engine settings, and configured input and output paths. |
 | `config/production.toml` | Production overrides for the project configuration. |
 | `_generated/` | The active build, Explorer snapshot, and latest run metadata. |
 

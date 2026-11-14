@@ -196,16 +196,18 @@ def test_explorer_build_option_builds_before_serving(
     events: list[str] = []
     src_path = pathlib.Path("local_python")
 
-    def build(root: pathlib.Path, *, src_path: pathlib.Path | None = None) -> project.BuildBundle:
+    def build(
+        self: project.Uptimely, *, src_path: pathlib.Path | None = None
+    ) -> project.BuildBundle:
         events.append("build")
-        assert root == built_project
+        assert self.root == built_project
         assert src_path == pathlib.Path("local_python")
-        return project.load_build_bundle(root)
+        return project.load_build_bundle(self.root)
 
     def serve(*args: object) -> None:
         events.append("serve")
 
-    monkeypatch.setattr(project, "build", build)
+    monkeypatch.setattr(project.Uptimely, "build", build)
     monkeypatch.setattr(explorer, "serve_explorer", serve)
     arguments = (
         ["explorer", "serve", str(built_project)]
@@ -227,11 +229,11 @@ def test_explorer_build_failure_does_not_serve(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     def fail_build(
-        root: pathlib.Path, *, src_path: pathlib.Path | None = None
+        self: project.Uptimely, *, src_path: pathlib.Path | None = None
     ) -> project.BuildBundle:
         raise project.ProjectBuildError("generation", "invalid source")
 
-    monkeypatch.setattr(project, "build", fail_build)
+    monkeypatch.setattr(project.Uptimely, "build", fail_build)
     monkeypatch.setattr(
         explorer,
         "serve_explorer",

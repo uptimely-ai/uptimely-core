@@ -6,7 +6,6 @@ import typing
 CONFIG_DIR: typing.Final = pathlib.Path("config")
 SPEC_SOURCE_DIR: typing.Final = pathlib.Path("spec")
 SPEC_PYTHON_ENTRY_FILE: typing.Final = SPEC_SOURCE_DIR / "spec.py"
-DEFAULT_SPEC_ATTRIBUTE: typing.Final = "python_spec"
 SPEC_JSON_ENTRY_FILE: typing.Final = SPEC_SOURCE_DIR / "spec.json"
 COMPILER_CONFIG_FILE: typing.Final = CONFIG_DIR / "compiler.json"
 CONFIG_FILE: typing.Final = pathlib.Path("uptimely.toml")

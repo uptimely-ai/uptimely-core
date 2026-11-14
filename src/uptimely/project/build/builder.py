@@ -15,7 +15,7 @@ import pydantic
 from uptimely import compiler, spec
 from uptimely.explorer import presentation
 from uptimely.plan import serialization as plan_serialization
-from uptimely.project import paths
+from uptimely.project import defaults, paths
 
 from . import bundle, errors, locking, models
 from . import features as feature_selection
@@ -34,7 +34,7 @@ _SPEC_PROCESSING_ERRORS = (
 class ProjectBuilder:
     """Build project artifacts without retaining per-build mutable state."""
 
-    def __init__(self, project_root: str | pathlib.Path = ".") -> None:
+    def __init__(self, project_root: str | pathlib.Path = defaults.DEFAULT_PROJECT_ROOT) -> None:
         """Resolve the project root without loading or generating artifacts."""
         self.root = pathlib.Path(project_root).resolve()
         self._store = bundle.BundleStore(self.root)
@@ -54,7 +54,7 @@ class ProjectBuilder:
             json_spec: Optional explicit spec JSON path.
             features: Optional output features to compile with their dependencies.
             src_path: Optional source directory, relative to the project root unless absolute.
-                Defaults to ``src``.
+                Defaults to the project source path.
 
         Returns:
             The validated newly published bundle.
@@ -253,7 +253,7 @@ class ProjectBuilder:
 
 
 def build(
-    project_root: str | pathlib.Path = ".",
+    project_root: str | pathlib.Path = defaults.DEFAULT_PROJECT_ROOT,
     python_spec: str | None = None,
     json_spec: build_source.JsonSourceInput = None,
     features: feature_selection.FeatureSelection = None,

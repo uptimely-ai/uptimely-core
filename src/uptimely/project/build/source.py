@@ -10,7 +10,7 @@ import typing
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely import spec
-from uptimely.project import paths
+from uptimely.project import defaults, paths
 from uptimely.spec import python as python_spec_api
 
 JsonSourceInput = str | pathlib.Path | None
@@ -34,7 +34,7 @@ def project_source_path(
 ) -> typing.Iterator[None]:
     """Make project modules importable for the duration of a build or run."""
     root = root.resolve()
-    source = root / "src" if src_path is None else src_path
+    source = root / defaults.DEFAULT_SRC_PATH if src_path is None else src_path
     if not source.is_absolute():
         source = root / source
     source = source.resolve()
@@ -99,7 +99,7 @@ class PythonSource:
             self.entrypoint = entrypoint_module.Entrypoint.from_path(
                 self.path,
                 find_import_root(project_root),
-                paths.DEFAULT_SPEC_ATTRIBUTE,
+                defaults.DEFAULT_SPEC_ATTRIBUTE,
             )
         else:
             self.entrypoint = entrypoint_module.Entrypoint(python_spec)
