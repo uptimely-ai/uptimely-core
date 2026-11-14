@@ -7,8 +7,8 @@ import shutil
 import tempfile
 import typing
 
-from uptimely import project as project_module
-from uptimely.project import paths
+from uptimely import application as application_module
+from uptimely.application import paths
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLES_ROOT = pathlib.Path(
@@ -19,7 +19,9 @@ EXAMPLES_ROOT = pathlib.Path(
 class BundleFactory(typing.Protocol):
     """Load independent mutable bundles from reusable example artifacts."""
 
-    def __call__(self, features: tuple[str, ...] | None = None) -> project_module.BuildBundle: ...
+    def __call__(
+        self, features: tuple[str, ...] | None = None
+    ) -> application_module.BuildBundle: ...
 
 
 class ProjectFactory(typing.Protocol):
@@ -36,7 +38,7 @@ class ProjectFactory(typing.Protocol):
 def prepare_example_projects(examples_root: pathlib.Path) -> None:
     """Prepare shared examples once, including when workers start concurrently."""
     ready = examples_root.parent / ".examples-ready"
-    with project_module.build_lock(examples_root.parent, exclusive=True):
+    with application_module.build_lock(examples_root.parent, exclusive=True):
         if ready.is_file():
             return
         shutil.copytree(
@@ -45,7 +47,7 @@ def prepare_example_projects(examples_root: pathlib.Path) -> None:
             ignore=shutil.ignore_patterns("artifacts", "__pycache__"),
             dirs_exist_ok=True,
         )
-        project_module.build(examples_root)
+        application_module.build(examples_root)
         ready.touch()
 
 
@@ -59,17 +61,17 @@ def _example_project(features: tuple[str, ...] | None) -> pathlib.Path:
     root = pathlib.Path(tempfile.mkdtemp(prefix="scoped-example-", dir=EXAMPLES_ROOT.parent))
     target = root / "example"
     shutil.copytree(source, target, ignore=shutil.ignore_patterns("artifacts", "__pycache__"))
-    project_module.build(
+    application_module.build(
         target,
-        json_spec=source / project_module.BUILD_OUTPUT_DIR / "spec.json",
+        json_spec=source / application_module.BUILD_OUTPUT_DIR / "spec.json",
         features=features,
     )
     return target
 
 
-def example_bundle(features: tuple[str, ...] | None = None) -> project_module.BuildBundle:
+def example_bundle(features: tuple[str, ...] | None = None) -> application_module.BuildBundle:
     """Load fresh, mutable objects from a reusable example build."""
-    return project_module.load_build_bundle(_example_project(features))
+    return application_module.load_build_bundle(_example_project(features))
 
 
 def copy_example_project(

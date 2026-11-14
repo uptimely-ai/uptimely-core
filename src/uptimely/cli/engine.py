@@ -7,8 +7,8 @@ import time
 
 import polars as pl
 
+from uptimely import application
 from uptimely import engine as engine_module
-from uptimely import project
 from uptimely.cli import common
 
 logger = logging.getLogger(__name__)
@@ -127,7 +127,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
 
 
 def _log_summary(
-    bundle: project.BuildBundle,
+    bundle: application.BuildBundle,
     result: engine_module.ExecutionResult,
     duration: float,
 ) -> None:

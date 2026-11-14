@@ -5,7 +5,7 @@ import sys
 import pytest
 from support import examples as example_support
 
-from uptimely import project, spec
+from uptimely import application, spec
 from uptimely.cli import cli
 from uptimely.spec import operator_kinds
 from uptimely.spec.feature_graph import models
@@ -14,7 +14,7 @@ SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
 
 
 def test_graph_metadata_uses_derived_grain_semantics(
-    monkeypatch: pytest.MonkeyPatch, pump_bundle: project.BuildBundle
+    monkeypatch: pytest.MonkeyPatch, pump_bundle: application.BuildBundle
 ) -> None:
     graph = spec.FeatureGraph(pump_bundle.spec_definition)
     original = graph._declared_features()

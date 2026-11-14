@@ -9,23 +9,23 @@ import pytest
 from support import examples as example_support
 
 import uptimely
-from uptimely import project as project_module
-from uptimely.project import application
-from uptimely.project import paths as project_paths
-from uptimely.project.build import builder, bundle
+from uptimely import application as application_module
+from uptimely.application import app as application_implementation
+from uptimely.application import paths as project_paths
+from uptimely.application.build import builder, bundle
 
 
 @pytest.fixture
-def app(tmp_path: pathlib.Path) -> project_module.Uptimely:
+def app(tmp_path: pathlib.Path) -> application_module.Uptimely:
     """Create a project with a minimal discoverable source Spec."""
-    spec_path = tmp_path / project_module.SPEC_JSON_ENTRY_FILE
+    spec_path = tmp_path / application_module.SPEC_JSON_ENTRY_FILE
     spec_path.parent.mkdir(parents=True)
     spec_path.write_text('{"spec_version": 8, "name": "First build"}', encoding="utf-8")
-    return project_module.Uptimely(tmp_path)
+    return application_module.Uptimely(tmp_path)
 
 
 def test_uptimely_is_exported_from_package() -> None:
-    assert uptimely.Uptimely is project_module.Uptimely is application.Uptimely
+    assert uptimely.Uptimely is application_module.Uptimely is application_implementation.Uptimely
 
 
 @pytest.mark.parametrize("root", [None, "", ".", pathlib.Path(".")])
@@ -39,7 +39,7 @@ def test_project_resolves_root_at_construction(
     monkeypatch.chdir(child)
 
     assert app.root == tmp_path.resolve()
-    assert not (tmp_path / project_module.ARTIFACTS_DIR).exists()
+    assert not (tmp_path / application_module.ARTIFACTS_DIR).exists()
 
 
 def test_project_loads_and_passes_config_to_engine(tmp_path: pathlib.Path) -> None:
@@ -49,7 +49,7 @@ def test_project_loads_and_passes_config_to_engine(tmp_path: pathlib.Path) -> No
         '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 42\n',
         encoding="utf-8",
     )
-    app = project_module.Uptimely(tmp_path)
+    app = application_module.Uptimely(tmp_path)
     config_path.write_text("[params]\nthreshold = 99\n", encoding="utf-8")
     (tmp_path / "spec").mkdir()
     (tmp_path / "spec/spec.json").write_text(
@@ -62,41 +62,41 @@ def test_project_loads_and_passes_config_to_engine(tmp_path: pathlib.Path) -> No
     assert runtime.config.backend.evaluation == "lazy"
     assert runtime.parameters == {"threshold": 42}
     assert runtime.paths == {"source": "data/source.csv"}
-    assert project_module.Uptimely(tmp_path).config.params.root == {"threshold": 99}
+    assert application_module.Uptimely(tmp_path).config.params.root == {"threshold": 99}
 
 
 def test_project_explicit_config_and_failures(tmp_path: pathlib.Path) -> None:
     (tmp_path / "uptimely.toml").write_text("[params]\nvalue = 1\n", encoding="utf-8")
     override = tmp_path / "other.toml"
     override.write_text("[params]\nvalue = 2\n", encoding="utf-8")
-    assert project_module.Uptimely(tmp_path, config_path=override).config.params.root == {
+    assert application_module.Uptimely(tmp_path, config_path=override).config.params.root == {
         "value": 2
     }
 
     with pytest.raises(FileNotFoundError):
-        project_module.Uptimely(tmp_path, config_path=tmp_path / "missing.toml")
+        application_module.Uptimely(tmp_path, config_path=tmp_path / "missing.toml")
     override.write_text("[params]\nvalue = [1]\n", encoding="utf-8")
     with pytest.raises(pydantic.ValidationError):
-        project_module.Uptimely(tmp_path, config_path=override)
+        application_module.Uptimely(tmp_path, config_path=override)
 
 
 def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.Path) -> None:
     (tmp_path / "uptimely.toml").write_text(
         '[engine]\npreview_rows = 8\n[engine.backend]\ntype = "default"\nevaluation = "eager"\n'
         '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 10\n'
-        '[project]\npython_spec = "spec.spec:python_spec"\n',
+        '[application]\npython_spec = "spec.spec:python_spec"\n',
         encoding="utf-8",
     )
-    profile_dir = tmp_path / project_module.CONFIG_DIR
+    profile_dir = tmp_path / application_module.CONFIG_DIR
     profile_dir.mkdir()
     (profile_dir / "prod.toml").write_text(
         '[engine]\npreview_rows = 12\n[engine.backend]\ntype = "production"\n'
         "[params]\nthreshold = 42\n"
-        '[project]\nsrc_path = "production-src"\n',
+        '[application]\nsrc_path = "production-src"\n',
         encoding="utf-8",
     )
 
-    app = project_module.Uptimely(tmp_path, config="prod")
+    app = application_module.Uptimely(tmp_path, config="prod")
 
     assert app.config_path == (profile_dir / "prod.toml").resolve()
     assert app.config.engine.backend.type == "production"
@@ -104,8 +104,8 @@ def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.P
     assert app.config.engine.preview_rows == 12
     assert app.config.paths.root == {"source": "data/source.csv"}
     assert app.config.params.root == {"threshold": 42}
-    assert app.config.project.python_spec == "spec.spec:python_spec"
-    assert app.config.project.src_path == "production-src"
+    assert app.config.application.python_spec == "spec.spec:python_spec"
+    assert app.config.application.src_path == "production-src"
 
 
 def test_project_build_uses_configured_source_and_cli_overrides(tmp_path: pathlib.Path) -> None:
@@ -118,11 +118,11 @@ def test_project_build_uses_configured_source_and_cli_overrides(tmp_path: pathli
     override_spec.write_text('{"spec_version": 8, "name": "CLI source"}', encoding="utf-8")
     (tmp_path / "configured-src").mkdir()
     (tmp_path / "uptimely.toml").write_text(
-        '[project]\njson_spec = "spec/configured.json"\nsrc_path = "configured-src"\n'
+        '[application]\njson_spec = "spec/configured.json"\nsrc_path = "configured-src"\n'
         "[engine]\npreview_rows = 11\n",
         encoding="utf-8",
     )
-    app = project_module.Uptimely(tmp_path)
+    app = application_module.Uptimely(tmp_path)
 
     configured_build = app.build()
     override_build = app.build(json_spec=override_spec, src_path=pathlib.Path("configured-src"))
@@ -137,26 +137,26 @@ def test_project_config_rejects_multiple_spec_sources_and_invalid_preview_rows(
 ) -> None:
     config_path = tmp_path / "uptimely.toml"
     config_path.write_text(
-        '[project]\npython_spec = "spec.spec:python_spec"\njson_spec = "spec/spec.json"\n',
+        '[application]\npython_spec = "spec.spec:python_spec"\njson_spec = "spec/spec.json"\n',
         encoding="utf-8",
     )
 
-    with pytest.raises(pydantic.ValidationError, match="either project.python_spec"):
-        project_module.Uptimely(tmp_path)
+    with pytest.raises(pydantic.ValidationError, match="either application.python_spec"):
+        application_module.Uptimely(tmp_path)
 
     config_path.write_text("[engine]\npreview_rows = 0\n", encoding="utf-8")
     with pytest.raises(pydantic.ValidationError):
-        project_module.Uptimely(tmp_path)
+        application_module.Uptimely(tmp_path)
 
 
 def test_project_named_config_requires_profile_and_rejects_config_path_conflict(
     tmp_path: pathlib.Path,
 ) -> None:
     with pytest.raises(FileNotFoundError):
-        project_module.Uptimely(tmp_path, config="prod")
+        application_module.Uptimely(tmp_path, config="prod")
 
     with pytest.raises(ValueError, match="cannot both"):
-        project_module.Uptimely(tmp_path, config="prod", config_path=tmp_path / "config.toml")
+        application_module.Uptimely(tmp_path, config="prod", config_path=tmp_path / "config.toml")
 
 
 def test_project_resolves_explicit_config_from_working_directory(
@@ -164,29 +164,29 @@ def test_project_resolves_explicit_config_from_working_directory(
 ) -> None:
     (tmp_path / "override.toml").write_text("[params]\nvalue = 7\n", encoding="utf-8")
     monkeypatch.chdir(tmp_path)
-    app = project_module.Uptimely(tmp_path / "other", config_path="override.toml")
+    app = application_module.Uptimely(tmp_path / "other", config_path="override.toml")
 
     assert app.config_path == tmp_path / "override.toml"
     assert app.config.params.root == {"value": 7}
 
 
 def test_project_rejects_bundle_from_different_project(
-    app: project_module.Uptimely, tmp_path: pathlib.Path
+    app: application_module.Uptimely, tmp_path: pathlib.Path
 ) -> None:
     build = app.build()
-    other_app = project_module.Uptimely(tmp_path / "other")
+    other_app = application_module.Uptimely(tmp_path / "other")
     with pytest.raises(ValueError, match="different project"):
         other_app.create_engine(build)
 
 
-def test_project_builds_and_loads_fresh_bundles(app: project_module.Uptimely) -> None:
+def test_project_builds_and_loads_fresh_bundles(app: application_module.Uptimely) -> None:
     first = app.build()
     loaded = app.load_build_bundle()
     assert first.project_root == app.root
     assert loaded is not first
     assert loaded.spec_definition.name == "First build"
 
-    spec_path = app.root / project_module.SPEC_JSON_ENTRY_FILE
+    spec_path = app.root / application_module.SPEC_JSON_ENTRY_FILE
     spec_path.write_text('{"spec_version": 8, "name": "Second build"}', encoding="utf-8")
     second = app.build()
 
@@ -196,7 +196,7 @@ def test_project_builds_and_loads_fresh_bundles(app: project_module.Uptimely) ->
     assert not uptimely.Engine(second).run().failures
 
 
-def test_run_forwards_options_and_holds_build_lock(app: project_module.Uptimely) -> None:
+def test_run_forwards_options_and_holds_build_lock(app: application_module.Uptimely) -> None:
     app.build()
     src_path = pathlib.Path("custom-src")
 
@@ -215,7 +215,7 @@ def test_run_forwards_options_and_holds_build_lock(app: project_module.Uptimely)
             ("profile", "operator"),
             pathlib.Path("custom-src"),
         )
-        with pytest.raises(project_module.BuildLockError):
+        with pytest.raises(application_module.BuildLockError):
             app.build()
         return mock.sentinel.result
 
@@ -237,16 +237,16 @@ def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) ->
     )
     (tmp_path / "custom-src").mkdir()
     (tmp_path / "uptimely.toml").write_text(
-        '[project]\nsrc_path = "custom-src"\n[engine]\npreview_rows = 12\n',
+        '[application]\nsrc_path = "custom-src"\n[engine]\npreview_rows = 12\n',
         encoding="utf-8",
     )
-    app = project_module.Uptimely(tmp_path)
+    app = application_module.Uptimely(tmp_path)
     app.build()
 
     with mock.patch.object(
-        application.source,
+        application_implementation.source,
         "project_source_path",
-        wraps=application.source.project_source_path,
+        wraps=application_implementation.source.project_source_path,
     ) as source_path:
         result = app.run()
 
@@ -257,7 +257,7 @@ def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) ->
     assert manifest["preview_rows"] == 12
 
 
-def test_run_releases_build_lock_on_failure(app: project_module.Uptimely) -> None:
+def test_run_releases_build_lock_on_failure(app: application_module.Uptimely) -> None:
     app.build()
     with (
         mock.patch.object(uptimely.Engine, "run", side_effect=ValueError("run failed")),
@@ -283,9 +283,9 @@ def test_build_and_run_use_project_paths(
 
 
 def test_project_build_forwards_source_and_feature_options(
-    app: project_module.Uptimely,
+    app: application_module.Uptimely,
 ) -> None:
-    source = app.root / project_module.SPEC_JSON_ENTRY_FILE
+    source = app.root / application_module.SPEC_JSON_ENTRY_FILE
     with mock.patch.object(builder, "ProjectBuilder", autospec=True) as builder_class:
         result = app.build(
             python_spec="spec.spec:python_spec", json_spec=source, features=["reading"]
@@ -302,7 +302,7 @@ def test_project_build_forwards_source_and_feature_options(
 
 
 @pytest.mark.parametrize("validate", [False, True])
-def test_project_load_forwards_validation(app: project_module.Uptimely, validate: bool) -> None:
+def test_project_load_forwards_validation(app: application_module.Uptimely, validate: bool) -> None:
     with mock.patch.object(bundle, "BundleStore", autospec=True) as store_class:
         result = app.load_build_bundle(validate=validate)
 
@@ -313,25 +313,25 @@ def test_project_load_forwards_validation(app: project_module.Uptimely, validate
 
 @pytest.mark.parametrize("validate", [False, True])
 def test_project_read_holds_and_releases_build_lock(
-    app: project_module.Uptimely, validate: bool
+    app: application_module.Uptimely, validate: bool
 ) -> None:
     app.build()
 
     with app.read_build_bundle(validate=validate) as saved:
         assert saved.project_root == app.root
         assert saved.spec_definition.name == "First build"
-        with pytest.raises(project_module.BuildLockError):
+        with pytest.raises(application_module.BuildLockError):
             app.build()
 
     assert app.build().spec_definition.name == "First build"
 
 
-def test_project_load_reports_missing_build(app: project_module.Uptimely) -> None:
-    with pytest.raises(project_module.BuildError):
+def test_project_load_reports_missing_build(app: application_module.Uptimely) -> None:
+    with pytest.raises(application_module.BuildError):
         app.load_build_bundle()
 
-    with pytest.raises(project_module.BuildError), app.read_build_bundle():
+    with pytest.raises(application_module.BuildError), app.read_build_bundle():
         pass
 
-    with pytest.raises(project_module.BuildError):
+    with pytest.raises(application_module.BuildError):
         app.run()

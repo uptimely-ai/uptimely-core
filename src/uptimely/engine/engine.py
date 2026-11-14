@@ -7,9 +7,9 @@ from collections import abc
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely import plan as plan_module
-from uptimely.project import config as project_config
-from uptimely.project.build import models as build_models
-from uptimely.project.build import source as build_source
+from uptimely.application import config as project_config
+from uptimely.application.build import models as build_models
+from uptimely.application.build import source as build_source
 from uptimely.run import recording
 
 from . import config as config_module

@@ -101,7 +101,7 @@ class Uptimely:
             self.config.engine,
             self.config.params.root,
             paths=self.config.paths.root,
-            project_settings=self.config.project,
+            project_settings=self.config.application,
         )
 
     def resolve_path(self, path: pathlib.Path | None, default: pathlib.Path) -> pathlib.Path:
@@ -121,8 +121,8 @@ class Uptimely:
     ) -> tuple[str | None, source.JsonSourceInput]:
         """Apply configured spec-source defaults when no source was passed."""
         if python_spec is None and json_spec is None:
-            python_spec = self.config.project.python_spec
-            configured_json_spec = self.config.project.json_spec
+            python_spec = self.config.application.python_spec
+            configured_json_spec = self.config.application.json_spec
             if configured_json_spec is not None:
                 json_path = pathlib.Path(configured_json_spec)
                 json_spec = json_path if json_path.is_absolute() else self.root / json_path
@@ -155,8 +155,8 @@ class Uptimely:
             ProjectBuildError: Loading, compilation, generation, or publication fails.
         """
         python_spec, json_spec = self._resolve_spec_source(python_spec, json_spec)
-        if src_path is None and self.config.project.src_path is not None:
-            src_path = pathlib.Path(self.config.project.src_path)
+        if src_path is None and self.config.application.src_path is not None:
+            src_path = pathlib.Path(self.config.application.src_path)
         return builder.ProjectBuilder(self.root).build(
             python_spec=python_spec,
             json_spec=json_spec,

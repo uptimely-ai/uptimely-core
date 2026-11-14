@@ -6,9 +6,9 @@ import types
 
 import pytest
 
-from uptimely import engine, project
+from uptimely import application, engine
+from uptimely.application.build import source as build_source
 from uptimely.cli import cli
-from uptimely.project.build import source as build_source
 
 
 def _write_project(root: pathlib.Path, value: int) -> None:
@@ -50,7 +50,7 @@ def test_build_and_run_isolate_modules_for_distinct_projects(
     monkeypatch.setitem(sys.modules, "isolated_calc", existing)
     original_path = sys.path[:]
 
-    bundles = [project.build(first), project.build(second)]
+    bundles = [application.build(first), application.build(second)]
     for bundle, value in zip(bundles, (1, 2), strict=True):
         result = engine.Engine(bundle).run()
         assert not result.failures
@@ -64,7 +64,7 @@ def test_build_and_run_use_configured_source_path(tmp_path: pathlib.Path) -> Non
     _write_project(root, 7)
     (root / "src").rename(root / "python")
 
-    bundle = project.build(root, src_path=pathlib.Path("python"))
+    bundle = application.build(root, src_path=pathlib.Path("python"))
     result = engine.Engine(bundle).run(src_path=pathlib.Path("python"))
 
     assert not result.failures
@@ -74,7 +74,7 @@ def test_build_and_run_use_configured_source_path(tmp_path: pathlib.Path) -> Non
 def test_uptimely_build_and_run_use_saved_build(tmp_path: pathlib.Path) -> None:
     root = tmp_path / "project"
     _write_project(root, 7)
-    app = project.Uptimely(root)
+    app = application.Uptimely(root)
     app.build()
     (root / "spec/spec.py").write_text("raise RuntimeError('must not rebuild')\n", encoding="utf-8")
 
@@ -92,9 +92,9 @@ def test_cli_run_uses_configured_source_path(
     root = tmp_path / "project"
     _write_project(root, 9)
     (root / "src").rename(root / "python")
-    project.build(root, src_path=pathlib.Path("python"))
+    application.build(root, src_path=pathlib.Path("python"))
     (root / "config").mkdir()
-    (root / project.CONFIG_FILE).write_text("", encoding="utf-8")
+    (root / application.CONFIG_FILE).write_text("", encoding="utf-8")
     monkeypatch.setattr(
         sys,
         "argv",
@@ -126,8 +126,8 @@ def test_import_state_is_restored_after_build_failure(
     monkeypatch.setitem(sys.modules, "isolated_calc", existing)
     original_path = sys.path[:]
 
-    with pytest.raises(project.ProjectBuildError, match="bad specification"):
-        project.build(tmp_path / "project")
+    with pytest.raises(application.ProjectBuildError, match="bad specification"):
+        application.build(tmp_path / "project")
 
     assert sys.modules["isolated_calc"] is existing
     assert sys.path == original_path
@@ -139,7 +139,7 @@ def test_build_discovers_spec_in_project_with_root_init(tmp_path: pathlib.Path, 
     _write_project(root, 3)
     (root / "__init__.py").touch()
 
-    result = engine.Engine(project.build(root)).run()
+    result = engine.Engine(application.build(root)).run()
 
     assert not result.failures
     assert result.datasets["values"].to_dict(as_series=False) == {"value": [3]}

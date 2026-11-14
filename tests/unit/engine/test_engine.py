@@ -8,11 +8,11 @@ import polars as pl
 import pytest
 from support import execution as execution_support
 
+from uptimely import application as application_module
 from uptimely import compiler as uptimely_compiler
 from uptimely import engine as uptimely_engine
 from uptimely import entrypoint as entrypoint_module
 from uptimely import plan as uptimely_plan
-from uptimely import project as project_module
 from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
@@ -1273,7 +1273,7 @@ def test_engine_does_not_load_project_config_from_root_toml(
     bundle_for_plan: execution_support.BundleFactory,
 ) -> None:
     bundle = bundle_for_plan(_plan())
-    (bundle.project_root / project_module.CONFIG_FILE).write_text(
+    (bundle.project_root / application_module.CONFIG_FILE).write_text(
         '[engine.backend]\ndataframe = "polars"\n\n[paths]\nsource = "data/input.csv"\n\n'
         "[params]\nthreshold = 10\n",
         encoding="utf-8",

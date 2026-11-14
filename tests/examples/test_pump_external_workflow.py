@@ -8,8 +8,8 @@ import pump_merge as merge
 import pytest
 from support import execution as execution_support
 
+from uptimely import application
 from uptimely import plan as plan_module
-from uptimely import project
 
 
 @pytest.mark.parametrize("dataset_lazy", [False, True])
@@ -41,7 +41,7 @@ def test_custom_pump_merge_full_joins_on_dataset_identifiers(
 
 def test_pump_external_workflow_declares_ratio_output_without_materializing_it(
     tmp_path: pathlib.Path,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     """The declared boundary runs while the function owns internal I/O."""

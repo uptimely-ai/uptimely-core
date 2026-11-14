@@ -8,9 +8,9 @@ import traceback
 import typing
 from collections.abc import Iterator
 
-from uptimely import project as project_module
-from uptimely.project import defaults as project_defaults
-from uptimely.project import paths as project_paths
+from uptimely import application as application_module
+from uptimely.application import defaults as project_defaults
+from uptimely.application import paths as project_paths
 
 LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 
@@ -54,7 +54,7 @@ def configure_src_path_argument(parser: argparse.ArgumentParser) -> None:
         type=pathlib.Path,
         help=(
             "Python source directory (relative to the project root or absolute; "
-            f"default: project.src_path or {project_defaults.DEFAULT_SRC_PATH})"
+            f"default: application.src_path or {project_defaults.DEFAULT_SRC_PATH})"
         ),
     )
 
@@ -71,10 +71,10 @@ def configure_project_config_argument(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def create_project(root: pathlib.Path, config_value: str | None) -> project_module.Uptimely:
+def create_project(root: pathlib.Path, config_value: str | None) -> application_module.Uptimely:
     """Create a project from its default config, named config, or explicit file."""
     if config_value is None:
-        return project_module.Uptimely(root)
+        return application_module.Uptimely(root)
     config_path = pathlib.Path(config_value)
     is_explicit_path = (
         config_path.is_absolute()
@@ -83,8 +83,8 @@ def create_project(root: pathlib.Path, config_value: str | None) -> project_modu
         or config_path.is_file()
     )
     if is_explicit_path:
-        return project_module.Uptimely(root, config_path=config_path)
-    return project_module.Uptimely(root, config=config_value)
+        return application_module.Uptimely(root, config_path=config_path)
+    return application_module.Uptimely(root, config=config_value)
 
 
 def resolve_project_root(args: argparse.Namespace, parser: argparse.ArgumentParser) -> pathlib.Path:

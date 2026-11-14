@@ -77,7 +77,7 @@ Explorer can inspect the build without running the Engine.
   </div>
 </div>
 
-The [App](project.md) coordinates the build and publishes the outputs.
+The [App](application.md) coordinates the build and publishes the outputs.
 See the [Compiler](compiler.md), [Execution plan](execution-plan.md),
 [Engine](engine.md), and [Explorer](explorer.md) pages for details.
 

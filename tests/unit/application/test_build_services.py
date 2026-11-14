@@ -5,8 +5,8 @@ import shutil
 
 import pytest
 
-from uptimely import project
-from uptimely.project.build import builder, bundle
+from uptimely import application
+from uptimely.application.build import builder, bundle
 
 
 def test_build_services_resolve_root_once(
@@ -24,7 +24,7 @@ def test_build_services_resolve_root_once(
 
 
 def test_builder_and_store_can_be_reused_after_failed_build(tmp_path: pathlib.Path) -> None:
-    spec_path = tmp_path / project.SPEC_JSON_ENTRY_FILE
+    spec_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
     spec_path.parent.mkdir()
     spec_path.write_text('{"spec_version": 8, "name": "First build"}', encoding="utf-8")
     project_builder = builder.ProjectBuilder(tmp_path)
@@ -32,7 +32,7 @@ def test_builder_and_store_can_be_reused_after_failed_build(tmp_path: pathlib.Pa
     first = project_builder.build()
     assert store.load().spec_definition.name == "First build"
 
-    with pytest.raises(project.ProjectBuildError, match="feature selection"):
+    with pytest.raises(application.ProjectBuildError, match="feature selection"):
         project_builder.build(features=[])
     assert store.load().spec_definition.name == "First build"
 
@@ -44,24 +44,24 @@ def test_builder_and_store_can_be_reused_after_failed_build(tmp_path: pathlib.Pa
 
     with store.read() as saved:
         assert saved.spec_definition.name == "Second build"
-        with pytest.raises(project.BuildLockError):
+        with pytest.raises(application.BuildLockError):
             project_builder.build()
     assert project_builder.build().spec_definition.name == "Second build"
 
 
 def test_store_loads_staged_bundle_under_existing_lock(tmp_path: pathlib.Path) -> None:
-    spec_path = tmp_path / project.SPEC_JSON_ENTRY_FILE
+    spec_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
     spec_path.parent.mkdir()
     spec_path.write_text('{"spec_version": 8, "name": "Active build"}', encoding="utf-8")
     active = builder.ProjectBuilder(tmp_path).build()
-    staging_root = tmp_path / project.ARTIFACTS_DIR / "staged"
+    staging_root = tmp_path / application.ARTIFACTS_DIR / "staged"
     shutil.copytree(active.root, staging_root)
     (staging_root / "spec.json").write_text(
         '{"spec_version": 8, "name": "Staged build"}', encoding="utf-8"
     )
     store = bundle.BundleStore(tmp_path)
 
-    with project.build_lock(tmp_path, exclusive=True, wait=False):
+    with application.build_lock(tmp_path, exclusive=True, wait=False):
         staged = store.load_at(staging_root, validate=False, log_structure=False)
 
     assert staged.root == staging_root

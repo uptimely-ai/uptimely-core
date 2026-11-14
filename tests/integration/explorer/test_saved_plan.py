@@ -5,7 +5,7 @@ import json
 
 import pytest
 
-from uptimely import compiler, project
+from uptimely import application, compiler
 from uptimely import plan as plan_module
 from uptimely.explorer import presentation
 
@@ -14,7 +14,7 @@ SAVED_PLAN_MARKER = "saved-plan-only-marker"
 
 def test_presentation_uses_saved_plan_without_recompiling(
     monkeypatch: pytest.MonkeyPatch,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
 ) -> None:
     definition = pump_bundle.spec_definition
     compiled = pump_bundle.execution_plan

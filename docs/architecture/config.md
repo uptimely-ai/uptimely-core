@@ -26,12 +26,12 @@ including for builds. Construct a new Uptimely instance to read file changes.
 CLI runs construct a fresh instance, while the MCP server retains its
 configuration until it is restarted.
 
-## Project settings
+## Application settings
 
-The `[project]` section stores defaults for building and running the project:
+The `[application]` section stores defaults for building and running the project:
 
 ```toml
-[project]
+[application]
 python_spec = "spec.spec:python_spec"
 src_path = "src"
 ```
@@ -49,9 +49,9 @@ configured source fields.
 
 | Setting | Purpose | Default |
 | --- | --- | --- |
-| `project.python_spec` | Python `MODULE:ATTRIBUTE` entrypoint for the spec. | Discover `spec/spec.py` with the `python_spec` attribute. |
-| `project.json_spec` | JSON spec path, relative to the project root or absolute. Mutually exclusive with `python_spec`. | Discover `spec/spec.json`. |
-| `project.src_path` | Python source directory, relative to the project root or absolute. | `src` |
+| `application.python_spec` | Python `MODULE:ATTRIBUTE` entrypoint for the spec. | Discover `spec/spec.py` with the `python_spec` attribute. |
+| `application.json_spec` | JSON spec path, relative to the project root or absolute. Mutually exclusive with `python_spec`. | Discover `spec/spec.json`. |
+| `application.src_path` | Python source directory, relative to the project root or absolute. | `src` |
 
 Feature selection, runtime validation, build-before-run, and log level remain
 command-specific options rather than project settings.
@@ -72,7 +72,7 @@ so paths and parameters can change between runs without changing the compiled
 plan. The file has four top-level sections:
 
 ```toml
-[project]
+[application]
 python_spec = "spec.spec:python_spec"
 src_path = "src"
 
@@ -94,7 +94,7 @@ threshold = 10
 
 | Section | Purpose |
 | --- | --- |
-| `project` | Default specification sources and project execution settings. |
+| `application` | Default specification sources and project execution settings. |
 | `engine` | Engine backend settings and the default run preview size. |
 | `paths` | Project-relative or absolute file and directory locations referenced by `$paths.<name>`. |
 | `params` | Scalar values referenced by `$params.<name>`. |

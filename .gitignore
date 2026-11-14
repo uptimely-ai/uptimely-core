@@ -2,7 +2,7 @@
 # Build / distribution
 dist/
 build/
-!src/uptimely/project/build
+!src/uptimely/application/build
 *.egg-info/
 *.egg
 

@@ -12,7 +12,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - Named configs in `config/<name>.toml` recursively override
   project defaults from `uptimely.toml`.
-- `[project]` settings can provide default spec sources and source directories
+- `[application]` settings can provide default spec sources and source directories
   for project builds and runs. `[engine]` config sets the default preview size.
 
 ### Changed
@@ -21,11 +21,14 @@ While the version is `0.x`, minor releases may include breaking changes.
   `artifacts/`.
 - The public `Project` class is now `Uptimely`. Use `app.build()` to publish a
   build and `app.run()` to execute the saved build without rebuilding. Its
-  implementation module is now `uptimely.project.application`.
+  implementation module is now `uptimely.application.app`.
 - `Uptimely` loads project configuration at construction and supplies settings,
   paths, and parameters through `create_engine()`. Direct `Engine` construction
   no longer reads `uptimely.toml`. Use `Uptimely` to apply project configuration.
-  The project configuration models are now exported from `uptimely.project`.
+  The project configuration models are now exported from `uptimely.application`.
+- The package `uptimely.project` is now `uptimely.application`.
+- The `uptimely.toml` section for spec sources and source directories is now
+  `[application]` instead of `[project]`.
 - Engine runtime configuration now uses root `uptimely.toml` instead of
   `config/config.json`. Explicit `--config` paths must also point to TOML files.
 

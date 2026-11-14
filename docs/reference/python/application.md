@@ -33,7 +33,7 @@ the default file is absent, configuration uses defaults. An explicitly
 requested config or file must exist. Construct a new `Uptimely` to pick up
 changes to the files.
 
-The `[project]` section can set `python_spec`, `json_spec`, and `src_path` as
+The `[application]` section can set `python_spec`, `json_spec`, and `src_path` as
 defaults for `build()` and `run()`. The `[engine]` section sets `preview_rows`
 for `run()`. Explicit method arguments override those settings. Configured JSON
 spec paths resolve relative to the project root. If no spec source is
@@ -45,13 +45,13 @@ run defaults to the Engine. It rejects bundles from a different project.
 
 For lower-level build and bundle operations, see the functions listed below.
 
-::: uptimely.project
+::: uptimely.application
     options:
       heading_level: 2
       show_root_heading: false
       members: [Uptimely, build, load_build_bundle, read_build_bundle]
 
-::: uptimely.project.config
+::: uptimely.application.config
     options:
       heading_level: 2
       show_root_heading: false

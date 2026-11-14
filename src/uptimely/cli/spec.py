@@ -3,7 +3,7 @@
 import argparse
 import logging
 
-from uptimely import project, spec
+from uptimely import application, spec
 from uptimely.cli import common
 from uptimely.spec import feature_graph as feature_graph_module
 
@@ -23,7 +23,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     with common.apply_log_level(args.log_level):
         try:
             if args.spec is None:
-                with project.read_build_bundle(project_root) as bundle:
+                with application.read_build_bundle(project_root) as bundle:
                     spec_definition = spec.load_spec(bundle.spec_path)
             else:
                 spec_definition = spec.load_spec(args.spec)

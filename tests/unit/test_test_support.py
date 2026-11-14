@@ -7,13 +7,13 @@ import pytest
 from support import examples as example_support
 from support import execution as execution_support
 
-from uptimely import compiler, project, spec
+from uptimely import application, compiler, spec
 from uptimely import plan as execution_plan
 
 
 def test_synthetic_bundle_factory_uses_independent_test_owned_directories(
     tmp_path: pathlib.Path,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     bundle_for_plan: execution_support.BundleFactory,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
@@ -35,7 +35,7 @@ def test_synthetic_bundle_factory_uses_independent_test_owned_directories(
 
 def test_pump_bundle_is_reused_within_test_and_not_shared_with_factory_results(
     request: pytest.FixtureRequest,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     example_bundle_factory: example_support.BundleFactory,
 ) -> None:
     original_name = pump_bundle.spec_definition.name
@@ -58,7 +58,7 @@ def test_example_factories_return_independent_bundles_and_project_copies(
     first = example_bundle_factory(features=features)
     second = example_bundle_factory(features=features)
     copied_root = example_project_factory(tmp_path / "copied project", features=features)
-    copied = project.load_build_bundle(copied_root)
+    copied = application.load_build_bundle(copied_root)
     copied.spec_path.write_text("test-only change", encoding="utf-8")
     first.spec_definition.name = "Changed bundle"
     first.execution_plan.invocations[0].arguments["test_only"] = True
@@ -78,12 +78,12 @@ def test_example_setup_reuses_artifacts_without_building_or_compiling(
         pytest.fail("Unchanged example setup must reuse saved artifacts")
 
     monkeypatch.setattr(compiler.Compiler, "compile", unexpected_work)
-    monkeypatch.setattr(project, "build", unexpected_work)
+    monkeypatch.setattr(application, "build", unexpected_work)
     plan = bundle.execution_plan
     copied_root = example_support.copy_example_project(tmp_path / "project")
 
     assert execution_plan.to_dict(plan) == execution_plan.to_dict(bundle.execution_plan)
-    assert project.load_build_bundle(copied_root).manifest == bundle.manifest
+    assert application.load_build_bundle(copied_root).manifest == bundle.manifest
 
 
 def test_example_objects_and_project_copies_are_independent(tmp_path: pathlib.Path) -> None:
@@ -93,7 +93,7 @@ def test_example_objects_and_project_copies_are_independent(tmp_path: pathlib.Pa
     first.spec_definition.name = "Changed by one test"
     first.execution_plan.invocations[0].arguments["test_only"] = True
     copied_root = example_support.copy_example_project(tmp_path / "project")
-    copied = project.load_build_bundle(copied_root)
+    copied = application.load_build_bundle(copied_root)
     copied.spec_path.write_text("changed by one test", encoding="utf-8")
 
     assert second.spec_definition.name != first.spec_definition.name
@@ -106,7 +106,7 @@ def test_example_project_copy_excludes_mutable_run_artifacts(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     source = example_support.copy_example_project(tmp_path / "source")
-    generated = source / project.BUILD_OUTPUT_DIR.parent
+    generated = source / application.BUILD_OUTPUT_DIR.parent
     for name in ("run", ".run-staging-active", ".run-backup-active"):
         artifact = generated / name
         artifact.mkdir()
@@ -115,19 +115,21 @@ def test_example_project_copy_excludes_mutable_run_artifacts(
 
     copied_root = example_support.copy_example_project(tmp_path / "copied")
 
-    assert {path.name for path in (copied_root / project.BUILD_OUTPUT_DIR.parent).iterdir()} == {
+    assert {
+        path.name for path in (copied_root / application.BUILD_OUTPUT_DIR.parent).iterdir()
+    } == {
         "build",
         "explorer.json",
     }
-    copied = project.load_build_bundle(copied_root)
-    assert copied.manifest == project.load_build_bundle(source).manifest
+    copied = application.load_build_bundle(copied_root)
+    assert copied.manifest == application.load_build_bundle(source).manifest
 
 
 def test_scoped_example_is_built_once_for_multiple_consumers(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, example_projects: pathlib.Path
 ) -> None:
     features = ("bearing_temperature_max",)
-    original_build = project.build
+    original_build = application.build
     build_calls = 0
 
     def build(
@@ -135,12 +137,12 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
         *,
         json_spec: pathlib.Path,
         features: tuple[str, ...],
-    ) -> project.BuildBundle:
+    ) -> application.BuildBundle:
         nonlocal build_calls
         build_calls += 1
         return original_build(project_root, json_spec=json_spec, features=features)
 
-    monkeypatch.setattr(project, "build", build)
+    monkeypatch.setattr(application, "build", build)
 
     first = example_support.example_bundle(features=features)
     second = example_support.example_bundle(features=features)
@@ -150,7 +152,7 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
 
     assert build_calls == 1
     assert first.execution_plan is not second.execution_plan
-    assert project.load_build_bundle(copied_root).manifest.features == list(features)
+    assert application.load_build_bundle(copied_root).manifest.features == list(features)
 
 
 def test_shared_examples_are_built_once_under_concurrent_requests(
@@ -158,7 +160,7 @@ def test_shared_examples_are_built_once_under_concurrent_requests(
 ) -> None:
     examples_root = tmp_path / "example"
     builds: list[pathlib.Path] = []
-    monkeypatch.setattr(project, "build", builds.append)
+    monkeypatch.setattr(application, "build", builds.append)
 
     with futures.ThreadPoolExecutor(max_workers=4) as executor:
         list(executor.map(example_support.prepare_example_projects, [examples_root] * 4))
@@ -177,13 +179,13 @@ def test_failed_example_build_can_be_retried(
     def fail_build(project_root: pathlib.Path) -> None:
         raise RuntimeError("Example build failed")
 
-    monkeypatch.setattr(project, "build", fail_build)
+    monkeypatch.setattr(application, "build", fail_build)
     with pytest.raises(RuntimeError, match="Example build failed"):
         example_support.prepare_example_projects(examples_root)
     assert not (tmp_path / ".examples-ready").exists()
 
     builds: list[pathlib.Path] = []
-    monkeypatch.setattr(project, "build", builds.append)
+    monkeypatch.setattr(application, "build", builds.append)
     example_support.prepare_example_projects(examples_root)
 
     assert builds == [examples_root]

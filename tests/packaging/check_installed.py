@@ -145,9 +145,9 @@ class InstalledImportsTest(unittest.TestCase):
                 "-I",
                 "-c",
                 "import json, pathlib, sys\n"
-                "from uptimely import engine, project\n"
+                "from uptimely import application, engine\n"
                 "original_path = sys.path.copy()\n"
-                "bundle = project.load_build_bundle(pathlib.Path(sys.argv[1]))\n"
+                "bundle = application.load_build_bundle(pathlib.Path(sys.argv[1]))\n"
                 "result = engine.Engine(bundle, engine.EngineConfig()).run()\n"
                 "assert not result.failures, result.failures\n"
                 "assert set(result.invocation_statuses.values()) == {'succeeded'}\n"

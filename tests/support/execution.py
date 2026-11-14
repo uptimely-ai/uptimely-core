@@ -4,9 +4,9 @@ import copy
 import pathlib
 import typing
 
+from uptimely import application as application_module
 from uptimely import engine as engine_module
 from uptimely import plan as execution_plan
-from uptimely import project as project_module
 from uptimely import spec
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
@@ -92,7 +92,7 @@ class BundleFactory(typing.Protocol):
         execution_plan: execution_plan.ExecutionPlan,
         project_root: pathlib.Path | None = None,
         spec_definition: spec.Spec | None = None,
-    ) -> project_module.BuildBundle: ...
+    ) -> application_module.BuildBundle: ...
 
 
 class EngineFactory(typing.Protocol):
@@ -181,7 +181,7 @@ def bundle_for_plan(
     spec_definition: spec.Spec | None = None,
     *,
     build_root: pathlib.Path,
-) -> project_module.BuildBundle:
+) -> application_module.BuildBundle:
     """Wrap a plan in a test bundle for engine execution."""
     root = (project_root or build_root.parent).resolve()
     build_root.mkdir(parents=True)
@@ -221,14 +221,14 @@ def bundle_for_plan(
             ],
         )
     spec.write_document(bundle_spec, build_root / "spec.json")
-    return project_module.BuildBundle(
+    return application_module.BuildBundle(
         project_root=root,
         root=build_root,
-        manifest=project_module.BuildManifest(
-            build_version=project_module.BUILD_VERSION,
+        manifest=application_module.BuildManifest(
+            build_version=application_module.BUILD_VERSION,
             uptimely_version="test",
             features=None,
-            artifacts=project_module.BuildArtifactPaths(
+            artifacts=application_module.BuildArtifactPaths(
                 spec="spec.json",
                 execution_plan="execution_plan.json",
             ),

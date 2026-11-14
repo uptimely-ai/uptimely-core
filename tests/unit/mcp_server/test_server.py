@@ -15,11 +15,11 @@ fastmcp = pytest.importorskip("fastmcp", reason="fastmcp extra is not installed"
 
 import fastmcp as fastmcp_  # noqa: E402
 
-from uptimely import compiler, engine, project  # noqa: E402
+from uptimely import application, compiler, engine  # noqa: E402
 from uptimely import plan as plan_module  # noqa: E402
+from uptimely.application import paths  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
 from uptimely.mcp import state as mcp_state  # noqa: E402
-from uptimely.project import paths  # noqa: E402
 from uptimely.run import store as run_store  # noqa: E402
 from uptimely.spec import model as spec_model  # noqa: E402
 
@@ -33,7 +33,7 @@ def state(
 ) -> mcp_state.ServerState:
     """Provide server state bound to the pump analytics build."""
     root = example_project_factory(tmp_path / "project")
-    return mcp_state.ServerState(project.Uptimely(root, config_path=CONFIG_PATH))
+    return mcp_state.ServerState(application.Uptimely(root, config_path=CONFIG_PATH))
 
 
 def test_load_config_defaults_to_project_config(tmp_path: pathlib.Path) -> None:
@@ -42,7 +42,7 @@ def test_load_config_defaults_to_project_config(tmp_path: pathlib.Path) -> None:
         encoding="utf-8",
     )
 
-    config = project.Uptimely(tmp_path).config
+    config = application.Uptimely(tmp_path).config
 
     assert config.engine.backend.dataframe == "polars"
     assert config.params.root == {"threshold": 10}
@@ -327,7 +327,7 @@ async def test_reload_build(state: mcp_state.ServerState) -> None:
 async def test_missing_build_fails_with_recovery_command(tmp_path: pathlib.Path) -> None:
     """MCP reports missing saved builds explicitly instead of loading source files."""
     project_root = tmp_path / "missing project"
-    state = mcp_state.ServerState(project.Uptimely(project_root))
+    state = mcp_state.ServerState(application.Uptimely(project_root))
 
     with pytest.raises(Exception, match="uptimely project build") as error:
         await _call(state, "list_functions")
@@ -519,7 +519,7 @@ async def test_targeted_execution_rejects_operators_outside_saved_scope(
     tmp_path: pathlib.Path, example_project_factory: example_support.ProjectFactory
 ) -> None:
     root = example_project_factory(tmp_path / "scoped", features=("pressure_flow_efficiency",))
-    state = mcp_state.ServerState(project.Uptimely(root))
+    state = mcp_state.ServerState(application.Uptimely(root))
     listing = await _call(state, "list_operators")
     assert not next(
         item for item in listing if item["operator"] == "process_pump_external_workflow"
@@ -570,7 +570,7 @@ async def test_last_run_tools_read_external_execution_without_current_build(
 @pytest.mark.anyio
 @pytest.mark.parametrize("tool", ["describe_last_run", "read_last_run_logs"])
 async def test_last_run_tools_report_missing_runs(tmp_path: pathlib.Path, tool: str) -> None:
-    state = mcp_state.ServerState(project.Uptimely(tmp_path))
+    state = mcp_state.ServerState(application.Uptimely(tmp_path))
     async with fastmcp_.Client(server.create_server(state)) as client:
         with pytest.raises(Exception, match="No saved run"):
             await client.call_tool(tool)

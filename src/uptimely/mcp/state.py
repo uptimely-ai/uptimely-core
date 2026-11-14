@@ -3,22 +3,22 @@
 import dataclasses
 import pathlib
 
-from uptimely import project as project_module
+from uptimely import application as application_module
 
 
 @dataclasses.dataclass
 class ServerState:
     """Hold project configuration and cache its validated saved build."""
 
-    app: project_module.Uptimely
-    bundle: project_module.BuildBundle | None = dataclasses.field(default=None, repr=False)
+    app: application_module.Uptimely
+    bundle: application_module.BuildBundle | None = dataclasses.field(default=None, repr=False)
 
     @property
     def project_root(self) -> pathlib.Path:
         """Return the configured project root."""
         return self.app.root
 
-    def load_bundle(self, *, reload: bool = False) -> project_module.BuildBundle:
+    def load_bundle(self, *, reload: bool = False) -> application_module.BuildBundle:
         """Load and cache one validated saved build.
 
         Args:

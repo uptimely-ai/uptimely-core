@@ -10,7 +10,7 @@ import typing
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely import spec
-from uptimely.project import defaults, paths
+from uptimely.application import defaults, paths
 from uptimely.spec import python as python_spec_api
 
 JsonSourceInput = str | pathlib.Path | None

@@ -51,9 +51,9 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 | `PROJECT_ROOT` | No | Current working directory | Project directory for source discovery and generated output paths. The project root and source directory are importable during the build. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--config CONFIG_OR_PATH` | No | `uptimely.toml` under the project root, or defaults if absent | Load a named config from `config/<name>.toml` or an explicit TOML file. Configured values supply defaults for the build. |
-| `--src-path PATH` | No | `project.src_path`, then `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the configured value for this command. |
-| `--python-spec MODULE:ATTRIBUTE` | No | `project.python_spec`, then discover standard sources | Select an importable Python attribute containing a `Spec` instance. The project root and configured source directory are added while loading it. Mutually exclusive with `--json-spec`. |
-| `--json-spec PATH` | No | `project.json_spec`, then discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Explicit CLI paths are relative to the current working directory. Configured paths are relative to the project root. |
+| `--src-path PATH` | No | `application.src_path`, then `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the configured value for this command. |
+| `--python-spec MODULE:ATTRIBUTE` | No | `application.python_spec`, then discover standard sources | Select an importable Python attribute containing a `Spec` instance. The project root and configured source directory are added while loading it. Mutually exclusive with `--json-spec`. |
+| `--json-spec PATH` | No | `application.json_spec`, then discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Explicit CLI paths are relative to the current working directory. Configured paths are relative to the project root. |
 | `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
 | `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes build duration, output folder, spec source, resource counts, and plan size. |
 
@@ -87,7 +87,7 @@ checks `spec/spec.py` and `spec/spec.json` beneath the project root:
   `--python-spec` or `--json-spec`.
 - If neither exists, the build fails and reports the expected paths.
 
-Set either `project.python_spec` or `project.json_spec` in `uptimely.toml` to
+Set either `application.python_spec` or `application.json_spec` in `uptimely.toml` to
 choose a source by default. They cannot both be set. A CLI source option
 overrides both configured source settings.
 

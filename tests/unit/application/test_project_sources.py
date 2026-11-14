@@ -4,9 +4,9 @@ from unittest import mock
 
 import pytest
 
-from uptimely import project, spec
-from uptimely.project.build import builder
-from uptimely.project.build import source as build_source
+from uptimely import application, spec
+from uptimely.application.build import builder
+from uptimely.application.build import source as build_source
 from uptimely.spec import validation
 
 FIXTURE_SPEC = pathlib.Path(__file__).parents[2] / "fixtures/spec/observation_totals.json"
@@ -32,7 +32,7 @@ def test_spec_source_loads_explicit_json_without_default_source(tmp_path: pathli
 
 
 def test_spec_source_discovers_conventional_json_source(tmp_path: pathlib.Path) -> None:
-    configured_path = tmp_path / project.SPEC_JSON_ENTRY_FILE
+    configured_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
     configured_path.parent.mkdir(parents=True)
     configured_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
@@ -42,7 +42,7 @@ def test_spec_source_discovers_conventional_json_source(tmp_path: pathlib.Path) 
 
 
 def test_spec_source_resolves_without_loading(tmp_path: pathlib.Path) -> None:
-    python_path = tmp_path / project.SPEC_PYTHON_ENTRY_FILE
+    python_path = tmp_path / application.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir(parents=True)
     python_path.write_text("raise RuntimeError('Source must not be loaded')\n", encoding="utf-8")
     source = build_source.SpecSource(tmp_path).resolve()
@@ -50,7 +50,7 @@ def test_spec_source_resolves_without_loading(tmp_path: pathlib.Path) -> None:
     assert isinstance(source, build_source.PythonSource)
     assert source.path == python_path
     assert source.entrypoint.module.location == "spec.spec"
-    assert source.entrypoint.function.name == project.DEFAULT_SPEC_ATTRIBUTE
+    assert source.entrypoint.function.name == application.DEFAULT_SPEC_ATTRIBUTE
 
 
 @pytest.mark.parametrize("package_depth", [0, 1, 2])
@@ -63,7 +63,7 @@ def test_python_source_resolves_enclosing_packages(
         root /= name
         root.mkdir()
         (root / "__init__.py").touch()
-    python_path = root / project.SPEC_PYTHON_ENTRY_FILE
+    python_path = root / application.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir()
     python_path.touch()
 
@@ -73,7 +73,7 @@ def test_python_source_resolves_enclosing_packages(
 
 
 def test_python_spec_rejects_local_file_entrypoints(tmp_path: pathlib.Path) -> None:
-    python_path = tmp_path / project.SPEC_PYTHON_ENTRY_FILE
+    python_path = tmp_path / application.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir(parents=True)
     python_path.write_text("python_spec = None\n", encoding="utf-8")
 
@@ -82,10 +82,10 @@ def test_python_spec_rejects_local_file_entrypoints(tmp_path: pathlib.Path) -> N
 
 
 def test_spec_source_rejects_ambiguous_discovered_sources(tmp_path: pathlib.Path) -> None:
-    python_path = tmp_path / project.SPEC_PYTHON_ENTRY_FILE
+    python_path = tmp_path / application.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir(parents=True)
     python_path.write_text("python_spec = None\n", encoding="utf-8")
-    json_path = tmp_path / project.SPEC_JSON_ENTRY_FILE
+    json_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
     json_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
     with pytest.raises(ValueError, match="Ambiguous spec sources") as error:
@@ -137,7 +137,7 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
 @pytest.mark.parametrize("validate", [False, True])
 def test_json_source_forwards_validation_option(tmp_path: pathlib.Path, validate: bool) -> None:
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
-        project.load_spec_source(None, tmp_path, FIXTURE_SPEC, validate=validate)
+        application.load_spec_source(None, tmp_path, FIXTURE_SPEC, validate=validate)
 
     assert check.call_count == int(validate)
 
@@ -179,7 +179,7 @@ def test_build_reports_deferred_semantic_error_at_compilation(tmp_path: pathlib.
     project_builder = builder.ProjectBuilder(tmp_path)
     document = project_builder._load_spec_definition(None, path)
 
-    with pytest.raises(project.ProjectBuildError, match="compilation.*unknown parent"):
+    with pytest.raises(application.ProjectBuildError, match="compilation.*unknown parent"):
         project_builder._compile_plan(document, None)
 
 
@@ -191,24 +191,24 @@ def test_complete_build_validates_spec_semantics_once(
     caplog.set_level(logging.DEBUG, logger="uptimely")
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
-        bundle = project.build(tmp_path, json_spec=path)
+        bundle = application.build(tmp_path, json_spec=path)
 
     check.assert_called_once()
     assert caplog.messages.count("Check spec version is an integer") == 1
     assert bundle.spec_path.is_file()
-    assert (tmp_path / project.EXPLORER_DATA_FILE).is_file()
-    assert project.load_build_bundle(tmp_path).spec_definition == bundle.spec_definition
+    assert (tmp_path / application.EXPLORER_DATA_FILE).is_file()
+    assert application.load_build_bundle(tmp_path).spec_definition == bundle.spec_definition
 
 
 @pytest.mark.parametrize("project_root", [None, ""])
 def test_build_defaults_to_current_directory(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, project_root: str | None
 ) -> None:
-    spec_path = tmp_path / project.SPEC_JSON_ENTRY_FILE
+    spec_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
     spec_path.parent.mkdir(parents=True)
     spec_path.write_bytes(FIXTURE_SPEC.read_bytes())
     monkeypatch.chdir(tmp_path)
 
-    bundle = project.build() if project_root is None else project.build(project_root)
+    bundle = application.build() if project_root is None else application.build(project_root)
 
     assert bundle.project_root == tmp_path.resolve()

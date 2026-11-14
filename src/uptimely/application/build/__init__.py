@@ -1,17 +1,17 @@
 """Build, load, and validate active project build bundles."""
 
-from uptimely.project.build.builder import ProjectBuilder, build
-from uptimely.project.build.bundle import BundleStore, load_build_bundle, read_build_bundle
-from uptimely.project.build.errors import BuildError, BuildLockError, ProjectBuildError
-from uptimely.project.build.features import FeatureSelection
-from uptimely.project.build.locking import build_lock
-from uptimely.project.build.models import (
+from uptimely.application.build.builder import ProjectBuilder, build
+from uptimely.application.build.bundle import BundleStore, load_build_bundle, read_build_bundle
+from uptimely.application.build.errors import BuildError, BuildLockError, ProjectBuildError
+from uptimely.application.build.features import FeatureSelection
+from uptimely.application.build.locking import build_lock
+from uptimely.application.build.models import (
     BUILD_VERSION,
     BuildArtifactPaths,
     BuildBundle,
     BuildManifest,
 )
-from uptimely.project.build.source import (
+from uptimely.application.build.source import (
     JsonSource,
     PythonSource,
     SpecSource,

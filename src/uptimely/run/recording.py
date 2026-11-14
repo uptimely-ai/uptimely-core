@@ -16,9 +16,9 @@ import uuid
 
 import polars as pl
 
+from uptimely.application.build import models as build_models
 from uptimely.engine import config
 from uptimely.engine.runtime import result as result_module
-from uptimely.project.build import models as build_models
 
 from . import models, preview, store
 

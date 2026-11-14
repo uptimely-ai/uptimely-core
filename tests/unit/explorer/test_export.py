@@ -9,7 +9,7 @@ import polars as pl
 import pytest
 from support import examples as example_support
 
-from uptimely import engine, project
+from uptimely import application, engine
 from uptimely import plan as execution_plan
 from uptimely.explorer import export, presentation
 from uptimely.run import models, store
@@ -21,7 +21,7 @@ def _write_snapshot(
 ) -> pathlib.Path:
     bundle = example_bundle_factory()
     data = presentation.build_presentation_data(bundle.spec_definition, bundle.execution_plan)
-    snapshot_path = project_root / project.EXPLORER_DATA_FILE
+    snapshot_path = project_root / application.EXPLORER_DATA_FILE
     snapshot_path.parent.mkdir(parents=True)
     snapshot_path.write_text(presentation.serialize_presentation_data(data), encoding="utf-8")
     return snapshot_path
@@ -201,7 +201,7 @@ def test_export_rejects_missing_or_invalid_snapshot(
     project_root = tmp_path / "project"
     project_root.mkdir()
     if kind == "invalid":
-        snapshot_path = project_root / project.EXPLORER_DATA_FILE
+        snapshot_path = project_root / application.EXPLORER_DATA_FILE
         snapshot_path.parent.mkdir(parents=True)
         snapshot_path.write_text(json.dumps({"format_version": 1}), encoding="utf-8")
 

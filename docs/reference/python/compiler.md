@@ -1,7 +1,7 @@
 # Compiler and plans
 
 The compiler turns a loaded Spec into an execution plan. The engine runs that
-plan. Use [`Uptimely`](project.md) to build the complete project bundle.
+plan. Use [`Uptimely`](application.md) to build the complete project bundle.
 
 ```python
 from uptimely import Compiler, spec

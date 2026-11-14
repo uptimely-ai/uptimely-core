@@ -13,9 +13,9 @@ import polars as pl
 import pytest
 from support import examples as example_support
 
+from uptimely import application as application_module
 from uptimely import engine as engine_module
 from uptimely import plan as execution_plan
-from uptimely import project as project_module
 from uptimely.cli import cli
 from uptimely.run import recording
 
@@ -319,7 +319,7 @@ def test_engine_cli_loads_named_config_profile_and_merges_defaults(
         '[engine.backend]\nevaluation = "eager"\n[params]\nbase_value = 1\n',
         encoding="utf-8",
     )
-    profile_dir = tmp_path / project_module.CONFIG_DIR
+    profile_dir = tmp_path / application_module.CONFIG_DIR
     profile_dir.mkdir()
     (profile_dir / "prod.toml").write_text(
         '[engine.backend]\ndataframe = "polars"\n[params]\nprofile_value = 2\n',
@@ -362,7 +362,7 @@ def test_engine_cli_uses_project_preview_and_source_defaults(
     _write_empty_build(tmp_path)
     (tmp_path / "custom-src").mkdir()
     (tmp_path / "uptimely.toml").write_text(
-        '[project]\nsrc_path = "custom-src"\n[engine]\npreview_rows = 13\n',
+        '[application]\nsrc_path = "custom-src"\n[engine]\npreview_rows = 13\n',
         encoding="utf-8",
     )
     received: list[tuple[int, pathlib.Path | None]] = []
@@ -411,8 +411,8 @@ def test_engine_cli_builds_before_running(
     src_path = pathlib.Path("local_python")
 
     def build(
-        self: project_module.Uptimely, *, src_path: pathlib.Path | None = None
-    ) -> project_module.BuildBundle:
+        self: application_module.Uptimely, *, src_path: pathlib.Path | None = None
+    ) -> application_module.BuildBundle:
         output = capsys.readouterr().out
         assert "Start Uptimely engine run" in output
         assert "Start building the project bundle" in output
@@ -441,7 +441,7 @@ def test_engine_cli_builds_before_running(
             plan_version=execution_plan.PLAN_VERSION,
         )
 
-    monkeypatch.setattr(project_module.Uptimely, "build", build)
+    monkeypatch.setattr(application_module.Uptimely, "build", build)
     monkeypatch.setattr(engine_module.Engine, "run", run)
 
     invoke(
@@ -466,11 +466,11 @@ def test_engine_cli_does_not_run_after_build_failure(
     command: tuple[str, ...],
 ) -> None:
     def fail_build(
-        self: project_module.Uptimely, *, src_path: pathlib.Path | None = None
-    ) -> project_module.BuildBundle:
-        raise project_module.ProjectBuildError("generation", "invalid source")
+        self: application_module.Uptimely, *, src_path: pathlib.Path | None = None
+    ) -> application_module.BuildBundle:
+        raise application_module.ProjectBuildError("generation", "invalid source")
 
-    monkeypatch.setattr(project_module.Uptimely, "build", fail_build)
+    monkeypatch.setattr(application_module.Uptimely, "build", fail_build)
     monkeypatch.setattr(
         engine_module.Engine,
         "run",
@@ -938,7 +938,7 @@ def test_engine_config_loads_backend_and_params(tmp_path: pathlib.Path) -> None:
         '[engine.backend]\ndataframe = "polars"\n\n[params]\nthreshold = 10\n',
         encoding="utf-8",
     )
-    settings = project_module.Uptimely(tmp_path).config
+    settings = application_module.Uptimely(tmp_path).config
     assert settings.engine.backend.dataframe == "polars"
     assert settings.params.root == {"threshold": 10}
 
@@ -959,7 +959,7 @@ def test_engine_cli_uses_project_backend_config(
 
 
 def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
-    build_root = project_root / project_module.BUILD_OUTPUT_DIR
+    build_root = project_root / application_module.BUILD_OUTPUT_DIR
     explorer_root = build_root / "explorer"
     explorer_root.mkdir(parents=True)
     (build_root / "spec.json").write_text("{}", encoding="utf-8")
@@ -975,11 +975,11 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
         encoding="utf-8",
     )
     (explorer_root / "index.html").write_text("<html></html>", encoding="utf-8")
-    manifest = project_module.BuildManifest(
-        build_version=project_module.BUILD_VERSION,
+    manifest = application_module.BuildManifest(
+        build_version=application_module.BUILD_VERSION,
         uptimely_version="0.2.0",
         features=None,
-        artifacts=project_module.BuildArtifactPaths(
+        artifacts=application_module.BuildArtifactPaths(
             spec="spec.json",
             execution_plan="execution_plan.json",
         ),

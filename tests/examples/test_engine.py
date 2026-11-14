@@ -10,7 +10,7 @@ import pytest
 from support import examples as example_support
 from support import execution as execution_support
 
-from uptimely import project
+from uptimely import application
 from uptimely.cli import cli
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import state as state_module
@@ -32,7 +32,7 @@ def _engine_paths(project_root: pathlib.Path) -> dict[str, str]:
 
 
 def test_engine_returns_calculated_features_without_writing_output(
-    pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
+    pump_bundle: application.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     engine = engine_for_plan(
         pump_bundle.execution_plan,
@@ -226,7 +226,7 @@ def test_engine_returns_calculated_features_without_writing_output(
 
 def test_warning_profile_handles_no_warning_records(
     tmp_path: pathlib.Path,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     paths = _engine_paths(pump_bundle.project_root)
@@ -264,7 +264,7 @@ def test_warning_profile_handles_no_warning_records(
 
 def test_hourly_warning_aggregates_only_warnings_by_pump_and_hour(
     tmp_path: pathlib.Path,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     paths = _engine_paths(pump_bundle.project_root)
@@ -426,7 +426,7 @@ def test_engine_cli_reports_scoped_saved_build(
 
 
 def test_engine_rejects_missing_path(
-    pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
+    pump_bundle: application.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     paths = _engine_paths(pump_bundle.project_root)
     paths.pop("telemetry_source")
@@ -446,7 +446,7 @@ def test_engine_rejects_missing_path(
 
 
 def test_engine_rejects_non_scalar_parameter_value(
-    pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
+    pump_bundle: application.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     with pytest.raises(ValueError, match="must be a scalar"):
         engine_for_plan(
@@ -459,7 +459,7 @@ def test_engine_rejects_non_scalar_parameter_value(
 
 
 def test_engine_merges_fragments_by_profile_grain_keys(
-    pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
+    pump_bundle: application.BuildBundle, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     engine = engine_for_plan(
         pump_bundle.execution_plan,
@@ -506,7 +506,7 @@ def test_engine_merges_fragments_by_profile_grain_keys(
 def test_engine_assembly_accepts_mixed_eager_and_lazy_frames(
     existing_lazy: bool,
     fragment_lazy: bool,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
@@ -551,7 +551,7 @@ def test_engine_assembly_preserves_partial_and_disjoint_keys(
     existing_keys: list[str | None],
     fragment_keys: list[str | None],
     expected_keys: list[str | None],
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
@@ -588,7 +588,7 @@ def test_engine_assembly_preserves_partial_and_disjoint_keys(
 def test_engine_assembly_rejects_duplicate_keys_on_either_side(
     lazy: bool,
     duplicate_side: str,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
@@ -620,7 +620,7 @@ def test_engine_assembly_rejects_duplicate_keys_on_either_side(
 def test_engine_validates_required_fragment_columns_and_types(
     lazy: bool,
     invalid_column: str,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
@@ -666,7 +666,9 @@ def test_engine_validates_required_fragment_columns_and_types(
 
 @pytest.mark.parametrize("lazy", [False, True])
 def test_engine_assembly_rejects_feature_collisions(
-    lazy: bool, pump_bundle: project.BuildBundle, engine_for_plan: execution_support.EngineFactory
+    lazy: bool,
+    pump_bundle: application.BuildBundle,
+    engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(
         pump_bundle.execution_plan,
@@ -714,7 +716,7 @@ def test_engine_assembly_rejects_feature_collisions(
 def test_engine_rejects_invalid_fragments(
     fragment: object,
     message: str,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     engine = engine_for_plan(

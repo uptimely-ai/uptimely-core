@@ -92,7 +92,7 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
                             "uptimely.compiler",
                             "uptimely.engine",
                             "uptimely.explorer",
-                            "uptimely.project",
+                            "uptimely.application",
                         )
                     )
                     for alias in node.names
@@ -103,7 +103,7 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
                         "uptimely.compiler",
                         "uptimely.engine",
                         "uptimely.explorer",
-                        "uptimely.project",
+                        "uptimely.application",
                     )
                 ), path
 
@@ -139,13 +139,13 @@ def test_modules_import_in_a_fresh_process(module: str) -> None:
 @pytest.mark.parametrize(
     "modules",
     [
-        ("uptimely.project", "uptimely.explorer.presentation"),
-        ("uptimely.explorer.presentation", "uptimely.project"),
-        ("uptimely.project.build.builder", "uptimely.explorer.presentation"),
-        ("uptimely.explorer.presentation", "uptimely.project.build.builder"),
+        ("uptimely.application", "uptimely.explorer.presentation"),
+        ("uptimely.explorer.presentation", "uptimely.application"),
+        ("uptimely.application.build.builder", "uptimely.explorer.presentation"),
+        ("uptimely.explorer.presentation", "uptimely.application.build.builder"),
     ],
 )
-def test_project_and_explorer_presentation_import_in_either_order_in_a_fresh_process(
+def test_application_and_explorer_presentation_import_in_either_order_in_a_fresh_process(
     modules: tuple[str, str],
 ) -> None:
     script = f"""
