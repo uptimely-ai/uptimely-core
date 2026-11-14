@@ -1269,7 +1269,7 @@ def test_engine_uses_default_config_when_omitted(
     assert isinstance(engine.backend, uptimely_engine.PolarsBackend)
 
 
-def test_engine_loads_project_config_from_root_toml(
+def test_engine_does_not_load_project_config_from_root_toml(
     bundle_for_plan: execution_support.BundleFactory,
 ) -> None:
     bundle = bundle_for_plan(_plan())
@@ -1281,8 +1281,8 @@ def test_engine_loads_project_config_from_root_toml(
 
     engine = uptimely_engine.Engine(bundle)
 
-    assert engine.paths == {"source": "data/input.csv"}
-    assert engine.parameters == {"threshold": 10}
+    assert engine.paths == {}
+    assert engine.parameters == {}
 
 
 def test_engine_rejects_spec_paths_instead_of_compiling() -> None:

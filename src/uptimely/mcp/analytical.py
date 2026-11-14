@@ -5,7 +5,7 @@ import typing
 
 import fastmcp
 
-from uptimely import engine, entrypoint, project
+from uptimely import entrypoint, project
 
 from . import results, serialization, state
 
@@ -344,7 +344,7 @@ class AnalyticalTools:
         if max_rows < 1:
             raise ValueError("max_rows must be a positive integer")
         bundle = self._state.load_bundle()
-        runtime = engine.Engine(bundle, self._state.runtime_config())
+        runtime = self._state.project.create_engine(bundle)
         result = runtime.run(operator=operator, preview_rows=max_rows)
         payload = {
             **self._build_details(bundle),

@@ -67,17 +67,16 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     if args.preview is not None and args.preview <= 0:
         parser.error("--preview must be a positive integer")
     root = common.resolve_project_root(args, parser)
-    config = project.Project(root).resolve_path(args.config, project.CONFIG_FILE)
     with common.apply_log_level(args.log_level):
         logger.info("Start Uptimely engine run")
         try:
+            current_project = project.Project(root, config_path=args.config)
             if args.build:
                 logger.info("Start building the project bundle")
-                bundle = project.build(root, src_path=args.src_path)
+                bundle = current_project.build(src_path=args.src_path)
                 logger.info("Build files created to %s", bundle.root)
-            with project.read_build_bundle(root) as bundle:
-                settings = engine_module.Config.from_toml(config)
-                engine = engine_module.Engine(bundle, settings)
+            with current_project.read_build_bundle() as bundle:
+                engine = current_project.create_engine(bundle)
                 started = time.perf_counter()
                 if args.preview is None:
                     result = engine.run(validate=args.validate, src_path=args.src_path)

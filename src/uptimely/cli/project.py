@@ -104,8 +104,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     started = time.perf_counter()
     with common.apply_log_level(args.log_level):
         try:
-            bundle = project.build(
-                root,
+            bundle = project.Project(root).build(
                 python_spec=args.python_spec,
                 json_spec=args.json_spec,
                 features=args.features,

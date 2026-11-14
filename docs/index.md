@@ -190,11 +190,11 @@ python_spec = up.Spec(
 Put this code in `run.py`.
 
 ```python
-from uptimely import Engine, Project
+from uptimely import Project
 
 project = Project()
 bundle = project.build()
-result = Engine(bundle).run()
+result = project.create_engine(bundle).run()
 ```
 
 Run in Python:

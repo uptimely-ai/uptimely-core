@@ -3,6 +3,7 @@
 import pathlib
 from unittest import mock
 
+import pydantic
 import pytest
 
 import uptimely
@@ -35,6 +36,62 @@ def test_project_resolves_root_at_construction(
 
     assert project.root == tmp_path.resolve()
     assert not (tmp_path / project_module.GENERATED_DIR).exists()
+
+
+def test_project_loads_and_passes_config_to_engine(tmp_path: pathlib.Path) -> None:
+    config_path = tmp_path / "uptimely.toml"
+    config_path.write_text(
+        '[engine.backend]\ndataframe = "POLARS"\nevaluation = "lazy"\n'
+        '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 42\n',
+        encoding="utf-8",
+    )
+    instance = project_module.Project(tmp_path)
+    config_path.write_text("[params]\nthreshold = 99\n", encoding="utf-8")
+    (tmp_path / "spec").mkdir()
+    (tmp_path / "spec/spec.json").write_text(
+        '{"spec_version": 8, "name": "Config test"}', encoding="utf-8"
+    )
+
+    runtime = instance.create_engine(instance.build())
+
+    assert runtime.config.backend.dataframe == "POLARS"
+    assert runtime.config.backend.evaluation == "lazy"
+    assert runtime.parameters == {"threshold": 42}
+    assert runtime.paths == {"source": "data/source.csv"}
+    assert project_module.Project(tmp_path).config.params.root == {"threshold": 99}
+
+
+def test_project_explicit_config_and_failures(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "uptimely.toml").write_text("[params]\nvalue = 1\n", encoding="utf-8")
+    override = tmp_path / "other.toml"
+    override.write_text("[params]\nvalue = 2\n", encoding="utf-8")
+    assert project_module.Project(tmp_path, config_path=override).config.params.root == {"value": 2}
+
+    with pytest.raises(FileNotFoundError):
+        project_module.Project(tmp_path, config_path=tmp_path / "missing.toml")
+    override.write_text("[params]\nvalue = [1]\n", encoding="utf-8")
+    with pytest.raises(pydantic.ValidationError):
+        project_module.Project(tmp_path, config_path=override)
+
+
+def test_project_resolves_explicit_config_from_working_directory(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "override.toml").write_text("[params]\nvalue = 7\n", encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    instance = project_module.Project(tmp_path / "other", config_path="override.toml")
+
+    assert instance.config_path == tmp_path / "override.toml"
+    assert instance.config.params.root == {"value": 7}
+
+
+def test_project_rejects_bundle_from_different_project(
+    project: project_module.Project, tmp_path: pathlib.Path
+) -> None:
+    build = project.build()
+    other = project_module.Project(tmp_path / "other")
+    with pytest.raises(ValueError, match="different project"):
+        other.create_engine(build)
 
 
 def test_project_builds_and_loads_fresh_bundles(project: project_module.Project) -> None:

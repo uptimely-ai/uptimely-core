@@ -1,6 +1,6 @@
 """Execution engine and runtime adapters for portable plans."""
 
-from .config import Config, EngineBackendConfig, EngineConfig, ParameterConfig, Params, Paths
+from .config import EngineBackendConfig, EngineConfig
 from .dataframe.backend import DataFrameBackend, PolarsBackend
 from .dataframe.dataset import Dataset
 from .dataframe.fragment import Fragment
@@ -10,11 +10,7 @@ from .runtime.result import ExecutionResult
 
 __all__ = [
     "Engine",
-    "Config",
     "EngineConfig",
-    "Params",
-    "ParameterConfig",
-    "Paths",
     "EngineBackendConfig",
     "ExecutionResult",
     "DataFrameBackend",

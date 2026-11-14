@@ -1,8 +1,14 @@
 """Root-bound operations for an analytics project."""
 
+from __future__ import annotations
+
 import contextlib
 import pathlib
+import tomllib
 
+from uptimely import engine as engine_module
+
+from . import config, paths
 from .build import builder, bundle, models, source
 from .build import features as feature_selection
 
@@ -10,13 +16,48 @@ from .build import features as feature_selection
 class Project:
     """An analytics project rooted at a fixed, resolved filesystem path."""
 
-    def __init__(self, root: str | pathlib.Path = ".") -> None:
-        """Resolve the project root without loading or building artifacts.
+    def __init__(
+        self, root: str | pathlib.Path = ".", *, config_path: str | pathlib.Path | None = None
+    ) -> None:
+        """Resolve the project root and load its configuration once.
 
         Args:
             root: Project directory, defaulting to the current working directory.
+            config_path: Explicit TOML file, relative to the current directory if relative.
+                Defaults to ``uptimely.toml`` under the project root.
         """
         self.root = pathlib.Path(root).resolve()
+        self.config_path = (
+            self.root / paths.CONFIG_FILE
+            if config_path is None
+            else pathlib.Path(config_path).resolve()
+        )
+        if config_path is None and not self.config_path.exists():
+            self.config = config.ProjectConfig()
+        else:
+            with self.config_path.open("rb") as file:
+                self.config = config.ProjectConfig.model_validate(tomllib.load(file))
+
+    def create_engine(self, build: models.BuildBundle) -> engine_module.Engine:
+        """Create an engine with this project's configuration.
+
+        Args:
+            build: Build bundle belonging to this project.
+
+        Returns:
+            Engine configured for the build.
+
+        Raises:
+            ValueError: The bundle belongs to a different project.
+        """
+        if build.project_root.resolve() != self.root:
+            raise ValueError("Build bundle belongs to a different project")
+        return engine_module.Engine(
+            build,
+            self.config.engine,
+            self.config.params.root,
+            paths=self.config.paths.root,
+        )
 
     def resolve_path(self, path: pathlib.Path | None, default: pathlib.Path) -> pathlib.Path:
         """Preserve an explicit path or place a default beneath the project root.

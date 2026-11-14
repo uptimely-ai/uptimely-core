@@ -325,7 +325,7 @@ def test_engine_cli_builds_before_running(
     src_path = pathlib.Path("local_python")
 
     def build(
-        root: pathlib.Path, *, src_path: pathlib.Path | None = None
+        self: project_module.Project, *, src_path: pathlib.Path | None = None
     ) -> project_module.BuildBundle:
         output = capsys.readouterr().out
         assert "Start Uptimely engine run" in output
@@ -334,9 +334,9 @@ def test_engine_cli_builds_before_running(
             "Start building the project bundle"
         )
         events.append("build")
-        assert root == tmp_path
+        assert self.root == tmp_path
         assert src_path == pathlib.Path("local_python")
-        return project_module.load_build_bundle(root)
+        return self.load_build_bundle()
 
     def run(
         self: engine_module.Engine,
@@ -355,7 +355,7 @@ def test_engine_cli_builds_before_running(
             plan_version=execution_plan.PLAN_VERSION,
         )
 
-    monkeypatch.setattr(project_module, "build", build)
+    monkeypatch.setattr(project_module.Project, "build", build)
     monkeypatch.setattr(engine_module.Engine, "run", run)
 
     invoke(
@@ -380,11 +380,11 @@ def test_engine_cli_does_not_run_after_build_failure(
     command: tuple[str, ...],
 ) -> None:
     def fail_build(
-        root: pathlib.Path, *, src_path: pathlib.Path | None = None
+        self: project_module.Project, *, src_path: pathlib.Path | None = None
     ) -> project_module.BuildBundle:
         raise project_module.ProjectBuildError("generation", "invalid source")
 
-    monkeypatch.setattr(project_module, "build", fail_build)
+    monkeypatch.setattr(project_module.Project, "build", fail_build)
     monkeypatch.setattr(
         engine_module.Engine,
         "run",
@@ -852,9 +852,24 @@ def test_engine_config_loads_backend_and_params(tmp_path: pathlib.Path) -> None:
         '[engine.backend]\ndataframe = "polars"\n\n[params]\nthreshold = 10\n',
         encoding="utf-8",
     )
-    settings = engine_module.Config.from_toml(config)
+    settings = project_module.Project(tmp_path).config
     assert settings.engine.backend.dataframe == "polars"
     assert settings.params.root == {"threshold": 10}
+
+
+def test_engine_cli_uses_project_backend_config(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _write_empty_build(tmp_path)
+    (tmp_path / "uptimely.toml").write_text(
+        '[engine.backend]\ndataframe = "unsupported"\n', encoding="utf-8"
+    )
+
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, "run", str(tmp_path))
+
+    assert error.value.code == 1
+    assert "unsupported" in capsys.readouterr().err
 
 
 def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
