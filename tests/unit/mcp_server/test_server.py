@@ -538,7 +538,7 @@ async def test_last_run_tools_read_external_execution_without_current_build(
     state: mcp_state.ServerState, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     bundle = state.load_bundle()
-    runtime = state.project.create_engine(bundle)
+    runtime = state.app.create_engine(bundle)
     original_execute = runtime._execute
 
     def execute(
