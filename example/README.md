@@ -52,6 +52,37 @@ uv sync
 
 The example requires Python 3.13 or newer.
 
+## Project template
+
+Alternatively, fetch the full project template from the latest stable release.
+Install uv as described in the quick start.
+
+From outside an existing example
+project, run the following. On Debian or Ubuntu, install `curl` and `unzip` if
+needed:
+
+```sh
+sudo apt install curl unzip
+curl -fLO https://uptimely.ai/core/example.zip
+unzip example.zip -d pump-analytics
+cd pump-analytics
+uv sync
+uv run uptimely run --build --preview 10
+uv run uptimely explore
+```
+
+The Explorer runs until you stop it.
+
+## Dev Container
+
+The full example includes a Dev Container configuration. Install Docker and the
+VS Code Dev Containers extension, then open the example folder in VS Code and
+select **Dev Containers: Reopen in Container** from the Command Palette.
+
+The container installs uv and syncs dependencies automatically. Run the
+commands below in its terminal. Explorer port 8001 is forwarded to your host.
+The `--no-setup` download does not include the Dev Container configuration.
+
 ## Build and run
 
 Build the project to compile its Python spec and publish the execution bundle:

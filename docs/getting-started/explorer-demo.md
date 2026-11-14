@@ -7,10 +7,11 @@ It is created from the repository's [data-center cooling pump example](https://g
 The Explorer is a static frontend backed by the project's generated snapshot.
 For the full local setup and workflow, follow the
 [cooling-pump example tutorial](tutorial.md). To build and export a local
-Explorer snapshot from the repository root:
+Explorer snapshot from the repository root, install uv as described in the
+[quick start](../index.md#install) and run:
 
 ```console
-$ uvx --from uptimely-core uptimely example --dir pump-analytics
+$ uvx --python 3.13 --from uptimely-core@latest uptimely example --dir pump-analytics
 $ cd pump-analytics
 $ uv sync
 $ uv run uptimely build

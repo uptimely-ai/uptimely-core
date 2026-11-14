@@ -17,7 +17,13 @@ Author the data science workflow in Python. Build and run from command line. Exp
 
 ## Demo
 
+Demo project's web explorer:
+
 ![Uptimely Core Demo](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-feature-lineage.png)
+
+Results from Uptimelt engine run:
+
+![Uptimely run preview](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-run-preview.png)
 
 Browse the [example project explorer](https://uptimely-ai.github.io/uptimely-core/example/).
 
@@ -59,8 +65,8 @@ uptimely example --no-setup --dir pump-analytics
 Build and run the example:
 
 ```sh
-uptimely build pump-analytics
-uptimely run pump-analytics --preview 10
+uptimely run pump-analytics --build --preview 10
+uv run uptimely explore pump-analytics
 ```
 
 With Poetry or uv, prefix each `uptimely` command with `poetry run` or `uv run`.
@@ -68,52 +74,28 @@ The download does not overwrite existing files.
 
 **For new project**
 
+If uv is not installed, [install it](https://docs.astral.sh/uv/getting-started/installation/) on macOS or Linux:
+
+```sh
+curl -LsSf https://astral.sh/uv/install.sh | sh
+```
+
+Restart your shell if `uv` or `uvx` is not found.
+
 Download a version-matched example project and set up its environment with uv:
 
 ```sh
-uvx --from uptimely-core uptimely example --dir pump-analytics
+uvx --python 3.13 --from uptimely-core@latest uptimely example --dir pump-analytics
 cd pump-analytics
 uv sync
-uv run uptimely build
-uv run uptimely run --preview 10
+uv run uptimely run --build --preview 10
+uv run uptimely explore
 ```
 
-Alternatively, fetch the full project template from the latest stable release:
+Build bundle and run results are generated `_generated/build/`.
 
-```sh
-curl -fLO https://uptimely.ai/core/example.zip
-unzip example.zip -d pump-analytics
-cd pump-analytics
-uv sync
-uv run uptimely build
-uv run uptimely run --preview 10
-```
-
-
-Both workflows create an execution bundle under `_generated/build/`, then run
-the data pipeline and preview its materialized profile frames:
-
-![Uptimely run preview](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-run-preview.png)
-
-Each run replaces `_generated/run/`.
-
-The [example README](https://github.com/uptimely-ai/uptimely-core/blob/main/example/README.md)
-describes the sample workflow and its project files. Follow the
-[getting-started tutorial](https://uptimely-ai.github.io/uptimely-core/getting-started/tutorial/)
-for setup, execution, and Explorer export.
-
-## Explore the resources
-
-Use the project explorer to inspect a project visually in web browser:
-
-```sh
-uptimely explore pump-analytics
-```
-
-For the new project above, run `uv run uptimely explore` inside `pump-analytics`.
-
-Open <http://127.0.0.1:8001/> to view the Explorer.
-
+The [tutorial](https://uptimely-ai.github.io/uptimely-core/getting-started/tutorial/)
+also describes downloading the project template from the latest stable release.
 
 ## Python API
 
