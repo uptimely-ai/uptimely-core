@@ -40,6 +40,7 @@ def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
         {
             "project-main/readme.md": "not an example",
             "project-main/example/README.md": "Example guide",
+            "project-main/example/init.sh": "setup",
             "project-main/example/run.py": "print('example')",
             "project-main/example/data/sample.csv": "x\n1\n",
             "project-main/src/module.py": "not an example",
@@ -67,6 +68,7 @@ def test_download_examples(tmp_path: pathlib.Path, github: list[str]) -> None:
     ) == [
         "README.md",
         "data/sample.csv",
+        "init.sh",
         "run.py",
     ]
     assert (output / "run.py").read_text() == "print('example')"
@@ -198,9 +200,11 @@ def test_no_setup_merges_into_existing_directory(
         {
             "project/example/README.md": "guide",
             "project/example/pyproject.toml": "setup",
+            "project/example/init.sh": "example setup",
             "project/example/.devcontainer/devcontainer.json": "{}",
             "project/example/__init__.py": "",
             "project/example/src/analytics.py": "code",
+            "project/example/src/init.sh": "nested script",
             "project/example/spec/spec.py": "spec",
             "project/example/config/config.json": "{}",
             "project/example/data/input/sample.csv": "data",
@@ -209,6 +213,7 @@ def test_no_setup_merges_into_existing_directory(
     monkeypatch.setattr(examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
     (tmp_path / "pyproject.toml").write_text("existing setup")
     (tmp_path / "README.md").write_text("existing guide")
+    (tmp_path / "init.sh").write_text("existing script")
     (tmp_path / ".devcontainer").mkdir()
     (tmp_path / ".devcontainer/devcontainer.json").write_text("existing container")
     (tmp_path / "src").mkdir()
@@ -219,16 +224,27 @@ def test_no_setup_merges_into_existing_directory(
 
     assert (tmp_path / "pyproject.toml").read_text() == "existing setup"
     assert (tmp_path / "README.md").read_text() == "existing guide"
+    assert (tmp_path / "init.sh").read_text() == "existing script"
     assert (tmp_path / ".devcontainer/devcontainer.json").read_text() == "existing container"
     assert (tmp_path / "src/other.py").read_text() == "existing code"
     for path in (
         "__init__.py",
         "src/analytics.py",
+        "src/init.sh",
         "spec/spec.py",
         "config/config.json",
         "data/input/sample.csv",
     ):
         assert (tmp_path / path).is_file()
+
+
+def test_no_setup_excludes_init_script_from_new_directory(
+    tmp_path: pathlib.Path, github: list[str]
+) -> None:
+    output = tmp_path / "example"
+    examples.download_examples(output, no_setup=True)
+    assert not (output / "init.sh").exists()
+    assert (output / "run.py").is_file()
 
 
 @pytest.mark.parametrize("kind", ["file", "directory", "symlink", "parent-symlink"])
