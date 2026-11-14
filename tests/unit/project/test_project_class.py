@@ -39,7 +39,7 @@ def test_project_resolves_root_at_construction(
     monkeypatch.chdir(child)
 
     assert app.root == tmp_path.resolve()
-    assert not (tmp_path / project_module.GENERATED_DIR).exists()
+    assert not (tmp_path / project_module.ARTIFACTS_DIR).exists()
 
 
 def test_project_loads_and_passes_config_to_engine(tmp_path: pathlib.Path) -> None:

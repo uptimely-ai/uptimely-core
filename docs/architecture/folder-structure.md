@@ -22,7 +22,7 @@ project/
 │   ├── spec.py <-- default spec entrypoint
 │   ├── profile_<name>.py
 │   └── dimension.py
-└── _generated/
+└── artifacts/
     ├── build/
     │   ├── build.json
     │   ├── spec.json
@@ -47,13 +47,13 @@ layouts work with project source imports.
 | `data/output/` | Results you want to keep, share, or reuse. |
 | `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
-| `_generated/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
+| `artifacts/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
 | `uptimely.toml` | Project defaults and runtime settings under `project`, `engine`, `paths`, and `params`. See [Uptimely config](config.md). |
 
 Put source files consumed by the workflow in `data/input/`. Store results you
-want to keep, share, or reuse in `data/output/`. Use `_generated/` for disposable
+want to keep, share, or reuse in `data/output/`. Use `artifacts/` for disposable
 previews and debugging files. Each run replaces
-`_generated/run/`, so it does not retain a history of earlier runs.
+`artifacts/run/`, so it does not retain a history of earlier runs.
 
 Uptimely makes the project root and the configured source directory importable
 during builds and runs. Set `project.src_path` or use `--src-path` to select a

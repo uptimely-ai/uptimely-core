@@ -27,7 +27,7 @@ def build_lock(
     with shared file locks, multiple consumers can hold it concurrently.
     """
     project_root = pathlib.Path(project_root).resolve()
-    lock_path = project_root / paths.GENERATED_DIR / ".build.lock"
+    lock_path = project_root / paths.ARTIFACTS_DIR / ".build.lock"
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a+b") as lock_file:
         if os.name == "nt":

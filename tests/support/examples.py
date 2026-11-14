@@ -42,7 +42,7 @@ def prepare_example_projects(examples_root: pathlib.Path) -> None:
         shutil.copytree(
             REPOSITORY_ROOT / "example",
             examples_root,
-            ignore=shutil.ignore_patterns("_generated", "__pycache__"),
+            ignore=shutil.ignore_patterns("artifacts", "__pycache__"),
             dirs_exist_ok=True,
         )
         project_module.build(examples_root)
@@ -58,7 +58,7 @@ def _example_project(features: tuple[str, ...] | None) -> pathlib.Path:
         return source
     root = pathlib.Path(tempfile.mkdtemp(prefix="scoped-example-", dir=EXAMPLES_ROOT.parent))
     target = root / "example"
-    shutil.copytree(source, target, ignore=shutil.ignore_patterns("_generated", "__pycache__"))
+    shutil.copytree(source, target, ignore=shutil.ignore_patterns("artifacts", "__pycache__"))
     project_module.build(
         target,
         json_spec=source / project_module.BUILD_OUTPUT_DIR / "spec.json",
@@ -80,7 +80,7 @@ def copy_example_project(
     source = _example_project(features)
 
     def ignore(directory: str, names: list[str]) -> list[str]:
-        if pathlib.Path(directory) == source / paths.GENERATED_DIR:
+        if pathlib.Path(directory) == source / paths.ARTIFACTS_DIR:
             retained = {paths.BUILD_OUTPUT_DIR.name, paths.EXPLORER_DATA_FILE.name}
             return [name for name in names if name not in retained]
         return [name for name in names if name == "__pycache__"]

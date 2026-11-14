@@ -212,7 +212,7 @@ def test_project_build_cli_exports_complete_bundle(
     shutil.copytree(
         EXAMPLE_ROOT,
         project_root,
-        ignore=shutil.ignore_patterns("_generated", "__pycache__"),
+        ignore=shutil.ignore_patterns("artifacts", "__pycache__"),
     )
     monkeypatch.setattr(
         sys,
@@ -233,8 +233,8 @@ def test_project_build_cli_exports_complete_bundle(
     assert (bundle / "execution_plan.json").is_file()
     assert not (bundle / "explorer").exists()
     assert (project_root / project.EXPLORER_DATA_FILE).is_file()
-    assert not (project_root / "_generated/spec/spec.json").exists()
-    assert not (project_root / "_generated/compile/execution_plan.json").exists()
+    assert not (project_root / "artifacts/spec/spec.json").exists()
+    assert not (project_root / "artifacts/compile/execution_plan.json").exists()
 
 
 def test_compiled_plan_export_omits_generated_timestamp(

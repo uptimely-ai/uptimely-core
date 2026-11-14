@@ -54,7 +54,7 @@ def test_store_loads_staged_bundle_under_existing_lock(tmp_path: pathlib.Path) -
     spec_path.parent.mkdir()
     spec_path.write_text('{"spec_version": 8, "name": "Active build"}', encoding="utf-8")
     active = builder.ProjectBuilder(tmp_path).build()
-    staging_root = tmp_path / project.GENERATED_DIR / "staged"
+    staging_root = tmp_path / project.ARTIFACTS_DIR / "staged"
     shutil.copytree(active.root, staging_root)
     (staging_root / "spec.json").write_text(
         '{"spec_version": 8, "name": "Staged build"}', encoding="utf-8"

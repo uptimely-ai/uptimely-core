@@ -9,7 +9,7 @@ from uptimely import spec
 from uptimely.spec import validation
 from uptimely.spec.validation.rules.operators import inputs as operator_inputs
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 

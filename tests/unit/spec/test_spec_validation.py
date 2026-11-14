@@ -10,7 +10,7 @@ from uptimely.spec.python import assembly, conversion, feature, profile, ref
 from uptimely.spec.validation import errors as validation_errors
 from uptimely.spec.validation.rules.operators import contracts as operator_contracts
 
-SPEC_PATH = example_support.EXAMPLES_ROOT / "_generated/build/spec.json"
+SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 

@@ -22,6 +22,7 @@ from .defaults import (
     DEFAULT_SRC_PATH,
 )
 from .paths import (
+    ARTIFACTS_DIR,
     BUILD_EXECUTION_PLAN_FILE,
     BUILD_MANIFEST_FILE,
     BUILD_OUTPUT_DIR,
@@ -32,7 +33,6 @@ from .paths import (
     DATA_DIR,
     EXPLORER_DATA_FILE,
     FUNCTIONS_DIR,
-    GENERATED_DIR,
     SPEC_JSON_ENTRY_FILE,
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
@@ -64,7 +64,7 @@ __all__ = [
     "CONFIG_FILE",
     "EXPLORER_DATA_FILE",
     "FUNCTIONS_DIR",
-    "GENERATED_DIR",
+    "ARTIFACTS_DIR",
     "SPEC_JSON_ENTRY_FILE",
     "SPEC_PYTHON_ENTRY_FILE",
     "SPEC_SOURCE_DIR",

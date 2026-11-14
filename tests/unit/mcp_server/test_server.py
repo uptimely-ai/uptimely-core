@@ -308,7 +308,7 @@ async def test_reload_build(state: mcp_state.ServerState) -> None:
     payload = await _call(state, "reload_build")
     assert payload["scope"] == "all features"
     assert payload["features"] is None
-    assert payload["spec"].endswith("_generated/build/spec.json")
+    assert payload["spec"].endswith("artifacts/build/spec.json")
     assert payload["profiles"] == [
         "constants",
         "pump",

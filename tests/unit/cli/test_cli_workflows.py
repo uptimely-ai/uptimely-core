@@ -20,7 +20,7 @@ from uptimely.cli import cli
 from uptimely.run import recording
 
 PROJECT = example_support.EXAMPLES_ROOT
-SPEC_PATH = PROJECT / "_generated/build/spec.json"
+SPEC_PATH = PROJECT / "artifacts/build/spec.json"
 
 
 @pytest.mark.parametrize(

@@ -49,7 +49,7 @@ def copy_unbuilt_example(tmp_path: pathlib.Path) -> pathlib.Path:
     shutil.copytree(
         REPOSITORY_ROOT / "example",
         root,
-        ignore=shutil.ignore_patterns("_generated", "__pycache__"),
+        ignore=shutil.ignore_patterns("artifacts", "__pycache__"),
     )
     return root
 
@@ -59,18 +59,18 @@ def copy_unbuilt_example(tmp_path: pathlib.Path) -> pathlib.Path:
     [False, True],
 )
 @pytest.mark.parametrize("explicit_root", [False, True])
-@pytest.mark.parametrize("empty_generated", [False, True])
+@pytest.mark.parametrize("empty_artifacts", [False, True])
 def test_project_build_examples(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
     debug: bool,
     explicit_root: bool,
-    empty_generated: bool,
+    empty_artifacts: bool,
 ) -> None:
     root = copy_unbuilt_example(tmp_path)
-    if empty_generated:
-        (root / project.GENERATED_DIR).mkdir()
+    if empty_artifacts:
+        (root / project.ARTIFACTS_DIR).mkdir()
     arguments = ["--project-root", str(root)] if explicit_root else []
     if debug:
         arguments.extend(["--log-level", "debug"])
@@ -229,8 +229,8 @@ def test_project_rebuild_replaces_previous_bundle(
     }
     assert len(rebuilt_bundle.execution_plan.execution_stages) == len(old_plan.execution_stages)
     assert not (rebuilt_bundle.root / "stale.html").exists()
-    assert not (root / "_generated/spec/spec.json").exists()
-    assert not (root / "_generated/compile/execution_plan.json").exists()
+    assert not (root / "artifacts/spec/spec.json").exists()
+    assert not (root / "artifacts/compile/execution_plan.json").exists()
 
 
 @pytest.mark.parametrize("source_kind", ["entrypoint", "json"])
@@ -330,7 +330,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     assert spec.load_spec(bundle.spec_path).profiles
     assert bundle.execution_plan.invocations
     assert (root / project.EXPLORER_DATA_FILE).is_file()
-    assert not (root / "_generated/spec").exists()
+    assert not (root / "artifacts/spec").exists()
     assert (root / project.EXPLORER_DATA_FILE).is_file()
 
 
@@ -581,8 +581,8 @@ def test_project_build_failures_preserve_previous_bundle(
     assert f"Build files created to {root / project.BUILD_OUTPUT_DIR}" not in result.out
     assert bundle_files(root) == old_bundle
     assert snapshot.read_text(encoding="utf-8") == "previous snapshot"
-    assert not list((root / project.GENERATED_DIR).glob(".build-staging-*"))
-    assert not list((root / project.GENERATED_DIR).glob(".build-backup-*"))
+    assert not list((root / project.ARTIFACTS_DIR).glob(".build-staging-*"))
+    assert not list((root / project.ARTIFACTS_DIR).glob(".build-backup-*"))
 
 
 def test_snapshot_publication_failure_preserves_previous_snapshot(
@@ -707,7 +707,7 @@ def test_project_build_missing_source(
         invoke(monkeypatch, "--project-root", str(tmp_path))
     assert error.value.code == 1
     assert "Project build source loading failed: No spec source found" in capsys.readouterr().err
-    assert not (tmp_path / project.GENERATED_DIR).exists()
+    assert not (tmp_path / project.ARTIFACTS_DIR).exists()
 
 
 def test_project_build_help(

@@ -7,7 +7,7 @@ The Engine uses it together with the Spec and runtime configuration.
 
 The plan is stored as JSON in `execution_plan.json` inside the build bundle,
 alongside `spec.json`. Project builds normally place these files in
-`_generated/build/`.
+`artifacts/build/`.
 
 ## Structure
 
