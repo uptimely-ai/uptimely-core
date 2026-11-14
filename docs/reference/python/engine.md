@@ -4,10 +4,10 @@
 and records a preview, logs, and run metadata under `_generated/run/`.
 
 ```python
-from uptimely import Project
+from uptimely import Uptimely
 
-project = Project()
-result = project.create_engine(project.load_build_bundle()).run(validate=True)
+app = Uptimely()
+result = app.run(validate=True)
 ```
 
 By default, the engine checks the bundle and its configuration but does not
@@ -21,7 +21,7 @@ project, and each run replaces the latest saved run.
 
 ## Engine and configuration
 
-Use `Project.create_engine()` to apply project configuration. Constructing
+Use `Uptimely.run()` or `Uptimely.create_engine()` to apply project configuration. Constructing
 `Engine` directly does not load a TOML file. Supply `EngineConfig`, parameters,
 and paths explicitly when using it independently.
 

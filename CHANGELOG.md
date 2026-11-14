@@ -10,9 +10,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
-- `Project` loads project configuration at construction and supplies settings,
+- The public `Project` class is now `Uptimely`. Use `app.build()` to publish a
+  build and `app.run()` to execute the saved build without rebuilding.
+- `Uptimely` loads project configuration at construction and supplies settings,
   paths, and parameters through `create_engine()`. Direct `Engine` construction
-  no longer reads `uptimely.toml`. Use `Project` to apply project configuration.
+  no longer reads `uptimely.toml`. Use `Uptimely` to apply project configuration.
   The project configuration models are now exported from `uptimely.project`.
 - Engine runtime configuration now uses root `uptimely.toml` instead of
   `config/config.json`. Explicit `--config` paths must also point to TOML files.

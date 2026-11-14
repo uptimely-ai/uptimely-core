@@ -325,7 +325,7 @@ def test_engine_cli_builds_before_running(
     src_path = pathlib.Path("local_python")
 
     def build(
-        self: project_module.Project, *, src_path: pathlib.Path | None = None
+        self: project_module.Uptimely, *, src_path: pathlib.Path | None = None
     ) -> project_module.BuildBundle:
         output = capsys.readouterr().out
         assert "Start Uptimely engine run" in output
@@ -355,7 +355,7 @@ def test_engine_cli_builds_before_running(
             plan_version=execution_plan.PLAN_VERSION,
         )
 
-    monkeypatch.setattr(project_module.Project, "build", build)
+    monkeypatch.setattr(project_module.Uptimely, "build", build)
     monkeypatch.setattr(engine_module.Engine, "run", run)
 
     invoke(
@@ -380,11 +380,11 @@ def test_engine_cli_does_not_run_after_build_failure(
     command: tuple[str, ...],
 ) -> None:
     def fail_build(
-        self: project_module.Project, *, src_path: pathlib.Path | None = None
+        self: project_module.Uptimely, *, src_path: pathlib.Path | None = None
     ) -> project_module.BuildBundle:
         raise project_module.ProjectBuildError("generation", "invalid source")
 
-    monkeypatch.setattr(project_module.Project, "build", fail_build)
+    monkeypatch.setattr(project_module.Uptimely, "build", fail_build)
     monkeypatch.setattr(
         engine_module.Engine,
         "run",
@@ -852,7 +852,7 @@ def test_engine_config_loads_backend_and_params(tmp_path: pathlib.Path) -> None:
         '[engine.backend]\ndataframe = "polars"\n\n[params]\nthreshold = 10\n',
         encoding="utf-8",
     )
-    settings = project_module.Project(tmp_path).config
+    settings = project_module.Uptimely(tmp_path).config
     assert settings.engine.backend.dataframe == "polars"
     assert settings.params.root == {"threshold": 10}
 

@@ -10,7 +10,7 @@ from uptimely import project as project_module
 class ServerState:
     """Hold project configuration and cache its validated saved build."""
 
-    project: project_module.Project
+    project: project_module.Uptimely
     bundle: project_module.BuildBundle | None = dataclasses.field(default=None, repr=False)
 
     @property

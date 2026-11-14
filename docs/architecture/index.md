@@ -1,7 +1,7 @@
 # Architecture
 
-Uptimely has five core components: Project, Spec, Compiler, Engine, and
-Explorer. The Spec describes an analytical system. Project builds a portable
+Uptimely has five core components: project services, Spec, Compiler, Engine, and
+Explorer. The Spec describes an analytical system. Project services build a portable
 bundle containing the Spec and an execution plan resolved by the Compiler.
 The Engine executes the plan, and the Explorer presents build and run
 information for inspection.
@@ -77,7 +77,7 @@ Explorer can inspect the build without running the Engine.
   </div>
 </div>
 
-The [Project](project.md) coordinates the build and publishes the outputs.
+The [project services](project.md) coordinate the build and publish the outputs.
 See the [Compiler](compiler.md), [Execution plan](execution-plan.md),
 [Engine](engine.md), and [Explorer](explorer.md) pages for details.
 

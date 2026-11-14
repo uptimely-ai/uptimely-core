@@ -50,7 +50,7 @@ libraries and custom adapters are not supported.
 
 ## Engine configuration
 
-Project supplies the Engine with runtime configuration separately from the
+Uptimely supplies the Engine with runtime configuration separately from the
 Spec. A directly constructed Engine uses explicit settings and does not read
 configuration files. For the configuration file format, backend options, paths, and parameters, see
 [Uptimely config](config.md).

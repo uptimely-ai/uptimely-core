@@ -45,8 +45,9 @@ Before making project-wide changes, consult the relevant guides:
 - Update relevant documentation on significant public interfaces change.
 - Write documentation in original, clear wording. Reorganize or expand existing
   material when it improves clarity or fills a gap.
-- Keep documentation focused on user needs; avoid repeating details already
-  expressed by scripts or configuration.
+- Keep documentation focused on user needs
+- Avoid repeating details already expressed by scripts or configuration.
+- Do not describe changes, but framework's current behavior
 - Keep developer reference docs synced with code, avoid detailed lengthy text jargon
 - Keep root readme.md and docs/index.md synced
 - Keep example readme.md and getting-started/tutorial.md synced
@@ -54,6 +55,10 @@ Before making project-wide changes, consult the relevant guides:
 - Docs architecture section should not have code examples
 - Do not use semicolons ;
 - Do not use word canonical
+
+## Tests
+- Keep UI testing simple and small, it can be validated by user experience
+- Do not add tests to ensure old behavior is gone
 
 ## Breaking changes
 - Breaking changes are allowed on version 0.x.x

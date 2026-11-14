@@ -17,7 +17,7 @@ reference pages show the public classes and functions, grouped by package.
 | Use row windows in calculations | [Row context](row-context.md) |
 | Review shared argument and operator types | [Spec vocabulary](spec-vocabulary.md) |
 
-Common classes are available from `uptimely`, including `Spec`, `Project`,
+Common classes are available from `uptimely`, including `Spec`, `Uptimely`,
 `Compiler`, and `Engine`. CLI commands and MCP tools have separate references.
 
 For a complete example, see the

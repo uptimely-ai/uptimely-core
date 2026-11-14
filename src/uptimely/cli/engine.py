@@ -70,7 +70,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     with common.apply_log_level(args.log_level):
         logger.info("Start Uptimely engine run")
         try:
-            current_project = project.Project(root, config_path=args.config)
+            current_project = project.Uptimely(root, config_path=args.config)
             if args.build:
                 logger.info("Start building the project bundle")
                 bundle = current_project.build(src_path=args.src_path)
