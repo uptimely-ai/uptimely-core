@@ -13,11 +13,11 @@ from collections import abc
 import pytest
 from support import examples as example_support
 
+from uptimely import application, spec
 from uptimely import plan as plan_module
-from uptimely import project, spec
+from uptimely.application.build import builder as project_build
 from uptimely.cli import cli
 from uptimely.compiler import compiler as compiler_module
-from uptimely.project.build import builder as project_build
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 
@@ -29,14 +29,14 @@ def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
 
 def copy_project_spec(root: pathlib.Path) -> pathlib.Path:
     bundle = example_support.example_bundle()
-    source = root / project.SPEC_JSON_ENTRY_FILE
+    source = root / application.SPEC_JSON_ENTRY_FILE
     source.parent.mkdir(parents=True, exist_ok=True)
     shutil.copyfile(bundle.spec_path, source)
     return source
 
 
 def bundle_files(root: pathlib.Path) -> dict[str, bytes]:
-    build_root = root / project.BUILD_OUTPUT_DIR
+    build_root = root / application.BUILD_OUTPUT_DIR
     return {
         path.relative_to(build_root).as_posix(): path.read_bytes()
         for path in build_root.rglob("*")
@@ -70,7 +70,7 @@ def test_project_build_examples(
 ) -> None:
     root = copy_unbuilt_example(tmp_path)
     if empty_artifacts:
-        (root / project.ARTIFACTS_DIR).mkdir()
+        (root / application.ARTIFACTS_DIR).mkdir()
     arguments = ["--project-root", str(root)] if explicit_root else []
     if debug:
         arguments.extend(["--log-level", "debug"])
@@ -108,7 +108,9 @@ def test_project_build_examples(
                 assert message == message.lstrip()
                 assert not message.startswith("- ")
                 assert not message.endswith(":")
-        assert result.out.endswith(f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n")
+        assert result.out.endswith(
+            f"Build files created to {root / application.BUILD_OUTPUT_DIR}\n"
+        )
         assert "| Build   | Build scope" in result.out
         assert "| all features" in result.out
         assert "| spec.spec:python_spec" in result.out
@@ -117,14 +119,14 @@ def test_project_build_examples(
             "INFO     | Start spec validation\n"
             "INFO     | Spec validated\n"
             f"{'INFO':8} | "
-            f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
+            f"Build files created to {root / application.BUILD_OUTPUT_DIR}\n"
         )
-    bundle = project.load_build_bundle(root)
+    bundle = application.load_build_bundle(root)
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).profiles
     assert bundle.execution_plan.invocations
     assert set(bundle_files(root)) == {"build.json", "execution_plan.json", "spec.json"}
-    explorer_data = json.loads((root / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
+    explorer_data = json.loads((root / application.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert explorer_data["format_version"] == 3
 
 
@@ -138,7 +140,7 @@ def test_project_build_accepts_custom_src_path(
 
     invoke(monkeypatch, str(root), "--src-path", "python")
 
-    assert project.load_build_bundle(root).execution_plan.invocations
+    assert application.load_build_bundle(root).execution_plan.invocations
 
 
 def test_project_build_uses_named_config_and_cli_spec_override(
@@ -152,18 +154,18 @@ def test_project_build_uses_named_config_and_cli_spec_override(
     spec.write_document(spec.Spec(name="Production spec"), spec_dir / "production.json")
     spec.write_document(spec.Spec(name="CLI spec"), tmp_path / "cli.json")
     (root / "uptimely.toml").write_text(
-        '[project]\njson_spec = "spec/default.json"\n', encoding="utf-8"
+        '[application]\njson_spec = "spec/default.json"\n', encoding="utf-8"
     )
-    config_dir = root / project.CONFIG_DIR
+    config_dir = root / application.CONFIG_DIR
     config_dir.mkdir()
     (config_dir / "production.toml").write_text(
-        '[project]\njson_spec = "spec/production.json"\n', encoding="utf-8"
+        '[application]\njson_spec = "spec/production.json"\n', encoding="utf-8"
     )
     monkeypatch.chdir(tmp_path)
 
     invoke(monkeypatch, "--project-root", str(root), "--config", "production")
 
-    assert project.load_build_bundle(root).spec_definition.name == "Production spec"
+    assert application.load_build_bundle(root).spec_definition.name == "Production spec"
 
     invoke(
         monkeypatch,
@@ -175,7 +177,7 @@ def test_project_build_uses_named_config_and_cli_spec_override(
         str(tmp_path / "cli.json"),
     )
 
-    assert project.load_build_bundle(root).spec_definition.name == "CLI spec"
+    assert application.load_build_bundle(root).spec_definition.name == "CLI spec"
 
 
 def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None:
@@ -200,13 +202,13 @@ def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None
         "INFO     | Start spec validation\n"
         "INFO     | Spec validated\n"
         f"{'INFO':8} | "
-        f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
+        f"Build files created to {root / application.BUILD_OUTPUT_DIR}\n"
     )
-    bundle = project.load_build_bundle(root)
+    bundle = application.load_build_bundle(root)
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).profiles
     assert bundle.execution_plan.invocations
-    assert (root / project.EXPLORER_DATA_FILE).is_file()
+    assert (root / application.EXPLORER_DATA_FILE).is_file()
 
 
 def test_project_rebuild_replaces_previous_bundle(
@@ -214,7 +216,7 @@ def test_project_rebuild_replaces_previous_bundle(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     root = example_support.copy_example_project(tmp_path / "example")
-    bundle = project.load_build_bundle(root)
+    bundle = application.load_build_bundle(root)
     old_plan = bundle.execution_plan
     old_spec = bundle.spec_path.read_bytes()
     stale_file = bundle.root / "stale.html"
@@ -222,7 +224,7 @@ def test_project_rebuild_replaces_previous_bundle(
 
     invoke(monkeypatch, "--project-root", str(root))
 
-    rebuilt_bundle = project.load_build_bundle(root)
+    rebuilt_bundle = application.load_build_bundle(root)
     assert rebuilt_bundle.spec_path.read_bytes() == old_spec
     assert {item.id: item for item in rebuilt_bundle.execution_plan.invocations} == {
         item.id: item for item in old_plan.invocations
@@ -307,7 +309,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
     invoke(monkeypatch, "--project-root", str(root), *arguments)
 
     result = capsys.readouterr()
-    bundle = project.load_build_bundle(root)
+    bundle = application.load_build_bundle(root)
     assert not result.err
     if debug:
         spec_source = "declaration:definition" if source_kind != "json" else str(source)
@@ -329,9 +331,9 @@ def test_project_build_explicit_source_does_not_execute_workflow(
         )
     assert spec.load_spec(bundle.spec_path).profiles
     assert bundle.execution_plan.invocations
-    assert (root / project.EXPLORER_DATA_FILE).is_file()
+    assert (root / application.EXPLORER_DATA_FILE).is_file()
     assert not (root / "artifacts/spec").exists()
-    assert (root / project.EXPLORER_DATA_FILE).is_file()
+    assert (root / application.EXPLORER_DATA_FILE).is_file()
 
 
 @pytest.mark.parametrize("scoped", [False, True])
@@ -352,7 +354,7 @@ def test_project_build_debug_summary(
     invoke(monkeypatch, "--project-root", str(root), "--log-level", "debug", *arguments)
 
     result = capsys.readouterr()
-    bundle = project.load_build_bundle(root)
+    bundle = application.load_build_bundle(root)
     scope = "pump_health_score" if scoped else "all features"
     assert not result.err
     rows = [
@@ -389,11 +391,11 @@ def test_failed_build_prints_trace_without_summary_and_preserves_logging(
     handlers, propagate = target.handlers[:], target.propagate
 
     def fail_build(*args: object, **kwargs: object) -> None:
-        logging.getLogger("uptimely.project.build").debug("attempting build")
-        logging.getLogger("uptimely.project.build").warning("build warning")
+        logging.getLogger("uptimely.application.build").debug("attempting build")
+        logging.getLogger("uptimely.application.build").warning("build warning")
         raise ValueError("injected failure")
 
-    monkeypatch.setattr(project.Uptimely, "build", fail_build)
+    monkeypatch.setattr(application.Uptimely, "build", fail_build)
 
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch, "--project-root", str(tmp_path), "--log-level", "debug")
@@ -437,7 +439,7 @@ def test_project_build_keeps_warnings_visible(
         "INFO     | Start spec validation\n"
         "INFO     | Spec validated\n"
         f"{'INFO':8} | "
-        f"Build files created to {root / project.BUILD_OUTPUT_DIR}\n"
+        f"Build files created to {root / application.BUILD_OUTPUT_DIR}\n"
     )
 
 
@@ -534,9 +536,9 @@ def test_project_build_failures_preserve_previous_bundle(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    shutil.copytree(example_support.example_bundle().root, root / project.BUILD_OUTPUT_DIR)
+    shutil.copytree(example_support.example_bundle().root, root / application.BUILD_OUTPUT_DIR)
     old_bundle = bundle_files(root)
-    snapshot = root / project.EXPLORER_DATA_FILE
+    snapshot = root / application.EXPLORER_DATA_FILE
     snapshot.parent.mkdir(parents=True, exist_ok=True)
     snapshot.write_text("previous snapshot", encoding="utf-8")
 
@@ -578,11 +580,11 @@ def test_project_build_failures_preserve_previous_bundle(
     assert error.value.code == 1
     result = capsys.readouterr()
     assert expected in result.err
-    assert f"Build files created to {root / project.BUILD_OUTPUT_DIR}" not in result.out
+    assert f"Build files created to {root / application.BUILD_OUTPUT_DIR}" not in result.out
     assert bundle_files(root) == old_bundle
     assert snapshot.read_text(encoding="utf-8") == "previous snapshot"
-    assert not list((root / project.ARTIFACTS_DIR).glob(".build-staging-*"))
-    assert not list((root / project.ARTIFACTS_DIR).glob(".build-backup-*"))
+    assert not list((root / application.ARTIFACTS_DIR).glob(".build-staging-*"))
+    assert not list((root / application.ARTIFACTS_DIR).glob(".build-backup-*"))
 
 
 def test_snapshot_publication_failure_preserves_previous_snapshot(
@@ -591,7 +593,7 @@ def test_snapshot_publication_failure_preserves_previous_snapshot(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    snapshot = root / project.EXPLORER_DATA_FILE
+    snapshot = root / application.EXPLORER_DATA_FILE
     snapshot.parent.mkdir(parents=True, exist_ok=True)
     snapshot.write_text("previous snapshot", encoding="utf-8")
     original_replace = project_build.os.replace
@@ -603,10 +605,10 @@ def test_snapshot_publication_failure_preserves_previous_snapshot(
 
     monkeypatch.setattr(project_build.os, "replace", fail_snapshot_replace)
 
-    with pytest.raises(project.ProjectBuildError, match="Explorer snapshot publication failed"):
+    with pytest.raises(application.ProjectBuildError, match="Explorer snapshot publication failed"):
         project_build.build(root)
 
-    assert project.load_build_bundle(root).manifest.build_version == project.BUILD_VERSION
+    assert application.load_build_bundle(root).manifest.build_version == application.BUILD_VERSION
     assert snapshot.read_text(encoding="utf-8") == "previous snapshot"
     assert not list(snapshot.parent.glob(f".{snapshot.name}.*.tmp"))
 
@@ -615,7 +617,7 @@ def test_snapshot_readers_observe_complete_old_or_new_data(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    snapshot = tmp_path / project.EXPLORER_DATA_FILE
+    snapshot = tmp_path / application.EXPLORER_DATA_FILE
     snapshot.parent.mkdir(parents=True)
     previous = b'{"generation":"previous"}'
     replacement = '{"generation":"replacement"}'
@@ -662,15 +664,15 @@ def test_project_build_fails_while_bundle_lock_is_held(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    shutil.copytree(example_support.example_bundle().root, root / project.BUILD_OUTPUT_DIR)
+    shutil.copytree(example_support.example_bundle().root, root / application.BUILD_OUTPUT_DIR)
 
     with (
-        project.build_lock(root, exclusive=exclusive),
-        pytest.raises(project.BuildLockError, match="active build lock"),
+        application.build_lock(root, exclusive=exclusive),
+        pytest.raises(application.BuildLockError, match="active build lock"),
     ):
         project_build.build(root)
 
-    assert project.load_build_bundle(root).manifest.features is None
+    assert application.load_build_bundle(root).manifest.features is None
 
 
 def test_read_build_bundle_holds_lock_for_consumer_lifetime(
@@ -678,26 +680,26 @@ def test_read_build_bundle_holds_lock_for_consumer_lifetime(
 ) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    shutil.copytree(example_support.example_bundle().root, root / project.BUILD_OUTPUT_DIR)
-    built_bundle = project.load_build_bundle(root)
+    shutil.copytree(example_support.example_bundle().root, root / application.BUILD_OUTPUT_DIR)
+    built_bundle = application.load_build_bundle(root)
 
-    with project.read_build_bundle(root) as bundle:
+    with application.read_build_bundle(root) as bundle:
         assert bundle.root == built_bundle.root
-        with pytest.raises(project.BuildLockError, match="active build lock"):
+        with pytest.raises(application.BuildLockError, match="active build lock"):
             project_build.build(root)
 
-    assert project.load_build_bundle(root).manifest.features is None
+    assert application.load_build_bundle(root).manifest.features is None
 
 
 def test_project_build_rejects_invalid_scope(tmp_path: pathlib.Path) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
 
-    with pytest.raises(project.ProjectBuildError, match="at least one output feature"):
+    with pytest.raises(application.ProjectBuildError, match="at least one output feature"):
         project_build.build(root, features=[])
-    with pytest.raises(project.ProjectBuildError, match="Unknown output feature"):
+    with pytest.raises(application.ProjectBuildError, match="Unknown output feature"):
         project_build.build(root, features=["not-a-feature"])
-    assert not (root / project.BUILD_OUTPUT_DIR).exists()
+    assert not (root / application.BUILD_OUTPUT_DIR).exists()
 
 
 def test_project_build_missing_source(
@@ -707,7 +709,7 @@ def test_project_build_missing_source(
         invoke(monkeypatch, "--project-root", str(tmp_path))
     assert error.value.code == 1
     assert "Project build source loading failed: No spec source found" in capsys.readouterr().err
-    assert not (tmp_path / project.ARTIFACTS_DIR).exists()
+    assert not (tmp_path / application.ARTIFACTS_DIR).exists()
 
 
 def test_project_build_help(

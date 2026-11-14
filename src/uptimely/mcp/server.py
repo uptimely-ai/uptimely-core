@@ -7,7 +7,7 @@ import sys
 
 import fastmcp
 
-from uptimely import project
+from uptimely import application
 
 from . import analytical, diagnostics, state
 
@@ -59,7 +59,9 @@ def main() -> None:
     logging.basicConfig(level=logging.INFO, stream=sys.stderr)
     logger.info("Starting uptimely MCP server for project %s", args.project_root)
 
-    server_state = state.ServerState(project.Uptimely(args.project_root, config_path=args.config))
+    server_state = state.ServerState(
+        application.Uptimely(args.project_root, config_path=args.config)
+    )
     create_server(server_state).run()
 
 

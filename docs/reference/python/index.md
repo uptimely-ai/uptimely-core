@@ -7,7 +7,7 @@ reference pages show the public classes and functions, grouped by package.
 | --- | --- |
 | Declare profiles and calculations | [Python authoring](python.md) |
 | Load, validate, and write a Spec | [Spec](spec.md) |
-| Build or load a project bundle | [App](project.md) |
+| Build or load a project bundle | [App](application.md) |
 | Compile and serialize an execution plan | [Compiler and plans](compiler.md) |
 | Run analytics and read results | [Execution engine](engine.md) |
 | Inspect feature dependencies | [Feature graphs](feature-graph.md) |

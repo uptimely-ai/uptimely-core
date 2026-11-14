@@ -1,6 +1,6 @@
 """Standard project paths and active build bundle validation."""
 
-from .application import Uptimely
+from .app import Uptimely
 from .build import (
     BUILD_VERSION,
     BuildArtifactPaths,

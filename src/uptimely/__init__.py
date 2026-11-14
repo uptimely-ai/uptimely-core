@@ -28,7 +28,7 @@ from .spec.python import (
 from .compiler import Compiler, InvocationGraph, InvocationNode
 from .plan.models import ExecutionPlan
 from .engine import Engine
-from .project import Uptimely
+from .application import Uptimely
 
 __all__ = [
     "Spec",

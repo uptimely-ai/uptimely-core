@@ -10,7 +10,7 @@ import polars
 import pytest
 from support import examples as example_support
 
-from uptimely import compiler, project, spec
+from uptimely import application, compiler, spec
 from uptimely import entrypoint as shared_entrypoint
 from uptimely import plan as plan
 from uptimely.explorer.sections import spec as spec_render
@@ -198,7 +198,7 @@ def test_compiler_rejects_missing_function_entrypoints(
 
 @pytest.mark.parametrize("level", [logging.DEBUG, logging.INFO])
 def test_compiler_summarizes_invocation_checks_once(
-    caplog: pytest.LogCaptureFixture, pump_bundle: project.BuildBundle, level: int
+    caplog: pytest.LogCaptureFixture, pump_bundle: application.BuildBundle, level: int
 ) -> None:
     caplog.set_level(level, logger="uptimely.compiler")
     builder = compiler.Compiler()
@@ -269,7 +269,7 @@ def test_explorer_context_reports_unloadable_function_modules() -> None:
 
 
 def test_compiler_skips_disabled_signatures_without_changing_dependencies(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, pump_bundle: project.BuildBundle
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, pump_bundle: application.BuildBundle
 ) -> None:
     spec_definition = pump_bundle.spec_definition
     baseline = pump_bundle.execution_plan

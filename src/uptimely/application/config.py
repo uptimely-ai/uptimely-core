@@ -66,7 +66,9 @@ class ProjectSettings(pydantic.BaseModel):
     def validate_spec_source(self) -> ProjectSettings:
         """Require Python and JSON spec sources to be mutually exclusive."""
         if self.python_spec is not None and self.json_spec is not None:
-            raise ValueError("Specify either project.python_spec or project.json_spec, not both")
+            raise ValueError(
+                "Specify either application.python_spec or application.json_spec, not both"
+            )
         return self
 
 
@@ -75,7 +77,7 @@ class ProjectConfig(pydantic.BaseModel):
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True)
 
-    project: ProjectSettings = pydantic.Field(default_factory=ProjectSettings)
+    application: ProjectSettings = pydantic.Field(default_factory=ProjectSettings)
     engine: engine_config.EngineConfig = pydantic.Field(default_factory=engine_config.EngineConfig)
     params: Params = pydantic.Field(default_factory=lambda: Params(root={}))
     paths: Paths = pydantic.Field(default_factory=lambda: Paths(root={}))

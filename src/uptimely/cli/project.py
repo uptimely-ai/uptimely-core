@@ -7,10 +7,10 @@ import time
 
 import polars as pl
 
-from uptimely import project
+from uptimely import application
+from uptimely.application import BuildBundle, BuildLockError, ProjectBuildError
+from uptimely.application.build import source as build_source
 from uptimely.cli import common
-from uptimely.project import BuildBundle, BuildLockError, ProjectBuildError
-from uptimely.project.build import source as build_source
 
 logger = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ def _log_build_details(
     root: pathlib.Path,
     args: argparse.Namespace,
     duration: float,
-    app: project.Uptimely,
+    app: application.Uptimely,
 ) -> None:
     """Log build details and full-spec counts alongside the compiled plan."""
     definition = bundle.spec_definition

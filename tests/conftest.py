@@ -7,7 +7,7 @@ import tempfile
 import pytest
 from support import examples, execution
 
-from uptimely import engine, project, spec
+from uptimely import application, engine, spec
 from uptimely import plan as execution_plan
 
 
@@ -25,7 +25,7 @@ def example_bundle_factory(example_projects: pathlib.Path) -> examples.BundleFac
 
 
 @pytest.fixture
-def pump_bundle(example_bundle_factory: examples.BundleFactory) -> project.BuildBundle:
+def pump_bundle(example_bundle_factory: examples.BundleFactory) -> application.BuildBundle:
     """Provide one independent pump bundle per test."""
     return example_bundle_factory()
 
@@ -45,7 +45,7 @@ def bundle_for_plan(tmp_path: pathlib.Path) -> execution.BundleFactory:
         execution_plan: execution_plan.ExecutionPlan,
         project_root: pathlib.Path | None = None,
         spec_definition: spec.Spec | None = None,
-    ) -> project.BuildBundle:
+    ) -> application.BuildBundle:
         return execution.bundle_for_plan(
             execution_plan,
             project_root,

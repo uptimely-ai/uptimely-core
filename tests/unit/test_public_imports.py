@@ -5,6 +5,7 @@ import uptimely.compiler as compiler
 import uptimely.engine as engine
 import uptimely.plan as execution_plan
 import uptimely.spec as spec
+from uptimely.application import Params, ProjectConfig
 from uptimely.compiler.compiler import Compiler as CompilerImplementation
 from uptimely.compiler.graph import (
     InvocationGraph as InvocationGraphImplementation,
@@ -16,7 +17,6 @@ from uptimely.engine.config import EngineConfig
 from uptimely.engine.engine import Engine as EngineImplementation
 from uptimely.explorer import graph_style
 from uptimely.plan.models import ExecutionPlan, Invocation
-from uptimely.project import Params, ProjectConfig
 from uptimely.spec import feature_graph
 from uptimely.spec import model as spec_model
 from uptimely.spec import python as python_spec
@@ -74,8 +74,8 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert engine.Dataset.__module__ == "uptimely.engine.dataframe.dataset"
     assert not hasattr(engine, "MainFrame")
     assert engine.EngineConfig is EngineConfig
-    assert uptimely.project.Params is Params
-    assert uptimely.project.ProjectConfig is ProjectConfig
+    assert uptimely.application.Params is Params
+    assert uptimely.application.ProjectConfig is ProjectConfig
 
 
 def test_root_authoring_exports_preserve_object_identity() -> None:

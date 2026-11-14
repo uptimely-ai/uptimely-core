@@ -56,7 +56,7 @@ previews and debugging files. Each run replaces
 `artifacts/run/`, so it does not retain a history of earlier runs.
 
 Uptimely makes the project root and the configured source directory importable
-during builds and runs. Set `project.src_path` or use `--src-path` to select a
+during builds and runs. Set `application.src_path` or use `--src-path` to select a
 different source directory.
 Use a distinctive module name under the source directory to avoid conflicts
 with dependencies and Python's standard library. The `uptimely` name is reserved

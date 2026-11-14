@@ -9,7 +9,7 @@ import pytest
 from starlette.types import ASGIApp
 from support import examples as example_support
 
-from uptimely import compiler, project
+from uptimely import application, compiler
 from uptimely.cli import cli, explorer
 from uptimely.explorer import server as explorer_server
 
@@ -68,7 +68,7 @@ def test_explorer_reports_invalid_build(
 ) -> None:
     root = tmp_path / "project"
     if bundle_state == "incomplete":
-        (root / project.BUILD_OUTPUT_DIR).mkdir(parents=True)
+        (root / application.BUILD_OUTPUT_DIR).mkdir(parents=True)
     monkeypatch.setattr(
         explorer,
         "serve_explorer",
@@ -94,7 +94,7 @@ def test_explorer_serves_packaged_frontend_without_building(
     built_project: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    project.load_build_bundle(built_project)
+    application.load_build_bundle(built_project)
     served: list[tuple[pathlib.Path, str, int, str]] = []
 
     def fail(*args: object, **kwargs: object) -> None:
@@ -104,12 +104,12 @@ def test_explorer_serves_packaged_frontend_without_building(
         served.append((built_project, "127.0.0.1", 0, "all features"))
         static_root = pathlib.Path(explorer_server.__file__).parent / "app" / "static"
         assert app.routes[-1].app.directory == str(static_root)
-        with project.build_lock(built_project, exclusive=True, wait=False):
+        with application.build_lock(built_project, exclusive=True, wait=False):
             pass
         assert host == "127.0.0.1"
         assert port == 0
 
-    monkeypatch.setattr(project, "load_spec_source", fail)
+    monkeypatch.setattr(application, "load_spec_source", fail)
     monkeypatch.setattr(compiler.Compiler, "compile", fail)
     monkeypatch.setattr(explorer_server.uvicorn, "run", serve_and_check_assets)
     monkeypatch.setattr(
@@ -131,7 +131,7 @@ def test_explorer_reports_selected_scope(
     built_project = example_project_factory(
         tmp_path / "project with spaces", features=("pump_health_score",)
     )
-    project.load_build_bundle(built_project)
+    application.load_build_bundle(built_project)
     scopes: list[str] = []
 
     def record_scope(directory: pathlib.Path, host: str, port: int, scope: str) -> None:
@@ -147,7 +147,9 @@ def test_explorer_reports_selected_scope(
     cli.main()
 
     assert scopes == ["selected features: pump_health_score"]
-    snapshot = json.loads((built_project / project.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
+    snapshot = json.loads(
+        (built_project / application.EXPLORER_DATA_FILE).read_text(encoding="utf-8")
+    )
     assert snapshot["scope"]["label"] == "selected features: pump_health_score"
 
 
@@ -197,17 +199,17 @@ def test_explorer_build_option_builds_before_serving(
     src_path = pathlib.Path("local_python")
 
     def build(
-        self: project.Uptimely, *, src_path: pathlib.Path | None = None
-    ) -> project.BuildBundle:
+        self: application.Uptimely, *, src_path: pathlib.Path | None = None
+    ) -> application.BuildBundle:
         events.append("build")
         assert self.root == built_project
         assert src_path == pathlib.Path("local_python")
-        return project.load_build_bundle(self.root)
+        return application.load_build_bundle(self.root)
 
     def serve(*args: object) -> None:
         events.append("serve")
 
-    monkeypatch.setattr(project.Uptimely, "build", build)
+    monkeypatch.setattr(application.Uptimely, "build", build)
     monkeypatch.setattr(explorer, "serve_explorer", serve)
     arguments = (
         ["explorer", "serve", str(built_project)]
@@ -229,11 +231,11 @@ def test_explorer_build_failure_does_not_serve(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     def fail_build(
-        self: project.Uptimely, *, src_path: pathlib.Path | None = None
-    ) -> project.BuildBundle:
-        raise project.ProjectBuildError("generation", "invalid source")
+        self: application.Uptimely, *, src_path: pathlib.Path | None = None
+    ) -> application.BuildBundle:
+        raise application.ProjectBuildError("generation", "invalid source")
 
-    monkeypatch.setattr(project.Uptimely, "build", fail_build)
+    monkeypatch.setattr(application.Uptimely, "build", fail_build)
     monkeypatch.setattr(
         explorer,
         "serve_explorer",

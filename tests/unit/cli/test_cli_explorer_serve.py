@@ -12,7 +12,7 @@ import polars as pl
 import pytest
 from starlette.types import ASGIApp, Message, Scope
 
-from uptimely import engine, project, spec
+from uptimely import application, engine, spec
 from uptimely import plan as execution_plan
 from uptimely.cli import explorer
 from uptimely.explorer import server as explorer_server
@@ -89,7 +89,7 @@ def _get(app: ASGIApp, path: str) -> tuple[int, bytes, dict[str, str]]:
 def _saved_run(tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch) -> engine.Engine:
     source = tmp_path / "spec.json"
     spec.write_document(spec.Spec(), source)
-    bundle = project.build(tmp_path, json_spec=source)
+    bundle = application.build(tmp_path, json_spec=source)
     runtime = engine.Engine(bundle, engine.EngineConfig())
 
     def execute(**kwargs: object) -> engine.ExecutionResult:
@@ -175,7 +175,7 @@ def test_run_api_reports_invalid_or_missing_artifacts(
 
 
 def test_app_serves_packaged_frontend_and_reads_fresh_snapshot(tmp_path: pathlib.Path) -> None:
-    snapshot_path = tmp_path / project.EXPLORER_DATA_FILE
+    snapshot_path = tmp_path / application.EXPLORER_DATA_FILE
     snapshot_path.parent.mkdir(parents=True)
     snapshot_path.write_text(json.dumps(_snapshot()), encoding="utf-8")
     app = explorer_server.create_app(tmp_path)
@@ -210,21 +210,21 @@ def test_api_reads_snapshot_after_project_rebuild(tmp_path: pathlib.Path) -> Non
     spec_path = project_root / "spec.json"
     definition = spec.Spec(name="Before rebuild")
     spec.write_document(definition, spec_path)
-    project.build(project_root, json_spec=spec_path)
+    application.build(project_root, json_spec=spec_path)
     app = explorer_server.create_app(project_root)
 
     assert json.loads(_get(app, "/api/explorer")[1])["project"]["name"] == "Before rebuild"
 
     definition.name = "After rebuild"
     spec.write_document(definition, spec_path)
-    project.build(project_root, json_spec=spec_path)
+    application.build(project_root, json_spec=spec_path)
 
     assert json.loads(_get(app, "/api/explorer")[1])["project"]["name"] == "After rebuild"
 
 
 @pytest.mark.parametrize("kind", ["missing", "corrupt", "unsupported"])
 def test_snapshot_api_reports_rebuild_instructions(tmp_path: pathlib.Path, kind: str) -> None:
-    snapshot_path = tmp_path / project.EXPLORER_DATA_FILE
+    snapshot_path = tmp_path / application.EXPLORER_DATA_FILE
     if kind != "missing":
         snapshot_path.parent.mkdir(parents=True)
         content = "not json" if kind == "corrupt" else json.dumps({"format_version": 99})
@@ -239,7 +239,7 @@ def test_snapshot_api_reports_rebuild_instructions(tmp_path: pathlib.Path, kind:
 def test_export_route_returns_static_zip_with_relative_data_url(
     tmp_path: pathlib.Path,
 ) -> None:
-    snapshot_path = tmp_path / project.EXPLORER_DATA_FILE
+    snapshot_path = tmp_path / application.EXPLORER_DATA_FILE
     snapshot_path.parent.mkdir(parents=True)
     snapshot_path.write_text(json.dumps(_snapshot()), encoding="utf-8")
 
@@ -269,7 +269,7 @@ def test_serve_explorer_uses_uvicorn_without_a_build_lock(
 ) -> None:
     root = tmp_path / "project"
     root.mkdir()
-    snapshot_path = root / project.EXPLORER_DATA_FILE
+    snapshot_path = root / application.EXPLORER_DATA_FILE
     snapshot_path.parent.mkdir(parents=True)
     snapshot_path.write_text(json.dumps(_snapshot()), encoding="utf-8")
     calls: list[tuple[str, int]] = []
@@ -279,7 +279,7 @@ def test_serve_explorer_uses_uvicorn_without_a_build_lock(
         calls.append((host, port))
         assert _get(app, "/")[0] == 200
         assert _get(app, "/api/explorer")[0] == 200
-        with project.build_lock(root, exclusive=True, wait=False):
+        with application.build_lock(root, exclusive=True, wait=False):
             pass
         raise KeyboardInterrupt
 

@@ -11,7 +11,7 @@ import pytest
 from support import examples as example_support
 from support import execution as execution_support
 
-from uptimely import plan, project
+from uptimely import application, plan
 
 
 def _configured_parameters(project_root: pathlib.Path) -> dict[str, object]:
@@ -242,7 +242,7 @@ def test_selected_feature_runs_full_profile_writer_dependencies(
 )
 def test_engine_resolves_capacity_with_validation(
     tmp_path: pathlib.Path,
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
     engine_for_plan: execution_support.EngineFactory,
     pump_value: float | None,
     series_value: float | None,

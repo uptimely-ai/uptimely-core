@@ -5,13 +5,13 @@ import dataclasses
 import polars as pl
 import pytest
 
-from uptimely import engine, project
+from uptimely import application, engine
 from uptimely.mcp import results
 
 TARGET = ("pump_telemetry", "pump_health_score")
 
 
-def _result(bundle: project.BuildBundle) -> engine.ExecutionResult:
+def _result(bundle: application.BuildBundle) -> engine.ExecutionResult:
     """Create a completed result without running project functions."""
     return engine.ExecutionResult(
         datasets={},
@@ -29,7 +29,7 @@ def _result(bundle: project.BuildBundle) -> engine.ExecutionResult:
     )
 
 
-def test_full_build_reports_late_failure_as_warning(pump_bundle: project.BuildBundle) -> None:
+def test_full_build_reports_late_failure_as_warning(pump_bundle: application.BuildBundle) -> None:
     result = dataclasses.replace(
         _result(pump_bundle),
         failures={"writer": "Write failed"},
@@ -42,7 +42,9 @@ def test_full_build_reports_late_failure_as_warning(pump_bundle: project.BuildBu
     assert "failures" not in payload
 
 
-def test_full_build_reports_missing_outputs_as_failure(pump_bundle: project.BuildBundle) -> None:
+def test_full_build_reports_missing_outputs_as_failure(
+    pump_bundle: application.BuildBundle,
+) -> None:
     result = dataclasses.replace(
         _result(pump_bundle),
         calculated_outputs={},
@@ -56,7 +58,7 @@ def test_full_build_reports_missing_outputs_as_failure(pump_bundle: project.Buil
     assert payload["datasets"] == []
 
 
-def test_targeted_run_keeps_execution_failure(pump_bundle: project.BuildBundle) -> None:
+def test_targeted_run_keeps_execution_failure(pump_bundle: application.BuildBundle) -> None:
     result = dataclasses.replace(
         _result(pump_bundle), failures={"calculation": "Calculation failed"}
     )
@@ -69,7 +71,9 @@ def test_targeted_run_keeps_execution_failure(pump_bundle: project.BuildBundle) 
     assert payload["target"] == {"profile": TARGET[0], "operator": TARGET[1]}
 
 
-def test_unrelated_preview_failure_does_not_fail_target(pump_bundle: project.BuildBundle) -> None:
+def test_unrelated_preview_failure_does_not_fail_target(
+    pump_bundle: application.BuildBundle,
+) -> None:
     identifiers = pump_bundle.spec_definition.identifiers_by_profile[TARGET[0]]
     frame = pl.DataFrame({name: [] for name in [*identifiers, TARGET[1], "unrequested"]})
     result = dataclasses.replace(
@@ -94,7 +98,7 @@ def test_unrelated_preview_failure_does_not_fail_target(pump_bundle: project.Bui
 
 
 def test_missing_preview_without_engine_failure_is_explicit(
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
 ) -> None:
     with pytest.raises(TypeError, match="without a serializable dataset preview"):
         results.ExecutionResponse.format(pump_bundle, _result(pump_bundle), TARGET)

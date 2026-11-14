@@ -13,9 +13,9 @@ import uuid
 import pydantic
 
 from uptimely import compiler, spec
+from uptimely.application import defaults, paths
 from uptimely.explorer import presentation
 from uptimely.plan import serialization as plan_serialization
-from uptimely.project import defaults, paths
 
 from . import bundle, errors, locking, models
 from . import features as feature_selection

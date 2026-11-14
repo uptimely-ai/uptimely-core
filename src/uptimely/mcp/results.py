@@ -2,7 +2,7 @@
 
 import polars as pl
 
-from uptimely import engine, project
+from uptimely import application, engine
 
 
 class ExecutionResponse:
@@ -11,7 +11,7 @@ class ExecutionResponse:
     @classmethod
     def format(
         cls,
-        bundle: project.BuildBundle,
+        bundle: application.BuildBundle,
         result: engine.ExecutionResult,
         operator: tuple[str, str] | None = None,
     ) -> dict[str, object]:
@@ -50,7 +50,7 @@ class ExecutionResponse:
 
     @staticmethod
     def _outputs(
-        bundle: project.BuildBundle,
+        bundle: application.BuildBundle,
         result: engine.ExecutionResult,
         operator: tuple[str, str] | None,
     ) -> dict[str, list[str]]:
@@ -68,7 +68,7 @@ class ExecutionResponse:
 
     @staticmethod
     def _succeeded(
-        bundle: project.BuildBundle,
+        bundle: application.BuildBundle,
         result: engine.ExecutionResult,
         operator: tuple[str, str] | None,
     ) -> bool:
@@ -83,7 +83,7 @@ class ExecutionResponse:
 
     @staticmethod
     def _datasets(
-        bundle: project.BuildBundle,
+        bundle: application.BuildBundle,
         result: engine.ExecutionResult,
         outputs: dict[str, list[str]],
         preview_failures: dict[str, str],

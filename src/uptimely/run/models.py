@@ -8,10 +8,10 @@ import typing
 
 import pydantic
 
+from uptimely.application.build import models as build_models
 from uptimely.engine import config
 from uptimely.engine.runtime import result
 from uptimely.plan import serialization
-from uptimely.project.build import models as build_models
 
 LOG_FILE = "log.jsonl"
 MANIFEST_FILE = "run.json"

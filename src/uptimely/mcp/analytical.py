@@ -5,7 +5,7 @@ import typing
 
 import fastmcp
 
-from uptimely import entrypoint, project
+from uptimely import application, entrypoint
 
 from . import results, serialization, state
 
@@ -330,7 +330,7 @@ class AnalyticalTools:
         )
 
     @staticmethod
-    def _build_details(bundle: project.BuildBundle) -> dict[str, typing.Any]:
+    def _build_details(bundle: application.BuildBundle) -> dict[str, typing.Any]:
         """Describe saved build scope without implying that it was recompiled."""
         features = bundle.manifest.features
         return {

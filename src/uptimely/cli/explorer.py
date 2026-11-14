@@ -4,7 +4,7 @@ import argparse
 import logging
 import pathlib
 
-from uptimely import project
+from uptimely import application
 from uptimely.cli import common
 from uptimely.explorer import export as explorer_export
 from uptimely.explorer import server as explorer_server
@@ -104,7 +104,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             app = common.create_project(project_root, args.config)
             bundle = app.build(src_path=args.src_path)
             logger.info("Build files created to %s", bundle.root)
-        bundle = project.load_build_bundle(project_root)
+        bundle = application.load_build_bundle(project_root)
         scope = (
             "all features"
             if bundle.manifest.features is None

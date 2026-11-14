@@ -6,8 +6,8 @@ import sys
 import pytest
 from support import examples as example_support
 
+from uptimely import application
 from uptimely import plan as execution_plan
-from uptimely import project
 from uptimely.cli import cli
 from uptimely.explorer.sections import spec as explorer_spec
 from uptimely.spec.feature_graph import feature_graph
@@ -16,7 +16,9 @@ REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLE_ROOT = example_support.EXAMPLES_ROOT
 
 
-def test_telemetry_relations_are_identifiers_not_features(pump_bundle: project.BuildBundle) -> None:
+def test_telemetry_relations_are_identifiers_not_features(
+    pump_bundle: application.BuildBundle,
+) -> None:
     document = pump_bundle.spec_definition
     telemetry = document.profiles["pump_telemetry"]
     relations = {
@@ -50,7 +52,7 @@ def test_telemetry_relations_are_identifiers_not_features(pump_bundle: project.B
 
 
 def test_hourly_warning_aggregates_all_measurements_in_one_operator(
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
 ) -> None:
     profile_id = "pump_telemetry_by_hour_when_warning"
     invocations = [
@@ -85,7 +87,9 @@ def test_hourly_warning_aggregates_all_measurements_in_one_operator(
     }
 
 
-def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.BuildBundle) -> None:
+def test_compiled_invocations_capture_runtime_contracts(
+    pump_bundle: application.BuildBundle,
+) -> None:
     document = pump_bundle.spec_definition
     restored = execution_plan.from_dict(execution_plan.to_dict(pump_bundle.execution_plan))
 
@@ -112,7 +116,7 @@ def test_compiled_invocations_capture_runtime_contracts(pump_bundle: project.Bui
 
 
 def test_each_profile_publishes_its_features_with_the_shared_writer(
-    pump_bundle: project.BuildBundle,
+    pump_bundle: application.BuildBundle,
 ) -> None:
     expected_outputs = {
         "constants": (
@@ -227,18 +231,18 @@ def test_project_build_cli_exports_complete_bundle(
     )
     cli.main()
 
-    bundle = project_root / project.BUILD_OUTPUT_DIR
+    bundle = project_root / application.BUILD_OUTPUT_DIR
     assert (bundle / "build.json").is_file()
     assert (bundle / "spec.json").is_file()
     assert (bundle / "execution_plan.json").is_file()
     assert not (bundle / "explorer").exists()
-    assert (project_root / project.EXPLORER_DATA_FILE).is_file()
+    assert (project_root / application.EXPLORER_DATA_FILE).is_file()
     assert not (project_root / "artifacts/spec/spec.json").exists()
     assert not (project_root / "artifacts/compile/execution_plan.json").exists()
 
 
 def test_compiled_plan_export_omits_generated_timestamp(
-    tmp_path: pathlib.Path, pump_bundle: project.BuildBundle
+    tmp_path: pathlib.Path, pump_bundle: application.BuildBundle
 ) -> None:
     plan = pump_bundle.execution_plan
 
