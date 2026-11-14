@@ -2,11 +2,12 @@
 
 This is a planned release grouping, not a published software version. Work packages remain ordered by their stated prerequisites.
 
-## Explorer explanations
+## Work package: Explorer explanations
 
 | title | breaking | description |
 |---|---|---|
-| Add explanations for non-experts | No | Extend metadata extraction with `Explanation:` and `Formula:` sections containing argument placeholders. Explorer fills them with bound feature descriptions and units and combines them into output lineage stories. |
+| Extract explanation and formula sections | No | Recognize `Explanation:` and `Formula:` metadata sections with argument placeholders. |
+| Render bound lineage explanations | No | Fill placeholders with bound feature descriptions and units, then combine the text into output lineage stories. |
 
 ## Work package: Explorer navigation and contextual controls
 
@@ -20,15 +21,17 @@ static presentation snapshots.
 
 | title | breaking | description |
 |---|---|---|
-| Separate Catalog and Lineage navigation | No | Rename Analytical model to Catalog for declaration browsing. Give Lineage its own section, initially containing the existing feature-lineage page, with Overview and Matrix added by later packages. Keep existing profile cards in Catalog rather than creating another equivalent card overview. Preserve resource direct links and browser history when reorganizing navigation. |
-| Share resource details and exploration entry points | No | Reuse resource-detail content across Catalog and Lineage instead of maintaining competing descriptions. Link graph selections to their Catalog resources and add Explore dependencies entry points for profiles and features. Keep functions and dimensions directly searchable and browsable without graph navigation. |
-| Separate view options from selection context | No | Use page-specific toolbars for search, scope, and display settings. Keep the active graph scope and fit/zoom controls visible on mobile. Put less frequent settings and legends under Options, separate from selected-resource actions and details. Replace the graph selection dialog on mobile with a compact, expandable bottom sheet with explicit close and expand controls. Do not stack Options and selection overlays. Preserve other pages' contextual navigation. |
-| Verify navigation and mobile interaction | No | Test direct links, browser back/forward, keyboard navigation, selection details, overlay dismissal, narrow-screen layouts, and existing Plan and Run behavior. Page and focus changes belong in navigation history, while zoom, legend visibility, and transient graph selections do not create history entries. Update Explorer documentation for the new sections and contextual controls. |
+| Separate Catalog and Lineage sections | No | Rename Analytical model to Catalog and move feature lineage into a separate Lineage section. Keep existing profile cards in Catalog. |
+| Preserve resource navigation history | No | Preserve direct resource links and browser history while reorganizing navigation. Page and focus changes create history entries, while zoom, legend visibility, and transient selections do not. |
+| Reuse resource details across sections | No | Share resource-detail content across Catalog and Lineage, and link graph selections to their Catalog resources. |
+| Add dependency exploration entry points | No | Add Explore dependencies actions for profiles and features. Keep functions and dimensions searchable and browsable without graph navigation. |
+| Add page-specific view toolbars | No | Separate search, scope, and display settings from selected-resource actions and details. Keep graph scope and fit/zoom controls visible on mobile. |
+| Improve graph options and mobile selection | No | Put less frequent settings and legends under Options. Replace the mobile selection dialog with an expandable bottom sheet and prevent stacked overlays. |
+| Verify navigation and update documentation | No | Test direct links, browser history, keyboard navigation, selection details, overlays, narrow layouts, and existing Plan and Run behavior. Document the new sections and controls. |
 
-## Work package: Focused feature lineage
+## Work package: Browser graph query foundations
 
-Make feature search and bounded neighborhood exploration the base behavior,
-with the full 2D/3D graph available as an explicit overview.
+Provide reusable, bounded dependency queries from the existing build snapshot.
 
 **Priority:** High.
 
@@ -36,25 +39,72 @@ with the full 2D/3D graph available as an explicit overview.
 
 | title | breaking | description |
 |---|---|---|
-| Define browser graph-query semantics | No | Keep Python build responsible for resolved, validated feature/operator dependencies, stable IDs, and metadata. Build incoming/outgoing adjacency indexes once in JavaScript and reuse them for interactive queries. Keep FastAPI serving snapshots without recompiling on interaction. Define root IDs, direction, feature-dependency depth, and node budget independently of operator visibility. Keep execution build scope distinct from Explorer view scope. Preserve static-export behavior without requiring a Python server. |
-| Add focused neighborhoods and progressive expansion | No | Search for a feature and display its immediate inputs and consumers by default. Remove unrelated nodes from the layout rather than merely dimming them. Offer upstream/downstream expansion and explicit full ancestry or impact actions. Show boundary counts and distinguish hidden dependencies, budget-limited results, and genuinely absent connections. Apply operator visibility as a display projection without changing scope semantics. |
-| Persist focus and validate scale | No | Persist focus, direction, and expansion scope in URLs and restore them through history. Test cross-profile traversal, shared producers, operator show/hide equivalence, isolated features, bounded results, and static exports. Measure snapshot size, memory, query latency, and visible-graph layout time on larger fixtures. Use a Web Worker if query work blocks interaction, but defer server queries or graph chunking until measurements justify them. Document the supported scope and any measured limits. |
+| Build reusable browser adjacency indexes | No | Keep Python responsible for resolved, validated dependencies, stable IDs, and metadata. Build incoming and outgoing indexes once in JavaScript and reuse them for queries. |
+| Define bounded graph-query parameters | No | Define root IDs, direction, feature-dependency depth, and node budget independently of operator visibility. Keep execution build scope separate from Explorer view scope. |
+| Preserve static graph snapshots | No | Serve snapshots through FastAPI without recompiling on interaction and preserve behavior in static exports without a Python server. |
 
-## Work package: Profile lineage overview and drill-down
+## Work package: Focused feature neighborhoods
+
+Make feature search and bounded neighborhood exploration the base behavior,
+with the full 2D/3D graph available as an explicit overview.
+
+**Priority:** High.
+
+**Prerequisites:** Browser graph query foundations.
+
+| title | breaking | description |
+|---|---|---|
+| Add focused feature neighborhoods | No | Search for a feature and show its immediate inputs and consumers. Remove unrelated nodes from the layout rather than dimming them. |
+| Expand neighborhoods and report boundaries | No | Add upstream/downstream expansion and explicit ancestry or impact actions. Show boundary counts and distinguish hidden, budget-limited, and absent connections. |
+| Keep operator visibility as a display projection | No | Apply operator visibility without changing query scope semantics. |
+
+## Work package: Persistent and scalable graph focus
+
+Make focused graph views shareable and verify their performance on larger
+snapshots.
+
+**Priority:** High.
+
+**Prerequisites:** Focused feature neighborhoods.
+
+| title | breaking | description |
+|---|---|---|
+| Persist graph focus in URLs | No | Persist focus, direction, and expansion scope in URLs and restore them through browser history. |
+| Measure graph query and layout scale | No | Test cross-profile paths, shared producers, isolated features, bounded results, operator visibility, and static exports. Measure snapshot size, memory, query latency, and layout time on larger fixtures. Use a Web Worker only if measurements show interaction blocking. |
+| Document supported graph limits | No | Document supported query scope and measured limits. Defer server queries and graph chunking until measurements justify them. |
+
+## Work package: Profile lineage overview and focus
 
 Add a dependency overview rather than duplicating the Catalog profile cards.
 Use dedicated profile focus as the main drill-down mode, especially on mobile.
 
 **Priority:** High.
 
-**Prerequisites:** Focused feature lineage.
+**Prerequisites:** Focused feature neighborhoods.
 
 | title | breaking | description |
 |---|---|---|
-| Summarize direct profile dependencies | No | Add Lineage Overview with one collapsed node per profile and aggregated direct cross-profile feature dependencies. Retain the underlying feature relationships for inspection. Explain that profile aggregation can show apparent cycles even when feature lineage is acyclic and must not be interpreted as an execution DAG. |
-| Add profile focus with external boundaries | No | Open a scoped profile view showing internal features/operators and compact external boundary nodes or ports. Identify relevant input and consumer features, provide boundary counts, and allow users to inspect or focus a neighboring profile. Offer feature-neighborhood focus from the same view, with breadcrumbs, direct links, and a clear return to the previous scope. Make Focus profile the primary mobile action. |
-| Support bounded in-place expansion | No | Allow a few profiles to expand together in the overview, with named external ports and only connections relevant to their displayed contents. Keep expansion distinct from navigation to a focused profile. Preserve selection on collapse and avoid unnecessary layout movement. Apply explicit visibility budgets rather than recreating the full graph accidentally. |
-| Verify overview and drill-down | No | Test aggregate-edge provenance, cross-profile connections, apparent profile cycles, expand/collapse, focus history, stable selection, mobile boundaries, and static exports. Update Explorer documentation to distinguish Catalog cards, dependency overview, in-place expansion, and focused drill-down. |
+| Summarize direct profile dependencies | No | Add one collapsed node per profile and aggregate direct cross-profile feature dependencies. Retain the underlying feature relationships for inspection. |
+| Explain profile aggregation semantics | No | Explain that aggregation may show apparent profile cycles even when feature lineage is acyclic. Do not present the overview as an execution DAG. |
+| Add focused profile boundaries | No | Show a profile's internal features and operators with compact external boundary nodes, relevant input/consumer features, and boundary counts. |
+| Navigate between profile and feature focus | No | Allow users to inspect or focus neighboring profiles and feature neighborhoods. Provide breadcrumbs, direct links, and a clear return to the previous scope. |
+| Make profile focus mobile-friendly | No | Make Focus profile the primary mobile action and keep boundary inspection usable on narrow screens. |
+
+## Work package: Bounded profile expansion
+
+Expand a small number of profile nodes in place without replacing focused
+profile navigation.
+
+**Priority:** High.
+
+**Prerequisites:** Profile lineage overview and focus.
+
+| title | breaking | description |
+|---|---|---|
+| Expand profiles within the overview | No | Allow a bounded number of profiles to expand together, showing named external ports and only relevant connections. Keep expansion distinct from focused-profile navigation. |
+| Preserve selection and layout on collapse | No | Preserve selection on collapse, avoid unnecessary layout movement, and apply explicit visibility budgets. |
+| Verify overview and drill-down behavior | No | Test edge provenance, cross-profile connections, apparent cycles, expand/collapse, focus history, selection, and mobile boundaries. |
+| Document profile lineage views | No | Verify static exports and distinguish Catalog cards, dependency overview, in-place expansion, and focused drill-down in Explorer docs. |
 
 ## Work package: Source-to-target lineage tracing
 
@@ -63,12 +113,15 @@ source-to-target exploration workflow rather than duplicating it.
 
 **Priority:** High.
 
-**Prerequisites:** Focused feature lineage.
+**Prerequisites:** Focused feature neighborhoods.
 
 | title | breaking | description |
 |---|---|---|
-| Add explicit source and target selection | No | Reuse existing graph selection and highlighting to choose a source and target. Display only nodes and edges on directed paths between them, preserving branches and producing operators. Distinguish the complete path corridor from any simplified representative path and report disconnected endpoints or budget-limited results explicitly. |
-| Verify path scope and navigation | No | Test branching, shared intermediates, cross-profile paths, identical endpoints, disconnected selections, operator visibility, and bounded output. Persist endpoints in direct links and history, support mobile endpoint selection, and document how tracing differs from full ancestry and downstream impact. |
+| Select source and target resources | No | Reuse graph selection and highlighting to choose source and target features. |
+| Display the directed path corridor | No | Show only nodes and edges on directed paths between endpoints, preserving branches and producing operators. Distinguish the full corridor from a simplified representative path. |
+| Report tracing limits | No | Report disconnected endpoints and budget-limited results explicitly. |
+| Persist and verify trace navigation | No | Persist endpoints in direct links and history. Test branching, shared intermediates, cross-profile paths, identical endpoints, operator visibility, and bounded results. |
+| Document source-to-target tracing | No | Support mobile endpoint selection and explain how tracing differs from full ancestry and downstream impact. |
 
 ## Work package: Profile dependency matrix
 
@@ -77,11 +130,27 @@ Nested feature-level matrices are outside this initial package.
 
 **Priority:** High.
 
-**Prerequisites:** Profile lineage overview and drill-down.
+**Prerequisites:** Profile lineage overview and focus.
 
 | title | breaking | description |
 |---|---|---|
-| Add the profile dependency matrix | No | Add Lineage Matrix with supplying profiles as rows and consuming profiles as columns. Count distinct direct feature-to-feature dependency pairs across each profile boundary, collapsing operators and deduplicating repeated pairs. Label the count definition and treat within-profile dependencies separately. Provide search, deterministic ordering, and virtualization when needed rather than relying on color alone. |
-| Connect matrix selections to focused lineage | No | Selecting a cell lists its exact source/target feature pairs and offers Explore these dependencies. Row and column actions show profile consumers and suppliers. Reuse profile focus and resource details, with mobile-friendly cell inspection and accessible non-visual dependency lists. |
+| Define direct profile-pair counts | No | Count distinct direct feature-to-feature pairs across profile boundaries, collapsing operators and deduplicating repeated pairs. Treat within-profile dependencies separately. |
+| Add the profile dependency matrix | No | Show supplying profiles as rows and consuming profiles as columns. Label the count definition, support search and deterministic ordering, and virtualize large matrices. Do not rely on color alone. |
+| Connect matrix cells to feature pairs | No | Selecting a cell lists its exact source/target feature pairs and offers Explore these dependencies. |
+| Add profile row and column actions | No | Show profile consumers and suppliers and reuse profile focus and resource details. |
 | Distinguish direct dependencies from reachability | No | Offer a clearly labeled reachability mode separately from direct-pair counts. Derive reachability from actual feature paths rather than paths through the collapsed profile graph, which can imply connections that do not exist. |
-| Verify matrix semantics and usability | No | Test direction labels, deduplication, cell provenance, empty cells, apparent profile cycles, reachability, ordering, focused-lineage links, keyboard access, mobile scrolling, and static exports. Document how the matrix answers coupling questions rather than execution order or run status. |
+
+## Work package: Profile matrix accessibility and verification
+
+Validate dependency-matrix semantics and make cell inspection accessible.
+
+**Priority:** High.
+
+**Prerequisites:** Profile dependency matrix.
+
+| title | breaking | description |
+|---|---|---|
+| Make matrix inspection accessible | No | Support mobile cell inspection and accessible non-visual dependency lists. |
+| Verify matrix dependency semantics | No | Test direction labels, deduplication, cell provenance, empty cells, apparent cycles, reachability, ordering, and focused-lineage links. |
+| Verify matrix accessibility and exports | No | Test keyboard access, mobile scrolling, and static exports. |
+| Document matrix interpretation | No | Explain how the matrix answers coupling questions rather than execution order or run status. |

@@ -7,9 +7,12 @@ This is a planned release grouping, not a published software version.
 Derive schedules from declared result freshness without changing the meaning
 of analytical dependencies.
 
-**Prerequisites:** Pinned dataset frame versions; Runtime configuration and
-scoped execution. Parallel execution is not required.
+**Prerequisites:** Pinned dataset frame versions, Scoped run options, Runtime
+environments and preflight. Parallel execution is not required.
 
 | title | breaking | description |
 |---|---|---|
-| Add freshness to the specification | No | Define freshness requirements for mappings or features, their propagation through declared input/output dependencies and how external source availability constrains achievable schedules. Specify schedule-multiple and compatibility rules without introducing separate side-effect dependencies. Reject incompatible requirements with actionable diagnostics. Add derived schedules only after these semantics are defined; earlier work packages validate existing schedule declarations only. |
+| Declare freshness requirements | No | Add freshness requirements to mappings or features and validate their values with actionable diagnostics. |
+| Propagate freshness through dependencies | No | Derive output freshness from declared input/output dependencies and account for external source availability. Keep freshness separate from side-effect dependencies. |
+| Validate schedule compatibility | No | Define schedule-multiple and compatibility rules, and reject incompatible freshness and schedule declarations. |
+| Derive schedules from freshness | No | Add schedules derived from freshness only after the requirement and compatibility rules are established. Earlier work validates existing schedule declarations only. |

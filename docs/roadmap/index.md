@@ -27,6 +27,10 @@ order. Each package lists its prerequisites, so unrelated work can proceed in
 parallel. High-priority packages appear first within those constraints, and
 independently scheduled extensions are identified separately.
 
+Each work package is one pull request. Its table rows are concise work items
+roughly the size of one commit. Put longer shared rationale, design notes, and
+code examples under the package heading rather than in a table cell.
+
 Release groupings are planning labels, not software version numbers. Versions
 are assigned when software releases are published. A package's *breaking*
 column marks changes that require updates to specifications, projects,
