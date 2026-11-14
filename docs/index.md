@@ -17,17 +17,17 @@ Author the data science workflow in Python. Build and run from command line. Exp
 
 ## Demo
 
-Demo project's web explorer:
+Browse the [example project explorer](https://uptimely-ai.github.io/uptimely-core/example/).
+
+Screenshot from the web explorer:
 
 ![Uptimely Core Demo](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-feature-lineage.png)
 
-Results from Uptimelt engine run:
+Materialized results from Uptimely engine run:
 
 ![Uptimely run preview](https://uptimely-public.s3.pl-waw.scw.cloud/uptimely-demo/uptimely-core/uptimely-core-run-preview.png)
 
-Browse the [example project explorer](https://uptimely-ai.github.io/uptimely-core/example/).
-
-More business benefits at [uptimely.ai website](https://uptimely.ai).
+More business benefits at [uptimely.ai/core/](https://uptimely.ai/core/).
 
 ## Documentation
 
@@ -40,7 +40,7 @@ More business benefits at [uptimely.ai website](https://uptimely.ai).
 
 Python 3.13 or newer is required.
 
-**For existing Python project**
+**Install in existing Python environment**
 
 Install Uptimely Core with the command that matches your tooling:
 
@@ -56,23 +56,9 @@ poetry add uptimely-core
 uv add uptimely-core
 ```
 
-Download the example project's code, data, and config without setup files:
+**Create a new Python environment**
 
-```sh
-uptimely example --no-setup --dir pump-analytics
-```
-
-Build and run the example:
-
-```sh
-uptimely run pump-analytics --build --preview 10
-uv run uptimely explore pump-analytics
-```
-
-With Poetry or uv, prefix each `uptimely` command with `poetry run` or `uv run`.
-The download does not overwrite existing files.
-
-**For new project**
+Go to your project directory.
 
 If uv is not installed, [install it](https://docs.astral.sh/uv/getting-started/installation/) on macOS or Linux:
 
@@ -80,28 +66,59 @@ If uv is not installed, [install it](https://docs.astral.sh/uv/getting-started/i
 curl -LsSf https://astral.sh/uv/install.sh | sh
 ```
 
-Restart your shell if `uv` or `uvx` is not found.
-
-Download a version-matched example project and set up its environment with uv:
+Restart your shell if `uv` is not found.
 
 ```sh
-uvx --python 3.13 --from uptimely-core@latest uptimely example --dir pump-analytics
-cd pump-analytics
-uv sync
-uv run uptimely run --build --preview 10
-uv run uptimely explore
+uv init --bare --python 3.13
+uv add uptimely-core
 ```
 
-Build bundle and run results are generated `_generated/build/`.
+## Build and run
 
-The [tutorial](https://uptimely-ai.github.io/uptimely-core/getting-started/tutorial/)
-also describes downloading the project template from the latest stable release.
+Go to your project root. The following commands assume an active Python environment.
+
+For Poetry use `poetry run uptimely <command>`.
+
+For uv use `uv run uptimely <command>`.
+
+Download the example project's code into the current directory without setup files.
+The download does not overwrite existing files.
+
+```sh
+uptimely example --no-setup --dir .
+```
+
+Create a build from the specification.
+
+```sh
+uptimely build
+```
+
+Run the data science pipeline using the build.
+
+```sh
+uptimely run
+```
+
+Explore resources and results in the local web app:
+
+```sh
+uptimely explore
+```
+
+## Next steps
+
+The [getting started tutorial](https://uptimely-ai.github.io/uptimely-core/getting-started/tutorial/) provides more information about launching an Uptimely project.
+
+Open the project in a code editor, modify the code, run it again and explore the new results.
 
 ## Python API
 
 The previous example was built by the [Python-authored example specification](https://github.com/uptimely-ai/uptimely-core/tree/main/example). The specification describes profiles, grains, features and operators. Functions remain pure Python.
 
 Here is even more simplified example.
+
+Store this code to `spec/spec.py`
 
 ```python
 import polars as pl
@@ -170,12 +187,7 @@ python_spec = up.Spec(
 )
 ```
 
-The specification can be exported to `json`, and it works as a standalone semantic layer for data science.
-Additionally Uptimely Core provides tooling to build portable execution plan and built-in engine to run and validate the workflow.
-
-Create `run.py` in the project root and run it with `python run.py`.
-The engine takes the built bundle, which contains the plan and its runtime
-context. This is alternative to the previous CLI example:
+Put this code in `run.py`.
 
 ```python
 from uptimely import Engine, Project
@@ -185,6 +197,11 @@ bundle = project.build()
 result = Engine(bundle).run()
 ```
 
+Run in Python:
+
+```sh
+python run.py
+```
 
 ## Repository guide
 
