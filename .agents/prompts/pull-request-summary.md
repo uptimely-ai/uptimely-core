@@ -13,7 +13,7 @@ Return a concise PR-ready summary with:
 - User-visible impact, if any
 - Tests or checks known to have run (do not infer that they passed)
 
-Give the PR summary as markdown that can be easily copied.
+Give the PR summary as markdown that can be easily copied from the chat code preview view.
 
 Do not claim behavior or validation that the diff and available evidence do not
 support.
