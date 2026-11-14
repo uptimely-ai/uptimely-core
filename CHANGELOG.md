@@ -8,6 +8,13 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Fixed
+
+- The uv example download instructions select Python 3.13 and avoid the old
+  package release that does not provide the CLI.
+- The new-project instructions explain how to install uv before downloading
+  the example.
+
 ## [0.10.0] - 2026-11-14
 
 ### Added
