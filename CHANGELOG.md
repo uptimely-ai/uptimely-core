@@ -12,6 +12,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - Named configs in `config/<name>.toml` recursively override
   project defaults from `uptimely.toml`.
+- `[project]` settings can provide default spec sources and source directories
+  for project builds and runs. `[engine]` config sets the default preview size.
 
 ### Changed
 

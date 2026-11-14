@@ -10,7 +10,7 @@ import typing
 from uptimely import engine as engine_module
 
 from . import config as config_module
-from . import paths
+from . import defaults, paths
 from .build import builder, bundle, models, source
 from .build import features as feature_selection
 
@@ -34,7 +34,7 @@ class Uptimely:
 
     def __init__(
         self,
-        root: str | pathlib.Path = ".",
+        root: str | pathlib.Path = defaults.DEFAULT_PROJECT_ROOT,
         *,
         config: str | None = None,
         config_path: str | pathlib.Path | None = None,
@@ -101,6 +101,7 @@ class Uptimely:
             self.config.engine,
             self.config.params.root,
             paths=self.config.paths.root,
+            project_settings=self.config.project,
         )
 
     def resolve_path(self, path: pathlib.Path | None, default: pathlib.Path) -> pathlib.Path:
@@ -115,6 +116,18 @@ class Uptimely:
         """
         return path if path is not None else self.root / default
 
+    def _resolve_spec_source(
+        self, python_spec: str | None, json_spec: source.JsonSourceInput
+    ) -> tuple[str | None, source.JsonSourceInput]:
+        """Apply configured spec-source defaults when no source was passed."""
+        if python_spec is None and json_spec is None:
+            python_spec = self.config.project.python_spec
+            configured_json_spec = self.config.project.json_spec
+            if configured_json_spec is not None:
+                json_path = pathlib.Path(configured_json_spec)
+                json_spec = json_path if json_path.is_absolute() else self.root / json_path
+        return python_spec, json_spec
+
     def build(
         self,
         *,
@@ -127,7 +140,9 @@ class Uptimely:
 
         Args:
             python_spec: Optional ``module:attribute`` containing a Python Spec.
-            json_spec: Optional explicit spec JSON path.
+                Defaults to the configured source or standard source discovery.
+            json_spec: Optional explicit spec JSON path. Defaults to the configured source
+                or standard source discovery.
             features: Optional output features to compile with their dependencies.
             src_path: Optional source directory, relative to the project root unless absolute.
                 Defaults to ``src``.
@@ -139,6 +154,9 @@ class Uptimely:
             BuildLockError: Another builder or active bundle reader holds the lock.
             ProjectBuildError: Loading, compilation, generation, or publication fails.
         """
+        python_spec, json_spec = self._resolve_spec_source(python_spec, json_spec)
+        if src_path is None and self.config.project.src_path is not None:
+            src_path = pathlib.Path(self.config.project.src_path)
         return builder.ProjectBuilder(self.root).build(
             python_spec=python_spec,
             json_spec=json_spec,
@@ -150,7 +168,7 @@ class Uptimely:
         self,
         *,
         validate: bool = False,
-        preview_rows: int = engine_module.config.DEFAULT_PREVIEW_ROWS,
+        preview_rows: int | None = None,
         operator: tuple[str, str] | None = None,
         src_path: pathlib.Path | None = None,
     ) -> engine_module.ExecutionResult:
@@ -158,11 +176,12 @@ class Uptimely:
 
         Args:
             validate: Validate inputs and dataframe contracts at every step.
-            preview_rows: Positive maximum sample size per profile.
+            preview_rows: Positive maximum sample size per profile. Defaults to the
+                Engine config value.
             operator: Optional profile and operator IDs selecting an operator
                 and its saved prerequisites.
             src_path: Optional Python source directory, relative to the project root
-                unless absolute. Defaults to ``src``.
+                unless absolute. Defaults to the configured project value or ``src``.
 
         Returns:
             Execution results, including any invocation failures.

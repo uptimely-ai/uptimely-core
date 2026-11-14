@@ -1,3 +1,10 @@
+[project]
+python_spec = "spec.spec:python_spec"
+src_path = "src"
+
+[engine]
+preview_rows = 5
+
 [engine.backend]
 type = "python_venv"
 dataframe = "polars"

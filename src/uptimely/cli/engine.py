@@ -2,7 +2,6 @@
 
 import argparse
 import logging
-import pathlib
 import shlex
 import time
 
@@ -13,7 +12,21 @@ from uptimely import project
 from uptimely.cli import common
 
 logger = logging.getLogger(__name__)
-DEFAULT_PREVIEW_ROWS = 5
+
+
+class _PreviewAction(argparse.Action):
+    """Track whether preview output was requested separately from its row count."""
+
+    def __call__(
+        self,
+        parser: argparse.ArgumentParser,
+        namespace: argparse.Namespace,
+        values: int | None,
+        option_string: str | None = None,
+    ) -> None:
+        """Store an optional row count and mark console previews as requested."""
+        setattr(namespace, self.dest, values)
+        namespace.preview_requested = True
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
@@ -43,23 +56,18 @@ def configure_run_parser(parser: argparse.ArgumentParser) -> None:
     common.configure_log_level_argument(parser)
     parser.add_argument(
         "--preview",
+        action=_PreviewAction,
         nargs="?",
         type=int,
-        const=DEFAULT_PREVIEW_ROWS,
+        default=None,
         metavar="ROWS",
         help=(
             "Log the first ROWS rows of each resulting profile "
-            f"(default when supplied: {DEFAULT_PREVIEW_ROWS})"
+            "using engine.preview_rows when ROWS is omitted"
         ),
     )
-    parser.add_argument(
-        "--config",
-        metavar="CONFIG_OR_PATH",
-        help=(
-            "Named config in config/ or explicit TOML file "
-            f"(default: {project.CONFIG_FILE} under the project root)"
-        ),
-    )
+    parser.set_defaults(preview_requested=False)
+    common.configure_project_config_argument(parser)
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
@@ -70,35 +78,26 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     with common.apply_log_level(args.log_level):
         logger.info("Start Uptimely engine run")
         try:
-            if args.config is None:
-                app = project.Uptimely(root)
-            else:
-                config_path = pathlib.Path(args.config)
-                is_explicit_path = (
-                    config_path.is_absolute()
-                    or len(config_path.parts) > 1
-                    or config_path.suffix.lower() == ".toml"
-                    or config_path.is_file()
-                )
-                if is_explicit_path:
-                    app = project.Uptimely(root, config_path=config_path)
-                else:
-                    app = project.Uptimely(root, config=args.config)
+            app = common.create_project(root, args.config)
             if args.build:
                 logger.info("Start building the project bundle")
                 bundle = app.build(src_path=args.src_path)
                 logger.info("Build files created to %s", bundle.root)
+            src_path = args.src_path
             with app.read_build_bundle() as bundle:
                 engine = app.create_engine(bundle)
                 started = time.perf_counter()
-                if args.preview is None:
-                    result = engine.run(validate=args.validate, src_path=args.src_path)
-                else:
+                if args.preview_requested:
+                    preview_rows = (
+                        app.config.engine.preview_rows if args.preview is None else args.preview
+                    )
                     result = engine.run(
                         validate=args.validate,
-                        preview_rows=args.preview,
-                        src_path=args.src_path,
+                        preview_rows=preview_rows,
+                        src_path=src_path,
                     )
+                else:
+                    result = engine.run(validate=args.validate, src_path=src_path)
                 elapsed = time.perf_counter() - started
                 duration = (
                     result.duration_seconds if result.duration_seconds is not None else elapsed
@@ -107,8 +106,8 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                     failures = "; ".join(result.failures.values())
                     raise RuntimeError(f"Engine flow failed: {failures}")
                 _log_summary(bundle, result, duration)
-                if args.preview is not None:
-                    _log_previews(result, args.preview)
+                if args.preview_requested:
+                    _log_previews(result, preview_rows)
             logger.info(
                 "View results in Explorer:",
             )

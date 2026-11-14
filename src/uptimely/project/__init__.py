@@ -15,7 +15,12 @@ from .build import (
     load_spec_source,
     read_build_bundle,
 )
-from .config import Params, Paths, ProjectConfig
+from .config import Params, Paths, ProjectConfig, ProjectSettings
+from .defaults import (
+    DEFAULT_PROJECT_ROOT,
+    DEFAULT_SPEC_ATTRIBUTE,
+    DEFAULT_SRC_PATH,
+)
 from .paths import (
     BUILD_EXECUTION_PLAN_FILE,
     BUILD_MANIFEST_FILE,
@@ -25,7 +30,6 @@ from .paths import (
     CONFIG_DIR,
     CONFIG_FILE,
     DATA_DIR,
-    DEFAULT_SPEC_ATTRIBUTE,
     EXPLORER_DATA_FILE,
     FUNCTIONS_DIR,
     GENERATED_DIR,
@@ -37,6 +41,7 @@ from .paths import (
 __all__ = [
     "Uptimely",
     "ProjectConfig",
+    "ProjectSettings",
     "Params",
     "Paths",
     "BUILD_EXECUTION_PLAN_FILE",
@@ -53,6 +58,8 @@ __all__ = [
     "COMPILER_CONFIG_FILE",
     "CONFIG_DIR",
     "DATA_DIR",
+    "DEFAULT_PROJECT_ROOT",
+    "DEFAULT_SRC_PATH",
     "DEFAULT_SPEC_ATTRIBUTE",
     "CONFIG_FILE",
     "EXPLORER_DATA_FILE",

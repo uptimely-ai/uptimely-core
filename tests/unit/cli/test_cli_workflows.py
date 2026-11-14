@@ -349,6 +349,54 @@ def test_engine_cli_loads_named_config_profile_and_merges_defaults(
     invoke(monkeypatch, "run", str(tmp_path), "--config", "prod")
 
 
+@pytest.mark.parametrize(
+    ("preview_args", "expected_preview_rows"),
+    [([], 13), (["--preview"], 13), (["--preview", "7"], 7)],
+)
+def test_engine_cli_uses_project_preview_and_source_defaults(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    preview_args: list[str],
+    expected_preview_rows: int,
+) -> None:
+    _write_empty_build(tmp_path)
+    (tmp_path / "custom-src").mkdir()
+    (tmp_path / "uptimely.toml").write_text(
+        '[project]\nsrc_path = "custom-src"\n[engine]\npreview_rows = 13\n',
+        encoding="utf-8",
+    )
+    received: list[tuple[int, pathlib.Path | None]] = []
+
+    def run(
+        self: engine_module.Engine,
+        *,
+        validate: bool = False,
+        preview_rows: int | None = None,
+        src_path: pathlib.Path | None = None,
+    ) -> engine_module.ExecutionResult:
+        configured_preview = self.config.preview_rows if preview_rows is None else preview_rows
+        configured_src = (
+            pathlib.Path(self.project_settings.src_path)
+            if self.project_settings.src_path is not None
+            else None
+        )
+        received.append((configured_preview, src_path or configured_src))
+        return engine_module.ExecutionResult(
+            datasets={},
+            calculated_outputs={},
+            invocation_statuses={},
+            durations={},
+            failures={},
+            plan_version=execution_plan.PLAN_VERSION,
+        )
+
+    monkeypatch.setattr(engine_module.Engine, "run", run)
+
+    invoke(monkeypatch, "run", str(tmp_path), *preview_args)
+
+    assert received == [(expected_preview_rows, pathlib.Path("custom-src"))]
+
+
 @pytest.mark.parametrize("command", [("run",), ("engine", "run")])
 def test_engine_cli_builds_before_running(
     tmp_path: pathlib.Path,

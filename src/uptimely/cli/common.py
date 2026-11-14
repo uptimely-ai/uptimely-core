@@ -8,6 +8,10 @@ import traceback
 import typing
 from collections.abc import Iterator
 
+from uptimely import project as project_module
+from uptimely.project import defaults as project_defaults
+from uptimely.project import paths as project_paths
+
 LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 
 
@@ -48,8 +52,39 @@ def configure_src_path_argument(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--src-path",
         type=pathlib.Path,
-        help="Python source directory (relative to the project root or absolute; default: src)",
+        help=(
+            "Python source directory (relative to the project root or absolute; "
+            f"default: project.src_path or {project_defaults.DEFAULT_SRC_PATH})"
+        ),
     )
+
+
+def configure_project_config_argument(parser: argparse.ArgumentParser) -> None:
+    """Add an optional named project config or explicit TOML config file."""
+    parser.add_argument(
+        "--config",
+        metavar="CONFIG_OR_PATH",
+        help=(
+            "Named config in config/ or explicit TOML file "
+            f"(default: {project_paths.CONFIG_FILE} under the project root)"
+        ),
+    )
+
+
+def create_project(root: pathlib.Path, config_value: str | None) -> project_module.Uptimely:
+    """Create a project from its default config, named config, or explicit file."""
+    if config_value is None:
+        return project_module.Uptimely(root)
+    config_path = pathlib.Path(config_value)
+    is_explicit_path = (
+        config_path.is_absolute()
+        or len(config_path.parts) > 1
+        or config_path.suffix.lower() == ".toml"
+        or config_path.is_file()
+    )
+    if is_explicit_path:
+        return project_module.Uptimely(root, config_path=config_path)
+    return project_module.Uptimely(root, config=config_value)
 
 
 def resolve_project_root(args: argparse.Namespace, parser: argparse.ArgumentParser) -> pathlib.Path:
@@ -58,7 +93,7 @@ def resolve_project_root(args: argparse.Namespace, parser: argparse.ArgumentPars
     option = args.project_root
     if positional is not None and option is not None:
         parser.error("project root may be provided positionally or with --project-root, not both")
-    return positional or option or pathlib.Path.cwd()
+    return positional or option or project_defaults.DEFAULT_PROJECT_ROOT.resolve()
 
 
 def configure_project_arguments(parser: argparse.ArgumentParser) -> None:

@@ -1,5 +1,6 @@
 """Tests for root-bound project operations."""
 
+import json
 import pathlib
 from unittest import mock
 
@@ -10,6 +11,7 @@ from support import examples as example_support
 import uptimely
 from uptimely import project as project_module
 from uptimely.project import application
+from uptimely.project import paths as project_paths
 from uptimely.project.build import builder, bundle
 
 
@@ -80,14 +82,17 @@ def test_project_explicit_config_and_failures(tmp_path: pathlib.Path) -> None:
 
 def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.Path) -> None:
     (tmp_path / "uptimely.toml").write_text(
-        '[engine.backend]\ntype = "default"\nevaluation = "eager"\n'
-        '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 10\n',
+        '[engine]\npreview_rows = 8\n[engine.backend]\ntype = "default"\nevaluation = "eager"\n'
+        '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 10\n'
+        '[project]\npython_spec = "spec.spec:python_spec"\n',
         encoding="utf-8",
     )
     profile_dir = tmp_path / project_module.CONFIG_DIR
     profile_dir.mkdir()
     (profile_dir / "prod.toml").write_text(
-        '[engine.backend]\ntype = "production"\n[params]\nthreshold = 42\n',
+        '[engine]\npreview_rows = 12\n[engine.backend]\ntype = "production"\n'
+        "[params]\nthreshold = 42\n"
+        '[project]\nsrc_path = "production-src"\n',
         encoding="utf-8",
     )
 
@@ -96,8 +101,52 @@ def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.P
     assert app.config_path == (profile_dir / "prod.toml").resolve()
     assert app.config.engine.backend.type == "production"
     assert app.config.engine.backend.evaluation == "eager"
+    assert app.config.engine.preview_rows == 12
     assert app.config.paths.root == {"source": "data/source.csv"}
     assert app.config.params.root == {"threshold": 42}
+    assert app.config.project.python_spec == "spec.spec:python_spec"
+    assert app.config.project.src_path == "production-src"
+
+
+def test_project_build_uses_configured_source_and_cli_overrides(tmp_path: pathlib.Path) -> None:
+    spec_dir = tmp_path / "spec"
+    spec_dir.mkdir()
+    (spec_dir / "configured.json").write_text(
+        '{"spec_version": 8, "name": "Configured source"}', encoding="utf-8"
+    )
+    override_spec = tmp_path / "override.json"
+    override_spec.write_text('{"spec_version": 8, "name": "CLI source"}', encoding="utf-8")
+    (tmp_path / "configured-src").mkdir()
+    (tmp_path / "uptimely.toml").write_text(
+        '[project]\njson_spec = "spec/configured.json"\nsrc_path = "configured-src"\n'
+        "[engine]\npreview_rows = 11\n",
+        encoding="utf-8",
+    )
+    app = project_module.Uptimely(tmp_path)
+
+    configured_build = app.build()
+    override_build = app.build(json_spec=override_spec, src_path=pathlib.Path("configured-src"))
+
+    assert configured_build.spec_definition.name == "Configured source"
+    assert override_build.spec_definition.name == "CLI source"
+    assert app.config.engine.preview_rows == 11
+
+
+def test_project_config_rejects_multiple_spec_sources_and_invalid_preview_rows(
+    tmp_path: pathlib.Path,
+) -> None:
+    config_path = tmp_path / "uptimely.toml"
+    config_path.write_text(
+        '[project]\npython_spec = "spec.spec:python_spec"\njson_spec = "spec/spec.json"\n',
+        encoding="utf-8",
+    )
+
+    with pytest.raises(pydantic.ValidationError, match="either project.python_spec"):
+        project_module.Uptimely(tmp_path)
+
+    config_path.write_text("[engine]\npreview_rows = 0\n", encoding="utf-8")
+    with pytest.raises(pydantic.ValidationError):
+        project_module.Uptimely(tmp_path)
 
 
 def test_project_named_config_requires_profile_and_rejects_config_path_conflict(
@@ -179,6 +228,33 @@ def test_run_forwards_options_and_holds_build_lock(app: project_module.Uptimely)
         )
 
     app.build()
+
+
+def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "spec").mkdir()
+    (tmp_path / "spec/spec.json").write_text(
+        '{"spec_version": 8, "name": "Run config"}', encoding="utf-8"
+    )
+    (tmp_path / "custom-src").mkdir()
+    (tmp_path / "uptimely.toml").write_text(
+        '[project]\nsrc_path = "custom-src"\n[engine]\npreview_rows = 12\n',
+        encoding="utf-8",
+    )
+    app = project_module.Uptimely(tmp_path)
+    app.build()
+
+    with mock.patch.object(
+        application.source,
+        "project_source_path",
+        wraps=application.source.project_source_path,
+    ) as source_path:
+        result = app.run()
+
+    source_path.assert_called_once_with(app.root, src_path=pathlib.Path("custom-src"))
+    assert not result.failures
+    manifest_path = app.root / project_paths.RUN_MANIFEST_FILE
+    manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    assert manifest["preview_rows"] == 12
 
 
 def test_run_releases_build_lock_on_failure(app: project_module.Uptimely) -> None:
