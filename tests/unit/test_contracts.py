@@ -52,12 +52,12 @@ def test_binding_contracts_distinguish_primary_bindings_from_merge() -> None:
         typing.get_args(operator_bindings.PrimaryBindingKind.__value__)
     )
     assert not contracts["merge"].primary
-    assert contracts["workflow"].dataframe_inputs == (0,)
-    assert contracts["workflow"].dataframe_result == "none"
+    assert contracts["compute"].dataframe_inputs == (0, 1)
+    assert contracts["merge"].dataframe_inputs == (2,)
     with pytest.raises(dataclasses.FrozenInstanceError):
-        contracts["workflow"].description = "changed"
+        contracts["compute"].description = "changed"
     with pytest.raises(TypeError):
-        contracts["workflow"] = contracts["merge"]
+        contracts["compute"] = contracts["merge"]
 
 
 def test_operator_execution_contracts_derive_from_bound_dataframe_sources() -> None:
@@ -133,7 +133,7 @@ def test_function_contract_round_trips_without_kind_metadata() -> None:
     spec = _shared_callable_spec()
     payload = spec.model_dump(mode="json")
 
-    assert payload["spec_version"] == 8
+    assert payload["spec_version"] == 9
     assert "kind" not in payload["functions"]["shared"]
     reloaded = spec_model.Spec.model_validate(payload)
     assert reloaded.model_dump(mode="json") == payload

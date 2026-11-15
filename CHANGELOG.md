@@ -10,14 +10,14 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
-- Python operators can run opaque external functions with `workflow` bindings.
+- Python operators can run opaque external functions with logical dependencies.
 - Binding dataframe contracts are available in the Explorer and Spec vocabulary.
 - Explorer function entries infer frame operations from dataframe input and
   output counts.
 - Profiles can designate an explicitly identified seed operator that initializes
   their dataset before other fragments are merged.
 - Python `Operator` declarations can omit `id`. It is generated from the compute
-  or stage function ID and output feature ID or count, with a short SHA-256 suffix.
+  function ID and output feature ID or count, with a short SHA-256 suffix.
 - Named configs in `config/<name>.toml` recursively override
   project defaults from `uptimely.toml`.
 - `[application]` settings can provide default spec sources and source directories
@@ -27,12 +27,12 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - Portable execution plans use format version 14 and no longer contain inferred
   operator labels. Explorer presents inferred grain relationships separately.
-- Python `Operator` declarations use `read` and `write` bindings for dataframe
-  sources and sinks. Reads can use a merge to add their returned fragment.
+- Python `Operator` declarations accept only `compute` and optional `merge`
+  bindings for reads, calculations, writes, and opaque workflows.
+- Spec format version 9 removes the primary binding name. Rebuild existing
+  bundles after updating Python declarations.
 - Python `Operator` declarations place feature `inputs` and `outputs` directly
   on the operator instead of wrapping them in an `Interface`.
-- Python operators use `seed` for dataset initialization and `stage` with
-  `merge` for fragments. `compute` is reserved for operations without a merge.
 - Python authoring uses `Bind` (renamed from `Binding`), taking the function
   positionally and its arguments as keywords.
 - CLI actions now use one top-level command, including `uptimely build`,

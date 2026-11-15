@@ -156,7 +156,7 @@ class MyAnalyticalProfile(up.Profile):
         up.Operator(
             id="read_values",
             outputs=[up.Feature(id="value")],
-            seed=up.Bind(read_values),
+            compute=up.Bind(read_values),
         ),
         up.Operator(
             outputs=[up.Feature(id="doubled")],
@@ -169,7 +169,7 @@ class MyAnalyticalProfile(up.Profile):
         ),
         up.Operator(
             inputs=[up.ref.feature("doubled")],
-            write=up.Bind(print_results, dataset=up.ref.dataset()),
+            compute=up.Bind(print_results, dataset=up.ref.dataset()),
         ),
     ]
 

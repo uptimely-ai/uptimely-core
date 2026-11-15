@@ -12,8 +12,7 @@ def _operator(operator_id: str, *, merge: assembly.Bind | None = None) -> assemb
     return assembly.Operator(
         id=operator_id,
         outputs=[feature.Feature(id=f"value_{operator_id}")],
-        compute=binding if merge is None else None,
-        stage=binding if merge is not None else None,
+        compute=binding,
         merge=merge,
     )
 

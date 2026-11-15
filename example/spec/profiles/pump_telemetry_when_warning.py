@@ -62,7 +62,7 @@ class PumpTelemetryWhenWarning(Profile):
                 features.warning_bearing_temperature,
                 features.warning_vibration_rms,
             ],
-            seed=Bind(
+            compute=Bind(
                 analytics.filter_rows,
                 dataset=ref.dataset("pump_telemetry"),
                 feature=ref.feature("pump_mode"),

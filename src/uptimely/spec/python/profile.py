@@ -6,8 +6,8 @@ import dataclasses
 import typing
 from collections import abc
 
-from uptimely.spec import arg_types, operator_bindings, selectors
 from uptimely.spec import model as spec_model
+from uptimely.spec import selectors
 from uptimely.spec.model import base as model_base
 
 from . import assembly, references
@@ -67,7 +67,7 @@ class Profile:
         scope: Free-form description of the observation scope.
         seed: ID of the assembly operator that initializes the dataset. The
             operator must have an explicit ID, return a complete dataframe
-            containing the profile's grain keys, and use a seed binding without
+            containing the profile's grain keys, and use a compute binding without
             a merge. It cannot consume the target dataset. A source dataframe
             from another profile must be non-nullable. Other
             fragments merge after the seed. When omitted, accumulation follows
@@ -204,7 +204,7 @@ class Profile:
             if (
                 operator.outputs
                 and operator.reference.returns == "none"
-                and operator.workflow is None
+                and not operator.to_model().is_workflow
             ):
                 raise ValueError(
                     f"Profile '{self.id}', operator '{operator.id}': "
@@ -212,14 +212,6 @@ class Profile:
                 )
             if operator.id in collected:
                 raise ValueError(f"Profile '{self.id}' has duplicate operator ID '{operator.id}'")
-            if operator.seed is not None and operator.id != self.seed:
-                raise ValueError(
-                    f"Profile '{self.id}' seed binding must be referenced by profile seed"
-                )
-            if self.seed is not None and operator.read is not None and operator.merge is None:
-                raise ValueError(
-                    f"Profile '{self.id}', operator '{operator.id}': read binding requires a merge"
-                )
             collected[operator.id] = operator
         if self.seed is not None:
             if not isinstance(self.seed, str) or not self.seed.strip():
@@ -229,10 +221,10 @@ class Profile:
                 raise ValueError(f"Profile '{self.id}' seed operator '{self.seed}' does not exist")
             if not seed._id_explicit:
                 raise ValueError(f"Profile '{self.id}' seed operator must have an explicit id")
-            if seed.seed is None:
-                raise ValueError(f"Profile '{self.id}' seed operator must use a seed binding")
             if seed.merge is not None:
                 raise ValueError(f"Profile '{self.id}' seed operator must not have a merge")
+            if seed.reference.returns != "dataframe":
+                raise ValueError(f"Profile '{self.id}' seed operator must return a dataframe")
         return collected
 
     def _flatten_assembly(
@@ -355,42 +347,6 @@ class Profile:
         """Convert an operator and add its profile location to declaration errors."""
         try:
             operator = declaration.to_model()
-            if self.seed is not None and (
-                declaration.stage is not None
-                or (
-                    declaration.compute is not None and declaration.reference.returns == "dataframe"
-                )
-            ):
-                template = declaration._primary.to_function_template(
-                    row_context=declaration.row_context
-                )
-                dataframe_names = [
-                    name
-                    for name, argument in template.args.items()
-                    if arg_types.is_dataframe(argument.type)
-                ]
-                role = "Stage" if declaration.stage is not None else "Compute"
-                binding_kind = declaration._primary_role
-                if (
-                    len(dataframe_names)
-                    not in operator_bindings.OPERATOR_BINDINGS[binding_kind].dataframe_inputs
-                ):
-                    raise ValueError(f"{role} binding must accept exactly one dataframe input")
-                argument = operator.compute.args.get(dataframe_names[0])
-                source = argument.profile_id(self.id) if argument is not None else None
-                if declaration.stage is not None and (
-                    argument is None
-                    or not argument.is_profile_dataframe_reference
-                    or source is None
-                    or source == self.id
-                ):
-                    raise ValueError("Stage binding must consume another profile's dataset")
-                if declaration.compute is not None and (
-                    argument is None
-                    or not argument.is_profile_dataframe_reference
-                    or source != self.id
-                ):
-                    raise ValueError("Compute binding must consume the current profile's dataset")
             if declaration.inputs is None:
                 operator.interface.inputs = [
                     reference

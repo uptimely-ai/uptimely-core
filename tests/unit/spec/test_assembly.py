@@ -36,14 +36,14 @@ def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
     assert template.args["value"].type == arg_types.STRING
 
 
-def test_read_and_write_bindings_keep_their_roles_in_python_authoring() -> None:
+def test_compute_binding_supports_read_and_write_signatures() -> None:
     read = assembly.Operator(
         id="read",
-        read=assembly.Bind(ref.function("reader:read", returns="dataframe")),
+        compute=assembly.Bind(ref.function("reader:read", returns="dataframe")),
     )
     write = assembly.Operator(
         id="write",
-        write=assembly.Bind(
+        compute=assembly.Bind(
             ref.function(
                 "writer:write",
                 returns="none",
@@ -53,10 +53,8 @@ def test_read_and_write_bindings_keep_their_roles_in_python_authoring() -> None:
         ),
     )
 
-    assert read._primary_role == "read"
     assert read.to_model().compute.function == "read"
     assert read.function_catalog()["read"].returns == "dataframe"
-    assert write._primary_role == "write"
     assert write.to_model().compute.function == "write"
     assert write.function_catalog()["write"].returns == "none"
 
@@ -64,7 +62,7 @@ def test_read_and_write_bindings_keep_their_roles_in_python_authoring() -> None:
 def test_read_binding_can_merge_its_returned_fragment() -> None:
     operator = assembly.Operator(
         id="read",
-        read=assembly.Bind(ref.function("reader:read", returns="dataframe")),
+        compute=assembly.Bind(ref.function("reader:read", returns="dataframe")),
         merge=assembly.Bind(
             ref.function(
                 "merger:merge",
@@ -83,51 +81,36 @@ def test_read_binding_can_merge_its_returned_fragment() -> None:
 
 
 @pytest.mark.parametrize(
-    ("role", "binding", "message"),
+    ("binding", "message"),
     [
         (
-            "read",
             assembly.Bind(
                 ref.function(
                     "reader:read",
                     returns="dataframe",
-                    args={"dataset": arg_types.DATAFRAME},
+                    args={"dataset": arg_types.DATAFRAME, "other": arg_types.DATAFRAME},
                 ),
                 dataset=ref.dataset(),
+                other=ref.dataset("other"),
             ),
-            "Read binding must not accept dataframe inputs",
+            "invalid dataframe arity: 2",
         ),
         (
-            "read",
-            assembly.Bind(ref.function("reader:read", returns="none")),
-            "Read binding must return a dataframe",
-        ),
-        (
-            "write",
-            assembly.Bind(
-                ref.function("writer:write", returns="none", args={"value": "string"}),
-                value="value",
-            ),
-            "Write binding must accept exactly one dataframe input",
-        ),
-        (
-            "write",
             assembly.Bind(
                 ref.function(
                     "writer:write",
-                    returns="dataframe",
-                    args={"dataset": arg_types.DATAFRAME},
+                    returns="none",
+                    args={"dataset": arg_types.DATAFRAME, "other": arg_types.DATAFRAME},
                 ),
                 dataset=ref.dataset(),
+                other=ref.dataset("other"),
             ),
-            "Write binding must return no result",
+            "invalid dataframe arity: 2",
         ),
     ],
 )
-def test_read_and_write_bindings_validate_dataframe_contracts(
-    role: str, binding: assembly.Bind, message: str
-) -> None:
-    operator = assembly.Operator(**{role: binding})
+def test_compute_binding_limits_dataframe_arity(binding: assembly.Bind, message: str) -> None:
+    operator = assembly.Operator(compute=binding)
     with pytest.raises(ValueError, match=message):
         operator.function_catalog()
 
@@ -304,7 +287,7 @@ def test_operator_combines_binding_contracts_but_only_stage_row_context() -> Non
     )
     operator = assembly.Operator(
         id="calculate",
-        stage=stage,
+        compute=stage,
         merge=merge,
         row_context=row_context.rows("explicit", after=3),
     )
@@ -319,7 +302,7 @@ def test_operator_combines_binding_contracts_but_only_stage_row_context() -> Non
 def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
     operator = assembly.Operator(
         id="calculate",
-        stage=assembly.Bind(
+        compute=assembly.Bind(
             ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
         ),
         merge=assembly.Bind(
@@ -335,36 +318,15 @@ def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
         operator.function_catalog()
 
 
-@pytest.mark.parametrize(
-    ("read", "compute", "write", "stage", "merge"),
-    [
-        (False, False, False, False, False),
-        (False, False, False, True, False),
-        (False, False, False, False, True),
-        (False, True, False, False, True),
-        (True, True, False, False, False),
-        (True, False, True, False, False),
-        (False, False, True, False, True),
-    ],
-)
-def test_operator_requires_one_supported_binding_form(
-    read: bool, compute: bool, write: bool, stage: bool, merge: bool
-) -> None:
-    dataframe_binding = assembly.Bind(ref.function("example:work", returns="dataframe"))
-    no_result_binding = assembly.Bind(ref.function("example:write", returns="none"))
-    with pytest.raises(ValueError, match="one primary binding"):
-        assembly.Operator(
-            read=dataframe_binding if read else None,
-            compute=dataframe_binding if compute else None,
-            write=no_result_binding if write else None,
-            stage=dataframe_binding if stage else None,
-            merge=no_result_binding if merge else None,
-        )
+@pytest.mark.parametrize("compute", [None, object()])
+def test_operator_requires_a_compute_binding(compute: object) -> None:
+    with pytest.raises(TypeError, match="compute must be a Bind"):
+        assembly.Operator(compute=compute)
 
 
-def test_stage_requires_dataframe_result() -> None:
+def test_compute_with_merge_requires_dataframe_result() -> None:
     operator = assembly.Operator(
-        stage=assembly.Bind(ref.function("example:work", returns="none")),
+        compute=assembly.Bind(ref.function("example:work", returns="none")),
         merge=assembly.Bind(
             ref.function(
                 "example:merge",
@@ -375,5 +337,5 @@ def test_stage_requires_dataframe_result() -> None:
             fragment=ref.fragment(),
         ),
     )
-    with pytest.raises(ValueError, match="stage binding must return a dataframe"):
+    with pytest.raises(ValueError, match="compute binding must return a dataframe when merging"):
         operator.function_catalog()

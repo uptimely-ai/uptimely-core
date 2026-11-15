@@ -36,7 +36,7 @@ class PumpTelemetryByDay(Profile):
             id="aggregate_telemetry",
             inputs=[ref.feature("bearing_temperature")],
             outputs=[features.bearing_temperature_max],
-            seed=Bind(
+            compute=Bind(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry"),
                 aggregations={"bearing_temperature": "max"},
@@ -49,7 +49,7 @@ class PumpTelemetryByDay(Profile):
         ),
         Operator(
             outputs=[],
-            write=Bind(
+            compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[features.bearing_temperature_max],

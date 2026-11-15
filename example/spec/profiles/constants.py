@@ -36,7 +36,7 @@ class Constants(Profile):
         Operator(
             id="read_constants",
             outputs=[features.gravity, features.room_temperature],
-            seed=Bind(
+            compute=Bind(
                 io.read_file,
                 source=ref.paths("constants_source"),
                 schema={"gravity": "float", "room_temperature": "float"},
@@ -48,7 +48,7 @@ class Constants(Profile):
         ),
         Operator(
             outputs=[],
-            write=Bind(
+            compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[features.gravity, features.room_temperature],

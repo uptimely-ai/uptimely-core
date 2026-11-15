@@ -37,8 +37,7 @@ def test_build_presentation_data_returns_versioned_json_structures(
     }
     pump = data["catalogs"]["configuration"]["profiles"]["pump"]
     workflow = next(item for item in pump["assembly"].values() if item.get("is_workflow"))
-    assert workflow["binding_kind"] == "workflow"
-    assert workflow["binding_contract"] == data["catalogs"]["binding_contracts"]["workflow"]
+    assert workflow["binding_contract"] == data["catalogs"]["binding_contracts"]["compute"]
     merged = next(item for item in pump["assembly"].values() if item.get("merge"))
     assert merged["merge_contract"] == data["catalogs"]["binding_contracts"]["merge"]
     assert {

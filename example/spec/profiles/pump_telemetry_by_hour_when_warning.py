@@ -93,7 +93,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
                 features.warning_hour_max_bearing_temperature,
                 features.warning_hour_max_vibration_rms,
             ],
-            seed=Bind(
+            compute=Bind(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry_when_warning"),
                 aggregations={
@@ -180,7 +180,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
         ),
         Operator(
             outputs=[],
-            write=Bind(
+            compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[

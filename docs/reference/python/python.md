@@ -44,7 +44,7 @@ class CoolingPumpTelemetry(up.Profile):
         up.Operator(
             id="read_telemetry",
             outputs=[up.Feature(id="motor_bearing_temperature")],
-            seed=up.Bind(read_telemetry),
+            compute=up.Bind(read_telemetry),
         ),
     ]
 
@@ -58,7 +58,7 @@ class CoolingPump(up.Profile):
             id="summarize",
             inputs=[up.ref.feature("motor_bearing_temperature")],
             outputs=[up.Feature(id="motor_bearing_temperature_max")],
-            seed=up.Bind(
+            compute=up.Bind(
                 maximum,
                 dataset=up.ref.dataset("cooling_pump_telemetry"),
                 feature=up.ref.feature("motor_bearing_temperature"),
@@ -118,38 +118,33 @@ run the function or check that its calculations are correct. Function
 signatures are checked when the project is compiled. External functions can be
 referenced by `"package.module:function"` with `up.ref.function(...)`.
 
-Each operator declares one primary binding. `merge` is an additional binding
-used to combine fragments with the current dataset.
+Each operator requires `compute=up.Bind(...)` and may declare
+`merge=up.merge.default()` or a custom merge binding. The compute function accepts
+zero or one dataframe. Its dataframe result is a complete target without a
+merge, or a fragment with a merge. The merge function accepts the current dataset
+and the fragment and returns a complete target. A non-dataframe result cannot
+be merged.
 
-| Binding | Dataframe input | Dataframe output | Merge | Purpose |
-| --- | --- | --- | --- | --- |
-| `seed` | None or another profile's dataset | Initial dataset | Not allowed | Initialize the profile dataset. |
-| `read` | None | Fragment | Required | Read data to add to the dataset. |
-| `stage` | Another profile's dataset | Fragment | Required | Prepare data to add to the dataset. |
-| `compute` | Current dataset | Updated dataset | Not allowed | Calculate features from the current dataset. |
-| `write` | One dataset | None | Not allowed | Write a dataset. |
-| `workflow` | None | None declared | Not allowed | Run a self-contained external workflow. |
-| `merge` | Dataset and fragment | Updated dataset | Not applicable | Combine a fragment with the dataset. |
+Use a merge for a separate read or calculation whose returned fragment must
+be integrated into the current dataset. Foreign logical feature dependencies
+alone do not require a merge. A seed returns the initial complete target, and
+an update returning the complete current dataset needs no merge.
 
-Use `merge=up.merge.default()` or a custom merge function with `read` and
-`stage`. A `workflow` does not define dataframe inputs or outputs. Its function
-may take ordinary arguments and its return value is ignored. Its `inputs` and
-`outputs` declare logical feature dependencies independently of its arguments.
-The engine does not add workflow outputs to the profile dataframe. Workflows
-run with their profile and are included when features of that profile are
-selected.
+A non-dataframe function with no dataframe input is treated as an opaque
+workflow. It may take ordinary arguments and its result is ignored. Its feature
+inputs and outputs express logical dependencies, not dataframe columns.
+Workflows run with their profile and are included when features of that profile
+are selected. A write function also uses `compute`, returns no dataframe, and
+declares its required feature inputs.
 
 An optional `seed` names the assembly operator that initializes the profile
 dataset. It must return a complete target dataframe, including every grain key,
-and must use a `seed` binding without a merge or consuming the target dataset.
+and must use a `compute` binding without a merge or consuming the target dataset.
 It can read external data or use a non-nullable dataframe from another profile.
 Other fragments merge after the seed, regardless of assembly order. Profiles
 without a seed retain their existing accumulation behavior.
-For compatibility, profiles without a seed may also use legacy read, stage,
-and compute bindings with less restrictive dataframe contracts.
-
-The generated Spec stores the primary call as `compute` and records its
-`binding_kind`. The shared binding contracts are available in Explorer and the
+The generated Spec stores the primary call as `compute`. The shared
+compute and merge contracts are available in Explorer and the
 [Spec vocabulary](spec-vocabulary.md). See the [engine reference](engine.md)
 for runtime behavior.
 

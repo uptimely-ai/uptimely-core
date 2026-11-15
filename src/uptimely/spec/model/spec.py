@@ -17,7 +17,7 @@ from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
 
-SPEC_VERSION = 8
+SPEC_VERSION = 9
 type ProfileKey = str
 type OperatorKey = tuple[ProfileKey, str]
 type SpecPath = tuple[str | int, ...]
@@ -35,7 +35,7 @@ class Spec(base.StrictModel):
     """The complete JSON document with cached views of its declarations."""
 
     name: str | None = None
-    spec_version: typing.Literal[8] = SPEC_VERSION
+    spec_version: typing.Literal[9] = SPEC_VERSION
     source: SpecSource = pydantic.Field(
         default_factory=lambda: SpecSource(name="manual", generated=False)
     )
@@ -57,7 +57,7 @@ class Spec(base.StrictModel):
             version = value["spec_version"]
             if not isinstance(version, int) or isinstance(version, bool):
                 raise ValueError("spec_version must be an integer")
-            raise ValueError("Unsupported spec_version; rebuild or migrate to Spec version 8")
+            raise ValueError("Unsupported spec_version; rebuild or migrate to Spec version 9")
         return value
 
     def rebuild(self) -> typing.Self:

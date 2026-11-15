@@ -84,7 +84,7 @@ def test_structure_summary_counts_profiles_and_operator_once(
     caplog: pytest.LogCaptureFixture, level: int
 ) -> None:
     configuration = {
-        "spec_version": 8,
+        "spec_version": 9,
         "profiles": {
             "profile_1": {
                 "name": "First",
@@ -226,7 +226,7 @@ def test_canonical_model_rejects_file_loading_arguments() -> None:
         spec.Spec.model_validate({"json": str(SPEC_PATH)})
 
 
-@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, "7", True])
+@pytest.mark.parametrize("version", [0, 1, 2, 3, 4, 5, 6, 8, "7", True])
 def test_spec_rejects_unsupported_version(tmp_path: pathlib.Path, version: object) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["spec_version"] = version

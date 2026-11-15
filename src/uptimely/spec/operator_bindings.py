@@ -6,12 +6,12 @@ import dataclasses
 import types
 import typing
 
-type PrimaryBindingKind = typing.Literal["seed", "read", "stage", "compute", "write", "workflow"]
-type BindingKind = typing.Literal["seed", "read", "stage", "compute", "write", "workflow", "merge"]
+type PrimaryBindingKind = typing.Literal["compute"]
+type BindingKind = typing.Literal["compute", "merge"]
 type DataframeSource = typing.Literal[
     "none", "foreign_or_none", "foreign", "current", "dataset", "dataset_and_fragment"
 ]
-type DataframeResult = typing.Literal["dataset", "fragment", "none"]
+type DataframeResult = typing.Literal["dataset", "fragment", "none", "dataset_or_fragment_or_none"]
 type MergeRequirement = typing.Literal["required", "forbidden", "additional"]
 
 
@@ -36,64 +36,19 @@ class BindingContract:
     merge: MergeRequirement
 
 
-SEED: typing.Final[PrimaryBindingKind] = "seed"
-READ: typing.Final[typing.Literal["read"]] = "read"
-STAGE: typing.Final[PrimaryBindingKind] = "stage"
 COMPUTE: typing.Final[PrimaryBindingKind] = "compute"
-WRITE: typing.Final[typing.Literal["write"]] = "write"
-WORKFLOW: typing.Final[PrimaryBindingKind] = "workflow"
 MERGE: typing.Final[typing.Literal["merge"]] = "merge"
 
 OPERATOR_BINDINGS: typing.Final[typing.Mapping[BindingKind, BindingContract]] = (
     types.MappingProxyType(
         {
-            SEED: BindingContract(
-                "Initialize the profile dataset.",
+            COMPUTE: BindingContract(
+                "Run the primary function with zero or one dataframe input.",
                 True,
                 (0, 1),
-                "foreign_or_none",
                 "dataset",
-                "forbidden",
-            ),
-            READ: BindingContract(
-                "Read a fragment from an external source.",
-                True,
-                (0,),
-                "none",
-                "fragment",
-                "required",
-            ),
-            STAGE: BindingContract(
-                "Prepare a fragment from another profile's dataset.",
-                True,
-                (1,),
-                "foreign",
-                "fragment",
-                "required",
-            ),
-            COMPUTE: BindingContract(
-                "Calculate features from the current dataset.",
-                True,
-                (1,),
-                "current",
-                "dataset",
-                "forbidden",
-            ),
-            WRITE: BindingContract(
-                "Write a dataset without producing a dataframe.",
-                True,
-                (1,),
-                "dataset",
-                "none",
-                "forbidden",
-            ),
-            WORKFLOW: BindingContract(
-                "Run an external workflow without dataframe inputs or outputs.",
-                True,
-                (0,),
-                "none",
-                "none",
-                "forbidden",
+                "dataset_or_fragment_or_none",
+                "additional",
             ),
             MERGE: BindingContract(
                 "Combine a fragment with the current dataset.",
@@ -114,11 +69,6 @@ __all__ = [
     "MERGE",
     "OPERATOR_BINDINGS",
     "PrimaryBindingKind",
-    "READ",
-    "SEED",
-    "STAGE",
-    "WORKFLOW",
-    "WRITE",
     "DataframeResult",
     "DataframeSource",
     "MergeRequirement",

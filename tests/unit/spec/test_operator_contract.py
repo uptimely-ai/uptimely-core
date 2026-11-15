@@ -8,6 +8,7 @@ from support import execution as execution_support
 from uptimely import compiler, spec
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
+from uptimely.spec import model as spec_model
 from uptimely.spec.python import assembly, dimension, feature, merge, profile, ref
 
 workflow_events: list[str] = []
@@ -34,13 +35,13 @@ def test_workflow_logical_features_order_execution_without_dataframes(
                     assembly.Operator(
                         id="start",
                         outputs=[feature.Feature(id="intermediate")],
-                        workflow=assembly.Bind(ref.function(start_workflow, returns="any")),
+                        compute=assembly.Bind(ref.function(start_workflow, returns="any")),
                     ),
                     assembly.Operator(
                         id="finish",
                         inputs=[ref.feature("intermediate")],
                         outputs=[feature.Feature(id="result")],
-                        workflow=assembly.Bind(ref.function(finish_workflow, returns="none")),
+                        compute=assembly.Bind(ref.function(finish_workflow, returns="none")),
                     ),
                 ],
             )
@@ -68,7 +69,7 @@ def test_feature_graph_contains_workflow_without_logical_features() -> None:
                         id="run",
                         inputs=[],
                         outputs=[],
-                        workflow=assembly.Bind(ref.function(finish_workflow, returns="none")),
+                        compute=assembly.Bind(ref.function(finish_workflow, returns="none")),
                     )
                 ],
             )
@@ -198,6 +199,51 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     } == {"read_values"}
 
 
+def test_compute_can_merge_a_fragment_from_the_current_dataset(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    document = _spec()
+    document.profiles["observations"].assembly["result"].merge = merge.default().to_model()
+    document = spec.Spec.model_validate(document.model_dump())
+    compiled = compiler.Compiler().compile(document, features=["result"])
+    computed = next(
+        invocation
+        for invocation in compiled.invocations
+        if invocation.operator_id == "result" and invocation.role == "compute"
+    )
+    assert computed.result == "fragment"
+    execution = engine_for_plan(compiled, spec_definition=document).run(validate=True)
+    assert execution.failures == {}
+    assert execution.datasets["observations"].sort("id").select("id", "value", "result").rows() == [
+        (1, 10, 11),
+        (2, 20, 21),
+    ]
+
+
+def test_opaque_compute_orders_foreign_features_without_a_merge(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    workflow_events.clear()
+    document = _spec()
+    publication = assembly.Operator(
+        id="publish",
+        inputs=["value"],
+        compute=assembly.Bind(finish_workflow),
+    )
+    document.profiles["publication"] = spec_model.Profile(
+        id="publication", assembly={"publish": publication.to_model()}
+    )
+    document.functions.root.update(publication.function_catalog().root)
+    document = spec.Spec.model_validate(document.model_dump())
+    compiled = compiler.Compiler().compile(document)
+    publisher = next(item for item in compiled.invocations if item.operator_id == "publish")
+    producer = next(item for item in compiled.invocations if item.operator_id == "read_values")
+    assert producer.id in publisher.dependency_ids
+    execution = engine_for_plan(compiled, spec_definition=document).run(validate=True)
+    assert execution.failures == {}
+    assert workflow_events == ["finish"]
+
+
 @pytest.mark.parametrize(
     ("shape", "message"),
     [
@@ -270,7 +316,7 @@ def test_merge_binding_contract_is_validated_by_json_and_python_authoring(
 
     operator = assembly.Operator(
         id="vectorize",
-        stage=assembly.Bind(
+        compute=assembly.Bind(
             ref.function(add_one),
             dataset=ref.dataset(),
             output="result",
@@ -429,7 +475,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                         outputs=[
                             feature.Feature(id="copied", type="integer" if dataframe else "string")
                         ],
-                        stage=assembly.Bind(
+                        compute=assembly.Bind(
                             ref.function(
                                 copy_values if dataframe else dataset_identifier,
                             ),
