@@ -9,7 +9,7 @@ uptimely run \
 ```
 
 Give the project directory positionally after `run`, or use
-`--project-root PATH`; do not use both. If omitted, the current working
+`--project-root PATH`. Do not use both. If omitted, the current working
 directory is used.
 
 At info level, the CLI announces the start of the engine run. With `--build`,
@@ -19,16 +19,16 @@ log individual processed-profile details first, followed by
 After a successful run and any requested previews, an info log shows the
 `uptimely explore --project-root PATH` command for opening that project's Explorer.
 
-| Option | Required | Default | Purpose |
+| Option | TOML setting | Default | Purpose |
 | --- | --- | --- | --- |
-| `PROJECT_ROOT` | No | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
-| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
-| `--src-path PATH` | No | `application.src_path`, then `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the configured value for this command. |
-| `--build` | No | Disabled | Build and publish the project before execution, then run the newly published build. |
-| `--config CONFIG_OR_PATH` | No | `uptimely.toml` under the project root, or defaults if absent | Named config from `config/<name>.toml`, recursively overriding root defaults, or an explicit TOML file loaded on its own. Explicit relative paths are resolved from the current working directory. |
-| `--validate` | No | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
-| `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
-| `--preview [ROWS]` | No | Console display disabled; `engine.preview_rows` when supplied without a count | Set the saved preview row limit and log those rows from each final profile after successful execution at info level. Without this option, saved previews use `engine.preview_rows`. |
+| `PROJECT_ROOT` | — | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
+| `--project-root PATH` | — | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
+| `--src-path PATH` | `application.src_path` | TOML setting if set<br>Otherwise the literal directory name `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the configured value for this command. |
+| `--build` | — | Disabled | Build and publish the project before execution, then run the newly published build. |
+| `--config CONFIG_OR_PATH` | — | Root `uptimely.toml`<br>Otherwise built-in defaults | Pass a config name such as `prod` to load `config/prod.toml`, recursively overriding root `uptimely.toml`. Pass a TOML path to load that file alone without merging root settings. Relative paths resolve from the current working directory. |
+| `--validate` | — | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
+| `--log-level LEVEL` | — | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
+| `--preview [ROWS]` | `engine.preview_rows` | No console preview by default<br>Bare `--preview` uses `engine.preview_rows` (default `5`) | Set the saved preview row limit and log those rows from each final profile after successful execution at info level. Without this option, saved previews use `engine.preview_rows`. |
 
 For example, preview the configured number of rows per profile, or request a
 specific row limit:
@@ -49,11 +49,10 @@ publication, and display. Console display reuses the saved sample rather than
 executing the lazy query again.
 
 Use `uptimely build` to change the execution plan or feature scope. By default,
-Engine executes the saved
-build without compiling or rebuilding it. Add `--build` to rebuild from the
-project's discovered spec source before execution. Saved-build integrity,
-configuration, and backend compatibility are always checked; per-step runtime
-validation is opt-in:
+Engine executes the saved build without compiling or rebuilding it.
+`--build` rebuilds from the project's discovered spec source before execution.
+The CLI always checks saved-build integrity, configuration, and backend
+compatibility. Per-step runtime validation is opt-in:
 
 ```console
 uptimely run example --validate
@@ -65,7 +64,7 @@ If the project uses a non-default source directory, pass the same `--src-path`
 to both the build and each run that imports its local modules.
 
 The log level applies to Uptimely loggers, not third-party dependency loggers.
-It does not enable validation; use `--validate` to run the runtime checks.
+It does not enable validation. Use `--validate` to run the runtime checks.
 Execution debug logs use flat messages with the logger's module name,
 rather than headers, indentation, or bullets. For example:
 
@@ -77,8 +76,8 @@ DEBUG    | Merging into profile pump_profile
 Module prefixes identify where each message originates. Invocation start messages
 identify the operator, function, binding role, and result handling.
 Structured logs use the invocation IDs from the saved plan. Newly compiled
-plans use [compact invocation IDs](../../architecture/execution-plan.md#invocations);
-rebuild the project to adopt them.
+plans use [compact invocation IDs](../../architecture/execution-plan.md#invocations).
+Rebuild the project to adopt them.
 
 ## Latest-run artifacts
 
@@ -97,20 +96,20 @@ replace the previous run.
 Previews are collected automatically, including for lazy frames, even without
 `--preview`. Lazy queries are limited before collection, but this may still
 perform expensive upstream work. Exact full-profile row counts are recorded
-only for eager frames; lazy counts are `null`. Preview failures are recorded
+only for eager frames. Lazy counts are `null`. Preview failures are recorded
 separately and do not change the execution status. When console previews are
 requested, an unavailable preview is also reported as a CLI error.
 
 Logs use UTF-8 JSON Lines: one event per line with timestamp, severity, logger,
 message, optional invocation/profile IDs, and exception details. Capture follows
-configured logging levels and includes Python logs from the execution thread;
-it does not redirect stdout/stderr or capture other threads' logs.
+configured logging levels and includes Python logs from the execution thread.
+It does not redirect stdout/stderr or capture other threads' logs.
 
 Saved samples and logs may contain sensitive project data. Parameter values
 and environment variables are not copied into the manifest, but functions can
 still include them in logs or outputs. Keep credentials out of engine settings
-and log messages. Use `data/output/` for intentionally retained analytical data;
-the generated run is a disposable diagnostic snapshot.
+and log messages. Use `data/output/` for intentionally retained analytical data.
+The generated run is a disposable diagnostic snapshot.
 
 ## Runtime validation and configuration
 

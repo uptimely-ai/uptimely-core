@@ -16,5 +16,5 @@ services prepare and manage artifacts; they do not execute the analytics. The
 Engine runs a bundle separately.
 
 Use the [Python App API](../reference/python/application.md) for API details and
-the [project CLI reference](../reference/cli/project.md) for build commands and
+the [`uptimely build` CLI reference](../reference/cli/project.md) for build
 options.
