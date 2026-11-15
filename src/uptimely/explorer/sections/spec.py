@@ -180,6 +180,7 @@ def _build_context(
     for function_id, function in function_definitions.items():
         if not isinstance(function, dict):
             continue
+        function["frame_operation"] = spec_definition.functions[function_id].frame_operation
         category = function.get("category") or "Uncategorized"
         function_groups.setdefault(category, {})[function_id] = function
         function["declared_returns"] = function["returns"]

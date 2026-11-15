@@ -41,10 +41,10 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert workflow["binding_contract"] == data["catalogs"]["binding_contracts"]["workflow"]
     merged = next(item for item in pump["assembly"].values() if item.get("merge"))
     assert merged["merge_contract"] == data["catalogs"]["binding_contracts"]["merge"]
-    assert all(
-        "kind" not in function
+    assert {
+        function["frame_operation"]
         for function in data["catalogs"]["configuration"]["functions"].values()
-    )
+    } >= {"read", "write", "transform", "merge", "workflow"}
     assert all(
         operator["operator_label"]
         == bundle.spec_definition.operator_kinds[(profile_id, operator_id)]

@@ -175,7 +175,10 @@ When enabled, compilation checks that the implementation accepts the declared
 arguments as keywords, has no undeclared required parameters, and that any
 available parameter and return annotations are compatible. Explorer inspects
 the implementation signature to show its details. Neither check verifies
-calculated results. See the [Compiler](compiler.md) page for details.
+calculated results. Frame operations are derived from dataframe signatures for
+Explorer presentation and are not stored in the Spec. See
+[Function contracts](index.md#function-contracts) for the signature mapping,
+and the [Compiler](compiler.md) page for validation details.
 
 ```json
 "sum_features": {

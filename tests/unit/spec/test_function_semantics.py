@@ -6,6 +6,7 @@ from collections.abc import Callable
 import polars as pl
 import pytest
 
+from uptimely.spec import model as spec_model
 from uptimely.spec import python as authoring
 from uptimely.spec.python import functions, ref
 
@@ -136,6 +137,39 @@ def test_bound_argument_types_are_inferred_and_nullable_dataframe_is_preserved()
     ).to_function_template()
 
     assert template.args["value"].type == "dataframe | null"
+
+
+@pytest.mark.parametrize(
+    ("dataframe_inputs", "returns", "expected_signature", "expected_operation"),
+    [
+        (0, "dataframe", (0, 1), "read"),
+        (1, "none", (1, 0), "write"),
+        (1, "dataframe", (1, 1), "transform"),
+        (2, "dataframe", (2, 1), "merge"),
+        (0, "any", (None, None), "workflow"),
+        (0, "none", (0, 0), "unknown"),
+        (2, "none", (2, 0), "unknown"),
+    ],
+)
+def test_frame_operation_is_inferred_from_dataframe_signature(
+    dataframe_inputs: int,
+    returns: str,
+    expected_signature: tuple[int | None, int | None],
+    expected_operation: str,
+) -> None:
+    function = spec_model.FunctionTemplate(
+        id="operation",
+        returns=returns,
+        entrypoint="operations:operation",
+        args={
+            f"frame_{index}": spec_model.Argument(id=f"frame_{index}", type="dataframe")
+            for index in range(dataframe_inputs)
+        },
+    )
+
+    assert function.frame_signature == expected_signature
+    assert function.frame_operation == expected_operation
+    assert "frame_operation" not in function.model_dump()
 
 
 def test_explicit_argument_contract_overrides_bound_value_inference() -> None:
