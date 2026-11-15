@@ -89,7 +89,14 @@ def test_operator_id_is_inferred_from_assembly_key() -> None:
     operator = payload["profiles"]["telemetry"]["assembly"]["calculate"]
 
     assert "id" not in operator
-    assert set(operator) == {"compute", "merge", "interface", "row_context"}
+    assert set(operator) == {
+        "compute",
+        "merge",
+        "interface",
+        "row_context",
+        "is_workflow",
+        "binding_kind",
+    }
     assert spec.Spec.model_validate(payload) == model
 
 

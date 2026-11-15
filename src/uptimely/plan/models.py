@@ -8,7 +8,7 @@ import typing
 import pydantic
 
 from uptimely import spec
-from uptimely.spec import operator_kinds
+from uptimely.spec import arg_types, operator_kinds
 from uptimely.spec import row_context as uptimely_row_context
 
 PLAN_VERSION = 13
@@ -26,6 +26,7 @@ class _InvocationNode(typing.Protocol):
     operator_kind: operator_kinds.OperatorKindId
     produces_features: bool
     is_sink: bool
+    is_workflow: bool
     dataframe_input_scope: operator_kinds.DataFrameInputScope
     fragment_dimensions: operator_kinds.FragmentDimensions
     row_count_relation: operator_kinds.RowCountRelation
@@ -82,6 +83,7 @@ class Invocation(_PlanModel):
     operator_kind: operator_kinds.OperatorKindId
     produces_features: bool = False
     is_sink: bool = False
+    is_workflow: bool = False
     is_seed: bool = False
     dataframe_input_scope: operator_kinds.DataFrameInputScope = "unrestricted"
     fragment_dimensions: operator_kinds.FragmentDimensions = "not_applicable"
@@ -172,6 +174,7 @@ class Invocation(_PlanModel):
             operator_kind=node.operator_kind,
             produces_features=node.produces_features,
             is_sink=node.is_sink,
+            is_workflow=node.is_workflow,
             is_seed=node.role == "compute" and profile.seed == node.operator_id,
             dataframe_input_scope=node.dataframe_input_scope,
             fragment_dimensions=node.fragment_dimensions,
@@ -223,6 +226,13 @@ class Invocation(_PlanModel):
             raise ValueError("Only compute invocations may have result='fragment'")
         if self.result == "fragment" and self.fragment_dimensions == "not_applicable":
             raise ValueError("Fragment invocations must declare fragment dimensions")
+        if self.is_workflow and (
+            self.role != "compute"
+            or self.result != "none"
+            or not self.is_sink
+            or any(arg_types.is_dataframe(value) for value in self.argument_types.values())
+        ):
+            raise ValueError("Workflow invocations must be non-dataframe sinks")
         return self
 
 

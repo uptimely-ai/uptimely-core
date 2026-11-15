@@ -13,7 +13,6 @@ if typing.TYPE_CHECKING:
     from .model.spec import OperatorKey, ProfileKey, Spec
 
 type OperatorExecutionForm = typing.Literal["compute", "compute + merge"]
-type BindingRole = typing.Literal["compute", "merge"]
 type OperatorSourceStatus = typing.Literal["resolved", "missing", "ambiguous", "invalid_reference"]
 type GrainRelationship = typing.Literal["same", "expand", "collapse", "unrelated", "not_applicable"]
 
@@ -33,7 +32,7 @@ class Semantics:
             function = self.spec.functions.get(operator.compute.function)
             if function is None:
                 raise ValueError(f"Unknown compute function for operator {key}")
-            if function.returns == "any":
+            if operator.is_workflow or function.returns == "any":
                 labels[key] = kinds.ESCAPE
             elif function.returns == "none":
                 labels[key] = kinds.WRITE
@@ -65,7 +64,7 @@ class Semantics:
         }
 
     @functools.cached_property
-    def operator_binding_roles(self) -> dict[OperatorKey, tuple[BindingRole, ...]]:
+    def operator_binding_roles(self) -> dict[OperatorKey, tuple[str, ...]]:
         """Return the compute and optional merge roles declared by each operator."""
         return {key: tuple(operator.bindings) for key, operator in self.spec.operator_items}
 

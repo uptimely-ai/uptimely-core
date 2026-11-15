@@ -57,9 +57,10 @@ class ExecutionResponse:
         """Group returned features by profile in stable order."""
         if operator is not None:
             profile_id, operator_id = operator
-            features = (
-                bundle.spec_definition.profiles[profile_id].assembly[operator_id].output_features
-            )
+            declaration = bundle.spec_definition.profiles[profile_id].assembly[operator_id]
+            if declaration.is_workflow:
+                return {}
+            features = declaration.output_features
             return {profile_id: sorted(features)} if features else {}
         outputs: dict[str, list[str]] = {}
         for profile_id, feature_id in sorted(result.calculated_outputs):

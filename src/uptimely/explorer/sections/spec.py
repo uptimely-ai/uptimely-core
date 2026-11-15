@@ -13,7 +13,7 @@ import docstring_parser
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely.spec import model as spec_model
-from uptimely.spec import selectors
+from uptimely.spec import operator_kinds, selectors
 
 __all__ = [
     "ExplorerContext",
@@ -195,6 +195,14 @@ def _build_context(
             for source, relationship in spec_definition.operator_grain_relationships[key].items()
         ]
         operator_data = configuration["profiles"][key[0]]["assembly"][key[1]]
+        if operator.binding_kind is not None:
+            operator_data["binding_contract"] = dataclasses.asdict(
+                operator_kinds.OPERATOR_BINDINGS[operator.binding_kind]
+            )
+        if operator.merge is not None:
+            operator_data["merge_contract"] = dataclasses.asdict(
+                operator_kinds.OPERATOR_BINDINGS["merge"]
+            )
         operator_data["operator_label"] = spec_definition.operator_kinds[key]
         operator_data["execution_form"] = spec_definition.operator_execution_forms[key]
         operator_data["binding_roles"] = list(spec_definition.operator_binding_roles[key])

@@ -26,31 +26,15 @@ def _add_escape_mapping(
     output_features: list[str] | None = None,
 ) -> None:
     """Add one escape operator with logical feature dependencies."""
-    arguments = (
-        {
-            "source": {"type": "string"},
-            "output": {"type": "string"},
-        }
-        if entrypoint == "pump_io:process_pump_external_workflow"
-        else {}
-    )
-    bound_arguments = (
-        {
-            "source": "$paths.pump_external_inputs_source",
-            "output": "$paths.pump_external_workflow_output",
-        }
-        if arguments
-        else {}
-    )
     configuration["functions"][function_id] = {
         "returns": "any",
         "entrypoint": entrypoint,
-        "args": arguments,
+        "args": {},
     }
     configuration["profiles"]["pump_telemetry"]["assembly"][operator_id] = {
         "compute": {
             "function": function_id,
-            "args": bound_arguments,
+            "args": {},
         },
         "interface": {
             "inputs": [f"$features.{feature_id}" for feature_id in input_features],
@@ -349,6 +333,7 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
         "expand",
         "vectorize",
         "write",
+        "escape",
     }
     assert {
         feature
@@ -362,6 +347,35 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
         compiler.Compiler().compile(spec.load_spec(SPEC_PATH), features=["missing"])
+
+
+def test_workflow_is_selected_only_for_its_profile_and_keeps_logical_dependencies(
+    tmp_path: pathlib.Path,
+) -> None:
+    configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
+    assembly = configuration["profiles"]["pump"]["assembly"]
+    operator = next(item for item in assembly.values() if item.get("is_workflow"))
+    operator["interface"]["inputs"] = ["$features.bearing_temperature_max"]
+    path = tmp_path / "workflow.json"
+    path.write_text(json.dumps(configuration), encoding="utf-8")
+    document = spec.load_spec(path)
+    selected = compiler.Compiler().compile(document, features=["measurement"])
+    workflow = next(item for item in selected.invocations if item.is_workflow)
+    assert workflow.input_features == ["bearing_temperature_max"]
+    assert workflow.output_features == ["ratio"]
+    producer = next(
+        item for item in selected.invocations if "bearing_temperature_max" in item.output_features
+    )
+    publisher = next(
+        item
+        for item in selected.invocations
+        if item.operator_id == producer.operator_id and item.role == "merge"
+    )
+    assert publisher.id in workflow.dependency_ids
+    other = compiler.Compiler().compile(document, features=["pressure_flow_efficiency"])
+    assert not any(item.is_workflow for item in other.invocations)
+    by_logical_output = compiler.Compiler().compile(document, features=["ratio"])
+    assert any(item.is_workflow for item in by_logical_output.invocations)
 
 
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
@@ -406,7 +420,6 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
     process_operator_id = example_support.operator_id_for_output(
         document.profiles["pump"].assembly, "ratio"
     )
-
     assert {
         invocation.operator_id
         for invocation in compiled.invocations

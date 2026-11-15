@@ -143,7 +143,14 @@ def test_row_context_references_resolve_scalar_extents(
         resources={},
         identifiers=[],
     ) == {attribute: expected_value}
-    assert list(model.model_dump()) == ["interface", "row_context", "compute", "merge"]
+    assert list(model.model_dump()) == [
+        "interface",
+        "row_context",
+        "compute",
+        "binding_kind",
+        "is_workflow",
+        "merge",
+    ]
 
 
 @pytest.mark.parametrize("extent", [-1, True, 1.5])

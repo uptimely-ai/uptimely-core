@@ -31,8 +31,11 @@ reading data or by transforming another profile.
 | `pump_telemetry_when_warning` | Filters telemetry to warning readings. |
 | `pump_telemetry_by_hour_when_warning` | Summarizes warning readings by hour and calculates an illustrative operating-point recommendation. |
 
-The external workflow reads a sample CSV, calculates a measurement ratio, and
-writes its result as a separate output.
+The argument-free external workflow reads a sample CSV, calculates a measurement
+ratio, and writes its result as a separate output. It manages its own paths and
+does not declare dataframe inputs or outputs.
+Its logical inputs are the measurement and reference value, and its logical
+output is the ratio. The ratio is not added to the profile dataframe.
 
 ## Project files
 

@@ -10,6 +10,73 @@ from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec.python import assembly, dimension, feature, merge, profile, ref
 
+workflow_events: list[str] = []
+
+
+def start_workflow() -> object:
+    workflow_events.append("start")
+    return object()
+
+
+def finish_workflow() -> None:
+    workflow_events.append("finish")
+
+
+def test_workflow_logical_features_order_execution_without_dataframes(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    workflow_events.clear()
+    document = spec.from_python(
+        profiles=[
+            profile.Profile(
+                id="external",
+                assembly=[
+                    assembly.Operator(
+                        id="start",
+                        outputs=[feature.Feature(id="intermediate")],
+                        workflow=assembly.Bind(ref.function(start_workflow, returns="any")),
+                    ),
+                    assembly.Operator(
+                        id="finish",
+                        inputs=[ref.feature("intermediate")],
+                        outputs=[feature.Feature(id="result")],
+                        workflow=assembly.Bind(ref.function(finish_workflow, returns="none")),
+                    ),
+                ],
+            )
+        ]
+    )
+    restored = spec.Spec.model_validate(document.model_dump())
+    plan = compiler.Compiler().compile(restored, features=["result"])
+    invocations = {item.operator_id: item for item in plan.invocations}
+    assert invocations["start"].id in invocations["finish"].dependency_ids
+    assert invocations["finish"].arguments == {}
+    result = engine_for_plan(plan, spec_definition=restored).run(validate=True)
+    assert workflow_events == ["start", "finish"]
+    assert result.failures == {}
+    assert result.datasets == {}
+    assert result.calculated_outputs == {}
+
+
+def test_feature_graph_contains_workflow_without_logical_features() -> None:
+    document = spec.from_python(
+        profiles=[
+            profile.Profile(
+                id="external",
+                assembly=[
+                    assembly.Operator(
+                        id="run",
+                        inputs=[],
+                        outputs=[],
+                        workflow=assembly.Bind(ref.function(finish_workflow, returns="none")),
+                    )
+                ],
+            )
+        ]
+    )
+    graph = spec.FeatureGraph(document)
+    assert any(node.reference.operator_id == "run" for node in graph.graph)
+
 
 def read_values() -> pl.DataFrame:
     return pl.DataFrame({"id": [2, 1], "value": [20, 10]})

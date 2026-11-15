@@ -22,6 +22,7 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
                 "operator_kind": invocation.operator_kind,
                 "produces_features": invocation.produces_features,
                 "is_sink": invocation.is_sink,
+                "is_workflow": invocation.is_workflow,
                 "is_seed": invocation.is_seed,
                 "dataframe_input_scope": invocation.dataframe_input_scope,
                 "fragment_dimensions": invocation.fragment_dimensions,

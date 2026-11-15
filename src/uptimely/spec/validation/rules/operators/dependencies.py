@@ -15,7 +15,7 @@ def validate_operator_cycle(spec: spec_model.Spec) -> None:
     producers: dict[str, OperatorKey] = {}
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or function.returns == "none":
+        if function is None or (function.returns == "none" and not operator.is_workflow):
             continue
         profile_id = spec.operator_profile_keys[key]
         grain_keys = spec.identifiers_by_profile[profile_id]
