@@ -68,22 +68,18 @@ def _spec() -> spec.Spec:
                 assembly=[
                     assembly.Operator(
                         id="read_values",
-                        interface=assembly.Interface(
-                            inputs=[],
-                            outputs=[
-                                feature.Feature(id="value", type="integer"),
-                            ],
-                        ),
+                        inputs=[],
+                        outputs=[
+                            feature.Feature(id="value", type="integer"),
+                        ],
                         compute=assembly.Binding(
                             ref.function(read_values),
                         ),
                     ),
                     assembly.Operator(
                         id="result",
-                        interface=assembly.Interface(
-                            inputs=[ref.feature("value")],
-                            outputs=[feature.Feature(id="result", type="integer")],
-                        ),
+                        inputs=[ref.feature("value")],
+                        outputs=[feature.Feature(id="result", type="integer")],
                         compute=assembly.Binding(
                             ref.function(add_one),
                             dataset=ref.profile().dataset,
@@ -92,10 +88,8 @@ def _spec() -> spec.Spec:
                     ),
                     assembly.Operator(
                         id="metadata",
-                        interface=assembly.Interface(
-                            inputs=[ref.feature("value")],
-                            outputs=[feature.Feature(id="metadata", type="integer")],
-                        ),
+                        inputs=[ref.feature("value")],
+                        outputs=[feature.Feature(id="metadata", type="integer")],
                         compute=assembly.Binding(
                             ref.function(metadata_only),
                             dataset=ref.profile().dataset,
@@ -209,7 +203,6 @@ def test_merge_binding_contract_is_validated_by_json_and_python_authoring(
 
     operator = assembly.Operator(
         id="vectorize",
-        interface=assembly.Interface(),
         stage=assembly.Binding(
             ref.function(add_one),
             dataset=ref.dataset(),
@@ -339,10 +332,8 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                 assembly=[
                     assembly.Operator(
                         id="read_lower_grain",
-                        interface=assembly.Interface(
-                            inputs=[],
-                            outputs=[feature.Feature(id="value", type="integer")],
-                        ),
+                        inputs=[],
+                        outputs=[feature.Feature(id="value", type="integer")],
                         compute=assembly.Binding(
                             ref.function(read_lower_grain),
                         ),
@@ -358,10 +349,8 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                 assembly=[
                     assembly.Operator(
                         id="read_target_grain",
-                        interface=assembly.Interface(
-                            inputs=[],
-                            outputs=[feature.Feature(id="target_value", type="integer")],
-                        ),
+                        inputs=[],
+                        outputs=[feature.Feature(id="target_value", type="integer")],
                         compute=assembly.Binding(
                             ref.function(read_target_grain),
                             include_second=dataframe,
@@ -369,14 +358,10 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                     ),
                     assembly.Operator(
                         id="copied",
-                        interface=assembly.Interface(
-                            inputs=[ref.feature("value")],
-                            outputs=[
-                                feature.Feature(
-                                    id="copied", type="integer" if dataframe else "string"
-                                )
-                            ],
-                        ),
+                        inputs=[ref.feature("value")],
+                        outputs=[
+                            feature.Feature(id="copied", type="integer" if dataframe else "string")
+                        ],
                         stage=assembly.Binding(
                             ref.function(
                                 copy_values if dataframe else dataset_identifier,

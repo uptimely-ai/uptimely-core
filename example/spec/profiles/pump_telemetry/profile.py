@@ -6,7 +6,6 @@ from spec import dimension
 
 from uptimely import (
     Binding,
-    Interface,
     Operator,
     Order,
     Profile,
@@ -52,16 +51,14 @@ class PumpTelemetry(Profile):
         ingestion=[
             Operator(
                 id="read_pump_telemetry",
-                interface=Interface(
-                    outputs=[
-                        features.differential_pressure,
-                        features.flow_rate,
-                        features.bearing_temperature,
-                        features.vibration_rms,
-                        features.motor_power,
-                        features.mode,
-                    ],
-                ),
+                outputs=[
+                    features.differential_pressure,
+                    features.flow_rate,
+                    features.bearing_temperature,
+                    features.vibration_rms,
+                    features.motor_power,
+                    features.mode,
+                ],
                 stage=Binding(
                     io.read_pump_telemetry,
                     pump_telemetry_source=ref.paths("telemetry_source"),
@@ -72,9 +69,7 @@ class PumpTelemetry(Profile):
         ],
         calculations=[
             Operator(
-                interface=Interface(
-                    outputs=[features.pump_mode],
-                ),
+                outputs=[features.pump_mode],
                 compute=Binding(
                     analytics.pump_mode,
                     dataset=ref.dataset(),
@@ -86,9 +81,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                interface=Interface(
-                    outputs=[features.pressure_flow_efficiency],
-                ),
+                outputs=[features.pressure_flow_efficiency],
                 compute=Binding(
                     analytics.ratio,
                     dataset=ref.dataset(),
@@ -102,9 +95,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                interface=Interface(
-                    outputs=[features.room_temperature_reference],
-                ),
+                outputs=[features.room_temperature_reference],
                 stage=Binding(
                     analytics.select_columns,
                     dataset=ref.dataset("constants"),
@@ -114,9 +105,7 @@ class PumpTelemetry(Profile):
                 merge=merge.default(),
             ),
             Operator(
-                interface=Interface(
-                    outputs=[features.bearing_temperature_rise],
-                ),
+                outputs=[features.bearing_temperature_rise],
                 compute=Binding(
                     analytics.subtract,
                     dataset=ref.dataset(),
@@ -126,9 +115,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                interface=Interface(
-                    outputs=[features.bearing_temperature_delta],
-                ),
+                outputs=[features.bearing_temperature_delta],
                 row_context=RowContext(before=1),
                 compute=Binding(
                     analytics.delta,
@@ -141,9 +128,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                interface=Interface(
-                    outputs=[features.vibration_delta],
-                ),
+                outputs=[features.vibration_delta],
                 row_context=RowContext(before=1),
                 compute=Binding(
                     analytics.delta,
@@ -156,9 +141,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                interface=Interface(
-                    outputs=[features.pump_health_score],
-                ),
+                outputs=[features.pump_health_score],
                 compute=Binding(
                     analytics.pump_health_score,
                     dataset=ref.dataset(),
@@ -173,9 +156,7 @@ class PumpTelemetry(Profile):
         ],
         publishing=[
             Operator(
-                interface=Interface(
-                    outputs=[],
-                ),
+                outputs=[],
                 compute=Binding(
                     io.write_file,
                     dataset=ref.dataset(),

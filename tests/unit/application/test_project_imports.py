@@ -27,7 +27,7 @@ def _write_project(root: pathlib.Path, value: int) -> None:
         "    id = 'values'\n"
         "    assembly = [up.Operator(\n"
         "        id='read',\n"
-        "        interface=up.Interface(outputs=[up.Feature(id='value')]),\n"
+        "        outputs=[up.Feature(id='value')],\n"
         "        compute=up.Binding(up.ref.function("
         "functions.read, returns='dataframe')),\n"
         "    )]\n"

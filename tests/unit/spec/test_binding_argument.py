@@ -336,13 +336,14 @@ def test_python_inference_uses_argument_facts_and_keeps_explicit_inputs_authorit
     )
     inferred = assembly.Operator(
         id="calculate",
-        interface=assembly.Interface(outputs=[]),
+        outputs=[],
         compute=binding,
     )
     assert inferred.to_model().input_features == ["pressure", "temperature", "output"]
     explicit = assembly.Operator(
         id="calculate",
-        interface=assembly.Interface(inputs=[], outputs=[]),
+        inputs=[],
+        outputs=[],
         compute=binding,
     )
     assert explicit.to_model().input_features == []

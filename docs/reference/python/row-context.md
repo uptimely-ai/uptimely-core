@@ -26,7 +26,7 @@ def rolling_mean(dataset: pl.DataFrame, value: str, output: str, before: int) ->
 
 up.Operator(
     id="rolling_mean",
-    interface=up.Interface(outputs=[up.Feature(id="mean")]),
+    outputs=[up.Feature(id="mean")],
     row_context=RowContext(before=1),
     compute=up.Binding(
         rolling_mean,

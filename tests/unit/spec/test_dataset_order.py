@@ -236,23 +236,19 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
         assembly=[
             python_spec.Operator(
                 id="read",
-                interface=python_spec.Interface(
-                    inputs=[],
-                    outputs=[
-                        python_spec.feature.Feature(id="input_1"),
-                        python_spec.feature.Feature(id="input_2"),
-                    ],
-                ),
+                inputs=[],
+                outputs=[
+                    python_spec.feature.Feature(id="input_1"),
+                    python_spec.feature.Feature(id="input_2"),
+                ],
                 compute=python_spec.Binding(
                     python_spec.ref.function(_read_order_data),
                 ),
             ),
             python_spec.Operator(
                 id="sum",
-                interface=python_spec.Interface(
-                    inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
-                    outputs=[python_spec.feature.Feature(id="sum")],
-                ),
+                inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
+                outputs=[python_spec.feature.Feature(id="sum")],
                 compute=python_spec.Binding(
                     python_spec.ref.function(_sum_order_features),
                     left_feature=python_spec.ref.feature("input_1"),

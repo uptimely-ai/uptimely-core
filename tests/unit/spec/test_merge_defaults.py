@@ -11,7 +11,7 @@ def _operator(operator_id: str, *, merge: assembly.Binding | None = None) -> ass
     binding = assembly.Binding(ref.function(f"reader:{operator_id}", returns="dataframe"))
     return assembly.Operator(
         id=operator_id,
-        interface=assembly.Interface(outputs=[feature.Feature(id=f"value_{operator_id}")]),
+        outputs=[feature.Feature(id=f"value_{operator_id}")],
         compute=binding if merge is None else None,
         stage=binding if merge is not None else None,
         merge=merge,

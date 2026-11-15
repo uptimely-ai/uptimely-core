@@ -1,4 +1,4 @@
-"""Responsibilities of Python binding, interface, and operator declarations."""
+"""Responsibilities of Python binding and operator declarations."""
 
 import typing
 
@@ -22,7 +22,7 @@ def calculate_named_arguments(function: str, arguments: str) -> str:
 
 def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
     binding = assembly.Binding(calculate, value=ref.feature("source"))
-    operator = assembly.Operator(id="calculate", interface=assembly.Interface(), compute=binding)
+    operator = assembly.Operator(id="calculate", compute=binding)
 
     assert binding.reference == operator.reference == ref.function(calculate)
     assert operator.catalog_id == binding.reference.name
@@ -109,74 +109,72 @@ def test_binding_dataframe_optionality_follows_annotation(
 
 
 @pytest.mark.parametrize("explicit", [False, True])
-def test_interface_owns_input_selection_and_output_exclusion(explicit: bool) -> None:
-    compute = assembly.Binding(
-        "unavailable_assembly_test_package:calculate",
-        values=[ref.feature("second"), ref.feature("first"), ref.feature("result")],
-    ).to_model()
-    merge = assembly.Binding(
-        "unavailable_assembly_test_package:combine",
-        values=[ref.feature("first"), ref.feature("third")],
-    ).to_model()
-    interface = assembly.Interface(
-        inputs=[] if explicit else None, outputs=[feature.Feature(id="result")]
+def test_operator_owns_input_selection_and_output_exclusion(explicit: bool) -> None:
+    operator = assembly.Operator(
+        inputs=[] if explicit else None,
+        outputs=[feature.Feature(id="result")],
+        compute=assembly.Binding(
+            "unavailable_assembly_test_package:calculate",
+            values=[ref.feature("second"), ref.feature("first"), ref.feature("result")],
+        ),
     )
+    model = operator.to_model()
 
-    model = interface.to_model(compute=compute, merge=merge)
-    assert model.input_ids == ([] if explicit else ["second", "first", "third"])
-    assert model.output_ids == interface.output_ids == ["result"]
+    assert model.input_features == ([] if explicit else ["second", "first"])
+    assert model.output_features == operator.output_ids == ["result"]
 
 
-def test_interface_normalizes_explicit_inputs_and_copies_collections() -> None:
+def test_operator_normalizes_explicit_inputs_and_copies_collections() -> None:
     inputs = [feature.Feature(id="first"), ref.feature("second"), "$features.third", "fourth"]
     outputs = [feature.Feature(id="result")]
-    interface = assembly.Interface(inputs=inputs, outputs=outputs)
+    operator = assembly.Operator(
+        inputs=inputs,
+        outputs=outputs,
+        compute=assembly.Binding(calculate, value="source"),
+    )
     inputs.clear()
     outputs.clear()
 
-    compute = assembly.Binding(
-        "unavailable_assembly_test_package:calculate",
-    ).to_model()
-    assert interface.to_model(compute=compute).input_ids == ["first", "second", "third", "fourth"]
-    assert interface.output_ids == ["result"]
-    interface.outputs.clear()
-    assert interface.output_ids == []
+    assert operator.to_model().input_features == ["first", "second", "third", "fourth"]
+    assert operator.output_ids == ["result"]
+    operator.outputs.clear()
+    assert operator.output_ids == []
 
 
-def test_interface_rejects_duplicate_outputs_at_construction() -> None:
+def test_operator_rejects_duplicate_outputs_at_construction() -> None:
     with pytest.raises(ValueError, match="Operator output feature IDs must not repeat"):
-        assembly.Interface(outputs=[feature.Feature(id="result"), feature.Feature(id="result")])
-
-
-def test_interface_rejects_non_feature_input_references() -> None:
-    with pytest.raises(ValueError, match="Operator input must reference a feature"):
-        assembly.Interface(inputs=[ref.dataset()])
+        assembly.Operator(
+            outputs=[feature.Feature(id="result"), feature.Feature(id="result")],
+            compute=assembly.Binding(calculate),
+        )
 
 
 @pytest.mark.parametrize(
     ("inputs", "message"),
     [
         ([ref.feature("source"), "$features.source"], "input feature IDs must not repeat"),
+        ([ref.dataset()], "Operator input must reference a feature"),
         (["$features.source.value"], "Invalid operator feature ID"),
         (["@"], "Invalid operator feature ID"),
         ([object()], "Operator inputs must be Feature objects"),
     ],
 )
-def test_interface_validates_inputs_at_construction(inputs: list[object], message: str) -> None:
+def test_operator_validates_inputs_at_construction(inputs: list[object], message: str) -> None:
     with pytest.raises((TypeError, ValueError), match=message):
-        assembly.Interface(inputs=inputs)
+        assembly.Operator(inputs=inputs, compute=assembly.Binding(calculate))
 
 
-def test_interface_validates_mutated_inputs_again_when_converted() -> None:
-    inputs = ["source"]
-    interface = assembly.Interface(inputs=inputs)
-    interface.inputs.append("$features.source")
-    compute = assembly.Binding(
-        "unavailable_assembly_test_package:calculate",
-    ).to_model()
+def test_operator_validates_mutated_inputs_again_when_converted() -> None:
+    operator = assembly.Operator(
+        inputs=["source"],
+        compute=assembly.Binding(
+            "unavailable_assembly_test_package:calculate",
+        ),
+    )
+    operator.inputs.append("$features.source")
 
     with pytest.raises(ValueError, match="input feature IDs must not repeat"):
-        interface.to_model(compute=compute)
+        operator.to_model()
 
 
 @pytest.mark.parametrize(
@@ -187,11 +185,11 @@ def test_interface_validates_mutated_inputs_again_when_converted() -> None:
         ([feature.Feature(id="value.name")], ValueError, "Invalid operator feature ID"),
     ],
 )
-def test_interface_validates_outputs_at_construction(
+def test_operator_validates_outputs_at_construction(
     outputs: object, error: type[Exception], message: str
 ) -> None:
     with pytest.raises(error, match=message):
-        assembly.Interface(outputs=outputs)
+        assembly.Operator(outputs=outputs, compute=assembly.Binding(calculate))
 
 
 def test_operator_combines_binding_contracts_but_only_stage_row_context() -> None:
@@ -210,7 +208,6 @@ def test_operator_combines_binding_contracts_but_only_stage_row_context() -> Non
     )
     operator = assembly.Operator(
         id="calculate",
-        interface=assembly.Interface(),
         stage=stage,
         merge=merge,
         row_context=row_context.rows("explicit", after=3),
@@ -226,7 +223,6 @@ def test_operator_combines_binding_contracts_but_only_stage_row_context() -> Non
 def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
     operator = assembly.Operator(
         id="calculate",
-        interface=assembly.Interface(),
         stage=assembly.Binding(
             ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
         ),
@@ -260,7 +256,6 @@ def test_operator_requires_one_complete_binding_form(
     binding = assembly.Binding(ref.function("example:work", returns="dataframe"))
     with pytest.raises(ValueError, match="either compute or both stage and merge"):
         assembly.Operator(
-            interface=assembly.Interface(),
             compute=binding if compute else None,
             stage=binding if stage else None,
             merge=binding if merge else None,
@@ -269,7 +264,6 @@ def test_operator_requires_one_complete_binding_form(
 
 def test_stage_requires_dataframe_result() -> None:
     operator = assembly.Operator(
-        interface=assembly.Interface(),
         stage=assembly.Binding(ref.function("example:work", returns="none")),
         merge=assembly.Binding(
             ref.function(

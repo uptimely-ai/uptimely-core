@@ -4,7 +4,6 @@ from uptimely.spec.python import (
     Binding,
     Dimension,
     Feature,
-    Interface,
     Operator,
     Profile,
     Resolution,
@@ -27,7 +26,7 @@ class Values(Profile):
     assembly = [
         Operator(
             id="read",
-            interface=Interface(outputs=[Feature(id="value")]),
+            outputs=[Feature(id="value")],
             compute=Binding(
                 ref.function(functions.Readers.values),
             ),

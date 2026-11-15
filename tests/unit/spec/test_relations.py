@@ -39,7 +39,7 @@ def test_compiled_relation_from_non_grain_dimension_survives_execution(
         assembly=[
             assembly.Operator(
                 id="read",
-                interface=assembly.Interface(outputs=[feature.Feature(id="value", type="float")]),
+                outputs=[feature.Feature(id="value", type="float")],
                 stage=assembly.Binding(
                     ref.function(_read_related, returns="dataframe"),
                 ),
@@ -115,7 +115,7 @@ def test_inferred_inputs_exclude_local_and_foreign_keys() -> None:
         assembly=[
             assembly.Operator(
                 id="read",
-                interface=assembly.Interface(outputs=[feature.Feature(id="value")]),
+                outputs=[feature.Feature(id="value")],
                 compute=assembly.Binding(ref.function(_read_related)),
             )
         ],
@@ -126,7 +126,7 @@ def test_inferred_inputs_exclude_local_and_foreign_keys() -> None:
         assembly=[
             assembly.Operator(
                 id="copy",
-                interface=assembly.Interface(outputs=[feature.Feature(id="copied")]),
+                outputs=[feature.Feature(id="copied")],
                 stage=assembly.Binding(
                     ref.function(_copy_related),
                     dataset=source.dataset,
@@ -168,7 +168,6 @@ def test_key_only_reader_has_no_feature_outputs(
         assembly=[
             assembly.Operator(
                 id="read",
-                interface=assembly.Interface(),
                 compute=assembly.Binding(ref.function(_read_related)) if not staged else None,
                 stage=assembly.Binding(ref.function(_read_related)) if staged else None,
                 merge=merge.default() if staged else None,

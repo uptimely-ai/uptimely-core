@@ -2,7 +2,7 @@
 
 import pump_io as io
 
-from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
+from uptimely import Binding, Feature, FeatureSet, Operator, Profile, merge, ref
 
 
 class ConstantsFeatures(FeatureSet):
@@ -33,9 +33,7 @@ class Constants(Profile):
 
     assembly = [
         Operator(
-            interface=Interface(
-                outputs=[features.gravity, features.room_temperature],
-            ),
+            outputs=[features.gravity, features.room_temperature],
             stage=Binding(
                 io.read_file,
                 source=ref.paths("constants_source"),
@@ -48,7 +46,7 @@ class Constants(Profile):
             merge=merge.default(),
         ),
         Operator(
-            interface=Interface(outputs=[]),
+            outputs=[],
             compute=Binding(
                 io.write_file,
                 dataset=ref.dataset(),

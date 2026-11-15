@@ -66,22 +66,18 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                 assembly=[
                     assembly.Operator(
                         id="read_observations",
-                        interface=assembly.Interface(
-                            inputs=[],
-                            outputs=[
-                                feature.Feature(id="temperature", type="integer"),
-                            ],
-                        ),
+                        inputs=[],
+                        outputs=[
+                            feature.Feature(id="temperature", type="integer"),
+                        ],
                         compute=assembly.Binding(
                             ref.function(read_observations),
                         ),
                     ),
                     assembly.Operator(
                         id="result",
-                        interface=assembly.Interface(
-                            inputs=[ref.feature("temperature")],
-                            outputs=[feature.Feature(id="result", type="integer")],
-                        ),
+                        inputs=[ref.feature("temperature")],
+                        outputs=[feature.Feature(id="result", type="integer")],
                         compute=assembly.Binding(
                             ref.function(calculate),
                             dataset=ref.profile().dataset,
@@ -130,7 +126,6 @@ def test_row_context_references_resolve_scalar_extents(
 ) -> None:
     declaration = assembly.Operator(
         id="result",
-        interface=assembly.Interface(),
         row_context=context,
         compute=assembly.Binding(
             ref.function("external:calculate", returns="dataframe"),
@@ -221,10 +216,8 @@ def test_count_extents_require_nonnegative_integers(factory, value):
 def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
     declaration = assembly.Operator(
         id="declaration",
-        interface=assembly.Interface(
-            inputs=[],
-            outputs=[],
-        ),
+        inputs=[],
+        outputs=[],
         compute=assembly.Binding(
             ref.function(f"{__name__}:calculate", returns="dataframe"),
             configuration={
@@ -257,10 +250,8 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     with pytest.raises(ValueError, match="one dimension"):
         assembly.Operator(
             id="operator",
-            interface=assembly.Interface(
-                inputs=[],
-                outputs=[],
-            ),
+            inputs=[],
+            outputs=[],
             compute=assembly.Binding(
                 ref.function(calculate),
                 configuration=[first, second],
@@ -269,10 +260,8 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
     with pytest.raises(ValueError, match="one measurement"):
         assembly.Operator(
             id="operator",
-            interface=assembly.Interface(
-                inputs=[],
-                outputs=[],
-            ),
+            inputs=[],
+            outputs=[],
             compute=assembly.Binding(
                 ref.function(calculate),
                 configuration=[first, authoring.rows(8, before=7)],
@@ -309,10 +298,8 @@ def test_unknown_current_and_all_rows_context_are_distinct():
     assert (
         assembly.Operator(
             id="operator",
-            interface=assembly.Interface(
-                inputs=[],
-                outputs=[],
-            ),
+            inputs=[],
+            outputs=[],
             compute=assembly.Binding(
                 ref.function(calculate),
             ),
@@ -475,10 +462,8 @@ def test_spec_plan_execution_and_presentation_preserve_context(
 def test_data_mapping_preserves_annotated_context():
     declaration = assembly.Operator(
         id="declaration",
-        interface=assembly.Interface(
-            inputs=[],
-            outputs=[],
-        ),
+        inputs=[],
+        outputs=[],
         compute=assembly.Binding(
             ref.function(f"{__name__}:calculate", returns="dataframe"),
             configuration={"windows": [authoring.rows(8, before=7)]},
@@ -568,12 +553,10 @@ def test_collapse_functions_execute_without_row_context(
         assembly=[
             assembly.Operator(
                 id="read_observations",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[
-                        feature.Feature(id="temperature", type="integer"),
-                    ],
-                ),
+                inputs=[],
+                outputs=[
+                    feature.Feature(id="temperature", type="integer"),
+                ],
                 compute=assembly.Binding(
                     ref.function(read_observations),
                 ),
@@ -585,10 +568,8 @@ def test_collapse_functions_execute_without_row_context(
         assembly=[
             assembly.Operator(
                 id="summary",
-                interface=assembly.Interface(
-                    inputs=[ref.feature("temperature")],
-                    outputs=[feature.Feature(id="temperature_max", type="integer")],
-                ),
+                inputs=[ref.feature("temperature")],
+                outputs=[feature.Feature(id="temperature_max", type="integer")],
                 stage=assembly.Binding(
                     ref.function(maximum),
                     dataset=ref.profile("observations").dataset,

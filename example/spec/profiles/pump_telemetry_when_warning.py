@@ -3,7 +3,7 @@
 import pump_analytics as analytics
 from spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Order, Profile, merge, ref
+from uptimely import Binding, Feature, FeatureSet, Operator, Order, Profile, merge, ref
 
 
 class WarningTelemetryFeatures(FeatureSet):
@@ -45,23 +45,21 @@ class PumpTelemetryWhenWarning(Profile):
     features = WarningTelemetryFeatures()
     assembly = [
         Operator(
-            interface=Interface(
-                inputs=[
-                    ref.feature("pump_mode"),
-                    ref.feature("differential_pressure"),
-                    ref.feature("flow_rate"),
-                    ref.feature("motor_power"),
-                    ref.feature("bearing_temperature"),
-                    ref.feature("vibration_rms"),
-                ],
-                outputs=[
-                    features.warning_differential_pressure,
-                    features.warning_flow_rate,
-                    features.warning_motor_power,
-                    features.warning_bearing_temperature,
-                    features.warning_vibration_rms,
-                ],
-            ),
+            inputs=[
+                ref.feature("pump_mode"),
+                ref.feature("differential_pressure"),
+                ref.feature("flow_rate"),
+                ref.feature("motor_power"),
+                ref.feature("bearing_temperature"),
+                ref.feature("vibration_rms"),
+            ],
+            outputs=[
+                features.warning_differential_pressure,
+                features.warning_flow_rate,
+                features.warning_motor_power,
+                features.warning_bearing_temperature,
+                features.warning_vibration_rms,
+            ],
             stage=Binding(
                 analytics.filter_rows,
                 dataset=ref.dataset("pump_telemetry"),

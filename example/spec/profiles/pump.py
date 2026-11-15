@@ -5,7 +5,7 @@ import pump_io as io
 import pump_merge as merge_functions
 from spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Profile, merge, ref
+from uptimely import Binding, Feature, FeatureSet, Operator, Profile, merge, ref
 from uptimely.spec import feature_types
 
 
@@ -82,7 +82,7 @@ class Pump(Profile):
 
     assembly = [
         Operator(
-            interface=Interface(outputs=[features.pump_max_capacity]),
+            outputs=[features.pump_max_capacity],
             stage=Binding(
                 io.read_file,
                 source=ref.paths("pump_assets_source"),
@@ -92,10 +92,8 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
-            interface=Interface(
-                inputs=[ref.feature("max_capacity_series")],
-                outputs=[features.series_max_capacity],
-            ),
+            inputs=[ref.feature("max_capacity_series")],
+            outputs=[features.series_max_capacity],
             stage=Binding(
                 analytics.select_columns,
                 dataset=ref.dataset("pump_series"),
@@ -108,10 +106,8 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
-            interface=Interface(
-                inputs=[ref.feature("max_capacity_category")],
-                outputs=[features.category_max_capacity],
-            ),
+            inputs=[ref.feature("max_capacity_category")],
+            outputs=[features.category_max_capacity],
             stage=Binding(
                 analytics.select_columns,
                 dataset=ref.dataset("pump_category"),
@@ -124,14 +120,12 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
-            interface=Interface(
-                inputs=[
-                    features.pump_max_capacity,
-                    features.series_max_capacity,
-                    features.category_max_capacity,
-                ],
-                outputs=[features.max_capacity],
-            ),
+            inputs=[
+                features.pump_max_capacity,
+                features.series_max_capacity,
+                features.category_max_capacity,
+            ],
+            outputs=[features.max_capacity],
             compute=Binding(
                 analytics.first_non_null_value,
                 dataset=ref.dataset(),
@@ -145,10 +139,8 @@ class Pump(Profile):
         ),
         Operator(
             id="bearing_temperature_by_pump",
-            interface=Interface(
-                inputs=[ref.feature("bearing_temperature")],
-                outputs=[features.bearing_temperature_max],
-            ),
+            inputs=[ref.feature("bearing_temperature")],
+            outputs=[features.bearing_temperature_max],
             stage=Binding(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry"),
@@ -159,10 +151,8 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
-            interface=Interface(
-                inputs=[features.bearing_temperature_max],
-                outputs=[features.health_signal_normalized],
-            ),
+            inputs=[features.bearing_temperature_max],
+            outputs=[features.health_signal_normalized],
             compute=Binding(
                 analytics.min_max_scale,
                 dataset=ref.dataset(),
@@ -174,9 +164,7 @@ class Pump(Profile):
             ),
         ),
         Operator(
-            interface=Interface(
-                outputs=[features.measurement, features.reference_value],
-            ),
+            outputs=[features.measurement, features.reference_value],
             stage=Binding(
                 io.read_file,
                 source=ref.paths("pump_external_inputs_source"),
@@ -198,10 +186,8 @@ class Pump(Profile):
             ),
         ),
         Operator(
-            interface=Interface(
-                inputs=[features.measurement, features.reference_value],
-                outputs=[features.ratio],
-            ),
+            inputs=[features.measurement, features.reference_value],
+            outputs=[features.ratio],
             compute=Binding(
                 io.process_pump_external_workflow,
                 source=ref.paths("pump_external_inputs_source"),
@@ -209,7 +195,7 @@ class Pump(Profile):
             ),
         ),
         Operator(
-            interface=Interface(outputs=[]),
+            outputs=[],
             compute=Binding(
                 io.write_file,
                 dataset=ref.dataset(),

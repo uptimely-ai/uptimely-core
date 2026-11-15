@@ -45,18 +45,16 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
         assembly=[
             authoring.Operator(
                 id="read",
-                interface=authoring.Interface(
-                    outputs=[
-                        authoring.Feature(
-                            id="temperature",
-                            name="Ambient Temperature",
-                            type="float",
-                            unit="C",
-                            description="Ambient temperature measurement.",
-                        ),
-                        authoring.Feature(id="pump", type="string"),
-                    ],
-                ),
+                outputs=[
+                    authoring.Feature(
+                        id="temperature",
+                        name="Ambient Temperature",
+                        type="float",
+                        unit="C",
+                        description="Ambient temperature measurement.",
+                    ),
+                    authoring.Feature(id="pump", type="string"),
+                ],
                 compute=authoring.Binding(
                     ref.function("reader:read", returns="dataframe"),
                 ),
@@ -88,12 +86,10 @@ def test_mapping_rejects_duplicate_output_ids() -> None:
     with pytest.raises(ValueError, match="output feature IDs must not repeat"):
         authoring.Operator(
             id="operator",
-            interface=authoring.Interface(
-                outputs=[
-                    authoring.Feature(id="temperature"),
-                    authoring.Feature(id="temperature"),
-                ],
-            ),
+            outputs=[
+                authoring.Feature(id="temperature"),
+                authoring.Feature(id="temperature"),
+            ],
             compute=authoring.Binding(
                 ref.function("reader:read", returns="dataframe"),
             ),
@@ -106,9 +102,7 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
         assembly = [
             authoring.Operator(
                 id="result",
-                interface=authoring.Interface(
-                    outputs=[authoring.Feature(id="result", type="float")],
-                ),
+                outputs=[authoring.Feature(id="result", type="float")],
                 compute=authoring.Binding(
                     must_not_execute,
                     values=[ref.feature("temperature"), ref.feature("temperature")],
@@ -129,9 +123,9 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
     }
     assert operator.bound_arguments() == operator.compute.arguments
     assert model.compute.args["output"].root == "$features.result.id"
-    assert operator.interface.outputs[0].id == "result"
-    assert operator.interface.outputs[0].name == "Result"
-    assert operator.interface.outputs[0].type == "float"
+    assert operator.outputs[0].id == "result"
+    assert operator.outputs[0].name == "Result"
+    assert operator.outputs[0].type == "float"
 
 
 @pytest.mark.parametrize(
@@ -151,9 +145,7 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
         assembly = [
             authoring.Operator(
                 id="invalid",
-                interface=authoring.Interface(
-                    outputs=[],
-                ),
+                outputs=[],
                 compute=authoring.Binding(
                     implementation,
                     **arguments,
@@ -173,9 +165,7 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
         assembly = [
             authoring.Operator(
                 id="first",
-                interface=authoring.Interface(
-                    outputs=[authoring.Feature(id=identifier, type="float")],
-                ),
+                outputs=[authoring.Feature(id=identifier, type="float")],
                 compute=authoring.Binding(
                     ref.function("test_declarative_authoring:implementation", returns="dataframe"),
                     output=ref.feature(identifier).id,
@@ -191,27 +181,21 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
 def test_dataset_subclasses_inherit_and_replace_collections() -> None:
     first = authoring.Operator(
         id="read",
-        interface=authoring.Interface(
-            outputs=[authoring.Feature(id="value", type="float")],
-        ),
+        outputs=[authoring.Feature(id="value", type="float")],
         compute=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
     )
     replacement = authoring.Operator(
         id="read",
-        interface=authoring.Interface(
-            outputs=[authoring.Feature(id="value", type="integer")],
-        ),
+        outputs=[authoring.Feature(id="value", type="integer")],
         compute=authoring.Binding(
             ref.function("reader:replacement", returns="dataframe"),
         ),
     )
     sink = authoring.Operator(
         id="write",
-        interface=authoring.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=authoring.Binding(
             ref.function("writer:write", returns="none"),
             column=ref.feature("value"),
@@ -276,9 +260,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
         assembly = [
             authoring.Operator(
                 id="values",
-                interface=authoring.Interface(
-                    outputs=[authoring.Feature(id="value", type="float")],
-                ),
+                outputs=[authoring.Feature(id="value", type="float")],
                 compute=authoring.Binding(
                     ref.function("reader:values", returns="dataframe"),
                 ),
@@ -295,9 +277,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
 def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
     operator = authoring.Operator(
         id="result",
-        interface=authoring.Interface(
-            outputs=[authoring.Feature(id="result", type="float")],
-        ),
+        outputs=[authoring.Feature(id="result", type="float")],
         compute=authoring.Binding(
             ref.function("calculation:calculate", returns="dataframe"),
             configuration={
@@ -312,7 +292,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
         ),
     )
     model = operator.to_model()
-    assert operator.interface.inputs is None
+    assert operator.inputs is None
     assert model.input_features == ["first", "second"]
     assert model.row_context.before.rows == 2
     assert model.compute.args["configuration"].root == {
@@ -325,10 +305,8 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
 def test_programmatic_dataset_uses_function_name_for_catalog_id() -> None:
     operator = authoring.Operator(
         id="named",
-        interface=authoring.Interface(
-            inputs=[ref.feature("explicit")],
-            outputs=[authoring.Feature(id="result", type="float")],
-        ),
+        inputs=[ref.feature("explicit")],
+        outputs=[authoring.Feature(id="result", type="float")],
         compute=authoring.Binding(
             ref.function("calculation:calculate", returns="dataframe"),
             column=ref.feature("inferred"),
@@ -344,13 +322,11 @@ def test_programmatic_dataset_uses_function_name_for_catalog_id() -> None:
     assert set(declaration.function_catalog()) == {"calculate"}
 
 
-def test_operator_interface_inputs_accept_feature_declarations() -> None:
+def test_operator_inputs_accept_feature_declarations() -> None:
     operator = authoring.Operator(
         id="calculate",
-        interface=authoring.Interface(
-            inputs=[authoring.Feature(id="explicit")],
-            outputs=[authoring.Feature(id="result")],
-        ),
+        inputs=[authoring.Feature(id="explicit")],
+        outputs=[authoring.Feature(id="result")],
         compute=authoring.Binding(
             ref.function("calculation:calculate", returns="dataframe"),
             value=ref.feature("inferred"),
@@ -372,9 +348,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
         assembly=[
             authoring.Operator(
                 id="read",
-                interface=authoring.Interface(
-                    outputs=[authoring.Feature(id="value", type="float")],
-                ),
+                outputs=[authoring.Feature(id="value", type="float")],
                 compute=authoring.Binding(
                     ref.function("reader:read", returns="dataframe"),
                     keys=ref.profile().grain.ids,
@@ -399,26 +373,17 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
     assert payload["functions"]["read"]["args"]["keys"]["type"] == "array[string]"
 
 
-@pytest.mark.parametrize("required", ["interface", "compute"])
-def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
-    arguments = {
-        "id": "read",
-        "interface": authoring.Interface(outputs=[]),
-        "compute": authoring.Binding(
-            ref.function("reader:read", returns="dataframe"),
-        ),
-    }
-    del arguments[required]
-    with pytest.raises((TypeError, ValueError), match=required):
-        authoring.Operator(**arguments)
+def test_mapping_constructor_requires_compute_or_stage_and_merge() -> None:
+    with pytest.raises(ValueError, match="either compute or both stage and merge"):
+        authoring.Operator(id="read")
 
 
-@pytest.mark.parametrize("legacy", ["function", "arguments", "outputs", "inputs", "function_id"])
+@pytest.mark.parametrize("legacy", ["function", "arguments", "function_id"])
 def test_operator_rejects_flat_declaration_fields(legacy: str) -> None:
     with pytest.raises(TypeError, match="unexpected keyword argument"):
         authoring.Operator(
             id="read",
-            interface=authoring.Interface(outputs=[]),
+            outputs=[],
             compute=authoring.Binding(
                 ref.function("reader:read", returns="dataframe"),
             ),
@@ -429,9 +394,7 @@ def test_operator_rejects_flat_declaration_fields(legacy: str) -> None:
 def test_mapping_requires_explicit_function_return_contract() -> None:
     operator = authoring.Operator(
         id="operator",
-        interface=authoring.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=authoring.Binding(
             "reader:read",
         ),
@@ -443,9 +406,7 @@ def test_mapping_requires_explicit_function_return_contract() -> None:
 def test_explicit_return_contract_is_preserved_without_wrapping_function() -> None:
     declaration = authoring.Operator(
         id="declaration",
-        interface=authoring.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=authoring.Binding(
             calculate,
             value="input",
@@ -459,9 +420,7 @@ def test_explicit_return_contract_is_preserved_without_wrapping_function() -> No
 def test_operator_export_uses_its_identifier() -> None:
     operator = authoring.Operator(
         id="operator",
-        interface=authoring.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
@@ -471,7 +430,7 @@ def test_operator_export_uses_its_identifier() -> None:
 
 def test_operator_generates_id_from_its_single_output() -> None:
     operator = authoring.Operator(
-        interface=authoring.Interface(outputs=[authoring.Feature(id="result")]),
+        outputs=[authoring.Feature(id="result")],
         compute=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
@@ -494,7 +453,7 @@ def test_operator_generates_id_without_single_output(
     outputs: list[authoring.Feature], expected_id: str
 ) -> None:
     operator = authoring.Operator(
-        interface=authoring.Interface(outputs=outputs),
+        outputs=outputs,
         compute=authoring.Binding(
             ref.function("writer:write", returns="none"),
         ),
@@ -509,9 +468,7 @@ def test_operator_rejects_invalid_identifiers(identifier: typing.Any) -> None:
     with pytest.raises(ValueError, match="Operator requires a non-empty id"):
         authoring.Operator(
             id=identifier,
-            interface=authoring.Interface(
-                outputs=[],
-            ),
+            outputs=[],
             compute=authoring.Binding(
                 ref.function("reader:read", returns="dataframe"),
             ),
@@ -522,9 +479,7 @@ def test_operator_rejects_invalid_identifiers(identifier: typing.Any) -> None:
 def test_function_catalog_records_independent_return_contract(returns: str) -> None:
     operator = authoring.Operator(
         id="work",
-        interface=authoring.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=authoring.Binding(
             ref.function("implementation:work", returns=returns),
         ),
@@ -549,7 +504,7 @@ def read_frames() -> object:
 def test_python_spec_merge_binding_export() -> None:
     operator = authoring.Operator(
         id="read",
-        interface=authoring.Interface(outputs=[authoring.Feature(id="value")]),
+        outputs=[authoring.Feature(id="value")],
         stage=authoring.Binding(
             read_frames,
         ),
@@ -605,9 +560,7 @@ def test_operator_groups_reject_invalid_values(invalid: typing.Any) -> None:
 def test_operator_groups_flatten_in_mapping_order() -> None:
     first = authoring.Operator(
         id="read",
-        interface=authoring.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
@@ -631,9 +584,7 @@ def test_operator_groups_flatten_in_mapping_order() -> None:
 def test_operator_ids_are_unique_across_groups(returns: str) -> None:
     first = authoring.Operator(
         id="duplicate",
-        interface=authoring.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
@@ -652,9 +603,7 @@ def test_operator_ids_are_unique_across_groups(returns: str) -> None:
 def test_operator_defaults_and_inherited_lists_are_not_shared_between_instances() -> None:
     read = authoring.Operator(
         id="read",
-        interface=authoring.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
@@ -680,9 +629,7 @@ def test_operator_defaults_and_inherited_lists_are_not_shared_between_instances(
 def test_subclasses_can_explicitly_extend_or_clear_inherited_operator() -> None:
     read = authoring.Operator(
         id="read",
-        interface=authoring.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
@@ -708,9 +655,7 @@ def test_conversion_revalidates_modified_operator() -> None:
     declaration.assembly = [
         authoring.Operator(
             id="write",
-            interface=authoring.Interface(
-                outputs=[],
-            ),
+            outputs=[],
             compute=authoring.Binding(
                 ref.function("writer:write", returns="none"),
             ),
@@ -718,10 +663,7 @@ def test_conversion_revalidates_modified_operator() -> None:
     ]
     declaration.assembly[0] = dataclasses.replace(
         declaration.assembly[0],
-        interface=dataclasses.replace(
-            declaration.assembly[0].interface,
-            outputs=[authoring.Feature(id="value")],
-        ),
+        outputs=[authoring.Feature(id="value")],
     )
     with pytest.raises(ValueError, match="No-result operator cannot produce features"):
         declaration.to_model()
@@ -736,9 +678,7 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
             "calculations": [
                 authoring.Operator(
                     id="calculate",
-                    interface=authoring.Interface(
-                        outputs=[authoring.Feature(id="result")],
-                    ),
+                    outputs=[authoring.Feature(id="result")],
                     compute=authoring.Binding(
                         ref.function("implementation:calculate", returns="dataframe"),
                         column=ref.feature("pipeline_result"),
@@ -748,9 +688,7 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
             "publishing": [
                 authoring.Operator(
                     id="publish",
-                    interface=authoring.Interface(
-                        outputs=[],
-                    ),
+                    outputs=[],
                     compute=authoring.Binding(
                         ref.function("implementation:publish", returns="none"),
                         column=ref.feature("result"),
@@ -760,10 +698,8 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
             "custom": [
                 authoring.Operator(
                     id="custom_work",
-                    interface=authoring.Interface(
-                        inputs=[ref.feature("external_input")],
-                        outputs=[],
-                    ),
+                    inputs=[ref.feature("external_input")],
+                    outputs=[],
                     compute=authoring.Binding(
                         ref.function("implementation:custom_work", returns="any"),
                     ),
