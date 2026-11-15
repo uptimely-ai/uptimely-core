@@ -285,6 +285,14 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
                 "source": "$profiles.auxiliary_dataset.dataset",
             },
         ),
+        merge=spec_model.Binding(
+            function="merge_by_grain",
+            args={
+                "dataset": "$profiles.@.dataset",
+                "fragment": "$operators.@.fragment",
+                "dataset_identifiers": "$profiles.@.grain.ids",
+            },
+        ),
         interface=spec_model.Interface(
             inputs=["$features.auxiliary_value"],
             outputs=["$features.conformed_auxiliary"],
@@ -583,7 +591,7 @@ def test_compiler_feature_subset_contains_requested_output_and_ancestors() -> No
             subset.invocations_by_id[dependency_id].function_id,
         )
         for dependency_id in normalized.dependency_ids
-    } == {("merge", "merge_by_grain")}
+    } == {("merge", "merge_by_grain"), ("compute", "read_file")}
     assert {
         invocation.operator_id
         for invocation in subset.invocations

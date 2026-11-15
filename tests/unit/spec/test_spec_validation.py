@@ -142,6 +142,9 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
             "inputs": ["$features.bearing_temperature_max"],
             "outputs": ["$features.expanded_feature"],
         },
+        "merge": configuration["profiles"]["pump"]["assembly"]["bearing_temperature_by_pump"][
+            "merge"
+        ],
     }
 
     spec_path = tmp_path / "valid_mappings_spec.json"
@@ -340,6 +343,7 @@ def test_higher_dimensional_source_derives_collapse(tmp_path: pathlib.Path) -> N
             "inputs": ["$features.bearing_temperature"],
             "outputs": ["$features.expanded_feature"],
         },
+        "merge": target["assembly"]["bearing_temperature_by_pump"]["merge"],
     }
     path = tmp_path / "invalid_expand_input.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -370,6 +374,7 @@ def test_shared_callable_can_derive_collapse(tmp_path: pathlib.Path) -> None:
             "inputs": ["$features.bearing_temperature"],
             "outputs": ["$features.conformed_feature"],
         },
+        "merge": target["assembly"]["bearing_temperature_by_pump"]["merge"],
     }
     path = tmp_path / "invalid_conform_dimensions.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
@@ -623,7 +628,13 @@ def test_function_contract_validates_dataframe_inputs_and_return(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     if field == "returns":
-        configuration["functions"]["aggregate"][field] = value
+        configuration["functions"]["invalid_aggregate"] = {
+            **configuration["functions"]["aggregate"],
+            field: value,
+        }
+        configuration["profiles"]["pump"]["assembly"]["bearing_temperature_by_pump"]["compute"][
+            "function"
+        ] = "invalid_aggregate"
     else:
         configuration["functions"]["unmapped_vectorize"] = {
             "returns": "dataframe",

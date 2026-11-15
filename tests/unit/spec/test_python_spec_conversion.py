@@ -640,6 +640,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
             "grain": [{"dimension": "machine", "resolution": "machine"}],
             "relations": [],
             "scope": "One row per pump observation",
+            "seed": None,
             "order": [{"dimension": "machine", "resolution": "machine", "direction": "desc"}],
             "features": {},
             "assembly": {},

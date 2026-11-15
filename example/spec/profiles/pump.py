@@ -79,17 +79,18 @@ class Pump(Profile):
     ]
     scope = "Cooling-pump telemetry and external workflow inputs for data centers"
     features = PumpFeatures()
+    seed = "read_pump_assets"
 
     assembly = [
         Operator(
+            id="read_pump_assets",
             outputs=[features.pump_max_capacity],
-            read=Bind(
+            seed=Bind(
                 io.read_file,
                 source=ref.paths("pump_assets_source"),
                 rename={"max_capacity": features.pump_max_capacity},
                 schema={"max_capacity": "float"},
             ),
-            merge=merge.default(),
         ),
         Operator(
             inputs=[ref.feature("max_capacity_series")],

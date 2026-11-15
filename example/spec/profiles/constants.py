@@ -2,7 +2,7 @@
 
 import pump_io as io
 
-from uptimely import Bind, Feature, FeatureSet, Operator, Profile, merge, ref
+from uptimely import Bind, Feature, FeatureSet, Operator, Profile, ref
 
 
 class ConstantsFeatures(FeatureSet):
@@ -30,11 +30,13 @@ class Constants(Profile):
     description = "Physical constants used by cooling pump analytics."
     category = "Configuration"
     features = ConstantsFeatures()
+    seed = "read_constants"
 
     assembly = [
         Operator(
+            id="read_constants",
             outputs=[features.gravity, features.room_temperature],
-            read=Bind(
+            seed=Bind(
                 io.read_file,
                 source=ref.paths("constants_source"),
                 schema={"gravity": "float", "room_temperature": "float"},
@@ -43,7 +45,6 @@ class Constants(Profile):
                     "room_temperature": features.room_temperature,
                 },
             ),
-            merge=merge.default(),
         ),
         Operator(
             outputs=[],

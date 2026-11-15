@@ -116,16 +116,19 @@ class Bind:
 
 @dataclasses.dataclass(frozen=True, kw_only=True, init=False)
 class Operator:
-    """Declare an operator with a read, compute, write, or staged binding.
+    """Declare an operator with a seed, read, compute, write, or staged binding.
 
     Args:
         id: Optional non-empty identifier, unique within its profile. When omitted,
-            the ID is generated from the primary function and outputs.
+            the ID is generated from the primary function and outputs. An operator
+            referenced as a profile's seed must have an explicitly supplied ID.
         inputs: Feature dependencies. Inputs are inferred from binding arguments
             when omitted.
         outputs: Feature declarations produced by the operator.
         row_context: Operator-specific observation requirements, merged with
             argument annotations.
+        seed: Function producing the initial profile dataframe from an external
+            source or another profile.
         read: Function reading a dataframe without a dataframe input.
         compute: Function producing the complete target or a non-dataframe result.
         write: Function consuming one dataframe and returning no result.
@@ -139,17 +142,19 @@ class Operator:
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
+    seed: Bind | None = None
     read: Bind | None = None
     compute: Bind | None = None
     write: Bind | None = None
     stage: Bind | None = None
     merge: Bind | None = None
-    _primary_role: typing.Literal["read", "compute", "write", "stage"] = dataclasses.field(
+    _primary_role: typing.Literal["seed", "read", "compute", "write", "stage"] = dataclasses.field(
         init=False,
         repr=False,
         compare=False,
     )
     _primary_binding: Bind = dataclasses.field(init=False, repr=False, compare=False)
+    _id_explicit: bool = dataclasses.field(init=False, repr=False, compare=False)
 
     def __init__(
         self,
@@ -160,6 +165,7 @@ class Operator:
         row_context: (
             row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
         ) = None,
+        seed: Bind | None = None,
         read: Bind | None = None,
         compute: Bind | None = None,
         write: Bind | None = None,
@@ -168,6 +174,7 @@ class Operator:
     ) -> None:
         """Create an operator, deriving its identifier when one is not supplied."""
         for role, binding in (
+            ("seed", seed),
             ("read", read),
             ("compute", compute),
             ("write", write),
@@ -183,8 +190,10 @@ class Operator:
         if not isinstance(outputs, abc.Sequence) or isinstance(outputs, (str, bytes)):
             raise TypeError("Operator outputs must be a sequence of Features")
         primary_bindings: list[
-            tuple[typing.Literal["read", "compute", "write", "stage"], Bind]
+            tuple[typing.Literal["seed", "read", "compute", "write", "stage"], Bind]
         ] = []
+        if seed is not None:
+            primary_bindings.append(("seed", seed))
         if read is not None:
             primary_bindings.append(("read", read))
         if compute is not None:
@@ -202,6 +211,7 @@ class Operator:
                 "Operator requires one primary binding; merge is allowed only with read or stage"
             )
         primary_role, primary = primary_bindings[0]
+        id_explicit = id is not None
         if id is None:
             id = self._generate_id(outputs, primary.reference.name)
         if not isinstance(id, str) or not id.strip():
@@ -210,6 +220,7 @@ class Operator:
         object.__setattr__(self, "inputs", list(inputs) if inputs is not None else None)
         object.__setattr__(self, "outputs", list(outputs))
         object.__setattr__(self, "row_context", row_context)
+        object.__setattr__(self, "seed", seed)
         object.__setattr__(self, "read", read)
         object.__setattr__(self, "compute", compute)
         object.__setattr__(self, "write", write)
@@ -217,6 +228,7 @@ class Operator:
         object.__setattr__(self, "merge", merge)
         object.__setattr__(self, "_primary_role", primary_role)
         object.__setattr__(self, "_primary_binding", primary)
+        object.__setattr__(self, "_id_explicit", id_explicit)
         self._input_ids()
         _ = self.output_ids
         self.__post_init__()
@@ -363,7 +375,7 @@ class Operator:
                     raise ValueError("Write binding must accept exactly one dataframe input")
                 if template.returns != "none":
                     raise ValueError("Write binding must return no result")
-            if (role in {"compute", "stage"} and dataframe_count > 1) or (
+            if (role in {"seed", "compute", "stage"} and dataframe_count > 1) or (
                 role == "merge" and dataframe_count != 2
             ):
                 raise ValueError(
@@ -374,5 +386,7 @@ class Operator:
                 raise ValueError("Merge binding must return a dataframe")
             if role == "stage" and template.returns != "dataframe":
                 raise ValueError("A stage binding must return a dataframe")
+            if role == "seed" and template.returns != "dataframe":
+                raise ValueError("A seed binding must return a dataframe")
             catalogs.append(spec_model.FunctionCatalog(root={template.id: template}))
         return spec_model.FunctionCatalog.merge(catalogs)

@@ -129,7 +129,7 @@ def to_model(
         if not isinstance(declaration, profile_module.Profile):
             continue
         for operator in declaration._assembly_by_id.values():
-            if operator.stage is not None:
+            if operator.stage is not None or operator.seed is not None:
                 continue
             interface = document.profiles[declaration.id].assembly[operator.id].interface
             for feature_id in interface.input_ids:

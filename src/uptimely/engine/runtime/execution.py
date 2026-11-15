@@ -300,7 +300,8 @@ class InvocationExecutor:
         }
         dataset.dataframe = target
         self.state.datasets[dataset_id] = dataset
-        self.state.calculated_outputs.update(calculated_outputs)
+        if not invocation.is_seed:
+            self.state.calculated_outputs.update(calculated_outputs)
 
     def _validate_vectorized_result(
         self,

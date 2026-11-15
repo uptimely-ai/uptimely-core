@@ -2,10 +2,74 @@
 
 import logging
 
+from uptimely.spec import arg_types, operator_kinds
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
 logger = logging.getLogger(__name__)
+
+
+def validate_seeds(spec: spec_model.Spec) -> None:
+    """Require each seed to initialize its profile with a complete dataframe."""
+    logger.debug("Check profile seed operators initialize their target datasets")
+    for profile_id, profile in spec.profile_items:
+        if profile.seed is None:
+            continue
+        path = ("profiles", profile_id, "seed")
+        seed = profile.assembly.get(profile.seed)
+        if not profile.seed.strip() or seed is None:
+            raise errors.SpecError(
+                f"Profile {profile_id} seed must reference an operator in its assembly",
+                code="invalid_profile_seed",
+                path=path,
+            )
+        if seed.merge is not None:
+            raise errors.SpecError(
+                f"Profile {profile_id} seed must not have a merge",
+                code="invalid_profile_seed",
+                path=path,
+            )
+        function = spec.functions.root.get(seed.compute.function)
+        if function is None or function.returns != "dataframe":
+            raise errors.SpecError(
+                f"Profile {profile_id} seed must return a dataframe",
+                code="invalid_profile_seed",
+                path=path,
+            )
+        dataframe_arguments = [
+            (argument, seed.compute.args.get(name))
+            for name, argument in function.args.items()
+            if arg_types.is_dataframe(argument.type)
+        ]
+        if any(
+            value is not None and value.profile_id(profile_id) == profile_id
+            for _, value in dataframe_arguments
+        ):
+            raise errors.SpecError(
+                f"Profile {profile_id} seed cannot consume its own target dataframe",
+                code="invalid_profile_seed",
+                path=path,
+            )
+        if any(
+            argument.type == arg_types.OPTIONAL_DATAFRAME for argument, _ in dataframe_arguments
+        ):
+            raise errors.SpecError(
+                f"Profile {profile_id} seed dataframe input must not be nullable",
+                code="invalid_profile_seed",
+                path=path,
+            )
+        for operator_id, operator in profile.assembly.items():
+            if operator_id == profile.seed or operator.merge is not None:
+                continue
+            other_key = (profile_id, operator_id)
+            kind = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[other_key]]
+            if kind.is_source:
+                raise errors.SpecError(
+                    f"Profile {profile_id} operator {operator_id} must merge its result "
+                    "instead of replacing the seed",
+                    code="invalid_profile_seed",
+                    path=("profiles", profile_id, "assembly", operator_id),
+                )
 
 
 def validate_relations(spec: spec_model.Spec) -> None:
