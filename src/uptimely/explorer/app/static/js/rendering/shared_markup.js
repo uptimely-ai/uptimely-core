@@ -13,7 +13,8 @@ export const ICONS = {
   intermediate: "workflow", dependencies: "git-branch",
   invocations: "square-function", "feature-lineage": "diagram-flow-horizontal", "invocation-lineage": "layout-arrow-right",
   read: "file-input", transform: "replace", workflow: "git-branch", merge: "git-merge", expand: "expand", collapse: "combine",
-  same: "table-properties", unrelated: "shuffle", not_applicable: "circle-help",
+  same: "table-properties", emerge: "square-sparkles", vanish: "minimize",
+  unrelated: "shuffle", not_applicable: "circle-help",
   external: "arrow-up-right", write: "file-output",
   "data-lineage": "monitor-play", stages: "list-ordered", reset: "scan-search",
   "zoom-in": "zoom-in", "zoom-out": "zoom-out",
@@ -61,7 +62,9 @@ export function dataframeSignatureIcon(functionDefinition) {
 export function grainRelationshipIcon(grainRelationships) {
   const relationships = (grainRelationships || []).map(item =>
     typeof item === "string" ? item : item?.relationship);
-  for (const relationship of ["collapse", "expand", "same", "unrelated", "not_applicable"]) {
+  for (const relationship of [
+    "emerge", "vanish", "collapse", "expand", "same", "unrelated", "not_applicable",
+  ]) {
     if (relationships.includes(relationship)) return relationship;
   }
   return "operators";

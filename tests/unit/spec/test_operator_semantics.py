@@ -6,7 +6,10 @@ from uptimely.spec import model, validation
 def _make_spec(
     source_grain: list[tuple[str, str]] | None,
     target_grain: list[tuple[str, str]],
+    returns: str = "dataframe",
+    outputs: list[str] | None = None,
 ) -> model.Spec:
+    output_features = ["$features.result"] if outputs is None else outputs
     profiles: dict[str, dict[str, object]] = {
         "target": {
             "grain": [
@@ -24,7 +27,7 @@ def _make_spec(
                     },
                     "interface": {
                         "inputs": ["$features.signal"] if source_grain is not None else [],
-                        "outputs": ["$features.result"],
+                        "outputs": output_features,
                     },
                 }
             },
@@ -52,7 +55,7 @@ def _make_spec(
             },
             "functions": {
                 "transform": {
-                    "returns": "dataframe",
+                    "returns": returns,
                     "entrypoint": "example:transform",
                     "args": ({"data": {"type": "dataframe"}} if source_grain is not None else {}),
                 }
@@ -66,6 +69,7 @@ def _make_spec(
     ("source", "target", "relationship"),
     [
         ([("scope", "root")], [("scope", "root")], "same"),
+        ([], [], "same"),
         ([], [("scope", "child")], "expand"),
         ([("scope", "root")], [("scope", "child")], "expand"),
         ([("scope", "child")], [("scope", "root")], "collapse"),
@@ -94,16 +98,45 @@ def test_spec_classifies_profile_grains_using_resolution_hierarchy(
     )
 
 
-def test_spec_reports_operator_with_no_source() -> None:
+def test_missing_source_has_emerge_relationship() -> None:
     spec = _make_spec(None, [("scope", "root")])
     key = ("target", "calculate")
     operator = spec.operators_by_key[key]
 
     assert operator.source_details(spec, key) == ((), "missing")
-    assert operator.grain_relationships(spec, key) == {None: "not_applicable"}
+    assert operator.grain_relationships(spec, key) == {None: "emerge"}
     assert operator.profile_resolutions(spec, "target") == (
         spec.dimensions["scope"].resolutions["root"],
     )
+
+
+def test_missing_source_is_emerge_even_for_dimensionless_target() -> None:
+    spec = _make_spec(None, [])
+
+    assert spec.operators_by_key["target", "calculate"].grain_relationships(
+        spec, ("target", "calculate")
+    ) == {None: "emerge"}
+
+
+def test_missing_target_has_vanish_relationship() -> None:
+    spec = _make_spec(
+        [("scope", "root")],
+        [("scope", "root")],
+        returns="none",
+        outputs=[],
+    )
+
+    assert spec.operators_by_key["target", "calculate"].grain_relationships(
+        spec, ("target", "calculate")
+    ) == {"source": "vanish"}
+
+
+def test_missing_source_and_target_have_no_relationship() -> None:
+    spec = _make_spec(None, [("scope", "root")], outputs=[])
+
+    assert spec.operators_by_key["target", "calculate"].grain_relationships(
+        spec, ("target", "calculate")
+    ) == {None: "not_applicable"}
 
 
 def test_spec_exposes_calculated_feature_producers() -> None:

@@ -17,7 +17,9 @@ from . import dimension as dimension_module
 type OperatorBindingRole = typing.Literal["compute", "merge"]
 type OperatorExecutionForm = typing.Literal["compute", "compute + merge"]
 type OperatorSourceStatus = typing.Literal["resolved", "missing", "ambiguous", "invalid_reference"]
-type GrainRelationship = typing.Literal["same", "expand", "collapse", "unrelated", "not_applicable"]
+type GrainRelationship = typing.Literal[
+    "same", "expand", "collapse", "emerge", "vanish", "unrelated", "not_applicable"
+]
 type DataFrameInputScope = typing.Literal["none", "target", "foreign", "unrestricted"]
 type FeatureInputScope = typing.Literal["none", "target", "dataframe", "unrestricted"]
 type DimensionChange = typing.Literal["preserve", "add", "remove", "unrestricted"]
@@ -286,9 +288,26 @@ class Operator(base.StrictModel):
     ) -> dict[ProfileKey | None, GrainRelationship]:
         """Return this operator's source-to-target grain relationships."""
         sources, status = self.source_details(spec, key)
-        return {source: self._grain_relationship(spec, source, key[0]) for source in sources} | (
-            {None: "not_applicable"} if status != "resolved" else {}
+        target_profile = (
+            key[0]
+            if self.output_features
+            or self.merge is not None
+            or spec.profiles_by_key[key[0]].seed == key[1]
+            else None
         )
+        source_profiles: tuple[ProfileKey | None, ...] = sources
+        if not source_profiles:
+            if status == "missing" and not self.input_features:
+                source_profiles = (None,)
+            else:
+                return {None: "not_applicable"}
+        relationships = {
+            source: self._grain_relationship(spec, source, target_profile)
+            for source in source_profiles
+        }
+        if sources and status != "resolved":
+            relationships[None] = "not_applicable"
+        return relationships
 
     def profile_resolutions(
         self, spec: Spec, profile_key: ProfileKey
@@ -306,18 +325,24 @@ class Operator(base.StrictModel):
         return tuple(resolutions)
 
     def _grain_relationship(
-        self, spec: Spec, source_profile_key: ProfileKey, target_profile_key: ProfileKey
+        self,
+        spec: Spec,
+        source_profile_key: ProfileKey | None,
+        target_profile_key: ProfileKey | None,
     ) -> GrainRelationship:
         """Classify two profile grains using the declared resolution hierarchy."""
-        source = spec.profiles_by_key[source_profile_key]
-        target = spec.profiles_by_key[target_profile_key]
-        if (
-            self.profile_resolutions(spec, source_profile_key) is None
-            or self.profile_resolutions(spec, target_profile_key) is None
-        ):
+        if source_profile_key is None and target_profile_key is None:
             return "not_applicable"
-        source_grain = source.grain_reference_set
-        target_grain = target.grain_reference_set
+        if source_profile_key is None:
+            return "emerge"
+        if target_profile_key is None:
+            return "vanish"
+        source_resolutions = self.profile_resolutions(spec, source_profile_key)
+        target_resolutions = self.profile_resolutions(spec, target_profile_key)
+        if source_resolutions is None or target_resolutions is None:
+            return "not_applicable"
+        source_grain = spec.profiles_by_key[source_profile_key].grain_reference_set
+        target_grain = spec.profiles_by_key[target_profile_key].grain_reference_set
         if source_grain == target_grain:
             return "same"
         if spec.grain_refines(source_profile_key, target_profile_key):

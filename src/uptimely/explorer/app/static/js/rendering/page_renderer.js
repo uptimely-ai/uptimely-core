@@ -58,6 +58,7 @@ export function planOverview(data) {
     <section id="plan-overview" class="mb-16">
       <div class="catalog-charts lg:grid-cols-2">${distribution("Invocations by binding role", plan.invocation_role_counts, {
         total: plan.invocation_count,
+        labelFormatter: role => role[0].toUpperCase() + role.slice(1),
       })}
         ${distribution("Invocations by stage", data.stages.map(stage => [`Stage ${stage.stage}`, stage.steps.length]), {
           total: plan.invocation_count,

@@ -20,26 +20,28 @@ def _shared_callable_spec() -> spec_model.Spec:
             },
             "profiles": {
                 "local": {
+                    "features": {"result": {}},
                     "assembly": {
                         "self_transform": {
                             "compute": {
                                 "function": "shared",
                                 "args": {"dataset": "$profiles.@.dataset"},
                             },
-                            "interface": {"inputs": [], "outputs": []},
+                            "interface": {"inputs": [], "outputs": ["$features.result"]},
                         }
-                    }
+                    },
                 },
                 "remote": {
+                    "features": {"result": {}},
                     "assembly": {
                         "foreign_transform": {
                             "compute": {
                                 "function": "shared",
                                 "args": {"dataset": "$profiles.local.dataset"},
                             },
-                            "interface": {"inputs": [], "outputs": []},
+                            "interface": {"inputs": [], "outputs": ["$features.result"]},
                         }
-                    }
+                    },
                 },
             },
         }

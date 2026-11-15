@@ -67,6 +67,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Fixed
 
+- Explorer names missing source and target profile relationships `emerge` and
+  `vanish`.
 - The example's external workflow publishes its ratio without declaring it as
   a profile dataframe feature.
 - `uptimely example --no-setup` no longer downloads the example's `init.sh`.
