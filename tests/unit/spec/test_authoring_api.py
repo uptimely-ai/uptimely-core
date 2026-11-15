@@ -32,18 +32,18 @@ def test_root_authoring_api_compiles_and_executes(
             up.Operator(
                 id="read",
                 interface=up.Interface(outputs=[up.Feature(id="value")]),
-                compute=up.Binding(function=read_values),
+                compute=up.Binding(
+                    read_values,
+                ),
             ),
             up.Operator(
                 id="double",
                 interface=up.Interface(outputs=[up.Feature(id="doubled")]),
                 compute=up.Binding(
-                    function=double,
-                    arguments={
-                        "dataset": up.ref.dataset(),
-                        "value": up.ref.feature("value"),
-                        "output": up.ref.feature("doubled"),
-                    },
+                    double,
+                    dataset=up.ref.dataset(),
+                    value=up.ref.feature("value"),
+                    output=up.ref.feature("doubled"),
                 ),
             ),
         ]
@@ -108,8 +108,7 @@ def test_profile_features_attributes_can_be_operator_outputs() -> None:
             outputs=[features.value],
         ),
         compute=up.Binding(
-            function=read_values,
-            arguments={},
+            read_values,
         ),
     )
 
@@ -146,8 +145,8 @@ def test_feature_roles_follow_interface_in_nested_arguments(shape: str, declared
                 outputs=[up.Feature(id="result")] if declared else [],
             ),
             compute=up.Binding(
-                function=ref.function("external:calculate", returns="dataframe"),
-                arguments={"output": shapes[shape]},
+                ref.function("external:calculate", returns="dataframe"),
+                output=shapes[shape],
             ),
         )
 
@@ -163,8 +162,8 @@ def test_mutated_interface_updates_inferred_input_roles() -> None:
             outputs=[up.Feature(id="result")],
         ),
         compute=up.Binding(
-            function=ref.function("external:calculate", returns="dataframe"),
-            arguments={"output": up.ref.feature("result")},
+            ref.function("external:calculate", returns="dataframe"),
+            output=up.ref.feature("result"),
         ),
     )
     operator.interface.outputs.clear()

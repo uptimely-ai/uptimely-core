@@ -83,7 +83,10 @@ def test_ambiguous_return_annotations_require_explicit_role_when_bound(
     operator = authoring.Operator(
         id="calculate",
         interface=authoring.Interface(outputs=[]),
-        compute=authoring.Binding(function=reference, arguments={"value": "sample"}),
+        compute=authoring.Binding(
+            reference,
+            value="sample",
+        ),
     )
     with pytest.raises(ValueError, match="Explicit returns metadata is required"):
         operator.function_catalog()
@@ -102,17 +105,24 @@ def test_reference_captures_signature_and_checks_argument_names_at_authoring() -
 
     with pytest.raises(TypeError, match="unexpected keyword argument"):
         authoring.Binding(
-            function=reference,
-            arguments={"value": pl.DataFrame(), "other": pl.DataFrame()},
+            reference,
+            value=pl.DataFrame(),
+            other=pl.DataFrame(),
         ).to_model()
     with pytest.raises(TypeError, match="missing a required argument"):
-        authoring.Binding(function=reference).to_model()
+        authoring.Binding(
+            reference,
+        ).to_model()
 
 
 def test_direct_callable_and_callable_reference_share_the_same_contract() -> None:
-    direct = authoring.Binding(function=dataframe, arguments={"value": pl.DataFrame()})
+    direct = authoring.Binding(
+        dataframe,
+        value=pl.DataFrame(),
+    )
     reference = authoring.Binding(
-        function=ref.function(dataframe), arguments={"value": pl.DataFrame()}
+        ref.function(dataframe),
+        value=pl.DataFrame(),
     )
 
     assert direct.to_function_template() == reference.to_function_template()
@@ -121,8 +131,8 @@ def test_direct_callable_and_callable_reference_share_the_same_contract() -> Non
 
 def test_bound_argument_types_are_inferred_and_nullable_dataframe_is_preserved() -> None:
     template = authoring.Binding(
-        function=maybe_dataframe,
-        arguments={"value": authoring.ref.dataset()},
+        maybe_dataframe,
+        value=authoring.ref.dataset(),
     ).to_function_template()
 
     assert template.args["value"].type == "dataframe | null"
@@ -134,8 +144,8 @@ def test_explicit_argument_contract_overrides_bound_value_inference() -> None:
         args={"value": "string"},
     )(dataframe)
     template = authoring.Binding(
-        function=callable_with_explicit_args,
-        arguments={"value": authoring.ref.dataset()},
+        callable_with_explicit_args,
+        value=authoring.ref.dataset(),
     ).to_function_template()
 
     assert template.args["value"].type == "string"
@@ -158,7 +168,10 @@ def test_disabled_signature_inspection_still_checks_exact_names_and_dataframe_ar
     operator = authoring.Operator(
         id="calculate",
         interface=authoring.Interface(outputs=[]),
-        compute=authoring.Binding(function=function, arguments={"other": authoring.ref.dataset()}),
+        compute=authoring.Binding(
+            function,
+            other=authoring.ref.dataset(),
+        ),
     )
     with pytest.raises(ValueError, match="match the explicit function args contract"):
         operator.function_catalog()
@@ -173,8 +186,9 @@ def test_disabled_signature_inspection_still_checks_exact_names_and_dataframe_ar
         id="calculate",
         interface=authoring.Interface(outputs=[]),
         compute=authoring.Binding(
-            function=over_arity,
-            arguments={"first": authoring.ref.dataset(), "second": authoring.ref.dataset()},
+            over_arity,
+            first=authoring.ref.dataset(),
+            second=authoring.ref.dataset(),
         ),
     )
     with pytest.raises(ValueError, match="invalid dataframe arity"):
@@ -200,7 +214,9 @@ def test_reference_metadata_only_contract_is_deferred_until_catalog_binding() ->
     operator = authoring.Operator(
         id="calculate",
         interface=authoring.Interface(outputs=[]),
-        compute=authoring.Binding(function=reference),
+        compute=authoring.Binding(
+            reference,
+        ),
     )
     with pytest.raises(ValueError, match="Explicit returns metadata is required"):
         operator.function_catalog()

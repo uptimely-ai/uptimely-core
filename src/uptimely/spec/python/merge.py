@@ -6,7 +6,7 @@ from . import assembly, ref
 def default() -> assembly.Binding:
     """Return a binding that merges a fragment into its dataset by grain keys."""
     return assembly.Binding(
-        function=ref.function(
+        ref.function(
             "uptimely.library.merge.polars:merge_by_grain",
             returns="dataframe",
             args={
@@ -16,11 +16,9 @@ def default() -> assembly.Binding:
             },
             description="Merge a fragment into the dataset by grain keys.",
         ),
-        arguments={
-            "dataset": ref.dataset(),
-            "fragment": ref.fragment(),
-            "dataset_identifiers": ref.profile().grain.ids,
-        },
+        dataset=ref.dataset(),
+        fragment=ref.fragment(),
+        dataset_identifiers=ref.profile().grain.ids,
     )
 
 

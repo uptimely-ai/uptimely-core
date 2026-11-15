@@ -287,8 +287,7 @@ def test_sources_and_transforms_python_spec() -> None:
                     outputs=[python_spec.feature.Feature(id="input_1")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(_read_transform_data, returns="dataframe"),
-                    arguments={},
+                    python_spec.ref.function(_read_transform_data, returns="dataframe"),
                 ),
             )
         ],
@@ -307,8 +306,7 @@ def test_sources_and_transforms_python_spec() -> None:
                     outputs=[python_spec.feature.Feature(id="target_value")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(_read_transform_data, returns="dataframe"),
-                    arguments={},
+                    python_spec.ref.function(_read_transform_data, returns="dataframe"),
                 ),
             ),
             python_spec.Operator(
@@ -318,10 +316,8 @@ def test_sources_and_transforms_python_spec() -> None:
                     outputs=[python_spec.feature.Feature(id="input_2")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(expand_data, returns="dataframe"),
-                    arguments={
-                        "source": python_spec.ref.profile("transformed_dataset").dataset,
-                    },
+                    python_spec.ref.function(expand_data, returns="dataframe"),
+                    source=python_spec.ref.profile("transformed_dataset").dataset,
                 ),
             ),
         ],
@@ -337,13 +333,11 @@ def test_sources_and_transforms_python_spec() -> None:
                     outputs=[python_spec.feature.Feature(id="collapsed_feature")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(analytics.aggregate, returns="dataframe"),
-                    arguments={
-                        "dataset": python_spec.ref.profile("target").dataset,
-                        "aggregations": {"input_2": "max"},
-                        "dimensions": python_spec.ref.profile().grain.ids,
-                        "rename": {"input_2": python_spec.ref.feature("collapsed_feature").id},
-                    },
+                    python_spec.ref.function(analytics.aggregate, returns="dataframe"),
+                    dataset=python_spec.ref.profile("target").dataset,
+                    aggregations={"input_2": "max"},
+                    dimensions=python_spec.ref.profile().grain.ids,
+                    rename={"input_2": python_spec.ref.feature("collapsed_feature").id},
                 ),
             )
         ],

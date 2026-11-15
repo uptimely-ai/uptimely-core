@@ -28,7 +28,9 @@ class Values(Profile):
         Operator(
             id="read",
             interface=Interface(outputs=[Feature(id="value")]),
-            compute=Binding(function=ref.function(functions.Readers.values)),
+            compute=Binding(
+                ref.function(functions.Readers.values),
+            ),
         )
     ]
 

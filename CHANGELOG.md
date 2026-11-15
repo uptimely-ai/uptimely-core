@@ -19,6 +19,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Python `Binding` declarations now take the function positionally and pass
+  function arguments as keyword arguments.
 - CLI actions now use one top-level command, including `uptimely build`,
   `uptimely run`, `uptimely explore`, `uptimely export`, and
   `uptimely feature-graph`.

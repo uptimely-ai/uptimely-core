@@ -244,8 +244,7 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                     ],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(_read_order_data),
-                    arguments={},
+                    python_spec.ref.function(_read_order_data),
                 ),
             ),
             python_spec.Operator(
@@ -255,13 +254,11 @@ def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
                     outputs=[python_spec.feature.Feature(id="sum")],
                 ),
                 compute=python_spec.Binding(
-                    function=python_spec.ref.function(_sum_order_features),
-                    arguments={
-                        "left_feature": python_spec.ref.feature("input_1"),
-                        "right_feature": python_spec.ref.feature("input_2"),
-                        "output": "sum",
-                        "dataset": python_spec.ref.profile().dataset,
-                    },
+                    python_spec.ref.function(_sum_order_features),
+                    left_feature=python_spec.ref.feature("input_1"),
+                    right_feature=python_spec.ref.feature("input_2"),
+                    output="sum",
+                    dataset=python_spec.ref.profile().dataset,
                 ),
             ),
         ],

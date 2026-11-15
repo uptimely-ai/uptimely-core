@@ -31,13 +31,11 @@ class CoolingPump(up.Profile):
                 outputs=[up.Feature(id="motor_bearing_temperature_max")],
             ),
             compute=up.Binding(
-                function=maximum,
-                arguments={
-                    "dataset": up.ref.dataset("cooling_pump_telemetry"),
-                    "feature": up.ref.feature("motor_bearing_temperature"),
-                    "dimensions": up.ref.profile().grain.ids,
-                    "output": up.ref.feature("motor_bearing_temperature_max").id,
-                },
+                maximum,
+                dataset=up.ref.dataset("cooling_pump_telemetry"),
+                feature=up.ref.feature("motor_bearing_temperature"),
+                dimensions=up.ref.profile().grain.ids,
+                output=up.ref.feature("motor_bearing_temperature_max").id,
             ),
         ),
     ]
@@ -66,7 +64,7 @@ for display. Logical feature types are available from
 ## Operators and functions
 
 An `Operator` connects a function to a profile. Its `Interface` declares input
-and output features, and its `Binding` supplies the function and named
+and output features, and its `Binding` takes a function followed by its named
 arguments. If `inputs` is omitted, feature references in the arguments are used
 to infer dependencies. Set `inputs=[]` to disable that inference.
 

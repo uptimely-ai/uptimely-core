@@ -37,27 +37,23 @@ class Constants(Profile):
                 outputs=[features.gravity, features.room_temperature],
             ),
             compute=Binding(
-                function=io.read_file,
-                arguments=dict(
-                    source=ref.paths("constants_source"),
-                    schema={"gravity": "float", "room_temperature": "float"},
-                    rename={
-                        "gravity": features.gravity,
-                        "room_temperature": features.room_temperature,
-                    },
-                ),
+                io.read_file,
+                source=ref.paths("constants_source"),
+                schema={"gravity": "float", "room_temperature": "float"},
+                rename={
+                    "gravity": features.gravity,
+                    "room_temperature": features.room_temperature,
+                },
             ),
             merge=merge.default(),
         ),
         Operator(
             interface=Interface(outputs=[]),
             compute=Binding(
-                function=io.write_file,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    features=[features.gravity, features.room_temperature],
-                    output=ref.paths("constants_output"),
-                ),
+                io.write_file,
+                dataset=ref.dataset(),
+                features=[features.gravity, features.room_temperature],
+                output=ref.paths("constants_output"),
             ),
         ),
     ]

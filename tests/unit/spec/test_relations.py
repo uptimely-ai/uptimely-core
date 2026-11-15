@@ -41,7 +41,7 @@ def test_compiled_relation_from_non_grain_dimension_survives_execution(
                 id="read",
                 interface=assembly.Interface(outputs=[feature.Feature(id="value", type="float")]),
                 compute=assembly.Binding(
-                    function=ref.function(_read_related, returns="dataframe"),
+                    ref.function(_read_related, returns="dataframe"),
                 ),
                 merge=merge.default(),
             )
@@ -116,7 +116,9 @@ def test_inferred_inputs_exclude_local_and_foreign_keys() -> None:
             assembly.Operator(
                 id="read",
                 interface=assembly.Interface(outputs=[feature.Feature(id="value")]),
-                compute=assembly.Binding(function=ref.function(_read_related)),
+                compute=assembly.Binding(
+                    ref.function(_read_related),
+                ),
             )
         ],
     )
@@ -128,14 +130,12 @@ def test_inferred_inputs_exclude_local_and_foreign_keys() -> None:
                 id="copy",
                 interface=assembly.Interface(outputs=[feature.Feature(id="copied")]),
                 compute=assembly.Binding(
-                    function=ref.function(_copy_related),
-                    arguments={
-                        "dataset": source.dataset,
-                        "identifier": ref.feature("pump_id"),
-                        "relation": ref.feature("series_id"),
-                        "value": ref.feature("value"),
-                        "output": ref.feature("copied").id,
-                    },
+                    ref.function(_copy_related),
+                    dataset=source.dataset,
+                    identifier=ref.feature("pump_id"),
+                    relation=ref.feature("series_id"),
+                    value=ref.feature("value"),
+                    output=ref.feature("copied").id,
                 ),
             )
         ],
@@ -170,7 +170,9 @@ def test_key_only_reader_has_no_feature_outputs(
             assembly.Operator(
                 id="read",
                 interface=assembly.Interface(),
-                compute=assembly.Binding(function=ref.function(_read_related)),
+                compute=assembly.Binding(
+                    ref.function(_read_related),
+                ),
                 merge=merge.default() if staged else None,
             )
         ],

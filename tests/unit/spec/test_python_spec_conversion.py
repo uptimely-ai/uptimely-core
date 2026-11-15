@@ -75,8 +75,8 @@ def test_output_reference_logging_is_one_counted_summary(
                         outputs=[feature.Feature(id=f"value_{operator}")],
                     ),
                     compute=assembly.Binding(
-                        function=ref.function("reader:read", returns="dataframe"),
-                        arguments={"column": ref.feature(f"value_{operator}")},
+                        ref.function("reader:read", returns="dataframe"),
+                        column=ref.feature(f"value_{operator}"),
                     ),
                 )
                 for operator in range(count)
@@ -124,12 +124,12 @@ def _declaration(
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=ref.FunctionReference(
+                ref.FunctionReference(
                     module=module,
                     name=f"{operator_kind}_shared",
                     returns="none" if operator_kind == "write" else "dataframe",
                 ),
-                arguments={
+                **{
                     **(
                         {"dataset": ref.profile().dataset}
                         if operator_kind in {"write", "vectorize", "collapse"}
@@ -170,8 +170,7 @@ def _mapping_source() -> profile.Profile:
                     outputs=[feature.Feature(id="temperature")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_other_source, returns="dataframe"),
-                    arguments={},
+                    ref.function(_other_source, returns="dataframe"),
                 ),
             )
         ],
@@ -189,8 +188,7 @@ def _conform_source(identifier: str) -> profile.Profile:
                     outputs=[feature.Feature(id="temperature")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_other_source, returns="dataframe"),
-                    arguments={},
+                    ref.function(_other_source, returns="dataframe"),
                 ),
             )
         ],
@@ -371,8 +369,7 @@ def test_function_catalog_keeps_distinct_contracts_without_operator_kinds() -> N
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_other_source, returns="dataframe"),
-                    arguments={},
+                    ref.function(_other_source, returns="dataframe"),
                 ),
             )
         ],
@@ -488,8 +485,8 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_source, returns="dataframe"),
-                    arguments={"path": "readings.json"},
+                    ref.function(_source, returns="dataframe"),
+                    path="readings.json",
                 ),
             )
         ],
@@ -504,8 +501,8 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(_source, returns="dataframe"),
-                    arguments={"path": 42},
+                    ref.function(_source, returns="dataframe"),
+                    path=42,
                 ),
             )
         ],

@@ -37,28 +37,24 @@ class PumpTelemetryByMinute(Profile):
                 outputs=[features.bearing_temperature_max],
             ),
             compute=Binding(
-                function=analytics.aggregate,
-                arguments=dict(
-                    dataset=ref.dataset("pump_telemetry"),
-                    aggregations={"bearing_temperature": "max"},
-                    dimensions=[
-                        dimension.MACHINE_DIMENSION.resolution("machine").key,
-                        dimension.MACHINE_TIMESTAMP.resolution("minute").key,
-                    ],
-                    rename={"bearing_temperature": features.bearing_temperature_max},
-                ),
+                analytics.aggregate,
+                dataset=ref.dataset("pump_telemetry"),
+                aggregations={"bearing_temperature": "max"},
+                dimensions=[
+                    dimension.MACHINE_DIMENSION.resolution("machine").key,
+                    dimension.MACHINE_TIMESTAMP.resolution("minute").key,
+                ],
+                rename={"bearing_temperature": features.bearing_temperature_max},
             ),
             merge=merge.default(),
         ),
         Operator(
             interface=Interface(outputs=[]),
             compute=Binding(
-                function=io.write_file,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    features=[features.bearing_temperature_max],
-                    output=ref.paths("pump_telemetry_by_minute_output"),
-                ),
+                io.write_file,
+                dataset=ref.dataset(),
+                features=[features.bearing_temperature_max],
+                output=ref.paths("pump_telemetry_by_minute_output"),
             ),
         ),
     ]

@@ -156,27 +156,22 @@ class MyAnalyticalProfile(up.Profile):
         up.Operator(
             id="read",
             interface=up.Interface(outputs=[up.Feature(id="value")]),
-            compute=up.Binding(function=read_values),
+            compute=up.Binding(read_values),
         ),
         up.Operator(
             id="double",
             interface=up.Interface(outputs=[up.Feature(id="doubled")]),
             compute=up.Binding(
-                function=double,
-                arguments={
-                    "dataset": up.ref.dataset(),
-                    "value": up.ref.feature("value"),
-                    "output": up.ref.feature("doubled"),
-                },
+                double,
+                dataset=up.ref.dataset(),
+                value=up.ref.feature("value"),
+                output=up.ref.feature("doubled"),
             ),
         ),
         up.Operator(
             id="print",
             interface=up.Interface(outputs=[]),
-            compute=up.Binding(
-                function=print_results,
-                arguments={"dataset": up.ref.dataset()},
-            ),
+            compute=up.Binding(print_results, dataset=up.ref.dataset()),
         ),
     ]
 
