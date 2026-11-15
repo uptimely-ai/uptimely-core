@@ -277,7 +277,12 @@ def test_spec_errors_expose_stable_profile_identity_code_and_path() -> None:
 def test_spec_rejects_unknown_write_function(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profile = configuration["profiles"]["pump_telemetry"]
-    profile["assembly"]["write_pump_telemetry"]["compute"]["function"] = "missing_write"
+    writer_id = next(
+        operator_id
+        for operator_id, operator in profile["assembly"].items()
+        if operator["compute"]["function"] == "write_file"
+    )
+    profile["assembly"][writer_id]["compute"]["function"] = "missing_write"
 
     with pytest.raises(ValueError, match="operators reference unknown functions: missing_write"):
         spec.load_spec(_write_configuration(tmp_path, configuration, "write.json"))
@@ -459,12 +464,16 @@ def test_system_and_subset_support_multiple_variables() -> None:
 
 def test_spec_validation_rejects_missing_output_variables() -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    operator = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
+    profile = configuration["profiles"]["pump_telemetry"]
+    operator_id = example_support.operator_id_for_output(
+        profile["assembly"], "pressure_flow_efficiency"
+    )
+    operator = profile["assembly"][operator_id]
     operator["interface"]["outputs"] = []
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(
-        ValueError, match="Operator pressure_flow_efficiency must declare one or more features"
+        ValueError, match=f"Operator {operator_id} must declare one or more features"
     ):
         validation.validate_spec(document)
 
@@ -472,7 +481,10 @@ def test_spec_validation_rejects_missing_output_variables() -> None:
 def test_spec_validation_rejects_duplicate_feature_names(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profile = configuration["profiles"]["pump_telemetry"]
-    duplicate = profile["assembly"]["pressure_flow_efficiency"]
+    operator_id = example_support.operator_id_for_output(
+        profile["assembly"], "pressure_flow_efficiency"
+    )
+    duplicate = profile["assembly"][operator_id]
     configuration["profiles"]["duplicate_dataset"] = {
         "name": "Duplicate profile",
         "grain": profile["grain"],
@@ -524,9 +536,11 @@ def test_spec_validation_rejects_unknown_vectorize_template(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump_telemetry_by_hour_when_warning"]["assembly"][
-        "recommended_flow_rate"
-    ]["compute"]["function"] = "missing_vectorize_template"
+    profile = configuration["profiles"]["pump_telemetry_by_hour_when_warning"]
+    operator_id = example_support.operator_id_for_output(
+        profile["assembly"], "recommended_flow_rate"
+    )
+    profile["assembly"][operator_id]["compute"]["function"] = "missing_vectorize_template"
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -542,7 +556,8 @@ def test_spec_validation_rejects_feature_dimension_name_collision(
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     profile = configuration["profiles"]["pump_telemetry"]
-    collision = json.loads(json.dumps(profile["assembly"]["pump_mode"]))
+    operator_id = example_support.operator_id_for_output(profile["assembly"], "pump_mode")
+    collision = json.loads(json.dumps(profile["assembly"][operator_id]))
     profile["assembly"]["pump_collision"] = {
         **collision,
         "interface": {"inputs": [], "outputs": ["$features.pump_id"]},
@@ -561,9 +576,11 @@ def test_spec_validation_rejects_cross_profile_feature_dependency(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    calculation = json.loads(
-        json.dumps(configuration["profiles"]["pump"]["assembly"]["health_signal_normalized"])
+    pump_profile = configuration["profiles"]["pump"]
+    operator_id = example_support.operator_id_for_output(
+        pump_profile["assembly"], "health_signal_normalized"
     )
+    calculation = json.loads(json.dumps(pump_profile["assembly"][operator_id]))
     calculation["interface"]["outputs"] = ["$features.health_signal_normalized_copy"]
     copied_feature = configuration["profiles"]["pump"]["features"]["health_signal_normalized"]
     configuration["profiles"]["pump_copy_profile"] = {

@@ -32,7 +32,6 @@ class PumpTelemetryByMinute(Profile):
     features = PumpTelemetryByMinuteFeatures()
     assembly = [
         Operator(
-            id="bearing_temperature_max",
             interface=Interface(
                 inputs=[ref.feature("bearing_temperature")],
                 outputs=[features.bearing_temperature_max],
@@ -52,7 +51,6 @@ class PumpTelemetryByMinute(Profile):
             merge=merge.default(),
         ),
         Operator(
-            id="write_pump_telemetry_by_minute",
             interface=Interface(outputs=[]),
             compute=Binding(
                 function=io.write_file,

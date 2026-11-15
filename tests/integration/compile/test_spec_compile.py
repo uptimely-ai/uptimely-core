@@ -198,7 +198,9 @@ def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> No
         if invocation.function_id == "LazyFrame.with_columns"
     ]
     assert len(direct_invocations) == 1
-    assert direct_invocations[0].operator_id == "recommended_flow_rate"
+    assert direct_invocations[0].operator_id.startswith(
+        "op-LazyFrame.with_columns-recommended_flow_rate-"
+    )
     assert direct_invocations[0].output_features == ["recommended_flow_rate"]
     assert direct_invocations[0].arguments["recommended_flow_rate"] == "warning_hour_mean_flow_rate"
 
@@ -357,7 +359,10 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
 def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
     spec_definition = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = spec_definition["profiles"]["pump"]
-    operator = dataset["assembly"]["health_signal_normalized"]
+    operator_id = example_support.operator_id_for_output(
+        dataset["assembly"], "health_signal_normalized"
+    )
+    operator = dataset["assembly"][operator_id]
     operator["interface"]["outputs"].append("$features.health_signal_secondary")
     dataset["features"]["health_signal_secondary"] = {"type": "float"}
     spec_path = tmp_path / "spec.json"
@@ -383,12 +388,16 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
 def test_escape_inputs_and_outputs_define_logical_dependencies(
     tmp_path: pathlib.Path,
 ) -> None:
+    configuration = _escape_spec_configuration()
     path = tmp_path / "escape_spec.json"
-    path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
+    path.write_text(json.dumps(configuration), encoding="utf-8")
     document = spec.load_spec(path)
     compiled = compiler.Compiler().compile(document)
     by_operator = {invocation.operator_id: invocation for invocation in compiled.invocations}
     by_id = compiled.invocations_by_id
+    process_operator_id = example_support.operator_id_for_output(
+        document.profiles["pump"].assembly, "ratio"
+    )
 
     assert {
         invocation.operator_id
@@ -399,7 +408,7 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
         "escape_chain",
         "escape_unrelated",
         "escape_source",
-        "process_pump_external_workflow",
+        process_operator_id,
     }
     assert {
         by_id[dependency_id].operator_id

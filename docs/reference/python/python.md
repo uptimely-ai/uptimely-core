@@ -27,7 +27,6 @@ class CoolingPump(up.Profile):
     grain = [machine.resolution("machine")]
     assembly = [
         up.Operator(
-            id="temperature_max",
             interface=up.Interface(
                 outputs=[up.Feature(id="motor_bearing_temperature_max")],
             ),
@@ -46,6 +45,10 @@ class CoolingPump(up.Profile):
 
 specification = up.Spec(profiles=[CoolingPump], name="Data-center cooling pump analytics")
 ```
+
+When omitted, an operator ID is generated from its compute function ID, output
+interface, and an eight-character SHA-256 hash of that prefix. A single output
+contributes its feature ID to the prefix. Otherwise, the output count is used.
 
 ## Profiles and features
 

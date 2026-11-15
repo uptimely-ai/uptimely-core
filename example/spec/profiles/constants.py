@@ -33,7 +33,6 @@ class Constants(Profile):
 
     assembly = [
         Operator(
-            id="read_constants",
             interface=Interface(
                 outputs=[features.gravity, features.room_temperature],
             ),
@@ -51,7 +50,6 @@ class Constants(Profile):
             merge=merge.default(),
         ),
         Operator(
-            id="write_constants",
             interface=Interface(outputs=[]),
             compute=Binding(
                 function=io.write_file,

@@ -95,6 +95,20 @@ def copy_example_project(
     return target
 
 
+def operator_id_for_output(assembly: typing.Mapping[str, typing.Any], feature_id: str) -> str:
+    """Find an assembly key by one of its declared output features."""
+    output_reference = f"$features.{feature_id}"
+    for operator_id, operator in assembly.items():
+        if isinstance(operator, dict):
+            interface = operator.get("interface", {})
+            outputs = interface.get("outputs", []) if isinstance(interface, dict) else []
+        else:
+            outputs = operator.output_features
+        if feature_id in outputs or output_reference in outputs:
+            return operator_id
+    raise LookupError(f"No operator produces feature {feature_id!r}")
+
+
 def clear_caches() -> None:
     """Release cached paths when their owning pytest session ends."""
     prepare_example_projects.cache_clear()

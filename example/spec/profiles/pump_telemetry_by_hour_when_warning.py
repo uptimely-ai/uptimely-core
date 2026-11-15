@@ -77,7 +77,6 @@ class PumpTelemetryByHourWhenWarning(Profile):
 
     assembly = [
         Operator(
-            id="aggregate_warning_telemetry",
             interface=Interface(
                 inputs=[
                     ref.feature("warning_differential_pressure"),
@@ -125,7 +124,6 @@ class PumpTelemetryByHourWhenWarning(Profile):
             merge=merge.default(),
         ),
         Operator(
-            id="operating_point_recommendation",
             interface=Interface(outputs=[features.operating_point_recommendation]),
             compute=Binding(
                 function=analytics.operation_point_optimization,
@@ -145,7 +143,6 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            id="recommended_flow_rate",
             interface=Interface(outputs=[features.recommended_flow_rate]),
             compute=Binding(
                 function=ref.function(
@@ -161,7 +158,6 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            id="recommended_differential_pressure",
             interface=Interface(outputs=[features.recommended_differential_pressure]),
             compute=Binding(
                 function=analytics.extract_field,
@@ -174,7 +170,6 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            id="energy_cost_score",
             interface=Interface(outputs=[features.energy_cost_score]),
             compute=Binding(
                 function=analytics.extract_field,
@@ -187,7 +182,6 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            id="converged",
             interface=Interface(outputs=[features.converged]),
             compute=Binding(
                 function=analytics.extract_field,
@@ -200,7 +194,6 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            id="write_pump_telemetry_by_hour_when_warning",
             interface=Interface(outputs=[]),
             compute=Binding(
                 function=io.write_file,

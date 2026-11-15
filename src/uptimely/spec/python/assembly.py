@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import hashlib
 import inspect
 import typing
 from collections import abc
@@ -201,12 +202,13 @@ class Binding:
         )
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(frozen=True, kw_only=True, init=False)
 class Operator:
     """Declare operator identity, logical interface, computation, and optional merge.
 
     Args:
-        id: Non-empty operator identifier, unique within its profile.
+        id: Optional non-empty identifier, unique within its profile. When omitted,
+            the ID is generated from the compute function and output interface.
         interface: Feature dependencies and outputs. Inputs are inferred from
             compute and merge arguments when omitted.
         row_context: Operator-specific observation requirements, merged with
@@ -223,16 +225,46 @@ class Operator:
     compute: Binding
     merge: Binding | None = None
 
+    def __init__(
+        self,
+        *,
+        id: str | None = None,
+        interface: Interface,
+        row_context: (
+            row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
+        ) = None,
+        compute: Binding,
+        merge: Binding | None = None,
+    ) -> None:
+        """Create an operator, deriving its identifier when one is not supplied."""
+        if not isinstance(compute, Binding):
+            raise TypeError("Operator compute must be a Binding")
+        if not isinstance(interface, Interface):
+            raise TypeError("Operator interface must be an Interface")
+        if merge is not None and not isinstance(merge, Binding):
+            raise TypeError("Operator merge must be a Binding or None")
+        if id is None:
+            id = self._generate_id(interface, compute.reference.name)
+        if not isinstance(id, str) or not id.strip():
+            raise ValueError("Operator requires a non-empty id")
+        object.__setattr__(self, "id", id)
+        object.__setattr__(self, "interface", interface)
+        object.__setattr__(self, "row_context", row_context)
+        object.__setattr__(self, "compute", compute)
+        object.__setattr__(self, "merge", merge)
+        self.__post_init__()
+
+    @classmethod
+    def _generate_id(cls, interface: Interface, function_id: str) -> str:
+        """Create an ID from its function, output interface, and short hash."""
+        output_ids = interface.output_ids
+        output_id = output_ids[0] if len(output_ids) == 1 else f"features{len(output_ids)}"
+        prefix = f"op-{function_id}-{output_id}-"
+        digest = hashlib.sha256(prefix.encode("utf-8")).hexdigest()[:8]
+        return f"{prefix}{digest}"
+
     def __post_init__(self) -> None:
         """Validate the declaration and merge argument-level row-context annotations."""
-        if not isinstance(self.compute, Binding):
-            raise TypeError("Operator compute must be a Binding")
-        if not isinstance(self.interface, Interface):
-            raise TypeError("Operator interface must be an Interface")
-        if self.merge is not None and not isinstance(self.merge, Binding):
-            raise TypeError("Operator merge must be a Binding or None")
-        if not isinstance(self.id, str) or not self.id.strip():
-            raise ValueError("Operator requires a non-empty id")
         object.__setattr__(
             self,
             "row_context",

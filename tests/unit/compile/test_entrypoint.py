@@ -328,7 +328,10 @@ def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() ->
 def test_compiler_still_validates_spec_when_signature_validation_is_disabled() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions["ratio"].validate_signature = False
-    operator = spec_definition.profiles["pump_telemetry"].assembly["pressure_flow_efficiency"]
+    profile = spec_definition.profiles["pump_telemetry"]
+    operator = profile.assembly[
+        example_support.operator_id_for_output(profile.assembly, "pressure_flow_efficiency")
+    ]
     operator.interface.inputs = ["$features.missing_input"]
     spec_definition = spec.Spec.model_validate(spec_definition.model_dump())
 

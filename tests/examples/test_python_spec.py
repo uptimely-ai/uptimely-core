@@ -156,9 +156,13 @@ def test_function_catalog_contracts_are_independent_of_operator_kinds() -> None:
 
 def test_recommended_flow_rate_binds_polars_with_columns() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    operator = spec_definition.profiles["pump_telemetry_by_hour_when_warning"].assembly[
-        "recommended_flow_rate"
-    ]
+    operator = next(
+        operator
+        for operator in spec_definition.profiles[
+            "pump_telemetry_by_hour_when_warning"
+        ].assembly.values()
+        if operator.output_features == ["recommended_flow_rate"]
+    )
     template = spec_definition.functions.root[operator.compute.function]
 
     assert template.entrypoint == "polars.lazyframe.frame:LazyFrame.with_columns"

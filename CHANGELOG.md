@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Python `Operator` declarations can omit `id`. It is generated from the compute
+  function ID and output feature ID or count, with a short SHA-256 suffix.
 - Named configs in `config/<name>.toml` recursively override
   project defaults from `uptimely.toml`.
 - `[application]` settings can provide default spec sources and source directories

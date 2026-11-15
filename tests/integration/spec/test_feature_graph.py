@@ -82,6 +82,23 @@ def test_graph_cli_inspects_without_exporting(
 def test_system_graph_connects_operator_to_feature_outputs() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     system = spec.FeatureGraph(spec_definition)
+    pump_profile = spec_definition.profiles["pump"]
+    warning_profile = spec_definition.profiles["pump_telemetry_by_hour_when_warning"]
+    health_operator_id = example_support.operator_id_for_output(
+        pump_profile.assembly, "health_signal_normalized"
+    )
+    flow_rate_operator_id = example_support.operator_id_for_output(
+        warning_profile.assembly, "recommended_flow_rate"
+    )
+    pressure_operator_id = example_support.operator_id_for_output(
+        warning_profile.assembly, "recommended_differential_pressure"
+    )
+    energy_operator_id = example_support.operator_id_for_output(
+        warning_profile.assembly, "energy_cost_score"
+    )
+    converged_operator_id = example_support.operator_id_for_output(
+        warning_profile.assembly, "converged"
+    )
 
     operator_function_ids = {operator.compute.function for operator in system.operators}
     assert "aggregate" in operator_function_ids
@@ -123,14 +140,14 @@ def test_system_graph_connects_operator_to_feature_outputs() -> None:
     }
 
     assert ("bearing_temperature_by_pump", "bearing_temperature_max") in actual_edges
-    assert ("health_signal_normalized", "health_signal_normalized") in actual_edges
-    assert ("recommended_flow_rate", "recommended_flow_rate") in actual_edges
+    assert (health_operator_id, "health_signal_normalized") in actual_edges
+    assert (flow_rate_operator_id, "recommended_flow_rate") in actual_edges
     assert (
-        "recommended_differential_pressure",
+        pressure_operator_id,
         "recommended_differential_pressure",
     ) in actual_edges
-    assert ("energy_cost_score", "energy_cost_score") in actual_edges
-    assert ("converged", "converged") in actual_edges
+    assert (energy_operator_id, "energy_cost_score") in actual_edges
+    assert (converged_operator_id, "converged") in actual_edges
 
 
 @pytest.mark.usefixtures("example_projects")

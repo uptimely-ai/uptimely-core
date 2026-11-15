@@ -1,6 +1,7 @@
 """Checks for class-based and programmatic Python declarations."""
 
 import dataclasses
+import hashlib
 import typing
 
 import pytest
@@ -411,7 +412,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
     assert payload["functions"]["read"]["args"]["keys"]["type"] == "array[string]"
 
 
-@pytest.mark.parametrize("required", ["id", "interface", "compute"])
+@pytest.mark.parametrize("required", ["interface", "compute"])
 def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
     arguments = {
         "id": "read",
@@ -479,7 +480,44 @@ def test_operator_export_uses_its_identifier() -> None:
     assert operator.to_model().id == "operator"
 
 
-@pytest.mark.parametrize("identifier", ["", " ", None, 1])
+def test_operator_generates_id_from_its_single_output() -> None:
+    operator = authoring.Operator(
+        interface=authoring.Interface(outputs=[authoring.Feature(id="result")]),
+        compute=authoring.Binding(
+            function=ref.function("reader:read", returns="dataframe"),
+            arguments={},
+        ),
+    )
+    prefix = "op-read-result-"
+    expected_id = prefix + hashlib.sha256(prefix.encode("utf-8")).hexdigest()[:8]
+
+    assert operator.id == expected_id
+    assert operator.to_model().id == expected_id
+
+
+@pytest.mark.parametrize(
+    ("outputs", "expected_id"),
+    [
+        ([], "op-write-features0-"),
+        ([authoring.Feature(id="first"), authoring.Feature(id="second")], "op-write-features2-"),
+    ],
+)
+def test_operator_generates_id_without_single_output(
+    outputs: list[authoring.Feature], expected_id: str
+) -> None:
+    operator = authoring.Operator(
+        interface=authoring.Interface(outputs=outputs),
+        compute=authoring.Binding(
+            function=ref.function("writer:write", returns="none"),
+            arguments={},
+        ),
+    )
+
+    assert operator.id.startswith(expected_id)
+    assert operator.to_model().id == operator.id
+
+
+@pytest.mark.parametrize("identifier", ["", " ", 1])
 def test_operator_rejects_invalid_identifiers(identifier: typing.Any) -> None:
     with pytest.raises(ValueError, match="Operator requires a non-empty id"):
         authoring.Operator(
