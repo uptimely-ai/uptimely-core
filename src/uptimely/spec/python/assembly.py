@@ -23,107 +23,9 @@ from . import feature as feature_module
 from . import functions as function_metadata
 from . import row_context as row_context_module
 
-__all__ = ["Operator", "Interface", "Binding"]
+__all__ = ["Operator", "Binding"]
 
 _Function = abc.Callable[..., object] | str | ref.FunctionReference
-
-
-@dataclasses.dataclass(frozen=True, kw_only=True)
-class Interface:
-    """Declare the feature dependencies and outputs of an operator."""
-
-    inputs: list[feature_module.Feature | ref.Reference | str] | None = None
-    outputs: list[feature_module.Feature] = dataclasses.field(default_factory=list)
-
-    def __post_init__(self) -> None:
-        """Copy and validate declarations at the authoring boundary."""
-        if self.inputs is not None:
-            if not isinstance(self.inputs, abc.Sequence) or isinstance(self.inputs, (str, bytes)):
-                raise TypeError("Operator inputs must be a sequence of feature references")
-            object.__setattr__(self, "inputs", list(self.inputs))
-        if not isinstance(self.outputs, abc.Sequence) or isinstance(self.outputs, (str, bytes)):
-            raise TypeError("Operator outputs must be a sequence of Features")
-        object.__setattr__(self, "outputs", list(self.outputs))
-        self._input_ids()
-        _ = self.output_ids
-
-    @property
-    def output_ids(self) -> list[str]:
-        """Return the declared output feature IDs in order."""
-        identifiers = []
-        for output in self.outputs:
-            if not isinstance(output, feature_module.Feature):
-                raise TypeError("Operator outputs must contain Features")
-            identifiers.append(self._validate_feature_id(output.id))
-        if len(identifiers) != len(set(identifiers)):
-            raise ValueError("Operator output feature IDs must not repeat")
-        return identifiers
-
-    def to_model(
-        self, *, compute: spec_model.Binding, merge: spec_model.Binding | None = None
-    ) -> spec_model.Interface:
-        """Convert explicit or inferred dependencies to canonical feature selectors.
-
-        Args:
-            compute: Canonical computation binding used to infer omitted inputs.
-            merge: Optional canonical merge binding contributing inferred inputs.
-
-        Returns:
-            An interface with ordered inputs and declared outputs.
-        """
-        if self.inputs is None:
-            outputs = set(self.output_ids)
-            inferred = list(compute.inferred_feature_inputs)
-            if merge is not None:
-                inferred.extend(merge.inferred_feature_inputs)
-            inputs = [name for name in dict.fromkeys(inferred) if name not in outputs]
-        else:
-            inputs = self._input_ids()
-        return spec_model.Interface(
-            inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in inputs],
-            outputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in self.output_ids],
-        )
-
-    def _input_ids(self) -> list[str]:
-        """Normalize explicit inputs and require unique feature identifiers."""
-        if self.inputs is None:
-            return []
-        identifiers = [self._feature_id(value) for value in self.inputs]
-        if len(identifiers) != len(set(identifiers)):
-            raise ValueError("Operator input feature IDs must not repeat")
-        return identifiers
-
-    @classmethod
-    def _feature_id(cls, value: feature_module.Feature | ref.Reference | str) -> str:
-        """Normalize and validate a feature identifier or reference."""
-        if isinstance(value, feature_module.Feature):
-            identifier = value.id
-        elif isinstance(value, ref.Reference):
-            prefix, separator, identifier = value.value.partition(".")
-            if prefix != selectors.FEATURE_PREFIX.removesuffix(".") or not separator:
-                raise ValueError(f"Operator input must reference a feature, got {value.value!r}")
-        elif isinstance(value, str):
-            if value.startswith(selectors.FEATURE_PREFIX):
-                identifier = value.removeprefix(selectors.FEATURE_PREFIX)
-            elif value.startswith("$"):
-                raise ValueError(f"Operator input must reference a feature, got {value!r}")
-            else:
-                identifier = value
-        else:
-            raise TypeError("Operator inputs must be Feature objects, references, or strings")
-        return cls._validate_feature_id(identifier)
-
-    @staticmethod
-    def _validate_feature_id(identifier: str) -> str:
-        """Reject empty, nested, or current-feature selectors as feature IDs."""
-        if (
-            not isinstance(identifier, str)
-            or not identifier
-            or "." in identifier
-            or identifier == selectors.CURRENT_ID
-        ):
-            raise ValueError(f"Invalid operator feature ID: {identifier!r}")
-        return identifier
 
 
 @dataclasses.dataclass(frozen=True, init=False)
@@ -218,9 +120,10 @@ class Operator:
 
     Args:
         id: Optional non-empty identifier, unique within its profile. When omitted,
-            the ID is generated from the compute or stage function and output interface.
-        interface: Feature dependencies and outputs. Inputs are inferred from
-            binding arguments when omitted.
+            the ID is generated from the compute or stage function and outputs.
+        inputs: Feature dependencies. Inputs are inferred from binding arguments
+            when omitted.
+        outputs: Feature declarations produced by the operator.
         row_context: Operator-specific observation requirements, merged with
             argument annotations.
         compute: Function producing the complete target or a non-dataframe result.
@@ -229,7 +132,8 @@ class Operator:
     """
 
     id: str
-    interface: Interface
+    inputs: list[feature_module.Feature | ref.Reference | str] | None
+    outputs: list[feature_module.Feature]
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
@@ -241,7 +145,8 @@ class Operator:
         self,
         *,
         id: str | None = None,
-        interface: Interface,
+        inputs: abc.Sequence[feature_module.Feature | ref.Reference | str] | None = None,
+        outputs: abc.Sequence[feature_module.Feature] = (),
         row_context: (
             row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
         ) = None,
@@ -253,8 +158,12 @@ class Operator:
         for role, binding in (("compute", compute), ("stage", stage), ("merge", merge)):
             if binding is not None and not isinstance(binding, Binding):
                 raise TypeError(f"Operator {role} must be a Binding or None")
-        if not isinstance(interface, Interface):
-            raise TypeError("Operator interface must be an Interface")
+        if inputs is not None and (
+            not isinstance(inputs, abc.Sequence) or isinstance(inputs, (str, bytes))
+        ):
+            raise TypeError("Operator inputs must be a sequence of feature references")
+        if not isinstance(outputs, abc.Sequence) or isinstance(outputs, (str, bytes)):
+            raise TypeError("Operator outputs must be a sequence of Features")
         if not (
             (compute is not None and stage is None and merge is None)
             or (compute is None and stage is not None and merge is not None)
@@ -263,15 +172,18 @@ class Operator:
         primary = compute if compute is not None else stage
         assert primary is not None
         if id is None:
-            id = self._generate_id(interface, primary.reference.name)
+            id = self._generate_id(outputs, primary.reference.name)
         if not isinstance(id, str) or not id.strip():
             raise ValueError("Operator requires a non-empty id")
         object.__setattr__(self, "id", id)
-        object.__setattr__(self, "interface", interface)
+        object.__setattr__(self, "inputs", list(inputs) if inputs is not None else None)
+        object.__setattr__(self, "outputs", list(outputs))
         object.__setattr__(self, "row_context", row_context)
         object.__setattr__(self, "compute", compute)
         object.__setattr__(self, "stage", stage)
         object.__setattr__(self, "merge", merge)
+        self._input_ids()
+        _ = self.output_ids
         self.__post_init__()
 
     @property
@@ -283,13 +195,71 @@ class Operator:
         return binding
 
     @classmethod
-    def _generate_id(cls, interface: Interface, function_id: str) -> str:
-        """Create an ID from its function, output interface, and short hash."""
-        output_ids = interface.output_ids
+    def _generate_id(cls, outputs: abc.Sequence[feature_module.Feature], function_id: str) -> str:
+        """Create an ID from its function, outputs, and short hash."""
+        output_ids = cls._output_ids(outputs)
         output_id = output_ids[0] if len(output_ids) == 1 else f"features{len(output_ids)}"
         prefix = f"op-{function_id}-{output_id}-"
         digest = hashlib.sha256(prefix.encode("utf-8")).hexdigest()[:8]
         return f"{prefix}{digest}"
+
+    @property
+    def output_ids(self) -> list[str]:
+        """Return the declared output feature IDs in order."""
+        return self._output_ids(self.outputs)
+
+    @classmethod
+    def _output_ids(cls, outputs: abc.Sequence[feature_module.Feature]) -> list[str]:
+        """Validate and normalize output feature IDs."""
+        identifiers = []
+        for output in outputs:
+            if not isinstance(output, feature_module.Feature):
+                raise TypeError("Operator outputs must contain Features")
+            identifiers.append(cls._validate_feature_id(output.id))
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("Operator output feature IDs must not repeat")
+        return identifiers
+
+    def _input_ids(self) -> list[str]:
+        """Normalize explicit inputs and require unique feature identifiers."""
+        if self.inputs is None:
+            return []
+        identifiers = [self._feature_id(value) for value in self.inputs]
+        if len(identifiers) != len(set(identifiers)):
+            raise ValueError("Operator input feature IDs must not repeat")
+        return identifiers
+
+    @classmethod
+    def _feature_id(cls, value: feature_module.Feature | ref.Reference | str) -> str:
+        """Normalize and validate a feature identifier or reference."""
+        if isinstance(value, feature_module.Feature):
+            identifier = value.id
+        elif isinstance(value, ref.Reference):
+            prefix, separator, identifier = value.value.partition(".")
+            if prefix != selectors.FEATURE_PREFIX.removesuffix(".") or not separator:
+                raise ValueError(f"Operator input must reference a feature, got {value.value!r}")
+        elif isinstance(value, str):
+            if value.startswith(selectors.FEATURE_PREFIX):
+                identifier = value.removeprefix(selectors.FEATURE_PREFIX)
+            elif value.startswith("$"):
+                raise ValueError(f"Operator input must reference a feature, got {value!r}")
+            else:
+                identifier = value
+        else:
+            raise TypeError("Operator inputs must be Feature objects, references, or strings")
+        return cls._validate_feature_id(identifier)
+
+    @staticmethod
+    def _validate_feature_id(identifier: str | None) -> str:
+        """Reject empty, nested, or current-feature selectors as feature IDs."""
+        if (
+            not isinstance(identifier, str)
+            or not identifier
+            or "." in identifier
+            or identifier == selectors.CURRENT_ID
+        ):
+            raise ValueError(f"Invalid operator feature ID: {identifier!r}")
+        return identifier
 
     def __post_init__(self) -> None:
         """Validate the declaration and merge argument-level row-context annotations."""
@@ -321,11 +291,22 @@ class Operator:
         """Convert this declaration to its canonical document model."""
         compute = self._primary.to_model()
         merge = self.merge.to_model() if self.merge is not None else None
+        if self.inputs is None:
+            output_ids = set(self.output_ids)
+            inferred = list(compute.inferred_feature_inputs)
+            if merge is not None:
+                inferred.extend(merge.inferred_feature_inputs)
+            input_ids = [name for name in dict.fromkeys(inferred) if name not in output_ids]
+        else:
+            input_ids = self._input_ids()
         return spec_model.Operator(
             id=self.id,
             compute=compute,
             merge=merge,
-            interface=self.interface.to_model(compute=compute, merge=merge),
+            interface=spec_model.Interface(
+                inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in input_ids],
+                outputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in self.output_ids],
+            ),
             row_context=self.row_context,
         )
 

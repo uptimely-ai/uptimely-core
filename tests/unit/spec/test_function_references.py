@@ -55,7 +55,7 @@ def test_category_survives_conversion_to_spec_document() -> None:
     declaration = _dataset(
         assembly.Operator(
             id="calculate",
-            interface=assembly.Interface(outputs=[]),
+            outputs=[],
             compute=assembly.Binding(
                 reference,
             ),
@@ -73,7 +73,7 @@ def test_omitted_category_is_serialized_as_null_in_spec_json() -> None:
     declaration = _dataset(
         assembly.Operator(
             id="calculate",
-            interface=assembly.Interface(outputs=[]),
+            outputs=[],
             compute=assembly.Binding(
                 ref.function("unavailable_package.functions:calculate", returns="dataframe"),
             ),
@@ -113,9 +113,7 @@ def test_signature_validation_setting_survives_conversion_without_importing(
     declaration = _dataset(
         assembly.Operator(
             id="calculate",
-            interface=assembly.Interface(
-                outputs=[],
-            ),
+            outputs=[],
             compute=assembly.Binding(
                 reference,
             ),
@@ -176,9 +174,7 @@ def test_description_survives_conversion_to_exported_document() -> None:
     declaration = _dataset(
         assembly.Operator(
             id="calculate",
-            interface=assembly.Interface(
-                outputs=[],
-            ),
+            outputs=[],
             compute=assembly.Binding(
                 reference,
                 dataset=ref.dataset(),
@@ -236,10 +232,8 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
             assembly=[
                 assembly.Operator(
                     id="ceil",
-                    interface=assembly.Interface(
-                        inputs=[],
-                        outputs=[],
-                    ),
+                    inputs=[],
+                    outputs=[],
                     compute=assembly.Binding(
                         ref.function(
                             "math:ceil",
@@ -272,9 +266,7 @@ def test_string_locations_are_preserved_without_importing(
         assembly=[
             assembly.Operator(
                 id="ceil",
-                interface=assembly.Interface(
-                    outputs=[],
-                ),
+                outputs=[],
                 compute=assembly.Binding(
                     reference,
                     x=1.2,
@@ -303,10 +295,8 @@ def test_generic_mapping_exports_return_contract_without_importing(
     declaration = _dataset(
         assembly.Operator(
             id="calculate",
-            interface=assembly.Interface(
-                inputs=[],
-                outputs=[],
-            ),
+            inputs=[],
+            outputs=[],
             compute=assembly.Binding(
                 ref.function("unavailable_package.functions:calculate", returns=returns),
                 dataset=ref.profile().dataset,
@@ -323,10 +313,8 @@ def test_generic_mapping_exports_return_contract_without_importing(
 def test_generic_mapping_requires_return_metadata() -> None:
     operator = assembly.Operator(
         id="operator",
-        interface=assembly.Interface(
-            inputs=[],
-            outputs=[],
-        ),
+        inputs=[],
+        outputs=[],
         compute=assembly.Binding(
             ref.function("math:ceil"),
             x=1.2,
@@ -342,10 +330,8 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
         assembly=[
             assembly.Operator(
                 id="external_update",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[],
-                ),
+                inputs=[],
+                outputs=[],
                 compute=assembly.Binding(
                     ref.function("math:ceil", returns="any"),
                 ),
@@ -365,9 +351,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
 def test_references_supply_function_names_as_catalog_ids(returns: str) -> None:
     declaration = assembly.Operator(
         id="declaration",
-        interface=assembly.Interface(
-            outputs=[],
-        ),
+        outputs=[],
         compute=assembly.Binding(
             ref.function("math:ceil", returns=returns),
             x=1.2,

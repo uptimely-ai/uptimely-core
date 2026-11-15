@@ -82,7 +82,7 @@ def test_ambiguous_return_annotations_require_explicit_role_when_bound(
 
     operator = authoring.Operator(
         id="calculate",
-        interface=authoring.Interface(outputs=[]),
+        outputs=[],
         compute=authoring.Binding(
             reference,
             value="sample",
@@ -167,7 +167,7 @@ def test_disabled_signature_inspection_still_checks_exact_names_and_dataframe_ar
     )
     operator = authoring.Operator(
         id="calculate",
-        interface=authoring.Interface(outputs=[]),
+        outputs=[],
         compute=authoring.Binding(
             function,
             other=authoring.ref.dataset(),
@@ -184,7 +184,7 @@ def test_disabled_signature_inspection_still_checks_exact_names_and_dataframe_ar
     )
     operator = authoring.Operator(
         id="calculate",
-        interface=authoring.Interface(outputs=[]),
+        outputs=[],
         compute=authoring.Binding(
             over_arity,
             first=authoring.ref.dataset(),
@@ -213,7 +213,7 @@ def test_reference_metadata_only_contract_is_deferred_until_catalog_binding() ->
 
     operator = authoring.Operator(
         id="calculate",
-        interface=authoring.Interface(outputs=[]),
+        outputs=[],
         compute=authoring.Binding(
             reference,
         ),

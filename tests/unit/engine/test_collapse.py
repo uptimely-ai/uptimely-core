@@ -152,10 +152,8 @@ def _spec(*, lazy=False, empty=False):
         assembly=[
             assembly.Operator(
                 id="read_values",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[feature.Feature(id="value")],
-                ),
+                inputs=[],
+                outputs=[feature.Feature(id="value")],
                 stage=assembly.Binding(
                     ref.function(read_values),
                     lazy=lazy,
@@ -165,10 +163,8 @@ def _spec(*, lazy=False, empty=False):
             ),
             assembly.Operator(
                 id="double",
-                interface=assembly.Interface(
-                    inputs=[ref.feature("value")],
-                    outputs=[feature.Feature(id="doubled")],
-                ),
+                inputs=[ref.feature("value")],
+                outputs=[feature.Feature(id="doubled")],
                 compute=assembly.Binding(
                     ref.function(double),
                     dataset=ref.profile().dataset,
@@ -178,10 +174,8 @@ def _spec(*, lazy=False, empty=False):
             ),
             assembly.Operator(
                 id="unneeded",
-                interface=assembly.Interface(
-                    inputs=[ref.feature("value")],
-                    outputs=[feature.Feature(id="unneeded")],
-                ),
+                inputs=[ref.feature("value")],
+                outputs=[feature.Feature(id="unneeded")],
                 compute=assembly.Binding(
                     ref.function(double),
                     dataset=ref.profile().dataset,
@@ -197,10 +191,8 @@ def _spec(*, lazy=False, empty=False):
         assembly=[
             assembly.Operator(
                 id="group_summary",
-                interface=assembly.Interface(
-                    inputs=[ref.feature("value"), ref.feature("doubled")],
-                    outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
-                ),
+                inputs=[ref.feature("value"), ref.feature("doubled")],
+                outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
                 stage=assembly.Binding(
                     ref.function(summarize),
                     dataset=ref.profile("observations").dataset,
@@ -216,10 +208,8 @@ def _spec(*, lazy=False, empty=False):
         assembly=[
             assembly.Operator(
                 id="global_total",
-                interface=assembly.Interface(
-                    inputs=[ref.feature("maximum")],
-                    outputs=[feature.Feature(id="total")],
-                ),
+                inputs=[ref.feature("maximum")],
+                outputs=[feature.Feature(id="total")],
                 stage=assembly.Binding(
                     ref.function(total),
                     dataset=ref.profile("summary").dataset,
@@ -228,10 +218,8 @@ def _spec(*, lazy=False, empty=False):
             ),
             assembly.Operator(
                 id="global_maximum",
-                interface=assembly.Interface(
-                    inputs=[ref.feature("maximum")],
-                    outputs=[feature.Feature(id="global_max")],
-                ),
+                inputs=[ref.feature("maximum")],
+                outputs=[feature.Feature(id="global_max")],
                 stage=assembly.Binding(
                     ref.function(maximum),
                     dataset=ref.profile("summary").dataset,
@@ -279,10 +267,8 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
         assembly=[
             assembly.Operator(
                 id="read_target",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[feature.Feature(id="base_value")],
-                ),
+                inputs=[],
+                outputs=[feature.Feature(id="base_value")],
                 stage=assembly.Binding(
                     ref.function(read_conform_target),
                 ),
@@ -290,10 +276,8 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
             ),
             assembly.Operator(
                 id="conform_source",
-                interface=assembly.Interface(
-                    inputs=[ref.feature("source_value")],
-                    outputs=[feature.Feature(id="conformed_value")],
-                ),
+                inputs=[ref.feature("source_value")],
+                outputs=[feature.Feature(id="conformed_value")],
                 stage=assembly.Binding(
                     ref.function(conform_source),
                     source=ref.profile("foreign").dataset,
@@ -309,10 +293,8 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
         assembly=[
             assembly.Operator(
                 id="read_source",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[feature.Feature(id="source_value")],
-                ),
+                inputs=[],
+                outputs=[feature.Feature(id="source_value")],
                 stage=assembly.Binding(
                     ref.function(read_conform_source),
                 ),
@@ -609,10 +591,8 @@ def _broadcast_spec(
         assembly=[
             assembly.Operator(
                 id="read_values",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[feature.Feature(id="value")],
-                ),
+                inputs=[],
+                outputs=[feature.Feature(id="value")],
                 stage=assembly.Binding(
                     ref.function(read_values),
                     lazy=lazy,
@@ -621,10 +601,8 @@ def _broadcast_spec(
             ),
             assembly.Operator(
                 id="reference",
-                interface=assembly.Interface(
-                    inputs=[ref.feature("source_value")],
-                    outputs=[feature.Feature(id="reference")],
-                ),
+                inputs=[ref.feature("source_value")],
+                outputs=[feature.Feature(id="reference")],
                 stage=assembly.Binding(
                     ref.function(expand_function),
                     source=ref.profile("reference_source").dataset,
@@ -641,10 +619,8 @@ def _broadcast_spec(
         assembly=[
             assembly.Operator(
                 id="read_reference",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[feature.Feature(id="source_value")],
-                ),
+                inputs=[],
+                outputs=[feature.Feature(id="source_value")],
                 stage=assembly.Binding(
                     ref.function(reader),
                     lazy=lazy,

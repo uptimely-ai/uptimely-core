@@ -34,7 +34,7 @@ def double_single(dataset: pl.LazyFrame, feature: str) -> pl.LazyFrame:
 def double_operator(index: int, source_feature: str) -> up.Operator:
     return up.Operator(
         id=f"double_signal_{index}",
-        interface=up.Interface(outputs=[up.Feature(id=f"{source_feature}_doubled")]),
+        outputs=[up.Feature(id=f"{source_feature}_doubled")],
         compute=up.Binding(
             double_single,
             dataset=up.ref.dataset(),
@@ -69,9 +69,7 @@ output_features = [f"{feature}_doubled" for feature in source_features]
 
 operator = up.Operator(
     id="double_all_signals",
-    interface=up.Interface(
-        outputs=[up.Feature(id=output) for output in output_features],
-    ),
+    outputs=[up.Feature(id=output) for output in output_features],
     compute=up.Binding(
         double_many,
         dataset=up.ref.dataset(),

@@ -10,10 +10,8 @@ def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
         assembly=[
             assembly.Operator(
                 id="read",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[],
-                ),
+                inputs=[],
+                outputs=[],
                 compute=assembly.Binding(
                     ref.FunctionReference(
                         module=__name__ if not conflicting else f"{__name__}.alternate",

@@ -43,7 +43,7 @@ class FeatureSet:
     """Namespace for a profile's feature declarations.
 
     Subclasses declare :class:`Feature` instances as class attributes and
-    reference those attributes from ``Operator.interface.outputs``. A feature
+    reference those attributes from ``Operator.outputs``. A feature
     without an explicit ID uses its attribute name.
     """
 

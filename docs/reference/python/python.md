@@ -41,9 +41,7 @@ class CoolingPumpTelemetry(up.Profile):
     grain = [machine.resolution("machine"), timestamp.resolution("timestamp")]
     assembly = [
         up.Operator(
-            interface=up.Interface(
-                outputs=[up.Feature(id="motor_bearing_temperature")],
-            ),
+            outputs=[up.Feature(id="motor_bearing_temperature")],
             compute=up.Binding(read_telemetry),
         ),
     ]
@@ -54,10 +52,8 @@ class CoolingPump(up.Profile):
     grain = [machine.resolution("machine")]
     assembly = [
         up.Operator(
-            interface=up.Interface(
-                inputs=[up.ref.feature("motor_bearing_temperature")],
-                outputs=[up.Feature(id="motor_bearing_temperature_max")],
-            ),
+            inputs=[up.ref.feature("motor_bearing_temperature")],
+            outputs=[up.Feature(id="motor_bearing_temperature_max")],
             stage=up.Binding(
                 maximum,
                 dataset=up.ref.dataset("cooling_pump_telemetry"),
@@ -96,10 +92,11 @@ for display. Logical feature types are available from
 
 ## Operators and functions
 
-An `Operator` connects a function to a profile. Its `Interface` declares input
-and output features, and its `Binding` takes a function followed by its named
-arguments. If `inputs` is omitted, feature references in the arguments are used
-to infer dependencies. Set `inputs=[]` to disable that inference.
+An `Operator` connects a function to a profile. Its `inputs` and `outputs`
+declare feature dependencies and outputs, and its `Binding` takes a function
+followed by its named arguments. If `inputs` is omitted, feature references in
+the arguments are used to infer dependencies. Set `inputs=[]` to disable that
+inference.
 
 Use `up.ref` to refer to profile data, features, and other Spec values without
 loading data during authoring. `up.ref.feature("name")` passes a feature's
@@ -158,7 +155,7 @@ For calculations that need nearby rows, see [Row context](row-context.md).
     options:
       heading_level: 2
       show_root_heading: false
-      members: [Operator, Interface, Binding]
+      members: [Operator, Binding]
 
 ::: uptimely.spec.python.functions
     options:

@@ -72,9 +72,7 @@ def test_output_reference_logging_is_one_counted_summary(
             assembly=[
                 assembly.Operator(
                     id=f"read_{operator}",
-                    interface=assembly.Interface(
-                        outputs=[feature.Feature(id=f"value_{operator}")],
-                    ),
+                    outputs=[feature.Feature(id=f"value_{operator}")],
                     compute=assembly.Binding(
                         ref.function("reader:read", returns="dataframe"),
                         column=ref.feature(f"value_{operator}"),
@@ -144,10 +142,8 @@ def _declaration(
     declarations = [
         assembly.Operator(
             id=f"{identifier}_mapping",
-            interface=assembly.Interface(
-                inputs=[ref.feature("temperature")] if is_dimensional else [],
-                outputs=[],
-            ),
+            inputs=[ref.feature("temperature")] if is_dimensional else [],
+            outputs=[],
             compute=None if is_dimensional else binding,
             stage=binding if is_dimensional else None,
             merge=merge.default() if is_dimensional else None,
@@ -170,7 +166,7 @@ def test_foreign_feature_inputs_require_stage_and_merge(explicit: bool, staged: 
         id="source",
         assembly=[
             assembly.Operator(
-                interface=assembly.Interface(outputs=[feature.Feature(id="value")]),
+                outputs=[feature.Feature(id="value")],
                 compute=assembly.Binding(ref.function("reader:read", returns="dataframe")),
             )
         ],
@@ -183,10 +179,8 @@ def test_foreign_feature_inputs_require_stage_and_merge(explicit: bool, staged: 
         id="target",
         assembly=[
             assembly.Operator(
-                interface=assembly.Interface(
-                    inputs=["value"] if explicit else None,
-                    outputs=[feature.Feature(id="copied")],
-                ),
+                inputs=["value"] if explicit else None,
+                outputs=[feature.Feature(id="copied")],
                 compute=None if staged else binding,
                 stage=binding if staged else None,
                 merge=merge.default() if staged else None,
@@ -209,25 +203,26 @@ def test_compute_accepts_local_inputs_but_rejects_mixed_profile_inputs() -> None
         id="source",
         assembly=[
             assembly.Operator(
-                interface=assembly.Interface(outputs=[feature.Feature(id="foreign")]),
+                outputs=[feature.Feature(id="foreign")],
                 compute=assembly.Binding(ref.function("reader:foreign", returns="dataframe")),
             )
         ],
     )
     local = assembly.Operator(
-        interface=assembly.Interface(outputs=[feature.Feature(id="local")]),
+        outputs=[feature.Feature(id="local")],
         compute=assembly.Binding(ref.function("reader:local", returns="dataframe")),
     )
     binding = assembly.Binding(ref.function("reader:calculate", returns="dataframe"))
     calculation = assembly.Operator(
-        interface=assembly.Interface(inputs=["local"], outputs=[feature.Feature(id="result")]),
+        inputs=["local"],
+        outputs=[feature.Feature(id="result")],
         compute=binding,
     )
     target = profile.Profile(id="target", assembly=[local, calculation])
     document = conversion.to_model([source, target])
     assert document.profiles["target"].assembly[calculation.id].input_features == ["local"]
 
-    calculation.interface.inputs.append("foreign")
+    calculation.inputs.append("foreign")
     with pytest.raises(ValueError, match="input feature 'foreign'.*use stage and merge"):
         conversion.to_model([source, target])
 
@@ -238,10 +233,8 @@ def _mapping_source() -> profile.Profile:
         assembly=[
             assembly.Operator(
                 id="_other_source",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[feature.Feature(id="temperature")],
-                ),
+                inputs=[],
+                outputs=[feature.Feature(id="temperature")],
                 compute=assembly.Binding(
                     ref.function(_other_source, returns="dataframe"),
                 ),
@@ -256,10 +249,8 @@ def _conform_source(identifier: str) -> profile.Profile:
         assembly=[
             assembly.Operator(
                 id="_other_source",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[feature.Feature(id="temperature")],
-                ),
+                inputs=[],
+                outputs=[feature.Feature(id="temperature")],
                 compute=assembly.Binding(
                     ref.function(_other_source, returns="dataframe"),
                 ),
@@ -437,10 +428,8 @@ def test_function_catalog_keeps_distinct_contracts_without_operator_kinds() -> N
         assembly=[
             assembly.Operator(
                 id="_other_source",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[],
-                ),
+                inputs=[],
+                outputs=[],
                 compute=assembly.Binding(
                     ref.function(_other_source, returns="dataframe"),
                 ),
@@ -553,10 +542,8 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
         assembly=[
             assembly.Operator(
                 id="_source",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[],
-                ),
+                inputs=[],
+                outputs=[],
                 compute=assembly.Binding(
                     ref.function(_source, returns="dataframe"),
                     path="readings.json",
@@ -569,10 +556,8 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
         assembly=[
             assembly.Operator(
                 id="_source",
-                interface=assembly.Interface(
-                    inputs=[],
-                    outputs=[],
-                ),
+                inputs=[],
+                outputs=[],
                 compute=assembly.Binding(
                     ref.function(_source, returns="dataframe"),
                     path=42,

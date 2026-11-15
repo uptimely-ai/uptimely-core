@@ -282,10 +282,8 @@ def test_sources_and_transforms_python_spec() -> None:
         assembly=[
             python_spec.Operator(
                 id="read",
-                interface=python_spec.Interface(
-                    inputs=[],
-                    outputs=[python_spec.feature.Feature(id="input_1")],
-                ),
+                inputs=[],
+                outputs=[python_spec.feature.Feature(id="input_1")],
                 compute=python_spec.Binding(
                     python_spec.ref.function(_read_transform_data, returns="dataframe"),
                 ),
@@ -301,20 +299,16 @@ def test_sources_and_transforms_python_spec() -> None:
         assembly=[
             python_spec.Operator(
                 id="read",
-                interface=python_spec.Interface(
-                    inputs=[],
-                    outputs=[python_spec.feature.Feature(id="target_value")],
-                ),
+                inputs=[],
+                outputs=[python_spec.feature.Feature(id="target_value")],
                 compute=python_spec.Binding(
                     python_spec.ref.function(_read_transform_data, returns="dataframe"),
                 ),
             ),
             python_spec.Operator(
                 id="expand_data",
-                interface=python_spec.Interface(
-                    inputs=[python_spec.ref.feature("input_1")],
-                    outputs=[python_spec.feature.Feature(id="input_2")],
-                ),
+                inputs=[python_spec.ref.feature("input_1")],
+                outputs=[python_spec.feature.Feature(id="input_2")],
                 stage=python_spec.Binding(
                     python_spec.ref.function(expand_data, returns="dataframe"),
                     source=python_spec.ref.profile("transformed_dataset").dataset,
@@ -329,10 +323,8 @@ def test_sources_and_transforms_python_spec() -> None:
         assembly=[
             python_spec.Operator(
                 id="collapse_data",
-                interface=python_spec.Interface(
-                    inputs=[python_spec.ref.feature("input_2")],
-                    outputs=[python_spec.feature.Feature(id="collapsed_feature")],
-                ),
+                inputs=[python_spec.ref.feature("input_2")],
+                outputs=[python_spec.feature.Feature(id="collapsed_feature")],
                 stage=python_spec.Binding(
                     python_spec.ref.function(analytics.aggregate, returns="dataframe"),
                     dataset=python_spec.ref.profile("target").dataset,

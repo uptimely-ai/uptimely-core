@@ -5,7 +5,7 @@ import pump_analytics as analytics
 import pump_io as io
 from spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Interface, Operator, Order, Profile, merge, ref
+from uptimely import Binding, Feature, FeatureSet, Operator, Order, Profile, merge, ref
 
 
 class HourlyWarningTelemetryFeatures(FeatureSet):
@@ -77,22 +77,20 @@ class PumpTelemetryByHourWhenWarning(Profile):
 
     assembly = [
         Operator(
-            interface=Interface(
-                inputs=[
-                    ref.feature("warning_differential_pressure"),
-                    ref.feature("warning_flow_rate"),
-                    ref.feature("warning_motor_power"),
-                    ref.feature("warning_bearing_temperature"),
-                    ref.feature("warning_vibration_rms"),
-                ],
-                outputs=[
-                    features.warning_hour_mean_differential_pressure,
-                    features.warning_hour_mean_flow_rate,
-                    features.warning_hour_mean_motor_power,
-                    features.warning_hour_max_bearing_temperature,
-                    features.warning_hour_max_vibration_rms,
-                ],
-            ),
+            inputs=[
+                ref.feature("warning_differential_pressure"),
+                ref.feature("warning_flow_rate"),
+                ref.feature("warning_motor_power"),
+                ref.feature("warning_bearing_temperature"),
+                ref.feature("warning_vibration_rms"),
+            ],
+            outputs=[
+                features.warning_hour_mean_differential_pressure,
+                features.warning_hour_mean_flow_rate,
+                features.warning_hour_mean_motor_power,
+                features.warning_hour_max_bearing_temperature,
+                features.warning_hour_max_vibration_rms,
+            ],
             stage=Binding(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry_when_warning"),
@@ -120,7 +118,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             merge=merge.default(),
         ),
         Operator(
-            interface=Interface(outputs=[features.operating_point_recommendation]),
+            outputs=[features.operating_point_recommendation],
             compute=Binding(
                 analytics.operation_point_optimization,
                 dataset=ref.dataset(),
@@ -137,7 +135,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            interface=Interface(outputs=[features.recommended_flow_rate]),
+            outputs=[features.recommended_flow_rate],
             compute=Binding(
                 ref.function(
                     pl.LazyFrame.with_columns,
@@ -150,7 +148,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            interface=Interface(outputs=[features.recommended_differential_pressure]),
+            outputs=[features.recommended_differential_pressure],
             compute=Binding(
                 analytics.extract_field,
                 dataset=ref.dataset(),
@@ -160,7 +158,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            interface=Interface(outputs=[features.energy_cost_score]),
+            outputs=[features.energy_cost_score],
             compute=Binding(
                 analytics.extract_field,
                 dataset=ref.dataset(),
@@ -170,7 +168,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            interface=Interface(outputs=[features.converged]),
+            outputs=[features.converged],
             compute=Binding(
                 analytics.extract_field,
                 dataset=ref.dataset(),
@@ -180,7 +178,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
-            interface=Interface(outputs=[]),
+            outputs=[],
             compute=Binding(
                 io.write_file,
                 dataset=ref.dataset(),

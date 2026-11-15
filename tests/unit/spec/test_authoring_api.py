@@ -31,14 +31,14 @@ def test_root_authoring_api_compiles_and_executes(
         assembly = [
             up.Operator(
                 id="read",
-                interface=up.Interface(outputs=[up.Feature(id="value")]),
+                outputs=[up.Feature(id="value")],
                 compute=up.Binding(
                     read_values,
                 ),
             ),
             up.Operator(
                 id="double",
-                interface=up.Interface(outputs=[up.Feature(id="doubled")]),
+                outputs=[up.Feature(id="doubled")],
                 compute=up.Binding(
                     double,
                     dataset=up.ref.dataset(),
@@ -104,9 +104,7 @@ def test_profile_features_attributes_can_be_operator_outputs() -> None:
     features = Features()
     operator = up.Operator(
         id="read",
-        interface=up.Interface(
-            outputs=[features.value],
-        ),
+        outputs=[features.value],
         compute=up.Binding(
             read_values,
         ),
@@ -127,7 +125,9 @@ def test_feature_set_preserves_explicit_feature_id() -> None:
 
 @pytest.mark.parametrize("shape", ["direct", "list", "tuple", "dict", "bind", "context"])
 @pytest.mark.parametrize("declared", [False, True])
-def test_feature_roles_follow_interface_in_nested_arguments(shape: str, declared: bool) -> None:
+def test_feature_roles_follow_operator_inputs_in_nested_arguments(
+    shape: str, declared: bool
+) -> None:
     output = up.ref.feature("result")
     shapes: dict[str, typing.Any] = {
         "direct": output,
@@ -141,9 +141,7 @@ def test_feature_roles_follow_interface_in_nested_arguments(shape: str, declared
     def create_operator() -> up.Operator:
         return up.Operator(
             id="calculate",
-            interface=up.Interface(
-                outputs=[up.Feature(id="result")] if declared else [],
-            ),
+            outputs=[up.Feature(id="result")] if declared else [],
             compute=up.Binding(
                 ref.function("external:calculate", returns="dataframe"),
                 output=shapes[shape],
@@ -155,16 +153,14 @@ def test_feature_roles_follow_interface_in_nested_arguments(shape: str, declared
     assert operator.to_model().output_features == (["result"] if declared else [])
 
 
-def test_mutated_interface_updates_inferred_input_roles() -> None:
+def test_mutated_outputs_update_inferred_input_roles() -> None:
     operator = up.Operator(
         id="calculate",
-        interface=up.Interface(
-            outputs=[up.Feature(id="result")],
-        ),
+        outputs=[up.Feature(id="result")],
         compute=up.Binding(
             ref.function("external:calculate", returns="dataframe"),
             output=up.ref.feature("result"),
         ),
     )
-    operator.interface.outputs.clear()
+    operator.outputs.clear()
     assert operator.to_model().input_features == ["result"]

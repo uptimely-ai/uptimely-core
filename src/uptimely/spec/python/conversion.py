@@ -118,7 +118,7 @@ def to_model(
         if not isinstance(declaration, profile_module.Profile):
             continue
         for operator in declaration._assembly_by_id.values():
-            if operator.interface.inputs is None:
+            if operator.inputs is None:
                 interface = document.profiles[declaration.id].assembly[operator.id].interface
                 interface.inputs = [
                     reference

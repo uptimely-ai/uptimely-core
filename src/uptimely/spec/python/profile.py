@@ -179,7 +179,7 @@ class Profile:
         for operator in self.assembly:
             if not isinstance(operator, assembly.Operator):
                 raise TypeError(f"Profile '{self.id}' assembly must contain Operators")
-            if operator.interface.outputs and operator.reference.returns == "none":
+            if operator.outputs and operator.reference.returns == "none":
                 raise ValueError(
                     f"Profile '{self.id}', operator '{operator.id}': "
                     "No-result operator cannot produce features"
@@ -293,7 +293,7 @@ class Profile:
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
         for name, declaration in self._assembly_by_id.items():
-            for metadata in declaration.interface.outputs:
+            for metadata in declaration.outputs:
                 identifier = metadata.id
                 if identifier in producers:
                     raise ValueError(
@@ -308,7 +308,7 @@ class Profile:
         """Convert an operator and add its profile location to declaration errors."""
         try:
             operator = declaration.to_model()
-            if declaration.interface.inputs is None:
+            if declaration.inputs is None:
                 operator.interface.inputs = [
                     reference
                     for reference in operator.interface.inputs
