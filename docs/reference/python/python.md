@@ -42,7 +42,7 @@ class CoolingPumpTelemetry(up.Profile):
     assembly = [
         up.Operator(
             outputs=[up.Feature(id="motor_bearing_temperature")],
-            compute=up.Binding(read_telemetry),
+            read=up.Binding(read_telemetry),
         ),
     ]
 
@@ -72,10 +72,10 @@ specification = up.Spec(
 )
 ```
 
-When omitted, an operator ID is generated from its compute or stage function ID,
-output interface, and an eight-character SHA-256 hash of that prefix. A single
-output contributes its feature ID to the prefix. Otherwise, the output count is
-used.
+When omitted, an operator ID is generated from its primary binding's function
+ID, output interface, and an eight-character SHA-256 hash of that prefix. A
+single output contributes its feature ID to the prefix. Otherwise, the output
+count is used.
 
 ## Profiles and features
 
@@ -114,14 +114,20 @@ run the function or check that its calculations are correct. Function
 signatures are checked when the project is compiled. External functions can be
 referenced by `"package.module:function"` with `up.ref.function(...)`.
 
-Use `compute` for operations whose input features belong to the current profile.
-A dataframe-producing compute function returns the complete profile dataframe.
-For input features from another profile, or to return a fragment for Uptimely to
-combine with existing data, use `stage` together with a merge binding such as
-`merge=up.merge.default()`. An operator cannot combine `compute` with `stage`
-or `merge`. Custom merge functions are also supported. The generated Spec stores
-the stage binding as `compute`. See the [engine reference](engine.md) for runtime
-behavior.
+Use `read` for a function that returns a dataframe without taking a dataframe
+input. A read may use `merge` to combine its returned fragment with the profile
+data. Use `write` for a function that takes one dataframe and returns no result.
+Use `compute` for transformations of data in the current profile. For
+transformations that use another profile's dataframe, or return a fragment for
+Uptimely to combine with existing data, use `stage` together with a merge
+binding such as `merge=up.merge.default()`. Custom merge functions are also
+supported.
+
+Each operator declares one primary binding: `read`, `compute`, `write`, or
+`stage`. A stage requires a merge, while a read can optionally use one. The
+generated Spec stores the primary binding as `compute`; function contracts and
+dataframe inputs determine its operator kind. See the [engine reference](engine.md)
+for runtime behavior.
 
 For calculations that need nearby rows, see [Row context](row-context.md).
 

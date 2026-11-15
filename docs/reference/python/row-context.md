@@ -12,7 +12,7 @@ Import `RowContext`, `ContextExtent`, and `UNBOUNDED` from
 `uptimely.spec.row_context`.
 
 Use a bare integer as row-count shorthand, and reference a declared direction
-from the compute or stage arguments when the function also needs that value:
+from the operator's binding arguments when the function also needs that value:
 
 ```python
 import polars as pl

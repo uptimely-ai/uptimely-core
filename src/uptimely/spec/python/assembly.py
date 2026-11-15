@@ -116,17 +116,19 @@ class Binding:
 
 @dataclasses.dataclass(frozen=True, kw_only=True, init=False)
 class Operator:
-    """Declare an operator with either compute or stage and merge bindings.
+    """Declare an operator with a read, compute, write, or staged binding.
 
     Args:
         id: Optional non-empty identifier, unique within its profile. When omitted,
-            the ID is generated from the compute or stage function and outputs.
+            the ID is generated from the primary function and outputs.
         inputs: Feature dependencies. Inputs are inferred from binding arguments
             when omitted.
         outputs: Feature declarations produced by the operator.
         row_context: Operator-specific observation requirements, merged with
             argument annotations.
+        read: Function reading a dataframe without a dataframe input.
         compute: Function producing the complete target or a non-dataframe result.
+        write: Function consuming one dataframe and returning no result.
         stage: Function producing a fragment for merging.
         merge: Function combining a staged fragment with the target.
     """
@@ -137,9 +139,17 @@ class Operator:
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
+    read: Binding | None = None
     compute: Binding | None = None
+    write: Binding | None = None
     stage: Binding | None = None
     merge: Binding | None = None
+    _primary_role: typing.Literal["read", "compute", "write", "stage"] = dataclasses.field(
+        init=False,
+        repr=False,
+        compare=False,
+    )
+    _primary_binding: Binding = dataclasses.field(init=False, repr=False, compare=False)
 
     def __init__(
         self,
@@ -150,12 +160,20 @@ class Operator:
         row_context: (
             row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
         ) = None,
+        read: Binding | None = None,
         compute: Binding | None = None,
+        write: Binding | None = None,
         stage: Binding | None = None,
         merge: Binding | None = None,
     ) -> None:
         """Create an operator, deriving its identifier when one is not supplied."""
-        for role, binding in (("compute", compute), ("stage", stage), ("merge", merge)):
+        for role, binding in (
+            ("read", read),
+            ("compute", compute),
+            ("write", write),
+            ("stage", stage),
+            ("merge", merge),
+        ):
             if binding is not None and not isinstance(binding, Binding):
                 raise TypeError(f"Operator {role} must be a Binding or None")
         if inputs is not None and (
@@ -164,13 +182,26 @@ class Operator:
             raise TypeError("Operator inputs must be a sequence of feature references")
         if not isinstance(outputs, abc.Sequence) or isinstance(outputs, (str, bytes)):
             raise TypeError("Operator outputs must be a sequence of Features")
-        if not (
-            (compute is not None and stage is None and merge is None)
-            or (compute is None and stage is not None and merge is not None)
+        primary_bindings: list[
+            tuple[typing.Literal["read", "compute", "write", "stage"], Binding]
+        ] = []
+        if read is not None:
+            primary_bindings.append(("read", read))
+        if compute is not None:
+            primary_bindings.append(("compute", compute))
+        if write is not None:
+            primary_bindings.append(("write", write))
+        if stage is not None:
+            primary_bindings.append(("stage", stage))
+        if (
+            len(primary_bindings) != 1
+            or (stage is not None and merge is None)
+            or (merge is not None and read is None and stage is None)
         ):
-            raise ValueError("Operator requires either compute or both stage and merge")
-        primary = compute if compute is not None else stage
-        assert primary is not None
+            raise ValueError(
+                "Operator requires one primary binding; merge is allowed only with read or stage"
+            )
+        primary_role, primary = primary_bindings[0]
         if id is None:
             id = self._generate_id(outputs, primary.reference.name)
         if not isinstance(id, str) or not id.strip():
@@ -179,20 +210,21 @@ class Operator:
         object.__setattr__(self, "inputs", list(inputs) if inputs is not None else None)
         object.__setattr__(self, "outputs", list(outputs))
         object.__setattr__(self, "row_context", row_context)
+        object.__setattr__(self, "read", read)
         object.__setattr__(self, "compute", compute)
+        object.__setattr__(self, "write", write)
         object.__setattr__(self, "stage", stage)
         object.__setattr__(self, "merge", merge)
+        object.__setattr__(self, "_primary_role", primary_role)
+        object.__setattr__(self, "_primary_binding", primary)
         self._input_ids()
         _ = self.output_ids
         self.__post_init__()
 
     @property
     def _primary(self) -> Binding:
-        """Return the computation or fragment-producing binding."""
-        binding = self.compute if self.compute is not None else self.stage
-        if binding is None:
-            raise ValueError("Operator requires a compute or stage binding")
-        return binding
+        """Return the primary function binding."""
+        return self._primary_binding
 
     @classmethod
     def _generate_id(cls, outputs: abc.Sequence[feature_module.Feature], function_id: str) -> str:
@@ -312,7 +344,7 @@ class Operator:
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Build the reusable function contract declared by this operator."""
-        bindings = [("stage" if self.stage is not None else "compute", self._primary)]
+        bindings: list[tuple[str, Binding]] = [(self._primary_role, self._primary)]
         if self.merge is not None:
             bindings.append(("merge", self.merge))
         catalogs = []
@@ -321,6 +353,16 @@ class Operator:
             dataframe_count = sum(
                 arg_types.is_dataframe(argument.type) for argument in template.args.values()
             )
+            if role == "read":
+                if dataframe_count != 0:
+                    raise ValueError("Read binding must not accept dataframe inputs")
+                if template.returns != "dataframe":
+                    raise ValueError("Read binding must return a dataframe")
+            elif role == "write":
+                if dataframe_count != 1:
+                    raise ValueError("Write binding must accept exactly one dataframe input")
+                if template.returns != "none":
+                    raise ValueError("Write binding must return no result")
             if (role in {"compute", "stage"} and dataframe_count > 1) or (
                 role == "merge" and dataframe_count != 2
             ):

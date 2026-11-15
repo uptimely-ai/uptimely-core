@@ -73,7 +73,7 @@ def test_output_reference_logging_is_one_counted_summary(
                 assembly.Operator(
                     id=f"read_{operator}",
                     outputs=[feature.Feature(id=f"value_{operator}")],
-                    compute=assembly.Binding(
+                    read=assembly.Binding(
                         ref.function("reader:read", returns="dataframe"),
                         column=ref.feature(f"value_{operator}"),
                     ),
@@ -167,7 +167,7 @@ def test_foreign_feature_inputs_require_stage_and_merge(explicit: bool, staged: 
         assembly=[
             assembly.Operator(
                 outputs=[feature.Feature(id="value")],
-                compute=assembly.Binding(ref.function("reader:read", returns="dataframe")),
+                read=assembly.Binding(ref.function("reader:read", returns="dataframe")),
             )
         ],
     )
@@ -204,13 +204,13 @@ def test_compute_accepts_local_inputs_but_rejects_mixed_profile_inputs() -> None
         assembly=[
             assembly.Operator(
                 outputs=[feature.Feature(id="foreign")],
-                compute=assembly.Binding(ref.function("reader:foreign", returns="dataframe")),
+                read=assembly.Binding(ref.function("reader:foreign", returns="dataframe")),
             )
         ],
     )
     local = assembly.Operator(
         outputs=[feature.Feature(id="local")],
-        compute=assembly.Binding(ref.function("reader:local", returns="dataframe")),
+        read=assembly.Binding(ref.function("reader:local", returns="dataframe")),
     )
     binding = assembly.Binding(ref.function("reader:calculate", returns="dataframe"))
     calculation = assembly.Operator(

@@ -55,7 +55,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
                     ),
                     authoring.Feature(id="pump", type="string"),
                 ],
-                compute=authoring.Binding(
+                read=authoring.Binding(
                     ref.function("reader:read", returns="dataframe"),
                 ),
             )
@@ -90,7 +90,7 @@ def test_mapping_rejects_duplicate_output_ids() -> None:
                 authoring.Feature(id="temperature"),
                 authoring.Feature(id="temperature"),
             ],
-            compute=authoring.Binding(
+            read=authoring.Binding(
                 ref.function("reader:read", returns="dataframe"),
             ),
         )
@@ -182,22 +182,23 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
     first = authoring.Operator(
         id="read",
         outputs=[authoring.Feature(id="value", type="float")],
-        compute=authoring.Binding(
+        read=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
     )
     replacement = authoring.Operator(
         id="read",
         outputs=[authoring.Feature(id="value", type="integer")],
-        compute=authoring.Binding(
+        read=authoring.Binding(
             ref.function("reader:replacement", returns="dataframe"),
         ),
     )
     sink = authoring.Operator(
         id="write",
         outputs=[],
-        compute=authoring.Binding(
+        write=authoring.Binding(
             ref.function("writer:write", returns="none"),
+            dataset=ref.dataset(),
             column=ref.feature("value"),
         ),
     )
@@ -349,7 +350,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
             authoring.Operator(
                 id="read",
                 outputs=[authoring.Feature(id="value", type="float")],
-                compute=authoring.Binding(
+                read=authoring.Binding(
                     ref.function("reader:read", returns="dataframe"),
                     keys=ref.profile().grain.ids,
                     source_keys=ref.profile("source").grain.ids,
@@ -373,8 +374,8 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
     assert payload["functions"]["read"]["args"]["keys"]["type"] == "array[string]"
 
 
-def test_mapping_constructor_requires_compute_or_stage_and_merge() -> None:
-    with pytest.raises(ValueError, match="either compute or both stage and merge"):
+def test_mapping_constructor_requires_a_primary_binding() -> None:
+    with pytest.raises(ValueError, match="one primary binding"):
         authoring.Operator(id="read")
 
 
@@ -384,7 +385,7 @@ def test_operator_rejects_flat_declaration_fields(legacy: str) -> None:
         authoring.Operator(
             id="read",
             outputs=[],
-            compute=authoring.Binding(
+            read=authoring.Binding(
                 ref.function("reader:read", returns="dataframe"),
             ),
             **{legacy: None},
@@ -561,14 +562,17 @@ def test_operator_groups_flatten_in_mapping_order() -> None:
     first = authoring.Operator(
         id="read",
         outputs=[],
-        compute=authoring.Binding(
+        read=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
     )
-    second = dataclasses.replace(
-        first,
+    second = authoring.Operator(
         id="write",
-        compute=authoring.Binding(ref.function("writer:write", returns="none")),
+        outputs=[],
+        write=authoring.Binding(
+            ref.function("writer:write", returns="none"),
+            dataset=ref.dataset(),
+        ),
     )
     declaration = authoring.Profile(
         id="example",
@@ -585,12 +589,13 @@ def test_operator_ids_are_unique_across_groups(returns: str) -> None:
     first = authoring.Operator(
         id="duplicate",
         outputs=[],
-        compute=authoring.Binding(
+        read=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
     )
-    second = dataclasses.replace(
-        first,
+    second = authoring.Operator(
+        id="duplicate",
+        outputs=[],
         compute=authoring.Binding(ref.function("implementation:work", returns=returns)),
     )
     with pytest.raises(ValueError, match="Profile 'example' has duplicate operator ID 'duplicate'"):
@@ -604,7 +609,7 @@ def test_operator_defaults_and_inherited_lists_are_not_shared_between_instances(
     read = authoring.Operator(
         id="read",
         outputs=[],
-        compute=authoring.Binding(
+        read=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
     )
@@ -630,7 +635,7 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_operator() -> None:
     read = authoring.Operator(
         id="read",
         outputs=[],
-        compute=authoring.Binding(
+        read=authoring.Binding(
             ref.function("reader:read", returns="dataframe"),
         ),
     )
@@ -656,8 +661,9 @@ def test_conversion_revalidates_modified_operator() -> None:
         authoring.Operator(
             id="write",
             outputs=[],
-            compute=authoring.Binding(
+            write=authoring.Binding(
                 ref.function("writer:write", returns="none"),
+                dataset=ref.dataset(),
             ),
         )
     ]
@@ -689,8 +695,9 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
                 authoring.Operator(
                     id="publish",
                     outputs=[],
-                    compute=authoring.Binding(
+                    write=authoring.Binding(
                         ref.function("implementation:publish", returns="none"),
+                        dataset=ref.dataset(),
                         column=ref.feature("result"),
                     ),
                 )

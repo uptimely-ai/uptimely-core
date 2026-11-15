@@ -59,7 +59,7 @@ class PumpTelemetry(Profile):
                     features.motor_power,
                     features.mode,
                 ],
-                stage=Binding(
+                read=Binding(
                     io.read_pump_telemetry,
                     pump_telemetry_source=ref.paths("telemetry_source"),
                     pump_source=ref.paths("pump_assets_source"),
@@ -157,7 +157,7 @@ class PumpTelemetry(Profile):
         publishing=[
             Operator(
                 outputs=[],
-                compute=Binding(
+                write=Binding(
                     io.write_file,
                     dataset=ref.dataset(),
                     features=[

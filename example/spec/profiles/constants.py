@@ -34,7 +34,7 @@ class Constants(Profile):
     assembly = [
         Operator(
             outputs=[features.gravity, features.room_temperature],
-            stage=Binding(
+            read=Binding(
                 io.read_file,
                 source=ref.paths("constants_source"),
                 schema={"gravity": "float", "room_temperature": "float"},
@@ -47,7 +47,7 @@ class Constants(Profile):
         ),
         Operator(
             outputs=[],
-            compute=Binding(
+            write=Binding(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[features.gravity, features.room_temperature],

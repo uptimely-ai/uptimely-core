@@ -19,6 +19,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Python `Operator` declarations use `read` and `write` bindings for dataframe
+  sources and sinks. Reads can use a merge to add their returned fragment.
 - Python `Operator` declarations place feature `inputs` and `outputs` directly
   on the operator instead of wrapping them in an `Interface`.
 - Python operators use `stage` with `merge` for fragments and cross-profile
