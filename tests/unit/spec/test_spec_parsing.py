@@ -449,7 +449,6 @@ def test_system_and_subset_support_multiple_variables() -> None:
         "warning_hour_max_bearing_temperature",
         "warning_hour_max_vibration_rms",
         "operating_point_recommendation",
-        "ratio",
     }
     assert system.graph is not None
     assert "bearing_temperature" in system.input_names

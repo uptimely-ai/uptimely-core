@@ -45,11 +45,6 @@ class PumpFeatures(FeatureSet):
         type=feature_types.FLOAT,
         description="Reference value used to normalize the cooling-system measurement.",
     )
-    ratio = Feature(
-        id="ratio",
-        type=feature_types.FLOAT,
-        description="Pump measurement divided by its reference value.",
-    )
     bearing_temperature_max = Feature(
         id="bearing_temperature_max",
         type=feature_types.FLOAT,
@@ -188,7 +183,6 @@ class Pump(Profile):
         ),
         Operator(
             inputs=[features.measurement, features.reference_value],
-            outputs=[features.ratio],
             workflow=Bind(io.process_pump_external_workflow),
         ),
         Operator(

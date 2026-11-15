@@ -34,8 +34,8 @@ reading data or by transforming another profile.
 The argument-free external workflow reads a sample CSV, calculates a measurement
 ratio, and writes its result as a separate output. It manages its own paths and
 does not declare dataframe inputs or outputs.
-Its logical inputs are the measurement and reference value, and its logical
-output is the ratio. The ratio is not added to the profile dataframe.
+its logical inputs are the measurement and reference value. It publishes the
+ratio externally and does not add it to the profile dataframe.
 
 ## Project files
 

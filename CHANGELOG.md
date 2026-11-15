@@ -55,6 +55,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Fixed
 
+- The example's external workflow publishes its ratio without declaring it as
+  a profile dataframe feature.
 - `uptimely example --no-setup` no longer downloads the example's `init.sh`.
 - The uv example download instructions select Python 3.13 and avoid the old
   package release that does not provide the CLI.

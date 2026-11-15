@@ -82,7 +82,7 @@ def test_pump_external_workflow_runs_with_its_own_paths(
     assert workflow.is_workflow
     assert workflow.arguments == {}
     assert workflow.input_features == ["measurement", "reference_value"]
-    assert workflow.output_features == ["ratio"]
+    assert workflow.output_features == []
     assert result.invocation_statuses[workflow.id] == "succeeded"
     assert all(status == "succeeded" for status in result.invocation_statuses.values())
     assert result.failures == {}
@@ -94,9 +94,6 @@ def test_pump_external_workflow_runs_with_its_own_paths(
         "measurement",
         "reference_value",
     } <= set(dataset.collect_schema().names())
-    assert "ratio" not in dataset.collect_schema().names()
-    assert "ratio" in spec_definition.profiles["pump"].features
-    assert ("pump", "ratio") not in result.calculated_outputs
     assert pl.read_csv(output_path).select("pump_id", "ratio").rows() == [
         ("CWP-101", 0.75),
         ("CWP-201", 1.0),
