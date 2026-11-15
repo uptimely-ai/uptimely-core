@@ -343,13 +343,15 @@ def test_workflow_is_selected_only_for_its_profile_and_keeps_logical_dependencie
     assembly = configuration["profiles"]["pump"]["assembly"]
     operator = next(item for item in assembly.values() if item.get("is_workflow"))
     operator["interface"]["inputs"] = ["$features.bearing_temperature_max"]
+    operator["interface"]["outputs"] = ["$features.external_result"]
+    configuration["profiles"]["pump"]["features"]["external_result"] = {"type": "float"}
     path = tmp_path / "workflow.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     document = spec.load_spec(path)
     selected = compiler.Compiler().compile(document, features=["measurement"])
     workflow = next(item for item in selected.invocations if item.is_workflow)
     assert workflow.input_features == ["bearing_temperature_max"]
-    assert workflow.output_features == ["ratio"]
+    assert workflow.output_features == ["external_result"]
     producer = next(
         item for item in selected.invocations if "bearing_temperature_max" in item.output_features
     )
@@ -361,7 +363,7 @@ def test_workflow_is_selected_only_for_its_profile_and_keeps_logical_dependencie
     assert publisher.id in workflow.dependency_ids
     other = compiler.Compiler().compile(document, features=["pressure_flow_efficiency"])
     assert not any(item.is_workflow for item in other.invocations)
-    by_logical_output = compiler.Compiler().compile(document, features=["ratio"])
+    by_logical_output = compiler.Compiler().compile(document, features=["external_result"])
     assert any(item.is_workflow for item in by_logical_output.invocations)
 
 
@@ -404,8 +406,10 @@ def test_unknown_result_inputs_and_outputs_define_logical_dependencies(
     compiled = compiler.Compiler().compile(document)
     by_operator = {invocation.operator_id: invocation for invocation in compiled.invocations}
     by_id = compiled.invocations_by_id
-    process_operator_id = example_support.operator_id_for_output(
-        document.profiles["pump"].assembly, "ratio"
+    process_operator_id = next(
+        operator_id
+        for operator_id, operator in document.profiles["pump"].assembly.items()
+        if operator.is_workflow
     )
     assert {
         invocation.operator_id

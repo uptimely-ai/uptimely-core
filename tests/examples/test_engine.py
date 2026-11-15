@@ -376,10 +376,10 @@ def test_engine_cli_reports_processed_profiles(
 
     output = capsys.readouterr().out
     assert "Scope:" not in output
-    assert "Processed profile pump: 9 features" in output
+    assert "Processed profile pump: 8 features" in output
     assert "Profile: pump\n" in output
     assert "Profile: pump_telemetry\n" in output
-    assert output.index("Processed profile pump: 9 features") < output.index("Profile: pump\n")
+    assert output.index("Processed profile pump: 8 features") < output.index("Profile: pump\n")
     assert "shape:" not in output
     assert "Executing operator op-read_file-features2-" in output
     assert ", function read_file (role=compute, result=fragment)" in output
@@ -419,7 +419,7 @@ def test_engine_cli_reports_scoped_saved_build(
 
     output = capsys.readouterr().out
     assert "Scope:" not in output
-    assert "Processed profile pump: 9 features" in output
+    assert "Processed profile pump: 8 features" in output
 
 
 def test_engine_rejects_missing_path(
