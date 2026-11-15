@@ -12,12 +12,9 @@ later.
 
 ### Operators and invocations
 
-Spec operators declare how functions use inputs and produce outputs. The
-Compiler turns this declared work into plan invocations, each representing a
-function call. An operator can result in more than one invocation, for example
-when a compute function produces a fragment that needs a separate merge.
-Operators describe intent in the Spec; invocations are the executable steps in
-the plan.
+Operators declare work, while invocations represent function calls. Each
+operator creates a compute invocation and, when declared, a separate merge
+invocation.
 
 ### Dependencies and stages
 
@@ -26,6 +23,9 @@ Compiler resolves those dependencies, selects prerequisites for requested
 features, and groups invocations into ordered stages. Dependencies must run
 before their consumers; invocations in the same stage have no declared
 dependency between them.
+
+Seed and dataset prerequisites also determine order. Fragment consumers wait
+for the merge. Python assembly groups do not control scheduling.
 
 ### Bound arguments
 

@@ -5,9 +5,8 @@ Most projects use the Python helpers in [Python authoring](python.md) instead.
 
 ## Operator bindings
 
-`OPERATOR_BINDINGS` describes the dataframe contract of each primary binding
-and the additional `merge` binding. Logical feature inputs and outputs are
-declared independently.
+`OPERATOR_BINDINGS` describes the required `compute` binding and the optional
+`merge` binding. Dataframe counts are independent of logical feature dependencies.
 
 ::: uptimely.spec.operator_bindings
     options:
@@ -25,9 +24,17 @@ Explorer reports source-to-target relationships inferred from profile grains
 and their dimension hierarchies. These values are not stored in the Spec or
 portable execution plan.
 
-The values are `same`, `expand`, `collapse`, `unrelated`, and
-`not_applicable`. For the execution contracts that remain in a plan, see the
-[Spec format reference](../../architecture/spec.md).
+| Relationship | Source compared with target |
+| --- | --- |
+| `same` | Both select the same dimensions and resolutions. |
+| `expand` | The target refines the source by adding dimensions or selecting finer resolutions. |
+| `collapse` | The target is coarser by removing dimensions or selecting coarser resolutions. |
+| `unrelated` | Neither grain refines the other through the declared hierarchy. |
+| `not_applicable` | A single source cannot be resolved, for example because none is declared or sources are ambiguous. |
+
+The comparison uses resolution hierarchy, not dimension counts. Sources include
+logical feature owners and dataframe profiles. These labels do not perform
+calculations or select a merge.
 
 ## Argument types
 

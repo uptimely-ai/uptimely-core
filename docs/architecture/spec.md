@@ -152,9 +152,10 @@ profile or expand its observations.
 
 ## Functions
 
-Each function declaration describes an operation by naming its implementation,
-the kind of result it returns, and the arguments it accepts. Operators use
-these declarations and supply values, feature inputs, and outputs.
+Each function declaration names an implementation, its return contract, and
+the arguments it accepts. Operators reuse these declarations with different
+bindings, feature dependencies, and target profiles. A descriptive category
+groups functions but does not determine execution.
 
 Functions are expressed as objects keyed by globally unique function
 identifiers.
@@ -180,19 +181,8 @@ Explorer presentation and are not stored in the Spec. See
 [Function contracts](index.md#function-contracts) for the signature mapping,
 and the [Compiler](compiler.md) page for validation details.
 
-```json
-"sum_features": {
-  "returns": "dataframe",
-  "entrypoint": "spec:sum_features",
-  "validate_signature": false,
-  "args": {
-    "dataset": {"type": "dataframe"},
-    "left_feature": {"type": "string"},
-    "right_feature": {"type": "string"},
-    "output": {"type": "string"}
-  }
-}
-```
+Python authoring infers `dataframe` or `none` from unambiguous annotations.
+Otherwise, an explicit return contract is required.
 
 ### Arguments
 
@@ -435,33 +425,6 @@ seed reference, and the presence of a merge determine execution contracts.
 Read, transform, write, and workflow describe function signatures, not operator
 attributes.
 
-```json
-{
-  "assembly": {
-    "temperature_mean": {
-      "interface": {
-        "inputs": ["$features.bearing_temperature"],
-        "outputs": ["$features.temperature_mean"]
-      },
-      "row_context": {
-        "dimension": "$dimensions.measurement_time",
-        "before": {"time": "8h"},
-        "after": {"time": "0s"}
-      },
-      "compute": {
-        "function": "rolling_mean",
-        "args": {
-          "dataset": "$profiles.@.dataset",
-          "column": "$features.bearing_temperature.id",
-          "window": "8h",
-          "output": "$features.temperature_mean.id"
-        }
-      }
-    }
-  }
-}
-```
-
 | Field | JSON type | Selector | Required | Default | Meaning |
 | --- | --- | --- | --- | --- | --- |
 | `interface` | object | No | No | Empty lists | Explicit prerequisites and outputs. |
@@ -479,14 +442,11 @@ attributes.
 ### Compute
 
 `compute.args` supplies values to the function named in `compute.function`.
-That function may accept at most one dataframe argument. If the operator also
-declares a merge, the compute function must return a dataframe. This result is
-a partial dataframe, called a fragment. Without a merge, the returned dataframe
-becomes the target profile's dataframe. It must include the target keys and the
-operator's declared outputs, but it does not need every feature declared for
-the profile. Count dataframe arguments in the function declaration, even when
-more than one refers to the same profile. If the compute function has a
-dataframe argument, it receives the source profile's dataframe.
+The function accepts at most one top-level dataframe argument. Its dataframe
+result is the complete target without a merge, or a fragment with a merge.
+Ignored results do not relax the dataframe limit.
+
+### Feature interface
 
 Input and output lists contain distinct `$features.<id>` references. Inputs
 list the features the calculation reads, even when they are not passed as
@@ -502,11 +462,13 @@ include all target dimension keys and the operator's declared outputs. A
 column transform of an existing target dataframe must retain its existing
 columns.
 
-A write operator has no outputs and lists its required inputs. Other operators
+A publish operator has no outputs and lists its required inputs. Its function
+can receive a dataframe or read the needed data internally. External writes
+do not create profile dataframe columns. Other operators
 that produce data must declare at least one feature output, except source
 readers that provide only profile identifiers or relations. A collapse
 relationship must produce at least one feature. The function declaration
-specifies what kind of result it returns.
+specifies its return contract.
 
 When a merge is declared, the compute result is a fragment. It must include the
 target keys available in its source profile and the operator's declared
@@ -514,22 +476,15 @@ outputs. For an `expand` relationship, the fragment may omit target keys that it
 source profile does not have. See the [Engine guide](engine.md#datasets-and-fragments)
 for details on combining and checking fragments.
 
-Explorer derives source-to-target grain relationships from the selected profile
-grains and dimension hierarchy. The relationship values are `same`, `expand`,
-`collapse`, `unrelated`, or `not_applicable`. They are presentation data, not
-stored in the Spec or execution plan.
-
 Use selectors in `compute.args` only where the argument accepts them. See
 [Selectors](#selectors) for supported references and their value types.
 
 ### Merge
 
-Declare a merge when the compute function returns a fragment to combine with
-the current profile dataset, such as a separate read or a calculation from
-another profile. A seed returns the initial complete dataset and must not
-have a merge. A calculation that returns the complete current dataset does not
-use a merge. A function without a dataframe result cannot use a merge, even
-when it has logical feature dependencies.
+Use merge to integrate a dataframe fragment into the current dataset.
+Seeds must not merge. Complete-target updates need no merge, and functions
+without dataframe results cannot merge. Foreign feature dependencies alone
+do not require one.
 
 The merge is optional, but declare it explicitly. Its function must accept
 exactly two dataframe arguments, `dataset` and `fragment`. It may also accept
@@ -539,22 +494,15 @@ function must return a dataframe containing the accumulated dataset and
 fragment columns, with no additional columns. Merge arguments cannot reference
 features.
 
-To use the built-in merge, set its function key in the JSON Spec:
-
-```json
-"merge": {
-  "function": "merge_by_grain",
-  "args": {
-    "dataset": "$profiles.@.dataset",
-    "fragment": "$operators.@.fragment",
-    "dataset_identifiers": "$profiles.@.grain.ids"
-  }
-}
-```
-
-The built-in merge matches rows using the target profile's dimension keys.
-Custom merge functions may use different rules. See the
+The built-in `merge_by_grain`, exposed as `merge.default()` in Python, aligns
+rows by target grain keys. Omission never selects it implicitly. See the
 [Engine guide](engine.md#fragment-and-merge) for details.
+
+### Grain relationships
+
+Explorer derives [grain relationships](../reference/python/spec-vocabulary.md#derived-grain-relationships)
+from dimension resolutions. These are not function classifications or Spec
+fields. They neither perform calculations nor select a merge.
 
 ### Row Context
 

@@ -102,6 +102,11 @@ followed by its named arguments. If `inputs` is omitted, feature references in
 the arguments are used to infer dependencies. Set `inputs=[]` to disable that
 inference.
 
+Every operator requires `compute=up.Bind(...)`. Add `merge` when its returned
+fragment must be integrated into the target dataset.
+
+### References
+
 Use `up.ref` to refer to profile data, features, and other Spec values without
 loading data during authoring. `up.ref.feature("name")` passes a feature's
 identifier and declares an input dependency. Append `.id` to pass the identifier
@@ -111,42 +116,66 @@ without adding an input dependency, such as for an output column name. Use
 invoking the function. Use `up.ref.params("name")` for a scalar configured in
 `params`, which is passed unchanged.
 
-`@up.function(returns=...)` describes what a function returns. Use
-`"dataframe"` for a dataframe, `"none"` for no result, or `"any"` when the
-result is intentionally ignored. The decorator records a contract; it does not
-run the function or check that its calculations are correct. Function
-signatures are checked when the project is compiled. External functions can be
-referenced by `"package.module:function"` with `up.ref.function(...)`.
+### Dataframe signatures
 
-Each operator requires `compute=up.Bind(...)` and may declare
-`merge=up.merge.default()` or a custom merge binding. The compute function accepts
-zero or one dataframe. Its dataframe result is a complete target without a
-merge, or a fragment with a merge. The merge function accepts the current dataset
-and the fragment and returns a complete target. A non-dataframe result cannot
-be merged.
+Dataframe counts describe the function boundary, not logical features or
+internal I/O. Compute accepts zero or one dataframe, merge exactly two.
 
-Use a merge for a separate read or calculation whose returned fragment must
-be integrated into the current dataset. Foreign logical feature dependencies
-alone do not require a merge. A seed returns the initial complete target, and
-an update returning the complete current dataset needs no merge.
+| Dataframes in → out | Explorer label | Binding |
+| --- | --- | --- |
+| 0 → 1 | `read` | `compute` |
+| 1 → 1 | `transform` | `compute` |
+| 1 → 0 | `write` | `compute` |
+| 2 → 1 | `merge` | `merge` |
+| Ignored result | `workflow` | `compute` |
 
-A non-dataframe function with no dataframe input is treated as an opaque
-workflow. It may take ordinary arguments and its result is ignored. Its feature
-inputs and outputs express logical dependencies, not dataframe columns.
-Workflows run with their profile and are included when features of that profile
-are selected. A write function also uses `compute`, returns no dataframe, and
-declares its required feature inputs.
+Return contracts are `dataframe`, `none`, or `any` for an ignored result.
+Unambiguous annotations infer the first two. Otherwise, declare
+`returns` through `@up.function(...)` or `up.ref.function(...)`.
+Dataframe arguments must be top-level. An `unknown` label or ignored result
+does not relax the dataframe limits.
 
-An optional `seed` names the assembly operator that initializes the profile
-dataset. It must return a complete target dataframe, including every grain key,
-and must use a `compute` binding without a merge or consuming the target dataset.
-It can read external data or use a non-nullable dataframe from another profile.
-Other fragments merge after the seed, regardless of assembly order. Profiles
-without a seed retain their existing accumulation behavior.
-The generated Spec stores the primary call as `compute`. The shared
-compute and merge contracts are available in Explorer and the
-[Spec vocabulary](spec-vocabulary.md). See the [engine reference](engine.md)
-for runtime behavior.
+### When to use merge
+
+With `merge`, compute returns a fragment. Without it, a returned dataframe
+becomes the complete target. Foreign feature dependencies alone do not require
+a merge. Use the default merge explicitly:
+
+```python
+up.Operator(
+    outputs=[up.Feature(id="pressure_limit")],
+    compute=up.Bind(
+        up.ref.function("project_io:read_limits", returns="dataframe"),
+        source=up.ref.paths("limits_source"),
+    ),
+    merge=up.merge.default(),
+)
+```
+
+The default aligns grain keys. A custom `up.Bind(...)` uses
+`dataset=up.ref.dataset()` and `fragment=up.ref.fragment()` and returns the
+complete target. Its dataset argument must allow `None` for initialization.
+See [runtime behavior](../../architecture/engine.md#fragment-and-merge).
+
+### Publication and opaque workflows
+
+Publish operations declare inputs and no outputs. A non-dataframe function
+with no dataframe input is an opaque workflow. Its result is ignored, and any
+logical outputs establish dependencies without creating dataframe columns.
+
+### Seeds and execution order
+
+`Profile.seed` optionally names an explicitly identified operator returning the
+initial complete dataset, without a merge or target input. It can read data or
+transform a non-nullable foreign dataframe. Other merges follow the seed.
+Profiles without one initialize through accumulation. Assembly grouping does
+not replace dependency declarations.
+
+### Grain relationships
+
+Explorer compares source and target grains independently of function signatures.
+See [grain relationships](spec-vocabulary.md#derived-grain-relationships) for
+their meaning.
 
 For calculations that need nearby rows, see [Row context](row-context.md).
 
