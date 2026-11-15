@@ -70,7 +70,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                         outputs=[
                             feature.Feature(id="temperature", type="integer"),
                         ],
-                        compute=assembly.Binding(
+                        compute=assembly.Bind(
                             ref.function(read_observations),
                         ),
                     ),
@@ -78,7 +78,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                         id="result",
                         inputs=[ref.feature("temperature")],
                         outputs=[feature.Feature(id="result", type="integer")],
-                        compute=assembly.Binding(
+                        compute=assembly.Bind(
                             ref.function(calculate),
                             dataset=ref.profile().dataset,
                             column=ref.feature("temperature").id,
@@ -127,7 +127,7 @@ def test_row_context_references_resolve_scalar_extents(
     declaration = assembly.Operator(
         id="result",
         row_context=context,
-        compute=assembly.Binding(
+        compute=assembly.Bind(
             ref.function("external:calculate", returns="dataframe"),
             **{attribute: ref.row_context(attribute)},
         ),
@@ -218,7 +218,7 @@ def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
         id="declaration",
         inputs=[],
         outputs=[],
-        compute=assembly.Binding(
+        compute=assembly.Bind(
             ref.function(f"{__name__}:calculate", returns="dataframe"),
             configuration={
                 "windows": [
@@ -252,7 +252,7 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
             id="operator",
             inputs=[],
             outputs=[],
-            compute=assembly.Binding(
+            compute=assembly.Bind(
                 ref.function(calculate),
                 configuration=[first, second],
             ),
@@ -262,7 +262,7 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
             id="operator",
             inputs=[],
             outputs=[],
-            compute=assembly.Binding(
+            compute=assembly.Bind(
                 ref.function(calculate),
                 configuration=[first, authoring.rows(8, before=7)],
             ),
@@ -300,7 +300,7 @@ def test_unknown_current_and_all_rows_context_are_distinct():
             id="operator",
             inputs=[],
             outputs=[],
-            compute=assembly.Binding(
+            compute=assembly.Bind(
                 ref.function(calculate),
             ),
         ).row_context
@@ -464,7 +464,7 @@ def test_data_mapping_preserves_annotated_context():
         id="declaration",
         inputs=[],
         outputs=[],
-        compute=assembly.Binding(
+        compute=assembly.Bind(
             ref.function(f"{__name__}:calculate", returns="dataframe"),
             configuration={"windows": [authoring.rows(8, before=7)]},
         ),
@@ -557,7 +557,7 @@ def test_collapse_functions_execute_without_row_context(
                 outputs=[
                     feature.Feature(id="temperature", type="integer"),
                 ],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function(read_observations),
                 ),
             )
@@ -570,7 +570,7 @@ def test_collapse_functions_execute_without_row_context(
                 id="summary",
                 inputs=[ref.feature("temperature")],
                 outputs=[feature.Feature(id="temperature_max", type="integer")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(maximum),
                     dataset=ref.profile("observations").dataset,
                     column=ref.feature("temperature").id,

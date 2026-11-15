@@ -35,7 +35,7 @@ def double_operator(index: int, source_feature: str) -> up.Operator:
     return up.Operator(
         id=f"double_signal_{index}",
         outputs=[up.Feature(id=f"{source_feature}_doubled")],
-        compute=up.Binding(
+        compute=up.Bind(
             double_single,
             dataset=up.ref.dataset(),
             feature=up.ref.feature(source_feature),
@@ -70,7 +70,7 @@ output_features = [f"{feature}_doubled" for feature in source_features]
 operator = up.Operator(
     id="double_all_signals",
     outputs=[up.Feature(id=output) for output in output_features],
-    compute=up.Binding(
+    compute=up.Bind(
         double_many,
         dataset=up.ref.dataset(),
         features=[up.ref.feature(feature) for feature in source_features],

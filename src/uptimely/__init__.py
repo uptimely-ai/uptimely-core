@@ -10,7 +10,7 @@ from .spec import (  # noqa: I001
 )
 from .spec.python import (
     Operator,
-    Binding,
+    Bind,
     Profile,
     Dimension,
     Feature,
@@ -33,7 +33,7 @@ __all__ = [
     "Spec",
     "Params",
     "Operator",
-    "Binding",
+    "Bind",
     "Profile",
     "Feature",
     "FeatureSet",

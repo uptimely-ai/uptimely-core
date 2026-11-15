@@ -40,7 +40,7 @@ def test_compiled_relation_from_non_grain_dimension_survives_execution(
             assembly.Operator(
                 id="read",
                 outputs=[feature.Feature(id="value", type="float")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(_read_related, returns="dataframe"),
                 ),
                 merge=merge.default(),
@@ -116,7 +116,7 @@ def test_inferred_inputs_exclude_local_and_foreign_keys() -> None:
             assembly.Operator(
                 id="read",
                 outputs=[feature.Feature(id="value")],
-                compute=assembly.Binding(ref.function(_read_related)),
+                compute=assembly.Bind(ref.function(_read_related)),
             )
         ],
     )
@@ -127,7 +127,7 @@ def test_inferred_inputs_exclude_local_and_foreign_keys() -> None:
             assembly.Operator(
                 id="copy",
                 outputs=[feature.Feature(id="copied")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(_copy_related),
                     dataset=source.dataset,
                     identifier=ref.feature("pump_id"),
@@ -168,8 +168,8 @@ def test_key_only_reader_has_no_feature_outputs(
         assembly=[
             assembly.Operator(
                 id="read",
-                compute=assembly.Binding(ref.function(_read_related)) if not staged else None,
-                stage=assembly.Binding(ref.function(_read_related)) if staged else None,
+                compute=assembly.Bind(ref.function(_read_related)) if not staged else None,
+                stage=assembly.Bind(ref.function(_read_related)) if staged else None,
                 merge=merge.default() if staged else None,
             )
         ],

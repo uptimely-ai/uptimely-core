@@ -72,7 +72,7 @@ def _spec() -> spec.Spec:
                         outputs=[
                             feature.Feature(id="value", type="integer"),
                         ],
-                        compute=assembly.Binding(
+                        compute=assembly.Bind(
                             ref.function(read_values),
                         ),
                     ),
@@ -80,7 +80,7 @@ def _spec() -> spec.Spec:
                         id="result",
                         inputs=[ref.feature("value")],
                         outputs=[feature.Feature(id="result", type="integer")],
-                        compute=assembly.Binding(
+                        compute=assembly.Bind(
                             ref.function(add_one),
                             dataset=ref.profile().dataset,
                             output=ref.feature("result").id,
@@ -90,7 +90,7 @@ def _spec() -> spec.Spec:
                         id="metadata",
                         inputs=[ref.feature("value")],
                         outputs=[feature.Feature(id="metadata", type="integer")],
-                        compute=assembly.Binding(
+                        compute=assembly.Bind(
                             ref.function(metadata_only),
                             dataset=ref.profile().dataset,
                             identifier=ref.feature("result").id,
@@ -203,12 +203,12 @@ def test_merge_binding_contract_is_validated_by_json_and_python_authoring(
 
     operator = assembly.Operator(
         id="vectorize",
-        stage=assembly.Binding(
+        stage=assembly.Bind(
             ref.function(add_one),
             dataset=ref.dataset(),
             output="result",
         ),
-        merge=assembly.Binding(
+        merge=assembly.Bind(
             ref.function(add_one),
             dataset=ref.dataset(),
             output="result",
@@ -334,7 +334,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                         id="read_lower_grain",
                         inputs=[],
                         outputs=[feature.Feature(id="value", type="integer")],
-                        compute=assembly.Binding(
+                        compute=assembly.Bind(
                             ref.function(read_lower_grain),
                         ),
                     )
@@ -351,7 +351,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                         id="read_target_grain",
                         inputs=[],
                         outputs=[feature.Feature(id="target_value", type="integer")],
-                        compute=assembly.Binding(
+                        compute=assembly.Bind(
                             ref.function(read_target_grain),
                             include_second=dataframe,
                         ),
@@ -362,7 +362,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                         outputs=[
                             feature.Feature(id="copied", type="integer" if dataframe else "string")
                         ],
-                        stage=assembly.Binding(
+                        stage=assembly.Bind(
                             ref.function(
                                 copy_values if dataframe else dataset_identifier,
                             ),

@@ -1182,7 +1182,7 @@ def test_python_spec_escape_executes_after_json_plan_reload_with_local_storage(
                 id="external_operator",
                 inputs=[],
                 outputs=[],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function(f"{package_name}.external_operator:process", returns="any"),
                 ),
             )

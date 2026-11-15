@@ -23,20 +23,20 @@ from . import feature as feature_module
 from . import functions as function_metadata
 from . import row_context as row_context_module
 
-__all__ = ["Operator", "Binding"]
+__all__ = ["Operator", "Bind"]
 
 _Function = abc.Callable[..., object] | str | ref.FunctionReference
 
 
 @dataclasses.dataclass(frozen=True, init=False)
-class Binding:
+class Bind:
     """Declare an implementation and its named arguments."""
 
     function: _Function
     arguments: dict[str, typing.Any]
 
     def __init__(self, function: _Function, /, **arguments: typing.Any) -> None:
-        """Create a binding from an implementation and its keyword arguments.
+        """Create a bind from an implementation and its keyword arguments.
 
         Args:
             function: Callable, function reference, or importable function path.
@@ -67,7 +67,7 @@ class Binding:
         if reference.signature is not None:
             reference.signature.bind(**self.arguments)
         if reference.args is not None and set(reference.args) != set(self.arguments):
-            raise ValueError("Binding arguments must match the explicit function args contract")
+            raise ValueError("Bind arguments must match the explicit function args contract")
         return self.arguments.copy()
 
     def to_model(self) -> spec_model.Binding:
@@ -139,17 +139,17 @@ class Operator:
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
-    read: Binding | None = None
-    compute: Binding | None = None
-    write: Binding | None = None
-    stage: Binding | None = None
-    merge: Binding | None = None
+    read: Bind | None = None
+    compute: Bind | None = None
+    write: Bind | None = None
+    stage: Bind | None = None
+    merge: Bind | None = None
     _primary_role: typing.Literal["read", "compute", "write", "stage"] = dataclasses.field(
         init=False,
         repr=False,
         compare=False,
     )
-    _primary_binding: Binding = dataclasses.field(init=False, repr=False, compare=False)
+    _primary_binding: Bind = dataclasses.field(init=False, repr=False, compare=False)
 
     def __init__(
         self,
@@ -160,11 +160,11 @@ class Operator:
         row_context: (
             row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
         ) = None,
-        read: Binding | None = None,
-        compute: Binding | None = None,
-        write: Binding | None = None,
-        stage: Binding | None = None,
-        merge: Binding | None = None,
+        read: Bind | None = None,
+        compute: Bind | None = None,
+        write: Bind | None = None,
+        stage: Bind | None = None,
+        merge: Bind | None = None,
     ) -> None:
         """Create an operator, deriving its identifier when one is not supplied."""
         for role, binding in (
@@ -174,8 +174,8 @@ class Operator:
             ("stage", stage),
             ("merge", merge),
         ):
-            if binding is not None and not isinstance(binding, Binding):
-                raise TypeError(f"Operator {role} must be a Binding or None")
+            if binding is not None and not isinstance(binding, Bind):
+                raise TypeError(f"Operator {role} must be a Bind or None")
         if inputs is not None and (
             not isinstance(inputs, abc.Sequence) or isinstance(inputs, (str, bytes))
         ):
@@ -183,7 +183,7 @@ class Operator:
         if not isinstance(outputs, abc.Sequence) or isinstance(outputs, (str, bytes)):
             raise TypeError("Operator outputs must be a sequence of Features")
         primary_bindings: list[
-            tuple[typing.Literal["read", "compute", "write", "stage"], Binding]
+            tuple[typing.Literal["read", "compute", "write", "stage"], Bind]
         ] = []
         if read is not None:
             primary_bindings.append(("read", read))
@@ -222,7 +222,7 @@ class Operator:
         self.__post_init__()
 
     @property
-    def _primary(self) -> Binding:
+    def _primary(self) -> Bind:
         """Return the primary function binding."""
         return self._primary_binding
 
@@ -344,7 +344,7 @@ class Operator:
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Build the reusable function contract declared by this operator."""
-        bindings: list[tuple[str, Binding]] = [(self._primary_role, self._primary)]
+        bindings: list[tuple[str, Bind]] = [(self._primary_role, self._primary)]
         if self.merge is not None:
             bindings.append(("merge", self.merge))
         catalogs = []

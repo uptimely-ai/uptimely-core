@@ -25,8 +25,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   on the operator instead of wrapping them in an `Interface`.
 - Python operators use `stage` with `merge` for fragments and cross-profile
   feature inputs. `compute` is reserved for operations without a merge.
-- Python `Binding` declarations now take the function positionally and pass
-  function arguments as keyword arguments.
+- Python authoring uses `Bind` (renamed from `Binding`), taking the function
+  positionally and its arguments as keywords.
 - CLI actions now use one top-level command, including `uptimely build`,
   `uptimely run`, `uptimely explore`, `uptimely export`, and
   `uptimely feature-graph`.

@@ -73,7 +73,7 @@ def test_output_reference_logging_is_one_counted_summary(
                 assembly.Operator(
                     id=f"read_{operator}",
                     outputs=[feature.Feature(id=f"value_{operator}")],
-                    read=assembly.Binding(
+                    read=assembly.Bind(
                         ref.function("reader:read", returns="dataframe"),
                         column=ref.feature(f"value_{operator}"),
                     ),
@@ -115,7 +115,7 @@ def _declaration(
     is_expand = operator_kind == "expand"
     is_dimensional = operator_kind in {"conform", "expand"}
     module = __name__ if function is _source else f"{__name__}.alternate"
-    binding = assembly.Binding(
+    binding = assembly.Bind(
         ref.FunctionReference(
             module=module,
             name=f"{operator_kind}_shared",
@@ -167,11 +167,11 @@ def test_foreign_feature_inputs_require_stage_and_merge(explicit: bool, staged: 
         assembly=[
             assembly.Operator(
                 outputs=[feature.Feature(id="value")],
-                read=assembly.Binding(ref.function("reader:read", returns="dataframe")),
+                read=assembly.Bind(ref.function("reader:read", returns="dataframe")),
             )
         ],
     )
-    binding = assembly.Binding(
+    binding = assembly.Bind(
         ref.function("reader:copy", returns="dataframe"),
         value=ref.feature("value"),
     )
@@ -204,15 +204,15 @@ def test_compute_accepts_local_inputs_but_rejects_mixed_profile_inputs() -> None
         assembly=[
             assembly.Operator(
                 outputs=[feature.Feature(id="foreign")],
-                read=assembly.Binding(ref.function("reader:foreign", returns="dataframe")),
+                read=assembly.Bind(ref.function("reader:foreign", returns="dataframe")),
             )
         ],
     )
     local = assembly.Operator(
         outputs=[feature.Feature(id="local")],
-        read=assembly.Binding(ref.function("reader:local", returns="dataframe")),
+        read=assembly.Bind(ref.function("reader:local", returns="dataframe")),
     )
-    binding = assembly.Binding(ref.function("reader:calculate", returns="dataframe"))
+    binding = assembly.Bind(ref.function("reader:calculate", returns="dataframe"))
     calculation = assembly.Operator(
         inputs=["local"],
         outputs=[feature.Feature(id="result")],
@@ -235,7 +235,7 @@ def _mapping_source() -> profile.Profile:
                 id="_other_source",
                 inputs=[],
                 outputs=[feature.Feature(id="temperature")],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function(_other_source, returns="dataframe"),
                 ),
             )
@@ -251,7 +251,7 @@ def _conform_source(identifier: str) -> profile.Profile:
                 id="_other_source",
                 inputs=[],
                 outputs=[feature.Feature(id="temperature")],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function(_other_source, returns="dataframe"),
                 ),
             )
@@ -430,7 +430,7 @@ def test_function_catalog_keeps_distinct_contracts_without_operator_kinds() -> N
                 id="_other_source",
                 inputs=[],
                 outputs=[],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function(_other_source, returns="dataframe"),
                 ),
             )
@@ -544,7 +544,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
                 id="_source",
                 inputs=[],
                 outputs=[],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function(_source, returns="dataframe"),
                     path="readings.json",
                 ),
@@ -558,7 +558,7 @@ def test_catalog_conflicts_are_rejected_consistently() -> None:
                 id="_source",
                 inputs=[],
                 outputs=[],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function(_source, returns="dataframe"),
                     path=42,
                 ),

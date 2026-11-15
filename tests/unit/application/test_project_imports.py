@@ -28,7 +28,7 @@ def _write_project(root: pathlib.Path, value: int) -> None:
         "    assembly = [up.Operator(\n"
         "        id='read',\n"
         "        outputs=[up.Feature(id='value')],\n"
-        "        compute=up.Binding(up.ref.function("
+        "        compute=up.Bind(up.ref.function("
         "functions.read, returns='dataframe')),\n"
         "    )]\n"
         "python_spec = up.Spec(profiles=[Values])\n",

@@ -3,9 +3,9 @@
 from . import assembly, ref
 
 
-def default() -> assembly.Binding:
+def default() -> assembly.Bind:
     """Return a binding that merges a fragment into its dataset by grain keys."""
-    return assembly.Binding(
+    return assembly.Bind(
         ref.function(
             "uptimely.library.merge.polars:merge_by_grain",
             returns="dataframe",

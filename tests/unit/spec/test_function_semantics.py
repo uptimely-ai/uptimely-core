@@ -83,7 +83,7 @@ def test_ambiguous_return_annotations_require_explicit_role_when_bound(
     operator = authoring.Operator(
         id="calculate",
         outputs=[],
-        compute=authoring.Binding(
+        compute=authoring.Bind(
             reference,
             value="sample",
         ),
@@ -104,23 +104,23 @@ def test_reference_captures_signature_and_checks_argument_names_at_authoring() -
     assert tuple(reference.signature.parameters) == ("value",)
 
     with pytest.raises(TypeError, match="unexpected keyword argument"):
-        authoring.Binding(
+        authoring.Bind(
             reference,
             value=pl.DataFrame(),
             other=pl.DataFrame(),
         ).to_model()
     with pytest.raises(TypeError, match="missing a required argument"):
-        authoring.Binding(
+        authoring.Bind(
             reference,
         ).to_model()
 
 
 def test_direct_callable_and_callable_reference_share_the_same_contract() -> None:
-    direct = authoring.Binding(
+    direct = authoring.Bind(
         dataframe,
         value=pl.DataFrame(),
     )
-    reference = authoring.Binding(
+    reference = authoring.Bind(
         ref.function(dataframe),
         value=pl.DataFrame(),
     )
@@ -130,7 +130,7 @@ def test_direct_callable_and_callable_reference_share_the_same_contract() -> Non
 
 
 def test_bound_argument_types_are_inferred_and_nullable_dataframe_is_preserved() -> None:
-    template = authoring.Binding(
+    template = authoring.Bind(
         maybe_dataframe,
         value=authoring.ref.dataset(),
     ).to_function_template()
@@ -143,7 +143,7 @@ def test_explicit_argument_contract_overrides_bound_value_inference() -> None:
         returns="dataframe",
         args={"value": "string"},
     )(dataframe)
-    template = authoring.Binding(
+    template = authoring.Bind(
         callable_with_explicit_args,
         value=authoring.ref.dataset(),
     ).to_function_template()
@@ -168,7 +168,7 @@ def test_disabled_signature_inspection_still_checks_exact_names_and_dataframe_ar
     operator = authoring.Operator(
         id="calculate",
         outputs=[],
-        compute=authoring.Binding(
+        compute=authoring.Bind(
             function,
             other=authoring.ref.dataset(),
         ),
@@ -185,7 +185,7 @@ def test_disabled_signature_inspection_still_checks_exact_names_and_dataframe_ar
     operator = authoring.Operator(
         id="calculate",
         outputs=[],
-        compute=authoring.Binding(
+        compute=authoring.Bind(
             over_arity,
             first=authoring.ref.dataset(),
             second=authoring.ref.dataset(),
@@ -214,7 +214,7 @@ def test_reference_metadata_only_contract_is_deferred_until_catalog_binding() ->
     operator = authoring.Operator(
         id="calculate",
         outputs=[],
-        compute=authoring.Binding(
+        compute=authoring.Bind(
             reference,
         ),
     )
