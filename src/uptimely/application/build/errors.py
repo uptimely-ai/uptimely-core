@@ -22,7 +22,6 @@ class BuildError(RuntimeError):
         self.recovery_command = shlex.join(
             [
                 "uptimely",
-                "project",
                 "build",
                 "--project-root",
                 str(project_root),

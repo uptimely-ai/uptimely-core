@@ -23,7 +23,7 @@ REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", "project", "build", *arguments])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "build", *arguments])
     cli.main()
 
 
@@ -188,7 +188,7 @@ def test_installed_console_script_builds_example(tmp_path: pathlib.Path) -> None
     environment.pop("PYTHONPATH", None)
 
     result = subprocess.run(
-        [executable, "project", "build"],
+        [executable, "build"],
         cwd=root,
         env=environment,
         capture_output=True,
@@ -715,7 +715,7 @@ def test_project_build_missing_source(
 def test_project_build_help(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", "project", "build", "--help"])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "build", "--help"])
     with pytest.raises(SystemExit) as error:
         cli.main()
     assert error.value.code == 0
@@ -731,21 +731,18 @@ def test_project_build_help(
 @pytest.mark.parametrize(
     "arguments",
     [
-        ["project"],
-        ["project", "unknown"],
         [
-            "project",
             "build",
             "--python-spec",
             "module:attribute",
             "--json-spec",
             "source.json",
         ],
-        ["project", "build", "--output", "custom"],
-        ["project", "build", "--features"],
-        ["project", "build", "--verbose"],
+        ["build", "--output", "custom"],
+        ["build", "--features"],
         ["build", "--verbose"],
-        ["spec", "feature-graph", "--verbose"],
+        ["build", "--verbose"],
+        ["feature-graph", "--verbose"],
     ],
 )
 def test_project_requires_valid_arguments(

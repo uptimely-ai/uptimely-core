@@ -15,16 +15,6 @@ from uptimely.cli import common
 logger = logging.getLogger(__name__)
 
 
-def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure project commands."""
-    actions = parser.add_subparsers(dest="action", required=True)
-    build = actions.add_parser(
-        "build",
-        help="Build and publish a complete project bundle without running workflows",
-    )
-    configure_build_parser(build)
-
-
 def configure_build_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the project build command."""
     source = parser.add_mutually_exclusive_group()

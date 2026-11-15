@@ -1,13 +1,13 @@
-# `uptimely spec feature-graph`
+# `uptimely feature-graph`
 
-The `spec feature-graph` command provides read-only feature dependency
+The `feature-graph` command provides read-only feature dependency
 inspection. Spec JSON is generated as part of the complete bundle by
-[`uptimely project build`](project.md).
+[`uptimely build`](project.md).
 
 ## Usage
 
 ```console
-uptimely spec feature-graph [PROJECT_ROOT] [--spec PATH] [--project-root PATH] [--features NAME ...] [--log-level LEVEL]
+uptimely feature-graph [PROJECT_ROOT] [--spec PATH] [--project-root PATH] [--features NAME ...] [--log-level LEVEL]
 ```
 
 Prints the number of features in the feature graph. When selected features are
@@ -24,4 +24,4 @@ given, also prints the size of their feature dependency subset. Set
 
 Without `--spec`, the command reads the saved spec from the validated active
 build. If no valid build exists, it reports the recovery command; run
-`uptimely project build --project-root ...` to create or replace the build.
+`uptimely build --project-root ...` to create or replace the build.

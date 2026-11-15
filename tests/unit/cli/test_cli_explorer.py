@@ -28,13 +28,10 @@ def built_project(
 @pytest.mark.parametrize(
     "arguments",
     [
-        ["explorer"],
-        ["explorer", "unknown"],
-        ["explorer", "build"],
-        ["explorer", "serve", "--spec", str(SPEC_PATH)],
-        ["explorer", "serve", "--plan", "plan.json"],
-        ["explorer", "serve", "--directory", "website"],
-        ["explorer", "export"],
+        ["explore", "--spec", str(SPEC_PATH)],
+        ["explore", "--plan", "plan.json"],
+        ["explore", "--directory", "website"],
+        ["export"],
         ["docs"],
     ],
 )
@@ -51,7 +48,7 @@ def test_explorer_requires_valid_arguments(
 
 @pytest.mark.parametrize("port", ["-1", "65536", "abc"])
 def test_explorer_rejects_invalid_ports(monkeypatch: pytest.MonkeyPatch, port: str) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "serve", "--port", port])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "explore", "--port", port])
 
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -74,7 +71,7 @@ def test_explorer_reports_invalid_build(
         "serve_explorer",
         lambda *args: pytest.fail("Explorer must validate the build before serving"),
     )
-    monkeypatch.setattr(sys, "argv", ["uptimely", "explorer", "serve", "--project-root", str(root)])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "explore", "--project-root", str(root)])
 
     with pytest.raises(SystemExit) as error:
         cli.main()
@@ -82,7 +79,7 @@ def test_explorer_reports_invalid_build(
     assert error.value.code == 1
     message = capsys.readouterr().err
     assert "ERROR    |" in message
-    assert "uptimely project build --project-root" in message
+    assert "uptimely build --project-root" in message
     assert (
         "No active build found" in message
         if bundle_state == "missing"
@@ -115,7 +112,7 @@ def test_explorer_serves_packaged_frontend_without_building(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "explorer", "serve", "--project-root", str(built_project), "--port", "0"],
+        ["uptimely", "explore", "--project-root", str(built_project), "--port", "0"],
     )
 
     cli.main()
@@ -166,7 +163,6 @@ def test_explorer_export_command_creates_static_output(
         "argv",
         [
             "uptimely",
-            "explorer",
             "export",
             "--project-root",
             str(built_project),
@@ -189,11 +185,9 @@ def test_explorer_export_command_creates_static_output(
         assert (output / "data" / "explorer.json").is_file()
 
 
-@pytest.mark.parametrize("command", ["explore", "explorer"])
 def test_explorer_build_option_builds_before_serving(
     built_project: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
-    command: str,
 ) -> None:
     events: list[str] = []
     src_path = pathlib.Path("local_python")
@@ -211,13 +205,10 @@ def test_explorer_build_option_builds_before_serving(
 
     monkeypatch.setattr(application.Uptimely, "build", build)
     monkeypatch.setattr(explorer, "serve_explorer", serve)
-    arguments = (
-        ["explorer", "serve", str(built_project)]
-        if command == "explorer"
-        else ["explore", str(built_project)]
-    )
     monkeypatch.setattr(
-        sys, "argv", ["uptimely", *arguments, "--build", "--src-path", str(src_path)]
+        sys,
+        "argv",
+        ["uptimely", "explore", str(built_project), "--build", "--src-path", str(src_path)],
     )
 
     cli.main()

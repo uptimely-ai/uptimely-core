@@ -29,13 +29,6 @@ class _PreviewAction(argparse.Action):
         namespace.preview_requested = True
 
 
-def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure engine commands."""
-    actions = parser.add_subparsers(dest="action", required=True)
-    execute = actions.add_parser("run", help="Execute the active project's saved build")
-    configure_run_parser(execute)
-
-
 def configure_run_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the engine run command."""
     common.configure_project_root_arguments(

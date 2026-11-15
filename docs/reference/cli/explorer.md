@@ -1,16 +1,13 @@
-# `uptimely explorer`
+# `uptimely explore` and `uptimely export`
 
 Preview the Analytics Explorer locally. The server serves the packaged static
 frontend and reads the current JSON snapshot on each API request. Use
-[`uptimely project build`](project.md) to generate or replace the active
+[`uptimely build`](project.md) to generate or replace the active
 project bundle and snapshot before serving it.
 
-The shortcut `uptimely explore` serves the same frontend with the same
-options as `uptimely explorer serve`.
+## Serve the Explorer
 
-## `explorer serve`
-
-`serve` validates the active build and serves the packaged frontend. It does
+`explore` validates the active build and serves the packaged frontend. It does
 not load project source, compile, or prepare presentation data on requests.
 Pass `--build` to build and publish once before serving; if the build fails,
 the server does not start. This is a one-time build, not a file watcher. A
@@ -25,8 +22,7 @@ uptimely explore \
 
 Give the project directory positionally after `explore`, or use
 `--project-root PATH`; do not use both. If omitted, the current working
-directory is used. The grouped form is
-`uptimely explorer serve [PROJECT_ROOT]`.
+directory is used.
 
 | Option | Required | Default | Purpose |
 | --- | --- | --- | --- |
@@ -46,16 +42,16 @@ uptimely explore example --build
 ```
 
 If the build is missing or invalid, the command reports the problem and the
-`uptimely project build --project-root ...` recovery command. A missing or
+`uptimely build --project-root ...` recovery command. A missing or
 invalid snapshot is reported by the data API with the same recovery
 instruction. Scoped builds are identified in the server output and frontend;
 catalogs cover the full spec while the plan and animation reflect the selected
 outputs and their dependencies.
 
-## `explorer export`
+## Export the Explorer
 
-Export the packaged HTML, CSS, JavaScript, current Explorer snapshot, and latest run for
-ordinary static HTTP hosting. The output can be a directory or a ZIP file;
+Export the packaged HTML, CSS, JavaScript, current Explorer snapshot, and latest
+run for ordinary static HTTP hosting. The output can be a directory or a ZIP file;
 `.zip` selects archive output. The generated `config.js` uses a relative URL
 for `data/explorer.json`, so the export can live beneath a documentation
 site's path prefix. Run information, logs, and profile previews are saved in
@@ -63,12 +59,12 @@ site's path prefix. Run information, logs, and profile previews are saved in
 Exports made before the first run show an explicit "No saved run" state.
 
 ```console
-uptimely explorer export [PROJECT_ROOT] --output PATH
+uptimely export [PROJECT_ROOT] --output PATH
 ```
 
 The command reads and validates the saved snapshot once. It does not start
 FastAPI, compile the project, or render pages. Build the project first with
-`uptimely project build`. The same ZIP is available from the local server at
+`uptimely build`. The same ZIP is available from the local server at
 `GET /api/explorer/export`.
 
 | Option | Required | Default | Purpose |
@@ -80,10 +76,10 @@ FastAPI, compile the project, or render pages. Build the project first with
 Example:
 
 ```console
-uptimely project build example
+uptimely build example
 uptimely run example --preview 10 --log-level debug
-uptimely explorer export example --output docs/example
-uptimely explorer export example --output cooling-pump-analytics-explorer.zip
+uptimely export example --output docs/example
+uptimely export example --output cooling-pump-analytics-explorer.zip
 ```
 
 Export includes the complete saved log and bounded previews. These artifacts may

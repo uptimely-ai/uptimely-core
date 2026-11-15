@@ -58,7 +58,6 @@ def test_graph_cli_inspects_without_exporting(
 ) -> None:
     arguments = [
         "uptimely",
-        "spec",
         "feature-graph",
         "--spec",
         str(SPEC_PATH.resolve()),

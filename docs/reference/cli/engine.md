@@ -1,9 +1,4 @@
-# `uptimely engine`
-
-Use the top-level shortcut `uptimely run` to execute a workflow. It accepts the
-same options as the grouped `uptimely engine run` command.
-
-## `engine run`
+# `uptimely run`
 
 Execute the plan in the project's last successful active build:
 
@@ -15,7 +10,7 @@ uptimely run \
 
 Give the project directory positionally after `run`, or use
 `--project-root PATH`; do not use both. If omitted, the current working
-directory is used. The grouped form is `uptimely engine run [PROJECT_ROOT]`.
+directory is used.
 
 At info level, the CLI announces the start of the engine run. With `--build`,
 it also announces the project-bundle build before building it. Successful runs
@@ -53,8 +48,8 @@ repeat computation. Execution timing excludes preview collection, artifact
 publication, and display. Console display reuses the saved sample rather than
 executing the lazy query again.
 
-Use `uptimely build` or the grouped `uptimely project build` command to change
-the execution plan or feature scope. By default, Engine executes the saved
+Use `uptimely build` to change the execution plan or feature scope. By default,
+Engine executes the saved
 build without compiling or rebuilding it. Add `--build` to rebuild from the
 project's discovered spec source before execution. Saved-build integrity,
 configuration, and backend compatibility are always checked; per-step runtime

@@ -114,9 +114,7 @@ def test_missing_version_is_reported(
         raise metadata.PackageNotFoundError(name)
 
     monkeypatch.setattr(examples.metadata, "version", missing_version)
-    monkeypatch.setattr(
-        sys, "argv", ["uptimely", "example", "download", "--output", str(tmp_path / "example")]
-    )
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "--output", str(tmp_path / "example")])
     with pytest.raises(SystemExit) as result:
         cli.main()
     assert result.value.code == 1
@@ -136,9 +134,7 @@ def test_missing_release_tag_does_not_fall_back(
         raise urllib_error.HTTPError(url, 404, "Not found", {}, None)
 
     monkeypatch.setattr(examples.request, "urlopen", missing_tag)
-    monkeypatch.setattr(
-        sys, "argv", ["uptimely", "example", "download", "--output", str(tmp_path / "example")]
-    )
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "--output", str(tmp_path / "example")])
     with pytest.raises(SystemExit) as result:
         cli.main()
     assert result.value.code == 1
@@ -395,9 +391,7 @@ def test_invalid_archives_are_reported(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.setattr(examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
-    monkeypatch.setattr(
-        sys, "argv", ["uptimely", "example", "download", "--output", str(tmp_path / "example")]
-    )
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "--output", str(tmp_path / "example")])
     with pytest.raises(SystemExit) as error:
         cli.main()
     assert error.value.code == 1
@@ -423,9 +417,7 @@ def test_network_errors_are_reported(
         raise error
 
     monkeypatch.setattr(examples.request, "urlopen", fail)
-    monkeypatch.setattr(
-        sys, "argv", ["uptimely", "example", "download", "--output", str(tmp_path / "example")]
-    )
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "--output", str(tmp_path / "example")])
     with pytest.raises(SystemExit) as result:
         cli.main()
     assert result.value.code == 1
@@ -469,7 +461,7 @@ def test_cli_success(
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     monkeypatch.chdir(tmp_path)
-    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "download"])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example"])
     cli.main()
     assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
     assert f"Downloaded examples to {tmp_path / 'example'}" in capsys.readouterr().out
@@ -483,7 +475,7 @@ def test_cli_output_and_revision(
     monkeypatch.setattr(
         sys,
         "argv",
-        ["uptimely", "example", "download", "--output", str(output), "--ref", "v1.0"],
+        ["uptimely", "example", "--output", str(output), "--ref", "v1.0"],
     )
     cli.main()
     assert github == ["https://codeload.github.com/example/project/zip/v1.0"]
@@ -512,24 +504,10 @@ def test_examples_without_action_downloads_default_destination(
     [
         (["example", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD", False),
         (["example", "--dir", "pump-analytics", "--ref", "HEAD"], "pump-analytics", "HEAD", False),
-        (["example", "download", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD", False),
-        (
-            ["example", "download", "--dir", "pump-analytics", "--ref", "HEAD"],
-            "pump-analytics",
-            "HEAD",
-            False,
-        ),
-        (
-            ["example", "--output", "samples", "download", "--ref", "HEAD"],
-            "samples",
-            "HEAD",
-            False,
-        ),
-        (["example", "--no-setup", "download"], "example", None, True),
-        (["example", "download", "--no-setup"], "example", None, True),
+        (["example", "--no-setup", "--dir", "pump-analytics"], "pump-analytics", None, True),
     ],
 )
-def test_examples_options_work_with_shortcut_and_download_action(
+def test_examples_options_work_with_command(
     monkeypatch: pytest.MonkeyPatch,
     arguments: list[str],
     expected_output: str,
@@ -552,7 +530,7 @@ def test_examples_options_work_with_shortcut_and_download_action(
 def test_download_help_describes_version_default(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "download", "--help"])
+    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "--help"])
     with pytest.raises(SystemExit) as result:
         cli.main()
     assert result.value.code == 0
@@ -645,33 +623,38 @@ def test_cli_does_not_reexport_command_helpers() -> None:
             {"project_root_argument": pathlib.Path("project"), "host": "0.0.0.0", "port": 0},
         ),
         (
-            ["project", "build", "project"],
+            ["build", "project"],
             "build",
             {"project_root_argument": pathlib.Path("project")},
         ),
         (
-            ["engine", "run", "project"],
+            ["run", "project"],
             "run",
             {"project_root_argument": pathlib.Path("project"), "build": False},
         ),
         (
-            ["engine", "run", "project", "--build"],
+            ["run", "project", "--build"],
             "run",
             {"project_root_argument": pathlib.Path("project"), "build": True},
         ),
         (
-            ["explorer", "serve", "project"],
+            ["explore", "project"],
             "explore",
             {"project_root_argument": pathlib.Path("project")},
         ),
         (
-            ["spec", "feature-graph", "project"],
-            "spec",
+            ["feature-graph", "project"],
+            "feature-graph",
+            {"project_root_argument": pathlib.Path("project")},
+        ),
+        (
+            ["export", "project", "--output", "site"],
+            "export",
             {"project_root_argument": pathlib.Path("project")},
         ),
     ],
 )
-def test_shortcut_commands_use_existing_handlers_and_options(
+def test_top_level_commands_use_existing_handlers_and_options(
     monkeypatch: pytest.MonkeyPatch,
     arguments: list[str],
     command: str,
@@ -681,7 +664,8 @@ def test_shortcut_commands_use_existing_handlers_and_options(
         "build": cli.project,
         "run": cli.engine,
         "explore": cli.explorer,
-        "spec": cli.spec,
+        "feature-graph": cli.spec,
+        "export": cli.explorer,
     }
     captured: list[argparse.Namespace] = []
     monkeypatch.setattr(handlers[command], "run", lambda args, _parser: captured.append(args))
@@ -715,27 +699,3 @@ def test_project_root_cannot_be_both_positional_and_an_option(
     assert "project root may be provided positionally or with --project-root, not both" in (
         capsys.readouterr().err
     )
-
-
-@pytest.mark.parametrize(
-    "arguments",
-    [
-        ["spec", "build"],
-        ["plan", "build"],
-        ["explorer", "build"],
-    ],
-)
-def test_standalone_build_commands_are_rejected(
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    arguments: list[str],
-) -> None:
-    monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
-
-    with pytest.raises(SystemExit) as error:
-        cli.main()
-
-    assert error.value.code == 2
-    error_text = capsys.readouterr().err
-    assert "invalid choice" in error_text
-    assert "project build" not in error_text

@@ -82,7 +82,7 @@ class InstalledImportsTest(unittest.TestCase):
         source = pathlib.Path(os.environ["UPTIMELY_EXAMPLE_DIR"])
         project = self.root / "pump-analytics"
         shutil.copytree(source, project)
-        result = self.command("project", "build", "--project-root", str(project), cwd=project)
+        result = self.command("build", "--project-root", str(project), cwd=project)
         self.assertIn("Build files created", result.stdout)
         build = project / "artifacts" / "build"
         snapshot = json.loads((project / "artifacts" / "explorer.json").read_text(encoding="utf-8"))
@@ -136,7 +136,7 @@ class InstalledImportsTest(unittest.TestCase):
         )
         config = project / "uptimely.toml"
         config.write_text("", encoding="utf-8")
-        result = self.command("engine", "run", "--project-root", str(project), "--preview", "2")
+        result = self.command("run", "--project-root", str(project), "--preview", "2")
         self.assertIn("Engine processed 1 profiles in ", result.stdout)
         self.assertIn("Profile: values", result.stdout)
         result = subprocess.run(

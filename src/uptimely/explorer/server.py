@@ -23,7 +23,7 @@ from uptimely.explorer import presentation
 from uptimely.run import store as run_store
 
 logger = logging.getLogger(__name__)
-_BUILD_INSTRUCTION = "Run 'uptimely project build' to generate a valid Explorer snapshot."
+_BUILD_INSTRUCTION = "Run 'uptimely build' to generate a valid Explorer snapshot."
 
 
 class _FrontendFiles(fastapi.staticfiles.StaticFiles):

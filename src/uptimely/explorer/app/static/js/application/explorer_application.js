@@ -10,12 +10,12 @@ export async function loadExplorerData(configuration, fetchData) {
   }
   const response = await fetchData(configuration.dataUrl, { cache: "no-store" });
   if (!response.ok) {
-    throw new Error(`Could not load Explorer data (HTTP ${response.status}). Build the project with "uptimely project build" and refresh this page.`);
+    throw new Error(`Could not load Explorer data (HTTP ${response.status}). Build the project with "uptimely build" and refresh this page.`);
   }
   const data = await response.json();
   if (!data || data.format_version !== FORMAT_VERSION || !data.project || !data.scope || !data.catalogs
       || !data.graphs || !data.plan || !Array.isArray(data.stages) || !Array.isArray(data.animation?.stages)) {
-    throw new Error('Explorer data is missing or uses an unsupported format. Rebuild with "uptimely project build".');
+    throw new Error('Explorer data is missing or uses an unsupported format. Rebuild with "uptimely build".');
   }
   return data;
 }

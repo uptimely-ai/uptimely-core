@@ -81,8 +81,8 @@ To create a static copy for sharing or hosting, export the active build to a
 directory or ZIP file:
 
 ```console
-uv run uptimely explorer export . --output cooling-pump-analytics-explorer
-uv run uptimely explorer export . --output cooling-pump-analytics-explorer.zip
+uv run uptimely export . --output cooling-pump-analytics-explorer
+uv run uptimely export . --output cooling-pump-analytics-explorer.zip
 ```
 
 The export uses the current build and run snapshot. Rebuild, rerun, and export

@@ -11,10 +11,8 @@ logger = logging.getLogger(__name__)
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure the spec feature-graph command."""
-    actions = parser.add_subparsers(dest="action", required=True)
-    feature_graph_parser = actions.add_parser("feature-graph", help="Inspect feature dependencies")
-    common.configure_project_arguments(feature_graph_parser)
+    """Configure the feature-graph command."""
+    common.configure_project_arguments(parser)
 
 
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:

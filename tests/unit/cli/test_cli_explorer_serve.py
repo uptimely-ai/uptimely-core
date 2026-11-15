@@ -233,7 +233,7 @@ def test_snapshot_api_reports_rebuild_instructions(tmp_path: pathlib.Path, kind:
     status, body, _ = _get(explorer_server.create_app(tmp_path), "/api/explorer")
 
     assert status == 503
-    assert "uptimely project build" in json.loads(body)["detail"]
+    assert "uptimely build" in json.loads(body)["detail"]
 
 
 def test_export_route_returns_static_zip_with_relative_data_url(
