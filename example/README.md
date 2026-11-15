@@ -12,7 +12,9 @@ illustrative calculations.
 
 Profile is Uptimely's primary concept to organize data science in manageable components.
 
-Each profile is declared in `spec/profiles/<profile_id>.py`.
+Each profile is declared in `spec/profiles/<profile_id>.py` or in a package at
+`spec/profiles/<profile_id>/` when its features and profile declaration need
+separate modules.
 
 | Profile | Purpose |
 | --- | --- |
