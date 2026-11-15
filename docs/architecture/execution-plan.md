@@ -83,6 +83,11 @@ planned function call. Its portable fields are:
 | `package` | Package distribution name and version associated with the entrypoint, when available. |
 | `row_context` | Declared row-context requirement, or `null` when none is specified. |
 
+A dataframe result is `target` without a merge and `fragment` with a merge.
+Fragment consumers depend on the merge invocation. Logical workflow outputs
+do not create dataframe columns. Inferred grain relationships appear in
+Explorer, not the plan.
+
 ## Stages
 
 Every invocation appears exactly once in `stages`, and each dependency must be

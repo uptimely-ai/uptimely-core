@@ -152,6 +152,10 @@ A profile is more than data. It is an analytical specification with three parts:
 A profile selects one resolution per dimension in its ordered `grain`. This
 profile selects cooling-pump and timestamp keys for minute-by-minute observations.
 
+`Seed` identifies the dataset initializer, which can read data or
+transform another profile. It returns the complete target without a merge or
+an existing target input.
+
 Other profiles could represent:
 
 | Profile | What one row represents | Example features |
@@ -200,17 +204,15 @@ intermediate columns in one physical table.
 ## Function contracts
 
 A **function** is reusable code with typed arguments and a declared return
-contract. Its dataframe signature is the number of dataframe inputs and outputs.
-Explorer infers a frame operation from that signature. The operation is
-derived, not stored in the Spec. Signatures outside the listed forms are
-labeled `unknown`.
+contract: `dataframe`, `none`, or `any` for an ignored result. Explorer derives
+the labels below from dataframe counts, independently of logical features.
 
 <div class="concepts-visual">
   <div class="cv-contracts" role="group" aria-label="Function contracts by dataframe inputs and outputs">
     <div class="cv-contract">
       <span class="cv-tag">READ 0&#8594;1</span>
       <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot cv-slot-empty">no input</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot">dataframe</span></div></div>
-      <p>Produces data from outside the spec, such as a source read.</p>
+      <p>Returns a dataframe without receiving a framework-bound dataframe.</p>
     </div>
     <div class="cv-contract">
       <span class="cv-tag">TRANSFORM 1&#8594;1</span>
@@ -225,7 +227,7 @@ labeled `unknown`.
     <div class="cv-contract">
       <span class="cv-tag">WORKFLOW ?&#8594;?</span>
       <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot cv-slot-empty">unknown input</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot cv-slot-empty">unknown output</span></div></div>
-      <p>Runs an opaque external workflow and ignores its result.</p>
+      <p>The ignored-result contract does not describe internal dataframe use.</p>
     </div>
     <div class="cv-contract cv-contract-merge">
       <span class="cv-tag">MERGE 2&#8594;1</span>
@@ -235,16 +237,9 @@ labeled `unknown`.
   </div>
 </div>
 
-<div class="concepts-visual">
-  <div class="cv-label-note">
-    <span class="cv-label-badge"><small>inferred label</small>vectorize</span>
-    <p>Badges mark <strong>inferred operator labels</strong>. You never declare them. Uptimely derives each one from the operator's contract and grain, so the same function can get different labels in different operators.</p>
-  </div>
-</div>
-
 ### Read 0→1
 
-<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>read</span></p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>frame operation</small>read</span></p>
 
 <p class="cv-function-subtitle">No input dataframe, brings data in from a source</p>
 
@@ -260,14 +255,14 @@ labeled `unknown`.
 
 ### Transform 1→1
 
-The function receives one dataframe and returns a dataframe. The result is
-either the complete target or a fragment that a merge combines with the current
-dataset. The target grain relative to the input produces the derived labels
-below.
+The function receives and returns one dataframe. The examples below compare
+source and target grains, not function classifications. Explorer infers
+[grain relationships](../reference/python/spec-vocabulary.md#derived-grain-relationships)
+from dimension resolutions, without choosing the calculation.
 
-#### Vectorize
+#### Enrich the current dataset
 
-<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>vectorize</span></p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>grain relationship</small>same</span></p>
 
 <p class="cv-function-subtitle">Same profile as input, adds features and keeps rows</p>
 
@@ -281,9 +276,9 @@ below.
   </div>
 </div>
 
-#### Conform
+#### Align another profile at the same grain
 
-<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>conform</span></p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>grain relationship</small>same</span></p>
 
 <p class="cv-function-subtitle">Keeps dimensions, aligns resolution</p>
 
@@ -297,11 +292,14 @@ below.
   </div>
 </div>
 
-#### Expand
+#### Use a coarser source in a finer target
 
-<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>expand</span></p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>grain relationship</small>expand</span></p>
 
-<p class="cv-function-subtitle">Adds dimensions to the input grain</p>
+<p class="cv-function-subtitle">The target adds dimensions or selects finer resolutions</p>
+
+A fragment can carry only the pump key. The merge attaches its value to
+existing pump-and-time rows.
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -313,22 +311,19 @@ below.
   </div>
 </div>
 
-#### Collapse
+#### Summarize a finer source into a coarser target
 
-<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>collapse</span></p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>grain relationship</small>collapse</span></p>
 
-<p class="cv-function-subtitle">Collapses finer input grain to a coarser grain</p>
+<p class="cv-function-subtitle">The target removes dimensions or selects coarser resolutions</p>
 
-`collapse` describes an operator whose source grain is finer than its target
-grain. Its compute implementation performs grouping and returns results at the
-target grain. The label is derived from the declarations, not attached to the
-callable.
+The implementation performs the aggregation. The relationship alone does not.
 
 <div class="concepts-visual">
   <div class="cv-operation">
     <div class="cv-transform">
       <div><span class="cv-tag">SOURCE / pump + time grain</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-key">time</th><th class="cv-teal">pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-teal">6</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:01</td><td class="cv-teal">8</td></tr><tr><td class="cv-key">P-01</td><td class="cv-key">09:02</td><td class="cv-teal">4</td></tr></tbody></table></div>
-      <div class="cv-arrow"><span>collapse</span><b aria-hidden="true">&#8594;</b></div>
+      <div class="cv-arrow"><span>aggregate</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">TARGET / pump grain</span><table class="cv-table"><thead><tr><th class="cv-key">pump</th><th class="cv-amber">max_pressure</th></tr></thead><tbody><tr><td class="cv-key">P-01</td><td class="cv-amber">8</td></tr></tbody></table><p class="cv-detail">One row summarizes the three moments.</p></div>
     </div>
   </div>
@@ -339,9 +334,7 @@ callable.
 The function receives one dataframe and returns nothing, so it declares no
 materialized features.
 
-#### Write
-
-<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>write</span></p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>frame operation</small>write</span></p>
 
 <p class="cv-function-subtitle">Takes the input dataframe and returns nothing</p>
 
@@ -357,18 +350,15 @@ materialized features.
 
 ### Workflow unknown→unknown
 
-The function's dataframe inputs and output are not part of a dataframe contract,
-and its result is ignored (`returns="any"`). Declared features act as logical
-dependencies and are not materialized as dataframe columns.
+With `returns="any"`, Explorer does not describe internal dataframe use.
+An opaque workflow receives no framework-bound dataframe and may read,
+calculate, and write internally. Its result is ignored.
 
-#### Workflow
-
-<p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>escape</span></p>
+<p class="cv-label-line"><span class="cv-label-badge"><small>frame operation</small>workflow</span></p>
 
 <p class="cv-function-subtitle">Result is ignored, no dataframe output</p>
 
-Use `returns="any"` when an external workflow's result must be ignored. Prefer
-explicit dataframe dataflow and runtime checks when they fit the work.
+Logical workflow outputs establish dependencies, not dataframe columns.
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -384,10 +374,8 @@ explicit dataframe dataflow and runtime checks when they fit the work.
 
 <p class="cv-function-subtitle">Combine the current dataset with a staged fragment</p>
 
-In Python, an operator uses `stage` to produce a fragment and `merge` to combine
-it with the current dataset. The dataset may be absent for the first operator.
-The merge returns the updated dataset. In the generated Spec and execution plan,
-the stage function is represented by the `compute` binding.
+Merge combines the current dataset and a computed fragment, returning the
+complete target. Feature consumers wait for it to succeed.
 
 <div class="concepts-visual">
   <div class="cv-operation">
@@ -404,9 +392,13 @@ the stage function is represented by the `compute` binding.
 
 <p class="cv-function-subtitle">Connect feature dependencies and outputs to a function binding</p>
 
-An operator declares which features a function needs and produces, then binds
-that function to concrete arguments. In this example, `divide` receives the
-current profile dataframe and feature identifiers, and returns `pressure_ratio`.
+Every operator has one `compute` binding and optionally a `merge` binding.
+Compute accepts zero or one dataframe. Its dataframe result is the complete
+target without a merge, or a fragment with a merge. Foreign feature inputs
+alone do not require a merge. Publish operators declare inputs and no outputs.
+
+In this example, the operator declares its features and binds `divide` to the
+current dataframe and feature identifiers.
 
 <div class="concepts-visual">
   <div class="cv-operation cv-mapping-flow" role="group" aria-label="Input dataframe, Python operator, and output dataframe">

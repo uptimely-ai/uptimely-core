@@ -63,7 +63,7 @@ Keep fixture execution separate from normal runs and make external I/O opt-in.
 | title | breaking | description |
 |---|---|---|
 | Isolate case state and production outputs | No | Start each case with fresh runtime state, continue independent cases after failures, and leave `artifacts/run/` unchanged. |
-| Gate external I/O and document trust limits | No | Require explicit opt-in for read, write, and escape bindings. Do not claim to sandbox trusted Python functions. |
+| Gate external I/O and document trust limits | No | Require explicit opt-in for source reads, publication writes, and opaque workflows called through compute. Do not claim to sandbox trusted Python functions. |
 | Verify fixture execution behavior | No | Test missing fixtures, invalid overrides, lazy failures, merge contracts, and unchanged production behavior. Document binding, chained-operator, and workflow test distinctions. |
 
 ## Work package: Test CLI and saved reports
