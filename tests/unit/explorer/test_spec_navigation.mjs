@@ -76,16 +76,17 @@ test("function usage groups named operators by profile without semantic metadata
   const usage = content.match(/<section class="function-usage"[\s\S]*?<\/section>/)[0];
   assert.equal((usage.match(/function-usage-item /g) || []).length, 1);
   assert.match(usage, /href="\?view=profiles#profile-telemetry">Telemetry<\/a>/);
-  assert.match(usage, /href="\?view=profiles#operator-telemetry-load">Load telemetry<\/a>/);
-  assert.match(usage, /href="\?view=profiles#operator-telemetry-refresh">Refresh telemetry<\/a>/);
+  assert.match(usage, /href="\?view=profiles#operator-telemetry-load">[^]*?Load telemetry<\/a>/);
+  assert.match(usage, /href="\?view=profiles#operator-telemetry-refresh">[^]*?Refresh telemetry<\/a>/);
   assert.equal((usage.match(/#operator-telemetry-load/g) || []).length, 1);
   assert.doesNotMatch(usage, /function-usage-role|binding|compute \+ merge|not_applicable/);
 });
 
-test("function details keep source full-width and metadata responsive", async () => {
+test("function source and signature share a responsive grid", async () => {
   const css = await readFile(new URL("../css/spec.css", root), "utf8");
   assert.match(css, /\.function-detail\s*\{[^}]*container-type:\s*inline-size/);
-  assert.match(css, /\.function-origin-grid\s*\{[^}]*grid-template-columns:\s*minmax\(0,\s*1fr\)/);
+  assert.match(css, /\.function-origin-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*360px\),\s*1fr\)\)/);
+  assert.match(css, /\.function-origin-grid\s*\{[^}]*margin-top:\s*0/);
   assert.doesNotMatch(css, /function-kind-graphic/);
   assert.match(css, /\.function-metadata-grid\s*\{[^}]*grid-template-columns:\s*repeat\(auto-fit,\s*minmax\(min\(100%,\s*220px\),\s*1fr\)\)/);
   assert.match(css, /\.function-example\s*\{[^}]*min-width:\s*0/);
@@ -118,17 +119,20 @@ test("typed names put the icon before the name without visible type text", () =>
   assert.match(typedName("unknown", null), /data-lucide="braces"/);
 });
 
-test("function context uses declared categories and neutral callable icons", () => {
+test("function context uses declared categories and dataframe-signature icons", () => {
   const context = catalogContext({ catalogs: { function_groups: {
-    "Data_loading": { load: { name: "Load data" }, fetch: { name: "Fetch data" } },
-    Uncategorized: { score: { name: "Score" } },
+    "Data_loading": {
+      load: { name: "Load data", returns: "dataframe", args: { dataset: { type: "dataframe" } } },
+      fetch: { name: "Fetch data", returns: "dataframe" },
+    },
+    Uncategorized: { score: { name: "Score", returns: "none", args: { dataset: { type: "dataframe" } } } },
     Empty: {},
   } } }, "functions");
   assert.match(context, /context-group-label"><span>Data Loading<\/span><span class="context-link-count">2<\/span>/);
   assert.match(context, /context-group-label"><span>Uncategorized<\/span><span class="context-link-count">1<\/span>/);
-  for (const id of ["load", "fetch", "score"]) {
-    assert.match(context, new RegExp(`href="#function-${id}"[\\s\\S]*?data-lucide="square-function"`));
-  }
+  assert.match(context, /href="#function-load"[\s\S]*?data-lucide="replace"/);
+  assert.match(context, /href="#function-fetch"[\s\S]*?data-lucide="file-input"/);
+  assert.match(context, /href="#function-score"[\s\S]*?data-lucide="file-output"/);
   assert.doesNotMatch(context, /Function kind:|context-sublinks|href="#functions-|>Empty<\/span>/);
 });
 
@@ -341,8 +345,8 @@ test("feature and function type displays use matching data type icons", () => {
     profileOperator);
   assert.match(featureOperator, /<summary>Arguments<\/summary>/);
   assert.match(featureOperator, /<td><code class="language-json">telemetry\.csv<\/code><\/td>/);
-  assert.match(featureOperator, /<div class="profile-operator-function">\s*<i[^>]*class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
-  assert.match(featureOperator, /profile-operator-merge-indicator/);
+  assert.match(featureOperator, /<div class="profile-operator-function">\s*<i[^>]*class="site-icon icon--read profile-operator-function-icon" data-lucide="file-input"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
+  assert.match(featureOperator, /profile-operator-relationship-indicator/);
   assert.match(featureOperator, /tabindex="0" title="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
   assert.match(featureOperator, /aria-label="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
   assert.doesNotMatch(featureOperator, /<dt>Execution form<\/dt>|<dt>Grain relationship<\/dt>/);
@@ -542,6 +546,7 @@ test("resolution navigation filters exact profile usage and restores dimension u
     cancelAnimationFrame() {},
     document: {
       title: "Dimensions",
+      createElement: () => ({}),
       getElementById: id => id === "catalog-context" ? panel : elements.get(id),
       querySelector: selector => selector === "main h1 span" ? title
         : selector === "main h1" ? heading : null,

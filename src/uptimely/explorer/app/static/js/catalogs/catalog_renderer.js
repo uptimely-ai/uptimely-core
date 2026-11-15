@@ -1,4 +1,4 @@
-import { badge, contextGroup as group, contextHeader, contextLink, dataTypeLabel, display, distribution, escape, heading, href, icon, page, statistic, typedName } from "../rendering/shared_markup.js";
+import { badge, contextGroup as group, contextHeader, contextLink, dataframeSignature, dataframeSignatureIcon, dataframeSignatureLabel, dataTypeLabel, display, distribution, escape, grainRelationshipIcon, heading, href, icon, page, statistic, typedName } from "../rendering/shared_markup.js";
 
 export function profiles(configuration) {
   return Object.entries(configuration.profiles).map(([id, profile]) => ({
@@ -106,9 +106,11 @@ const contextLinks = {
   },
   functions(data) {
     return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length)
-      .map(([category, items]) => group(humanizeCategory(category),
+      .map(([category, items]) => group(
+        humanizeCategory(category),
         Object.entries(items).map(([id, item]) =>
-          contextLink(`function-${id}`, label(id, item), "functions")))).join("");
+          contextLink(`function-${id}`, label(id, item), dataframeSignatureIcon(item))),
+      )).join("");
   },
   stages(data) {
     return data.stages.map(stage =>
@@ -238,16 +240,24 @@ function profileOverview(data) {
 function functionOverview(data) {
   const groups = Object.entries(data.catalogs.function_groups);
   const returnTypeCounts = new Map();
+  const dataframeSignatureCounts = new Map();
   groups.flatMap(([, items]) => Object.values(items)).forEach(item => {
     const type = item.return_type || item.returns || "unspecified";
     returnTypeCounts.set(type, (returnTypeCounts.get(type) || 0) + 1);
+    const signature = dataframeSignatureLabel(item);
+    dataframeSignatureCounts.set(signature, (dataframeSignatureCounts.get(signature) || 0) + 1);
   });
   return `<section id="overview" data-context-item aria-label="Functions overview" class="mb-12">
     <div class="catalog-charts lg:grid-cols-2">${distribution("Functions by category", groups.map(([category, items]) => {
       const count = Object.keys(items).length;
       return [category, count, count ? `#functions-${encodeURIComponent(category)}` : null];
     }), { total: data.catalogs.summary.function_count, labelFormatter: humanizeCategory })}
-      ${distribution("Functions by return type", [...returnTypeCounts], { typeLabels: true, returnTypeLabels: true })}</div></section>`;
+      ${distribution("Functions by dataframe signature", [...dataframeSignatureCounts], {
+        total: data.catalogs.summary.function_count, dataframeSignatureLabels: true,
+      })}
+      <div class="lg:col-span-2">${distribution("Functions by return type", [...returnTypeCounts], {
+        typeLabels: true, returnTypeLabels: true,
+      })}</div></div></section>`;
 }
 
 function featureCards(config, invocations) {
@@ -419,7 +429,12 @@ export function schemaColumns(config, profile) {
 }
 
 function operatorCard({ attributes, title, hasMerge, relationships, role = null,
-  inputs, outputs, uncontrolled, functionId, functionName, argumentsMarkup, details = "" }) {
+  inputs, outputs, uncontrolled, functionId, functionName, functionIcon,
+  argumentsMarkup, details = "" }) {
+  const relationshipIcon = grainRelationshipIcon(relationships);
+  const hasUnknownBoundary = ["operators", "not_applicable"].includes(relationshipIcon);
+  const titleIcon = hasUnknownBoundary && ["read", "write"].includes(functionIcon)
+    ? functionIcon : relationshipIcon;
   const grainRelationships = relationships?.map(item =>
     `${item.source_profile || "unresolved"}: ${item.relationship}`).join(", ") || "not applicable";
   const mergeTooltip = `The resulting fragment is merged into this profile's dataset. Grain relationships: ${grainRelationships}.`;
@@ -428,7 +443,10 @@ function operatorCard({ attributes, title, hasMerge, relationships, role = null,
       <div class="profile-operator-identity"><h4>${escape(title)}</h4>
         ${role ? `<div class="mt-2 flex flex-wrap gap-2">${badge(`${role === "merge" ? "Merge" : "Compute"} binding`, "neutral")}</div>` : ""}
       </div>
-      ${hasMerge ? `<span class="profile-operator-merge-indicator" tabindex="0" title="${escape(mergeTooltip)}" aria-label="${escape(mergeTooltip)}">${icon("merge", "profile-operator-icon")}</span>` : ""}
+      <div class="profile-operator-indicators">
+        <span class="profile-operator-icon-indicator" aria-hidden="true">${icon(titleIcon, "profile-operator-icon")}</span>
+        ${hasMerge ? `<span class="profile-operator-relationship-indicator" tabindex="0" title="${escape(mergeTooltip)}" aria-label="${escape(mergeTooltip)}">${icon("merge", "profile-operator-icon")}</span>` : ""}
+      </div>
     </header>
     <dl class="profile-operator-contract">
       <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${inputs}</dd></div>
@@ -436,7 +454,7 @@ function operatorCard({ attributes, title, hasMerge, relationships, role = null,
     ${uncontrolled ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; these outputs are not materialized as dataframe columns. Dataframes are passed only through explicit arguments, and the return value is ignored.</div>' : ""}
     <div class="profile-operator-compute">
       <div class="profile-operator-function">
-        ${icon("functions", "profile-operator-function-icon")}
+        ${icon(functionIcon, "profile-operator-function-icon")}
         <a href="${href("functions", `function-${functionId}`)}">${escape(functionName)}</a>
       </div>
       ${argumentsMarkup}
@@ -518,6 +536,7 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       relationships: operator.grain_relationships,
       inputs: featureList(operatorInputs(operator)), outputs: featureList(operator.interface.outputs),
       uncontrolled: operator.is_workflow || fn.returns === "any", functionId, functionName: fn.name || functionId,
+      functionIcon: dataframeSignatureIcon(fn),
       argumentsMarkup: resolvedArgumentDetails(id, operator, "Arguments", computeInvocations),
     });
   }).join("")}</div>`;
@@ -597,12 +616,12 @@ function functionSource(fn) {
     }[fn.source_origin] || "Unknown"],
     ["Package", "source-package", packageName || "—"],
     ["Module", "source-module", modulePath || "—"],
-    ["Function", "functions", qualifiedName.join(":") || "—"],
+    ["Function", dataframeSignatureIcon(fn), qualifiedName.join(":") || "—"],
   ] : [];
   return `<section class="function-source" aria-label="Source">
     ${subheading("Source", "source")}
     <div class="function-detail-box function-source-card">
-      ${fields.length ? `<dl>${fields.map(([name, iconKey, value]) => `<div><dt>${icon(iconKey, "function-source-icon")}<span>${name}</span></dt><dd><code>${escape(value)}</code></dd></div>`).join("")}</dl>` : ""}
+      ${fields.length ? `<dl>      ${fields.map(([name, iconKey, value]) => `<div><dt>${icon(iconKey, "function-source-icon")}<span>${name}</span></dt><dd><code>${escape(value)}</code></dd></div>`).join("")}</dl>` : ""}
       ${fn.signature_validation_disabled ? `<div class="mt-2">${badge("Python signature validation disabled", "amber")}</div>` : ""}
     </div>
   </section>`;
@@ -621,24 +640,52 @@ function functionUsage(functionId, config) {
       `<li class="function-usage-item function-detail-box">
         <a class="function-usage-profile" href="${href("profiles", `profile-${id}`)}">${escape(label(id, profile))}</a>
         <ul>${operators.map(([operatorId, operator]) =>
-          `<li><a class="function-usage-feature" href="${href("profiles", `operator-${id}-${operatorId}`)}">${escape(operatorLabel(operatorId, operator))}</a></li>`).join("")}</ul>
+          `<li><a class="function-usage-feature" href="${href("profiles", `operator-${id}-${operatorId}`)}">${icon(grainRelationshipIcon(operator.grain_relationships), "profile-operator-function-icon")}${escape(operatorLabel(operatorId, operator))}</a></li>`).join("")}</ul>
       </li>`).join("")}</ul>` : '<p class="function-usage-empty">Not used by any operator.</p>'}
+  </section>`;
+}
+
+function functionSignatureGraphic(fn) {
+  const signature = dataframeSignature(fn);
+  const label = dataframeSignatureLabel(fn);
+  const known = signature !== "workflow" && signature !== "unknown";
+  const [inputCount, outputCount] = known ? signature.split("->").map(Number) : [0, 0];
+  const dataframeIcons = (count, side) => count
+    ? Array.from({ length: count }, () => icon("datasets", `function-signature-data-icon function-signature-data-icon-${side}`)).join("")
+    : `<span class="function-signature-empty">${known ? "None" : signature === "workflow" ? "No dataframe" : "Unknown"}</span>`;
+  const inputLabel = `${inputCount} dataframe input${inputCount === 1 ? "" : "s"}`;
+  const outputLabel = `${outputCount} dataframe output${outputCount === 1 ? "" : "s"}`;
+  const description = known ? `Data signature: ${label}, ${inputLabel} and ${outputLabel}.`
+    : signature === "workflow" ? "Data signature: workflow, no dataframe inputs or outputs."
+      : "Data signature is unknown.";
+  return `<section class="function-signature" aria-label="Data signature">
+    ${subheading("Data signature", "datasets")}
+    <div class="function-signature-diagram" role="img" aria-label="${escape(description)}">
+      <div class="function-signature-side"><span class="function-signature-side-label">Input</span>
+        <div class="function-signature-data">${dataframeIcons(inputCount, "input")}</div></div>
+      ${icon("return-arrow", "function-signature-arrow")}
+      <div class="function-signature-operation">${icon(dataframeSignatureIcon(fn), "function-signature-operation-icon")}<span>${escape(label)}</span></div>
+      ${icon("return-arrow", "function-signature-arrow")}
+      <div class="function-signature-side"><span class="function-signature-side-label">Output</span>
+        <div class="function-signature-data">${dataframeIcons(outputCount, "output")}</div></div>
+    </div>
   </section>`;
 }
 
 function functionCards(data) {
   return Object.entries(data.catalogs.function_groups).filter(([, items]) => Object.keys(items).length).map(([category, items]) =>
     `<div id="functions-${escape(category)}" data-function-group="${escape(category)}" class="mb-20 scroll-mt-24"><div class="space-y-10">
-      ${Object.entries(items).map(([id, fn]) => `<article id="function-${escape(id)}" data-context-item class="function-detail">
-        <h3 class="function-detail-title">${icon("functions", "function-detail-icon")}<span>${escape(label(id, fn))}</span></h3>
+      ${Object.entries(items).map(([id, fn]) => `<article id="function-${escape(id)}" data-context-item class="function-detail" data-function-category="${escape(humanizeCategory(category))}">
+        <h3 class="function-detail-title">${icon(dataframeSignatureIcon(fn), "function-detail-icon")}<span>${escape(label(id, fn))}</span></h3>
+        <div class="function-origin-grid">
+          ${functionSource(fn)}
+          ${functionSignatureGraphic(fn)}
+        </div>
         <p data-function-description class="mt-4 text-base leading-7 text-slate-300">${escape(fn.description || "No description provided.")}</p>
         ${fn.doc?.body?.trim() ? `<div class="function-description">${fn.doc.body.trim().split(/\r?\n[ \t]*\r?\n/).map(paragraph => `<p>${escape(paragraph)}</p>`).join("")}</div>` : ""}
         ${(fn.doc?.examples || []).map((example, index) => `<section class="function-example">${subheading(index ? `Example ${index + 1}` : "Example")}
           <div class="mt-3">${badge("Python")}</div>
           <pre class="function-detail-box mt-3 min-h-40 overflow-x-auto p-5 font-mono text-xs leading-6 text-slate-300"><code class="language-python">${escape(example)}</code></pre></section>`).join("")}
-        <div class="function-origin-grid">
-          ${functionSource(fn)}
-        </div>
         ${functionUsage(id, data.catalogs.configuration)}
         ${Object.keys(fn.args || {}).length ? `<div class="mt-10">${subheading("Arguments")}
           <div class="ui-table-scroll mt-3" tabindex="0" role="region" aria-label="Arguments for ${escape(fn.name || id)}">
@@ -659,6 +706,7 @@ export function stageCards(data) {
   const featureList = features => features?.length
     ? features.map(feature => `<code>${escape(feature)}</code>`).join("")
     : '<span class="profile-operator-empty">None declared</span>';
+  const functions = data.catalogs?.configuration?.functions || {};
   return data.stages.map(stage => `<section id="stage-${stage.stage}" data-context-item>
     <div class="mb-3 flex items-center gap-3"><h2 class="rounded-lg bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">Stage ${stage.stage}</h2>
       <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">${stage.steps.length} invocation${stage.steps.length === 1 ? "" : "s"}</span></div>
@@ -690,6 +738,7 @@ export function stageCards(data) {
         relationships: step.grain_relationships,
         inputs: featureList(step.input_features), outputs: featureList(step.output_features),
         uncontrolled: step.uncontrolled, functionId: step.function, functionName: step.function_label,
+        functionIcon: dataframeSignatureIcon(functions[step.function] || {}),
         argumentsMarkup, details,
       });
     }).join("")}</div></section>`).join("");

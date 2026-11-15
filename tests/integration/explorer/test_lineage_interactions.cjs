@@ -7,10 +7,12 @@ const vm = require('node:vm');
 const scriptDirectory = path.resolve(__dirname, '../../../src/uptimely/explorer/app/static/js');
 
 for (const withSectionCount of [false, true]) {
-	test(`catalog selects one function without removed badges (section count: ${withSectionCount})`, () => {
+	test(`catalog selects one function and updates its heading category (section count: ${withSectionCount})`, () => {
 		const overview = { ...createElement(), id: 'overview' };
 		const first = { ...createElement(), id: 'function-first' };
 		const second = { ...createElement(), id: 'function-second' };
+		first.dataset.functionCategory = 'Inputs';
+		second.dataset.functionCategory = 'Outputs';
 		const items = [overview, first, second];
 		for (const item of items) {
 			const heading = { ...createElement(), textContent: item.id };
@@ -39,6 +41,7 @@ for (const withSectionCount of [false, true]) {
 		const description = { ...createElement(), textContent: 'Browse the function catalog.' };
 		const document = {
 			title: 'Spec functions',
+			createElement: tag => ({ ...createElement(), tagName: tag }),
 			getElementById: id => [overview, group, first, second].find(item => item.id === id)
 				|| (id === 'catalog-context' ? panel : null),
 			querySelector(selector) {
@@ -73,6 +76,10 @@ for (const withSectionCount of [false, true]) {
 		const assertSelected = (item, expectedTitle) => {
 			assert.deepEqual(items.filter(candidate => !candidate.hidden), [item]);
 			assert.equal(title.textContent, expectedTitle);
+			const [categoryBadge] = heading.parentElement.children;
+			assert.equal(categoryBadge.className, 'function-category-badge');
+			assert.equal(categoryBadge.textContent, item === overview ? '' : item.dataset.functionCategory);
+			assert.equal(categoryBadge.hidden, item === overview);
 			assert.equal(group.hidden, item === overview);
 			assert.equal(links.find(link => link.hash === `#${item.id}`)
 				.attributes['aria-current'], 'location');
@@ -131,6 +138,7 @@ test(`${catalog} selection displays its description in the section header`, () =
 	const description = { ...createElement(), textContent: '' };
 	const document = {
 		title: 'Spec features',
+		createElement: tag => ({ ...createElement(), tagName: tag }),
 		getElementById: id => [...items, operator].find(item => item.id === id)
 			|| (id === 'catalog-context' ? panel : null),
 		querySelector(selector) {
@@ -224,6 +232,7 @@ test('dimension selection displays its description in the section header', () =>
 	const dimensionLabel = createElement();
 	const document = {
 		title: 'Spec dimensions',
+		createElement: tag => ({ ...createElement(), tagName: tag }),
 		getElementById: id => items.find(item => item.id === id)
 			|| (id === 'catalog-context' ? panel : null),
 		querySelector(selector) {
@@ -270,7 +279,7 @@ function loadLineageScript(context, filename) {
 	let source = fs.readFileSync(path.join(scriptDirectory, filename), 'utf8');
 	if (filename === 'rendering/shared_markup.js') {
 		source = source.replace(/^export /gm, '');
-		source += '\nglobalThis.dataTypeIconName = dataTypeIconName;\nglobalThis.ICONS = ICONS;';
+		source += '\nglobalThis.dataTypeIconName = dataTypeIconName;\nglobalThis.ICONS = ICONS;\nglobalThis.grainRelationshipIcon = grainRelationshipIcon;';
 	} else if (filename === 'lineage/lineage_config.js') {
 		const exports = [...source.matchAll(/^export const (\w+)/gm)]
 			.map(([, name]) => name);
@@ -292,6 +301,9 @@ function loadLineageScript(context, filename) {
 		).replace(
 			/^import \{([^}]*?)\} from '\.\/lineage_layout\.js';/m,
 			'const {$1} = globalThis.LineageLayout;',
+		).replace(
+			/^import \{([^}]*?)\} from '\.\.\/rendering\/shared_markup\.js';/m,
+			'const {$1} = globalThis;',
 		);
 		const exports = [...source.matchAll(/^export function (\w+)/gm)].map(([, name]) => name);
 		source = source.replace(/^export /gm, '');
@@ -357,7 +369,7 @@ function loadLineageDependencies(context) {
 }
 
 function createCatalogHeading(textContent, iconName, type = null) {
-	const heading = { ...createElement(), textContent, focus() {} };
+	const heading = { ...createElement(), textContent, focus() {}, parentElement: createElement() };
 	const attach = icon => {
 		heading.icon = icon;
 		icon.replaceWith = attach;
@@ -539,6 +551,7 @@ for (const filename of ['lineage/feature_lineage.js', 'lineage/invocation_lineag
 				Database: [['path', { d: 'M1 2' }]],
 				ArrowUpRight: [['path', { d: 'M1 2' }]],
 				SquareFunction: [['path', { d: 'M1 2' }]],
+				Sigma: [['path', { d: 'M1 2' }]],
 			} },
 			SpriteText: class {
 				constructor(text) {

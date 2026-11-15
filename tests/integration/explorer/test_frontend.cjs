@@ -44,7 +44,7 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functions.content, /data-function-group="Uncategorized"/);
   assert.match(functions.content, /language-python/);
   assert.match(functions.content, /<span class="ui-badge[^>]*>Python<\/span>/);
-  assert.match(functions.content, /<h3 class="function-detail-title"><i class="site-icon icon--functions function-detail-icon" data-lucide="square-function"[^>]*><\/i><span>&lt;Calculate&gt;<\/span><\/h3>/);
+  assert.match(functions.content, /<h3 class="function-detail-title"><i class="site-icon icon--read function-detail-icon" data-lucide="file-input"[^>]*><\/i><span>&lt;Calculate&gt;<\/span><\/h3>/);
   assert.match(functions.content, /<p data-function-description[^>]*>Calculate &lt;values&gt;<\/p>/);
   assert.doesNotMatch(functions.content, /class="function-description"/);
   assert.doesNotMatch(functions.content, /function-kind-graphic|Function kind:/);
@@ -72,10 +72,10 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(renderCatalog(functionMetadataData, "functions").content, /<p class="function-return-type">list&lt;value&gt;<\/p>/);
   assert.match(functionArticle, /<section class="function-metadata-entry" aria-label="Error handling">\s*<h3 class="ui-section-title profile-detail-subheading">[^]*?data-lucide="triangle-alert"[^]*?<span>Error handling<\/span><\/h3>\s*<div class="function-metadata-card function-detail-box">[^]*?<span class="function-error-type">ValueError<\/span><p class="function-metadata-description">Invalid &lt;value&gt;\.<\/p>/);
   assert.match(functionArticle, /<li><span class="function-error-type">RuntimeError<\/span><\/li>/);
-  assert.match(functionArticle, /<section class="function-source" aria-label="Source">[^]*?data-lucide="code-xml"[^]*?<span>Source<\/span>[^]*?<dt>[^]*?data-lucide="package"[^]*?<span>Package<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="file-code-2"[^]*?<span>Module<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="square-function"[^]*?<span>Function<\/span><\/dt><dd><code>calculate<\/code>/);
+  assert.match(functionArticle, /<section class="function-source" aria-label="Source">[^]*?data-lucide="code-xml"[^]*?<span>Source<\/span>[^]*?<dt>[^]*?data-lucide="package"[^]*?<span>Package<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="file-code-2"[^]*?<span>Module<\/span><\/dt><dd><code>example<\/code><\/dd>[^]*?<dt>[^]*?data-lucide="file-input"[^]*?<span>Function<\/span><\/dt><dd><code>calculate<\/code>/);
   assert.match(functionArticle, /<dt>[^]*?data-lucide="map-pin"[^]*?<span>Origin<\/span><\/dt><dd><code>Unknown<\/code><\/dd>/);
   assert.match(functionArticle, /<pre class="function-detail-box mt-3 min-h-40/);
-  assert.match(functionArticle, /aria-label="Function usage"[^]*?Used by operators[^]*?<li class="function-usage-item function-detail-box">[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=profiles#operator-readings-calculate">Calculate<\/a>/);
+  assert.match(functionArticle, /aria-label="Function usage"[^]*?Used by operators[^]*?<li class="function-usage-item function-detail-box">[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=profiles#operator-readings-calculate">[^]*?Calculate<\/a>/);
   assert.doesNotMatch(functionArticle, /<h3 class="ui-section-title">Raises<\/h3>/);
   const functionOverview = functions.content.slice(0, functions.content.indexOf('<div class="space-y-8">'));
   assert.doesNotMatch(functionOverview, /data-stat=/);
@@ -94,6 +94,29 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(categorizedCatalog.content, /href="#functions-data_loading"/);
   assert.match(functionOverview, /Functions by return type/);
   assert.match(functionOverview, /data-category="DataFrame" data-count="1"[^]*?icon--return-arrow[^>]*data-lucide="arrow-right"[^]*?class="data-type-label-text">DataFrame/);
+  assert.ok(functionOverview.indexOf("Functions by category")
+    < functionOverview.indexOf("Functions by dataframe signature"));
+  assert.ok(functionOverview.indexOf("Functions by dataframe signature")
+    < functionOverview.indexOf("Functions by return type"));
+  assert.match(functionOverview, /class="lg:col-span-2"><section class="ui-panel ui-chart">[\s\S]*?<h3>Functions by return type<\/h3>/);
+  const signatureData = sampleData();
+  Object.assign(signatureData.catalogs.function_groups.Uncategorized, {
+    write: { returns: "none", args: { dataset: { type: "dataframe" } } },
+    merge: { returns: "dataframe", args: {
+      target: { type: "dataframe | null" }, fragment: { type: "dataframe" },
+    } },
+    workflow: { returns: "any", args: {} },
+  });
+  signatureData.catalogs.summary.function_count = 4;
+  const signatureContent = renderCatalog(signatureData, "functions").content;
+  const signatureOverview = signatureContent.slice(0, signatureContent.indexOf('<div class="space-y-8">'));
+  assert.match(signatureOverview, /<h3>Functions by dataframe signature<\/h3>/);
+  assert.match(signatureOverview, /data-category="read"[^]*?icon--read h-4 w-4 shrink-0" data-lucide="file-input"[^]*?>read/);
+  assert.match(signatureOverview, /data-category="read" data-count="1"/);
+  assert.match(signatureOverview, /data-category="write" data-count="1"/);
+  assert.match(signatureOverview, /data-category="merge" data-count="1"/);
+  assert.match(signatureOverview, /data-category="workflow" data-count="1"/);
+  assert.match(signatureOverview, /class="catalog-charts lg:grid-cols-2"/);
   const returnTypeChart = functionOverview.slice(functionOverview.indexOf("Functions by return type"));
   assert.doesNotMatch(returnTypeChart, /data-lucide="table-2"/);
   const returnTypeData = sampleData();
@@ -104,7 +127,7 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(typedReturnOverview, /data-category="float" data-count="1"[^]*?data-lucide="arrow-right"[^]*?class="data-type-label-text">float/);
   assert.match(returnTypeOverview, /data-category="unspecified" data-count="1"/);
   assert.doesNotMatch(typedReturnOverview.slice(typedReturnOverview.indexOf("Functions by return type")), /data-lucide="(?:hash|table-2)"/);
-  assert.match(functions.context, /href="#function-calculate"[^]*?data-lucide="square-function"/);
+  assert.match(functions.context, /href="#function-calculate"[^]*?data-lucide="file-input"/);
   assert.match(functions.context, /href="#function-calculate"/);
   const profileData = sampleData();
   profileData.catalogs.configuration.profiles.readings.description = "Pump readings per machine.";
@@ -168,7 +191,7 @@ test("function examples retain multiline content, order and HTML escaping", asyn
   ]);
   const article = html.slice(html.indexOf('<article id="function-calculate"'));
   assert.equal((article.match(/<section class="function-example">/g) || []).length, 2);
-  assert.ok(article.indexOf("Example 2") < article.indexOf('class="function-origin-grid"'));
+  assert.ok(article.indexOf('class="function-origin-grid"') < article.indexOf("Example 2"));
   assert.match(article, /class="function-origin-grid"[^]*?class="function-source"/);
   assert.doesNotMatch(article, /class="function-kind-graphic/);
   assert.ok(article.indexOf("Arguments") < article.indexOf('class="function-metadata-grid"'));
@@ -199,10 +222,10 @@ test("function source and operator usage handle qualified, missing and escaped v
   assert.match(article, /<dt>[^]*?data-lucide="package"[^]*?<span>Package<\/span><\/dt><dd><code>pump<\/code><\/dd>/);
   assert.match(article, /<dt>[^]*?data-lucide="map-pin"[^]*?<span>Origin<\/span><\/dt><dd><code>Third-party \(library &lt;unsafe&gt;\)<\/code><\/dd>/);
   assert.match(article, /<dt>[^]*?data-lucide="file-code-2"[^]*?<span>Module<\/span><\/dt><dd><code>pump\.&lt;package&gt;\.analytics<\/code><\/dd>/);
-  assert.match(article, /<dt>[^]*?data-lucide="square-function"[^]*?<span>Function<\/span><\/dt><dd><code>Class\.method<\/code><\/dd>/);
+  assert.match(article, /<dt>[^]*?data-lucide="file-input"[^]*?<span>Function<\/span><\/dt><dd><code>Class\.method<\/code><\/dd>/);
   assert.match(article, /Python signature validation disabled/);
-  assert.match(article, /operator-readings-calculate">Calculate &lt;values&gt;<\/a>/);
-  assert.match(article, /operator-readings-merge_values">Merge Values<\/a>/);
+  assert.match(article, /operator-readings-calculate">[^]*?Calculate &lt;values&gt;<\/a>/);
+  assert.match(article, /operator-readings-merge_values">[^]*?Merge Values<\/a>/);
   assert.match(article, /class="function-metadata-grid"[^]*?aria-label="Returns"[^]*?aria-label="Error handling"/);
   assert.ok(article.indexOf('aria-label="Error handling"') > article.indexOf("Arguments"));
 
@@ -298,7 +321,7 @@ test("merge phases expose their invocation metadata and owning operator", async 
   assert.match(stages, /Merge keys/);
   assert.match(profiles, /id="operator-readings-calculate"/);
   assert.match(profiles, /data-execution-form="compute \+ merge"/);
-  assert.match(profiles, /data-lucide="git-merge"/);
+  assert.match(profiles, /profile-operator-relationship-indicator[^]*?data-lucide="git-merge"/);
   assert.match(profiles, /The resulting fragment is merged into this profile&#39;s dataset\. Grain relationships:/);
   assert.match(topology, /"role":"merge"/);
   assert.match(topology, /"dependency_type":"fragment"/);
@@ -452,7 +475,7 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.match(html, /data-profile-operator="calculate" data-execution-form="compute"/);
   const operator = html.match(/<article id="operator-readings-aggregate"[^]*?<\/article>/)[0];
   assert.match(operator, /profile-operator-header[^]*profile-operator-contract[^]*profile-operator-compute/);
-  assert.match(operator, /class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"/);
+  assert.match(operator, /class="site-icon icon--read profile-operator-function-icon" data-lucide="file-input"/);
   assert.doesNotMatch(operator, /profile-operator-flow-node/);
   assert.ok(operator.indexOf("Input features") < operator.indexOf("profile-operator-compute"));
   assert.ok(operator.indexOf("profile-operator-compute") < operator.indexOf("Output features"));

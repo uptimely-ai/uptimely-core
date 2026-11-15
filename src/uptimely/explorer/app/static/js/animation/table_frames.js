@@ -131,9 +131,10 @@ export function createDataLineageTables(allSteps, datasetSteps, onFold) {
   function frames(step) {
     const table = step.querySelector('table[data-side="output"]');
     const preparation = [{ type: "inputs" }];
-    if (step.dataset.functionKind === "collapse") preparation.push({ type: "group" });
+    const relationships = step.dataset.grainRelationships.split(",");
+    if (relationships.includes("collapse")) preparation.push({ type: "group" });
     preparation.push({ type: "invocation" });
-    if (step.dataset.functionKind === "write") preparation.push({ type: "write" });
+    if (step.dataset.frameSignature === "1->0") preparation.push({ type: "write" });
     if (!table) return preparation;
     if (!table.querySelector('th[data-role="Existing"], th[data-role="Input"]')) {
       return [...preparation,
@@ -154,7 +155,7 @@ export function createDataLineageTables(allSteps, datasetSteps, onFold) {
       cell.classList.toggle("data-lineage-input-active", phase > 0 && !completed));
   }
   function renderInputTable(input, step, completed, phase) {
-    const isCollapse = step.dataset.functionKind === "collapse";
+    const isCollapse = step.dataset.grainRelationships.split(",").includes("collapse");
     input.classList.toggle("data-lineage-grouped",
       phase >= GROUPING_PHASE && isCollapse && !completed);
     input.querySelectorAll("[data-role]").forEach(cell => {

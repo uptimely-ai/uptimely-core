@@ -12,13 +12,60 @@ export const ICONS = {
   "return-arrow": "arrow-right", errors: "triangle-alert",
   intermediate: "workflow", dependencies: "git-branch",
   invocations: "square-function", "feature-lineage": "diagram-flow-horizontal", "invocation-lineage": "layout-arrow-right",
-  compute: "square-function", merge: "git-merge", expand: "expand", collapse: "combine",
+  read: "file-input", transform: "replace", workflow: "git-branch", merge: "git-merge", expand: "expand", collapse: "combine",
   same: "table-properties", unrelated: "shuffle", not_applicable: "circle-help",
-  external: "arrow-up-right", write: "send",
+  external: "arrow-up-right", write: "file-output",
   "data-lineage": "monitor-play", stages: "list-ordered", reset: "scan-search",
   "zoom-in": "zoom-in", "zoom-out": "zoom-out",
   "view-2d": "square", "view-3d": "box",
 };
+
+export function dataframeSignature(functionDefinition) {
+  if (functionDefinition?.returns === "any") return "workflow";
+  if (functionDefinition?.returns !== "dataframe" && functionDefinition?.returns !== "none") {
+    return "unknown";
+  }
+  const inputs = Object.values(functionDefinition.args || {}).filter(argument =>
+    argument.type === "dataframe" || argument.type === "dataframe | null").length;
+  return `${inputs}->${functionDefinition.returns === "dataframe" ? 1 : 0}`;
+}
+
+function dataframeSignatureKind(functionDefinition) {
+  const signature = dataframeSignature(functionDefinition);
+  if (signature === "workflow" || signature === "unknown") return signature;
+  const [inputs, outputs] = signature.split("->").map(Number);
+  if (outputs === 1) return inputs === 0 ? "read" : inputs === 1 ? "transform" : "merge";
+  return inputs > 0 ? "write" : "unknown";
+}
+
+const DATAFRAME_SIGNATURE_ICONS = {
+  read: "read",
+  write: "write",
+  transform: "transform",
+  merge: "merge",
+  workflow: "workflow",
+};
+
+function dataframeSignatureIconKey(signatureKind) {
+  return DATAFRAME_SIGNATURE_ICONS[signatureKind] || "data-type";
+}
+
+export function dataframeSignatureLabel(functionDefinition) {
+  return dataframeSignatureKind(functionDefinition);
+}
+
+export function dataframeSignatureIcon(functionDefinition) {
+  return dataframeSignatureIconKey(dataframeSignatureKind(functionDefinition));
+}
+
+export function grainRelationshipIcon(grainRelationships) {
+  const relationships = (grainRelationships || []).map(item =>
+    typeof item === "string" ? item : item?.relationship);
+  for (const relationship of ["collapse", "expand", "same", "unrelated", "not_applicable"]) {
+    if (relationships.includes(relationship)) return relationship;
+  }
+  return "operators";
+}
 
 const TYPE_ICONS = {
   float: "hash", integer: "hash", numeric: "hash", string: "case-sensitive",
@@ -103,7 +150,7 @@ export function statistic(label, value) {
 
 export function distribution(title, counts, {
   total = null, note = null, typeLabels = false, iconLabels = false, dimensionLabels = false,
-  returnTypeLabels = false, tooltip = null, labelFormatter = label => label,
+  returnTypeLabels = false, dataframeSignatureLabels = false, tooltip = null, labelFormatter = label => label,
 } = {}) {
   const maximum = Math.max(0, ...counts.map(([, value]) => Number(value)));
   return `<section class="ui-panel ui-chart">
@@ -115,7 +162,7 @@ export function distribution(title, counts, {
     <div class="space-y-4">${counts.map(([label, value, target]) => {
       const tag = target ? "a" : "div";
       return `<${tag}${target ? ` href="${escape(target)}"` : ""} class="ui-chart-row" data-category="${escape(label)}" data-count="${escape(value)}">
-        <span class="${iconLabels || dimensionLabels || returnTypeLabels ? "inline-flex items-center gap-2 break-words text-slate-400" : "break-words text-slate-400"}">${dimensionLabels ? icon("dimensions", "h-4 w-4 shrink-0") : iconLabels ? icon(label, "h-4 w-4 shrink-0") : returnTypeLabels ? icon("return-arrow", "h-4 w-4 shrink-0") : ""}${returnTypeLabels ? `<span class="data-type-label-text">${escape(label)}</span>` : typeLabels ? dataTypeLabel(label) : escape(labelFormatter(label))}</span>
+        <span class="${iconLabels || dimensionLabels || returnTypeLabels || dataframeSignatureLabels ? "inline-flex items-center gap-2 break-words text-slate-400" : "break-words text-slate-400"}">${dataframeSignatureLabels ? icon(dataframeSignatureIconKey(label), "h-4 w-4 shrink-0") : dimensionLabels ? icon("dimensions", "h-4 w-4 shrink-0") : iconLabels ? icon(label, "h-4 w-4 shrink-0") : returnTypeLabels ? icon("return-arrow", "h-4 w-4 shrink-0") : ""}${returnTypeLabels ? `<span class="data-type-label-text">${escape(label)}</span>` : typeLabels ? dataTypeLabel(label) : escape(labelFormatter(label))}</span>
         <div class="h-3 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "merge" ? "bg-amber-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
         <span class="text-right font-mono text-xs text-white">${escape(value)}</span>
       </${tag}>`;
