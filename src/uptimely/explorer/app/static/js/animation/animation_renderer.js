@@ -1,4 +1,4 @@
-import { contextHeader, dataTypeLabel, escape, icon } from "../rendering/shared_markup.js";
+import { contextHeader, dataframeSignature, dataTypeLabel, escape, grainRelationshipIcon, icon } from "../rendering/shared_markup.js";
 
 const PLACEHOLDERS = {
   float: ["1.23", "4.56", "7.89"], numeric: ["1.23", "4.56", "7.89"], integer: ["12", "45", "78"],
@@ -34,21 +34,14 @@ export function sampleTable(columns, keys, label, side, rowCount, aggregate, pro
 }
 
 function operationPresentation(step) {
-  const relationships = step.grain_relationships.map(item => item.relationship);
-  const isCollapse = relationships.includes("collapse");
-  const isExpand = relationships.includes("expand");
-  const operationIcon = step.binding_role === "merge" ? "merge"
-    : isCollapse ? "collapse" : isExpand ? "expand"
-      : step.function_returns === "any" ? "external"
-        : step.function_returns === "none" ? "write" : "compute";
-  const operationTitle = step.binding_role === "merge" ? "Merge binding"
-    : isCollapse ? "Collapse grain" : isExpand ? "Expand grain"
-      : step.function_returns === "any" ? "Uncontrolled external operation"
-        : step.function_returns === "none" ? "Write operation" : "Compute binding";
+  const relationships = [...new Set((step.grain_relationships || []).map(item => item.relationship))];
+  const operationIcon = grainRelationshipIcon(step.grain_relationships);
+  const operationTitle = relationships.length
+    ? `Grain relationship: ${relationships.join(", ")}` : "No grain relationship";
   return { operationIcon, operationTitle };
 }
 
-function animationStep(step, stage) {
+function animationStep(step, stage, functionDefinition) {
   const keys = step.columns.filter(column => column.role === "Dimension");
   const inputs = step.columns.filter(column => column.role === "Input");
   const declared = step.columns.filter(column => column.role === "Declared input");
@@ -56,7 +49,7 @@ function animationStep(step, stage) {
   const profile = step.dataset ? step.dataset_label : step.profile;
   const isEffect = step.function_returns === "any";
   const isSink = step.function_returns === "none";
-  const relationships = step.grain_relationships.map(item => item.relationship);
+  const relationships = (step.grain_relationships || []).map(item => item.relationship);
   const isCollapse = relationships.includes("collapse");
   const isExpand = relationships.includes("expand");
   const isSource = step.binding_role === "compute"
@@ -76,7 +69,9 @@ function animationStep(step, stage) {
     sources = inputs.length || keys.length ? "" : '<div class="data-lineage-boundary"><strong>No declared input columns</strong>Only declared information is shown.</div>';
   }
   return `<article class="data-lineage-step" id="step-${step.number}" data-invocation-id="${escape(step.invocation_id)}"
-    data-dependencies="${escape(step.dependencies.join(","))}" data-binding-role="${escape(step.binding_role)}" data-stage="${stage}" aria-labelledby="step-${step.number}-title">
+    data-dependencies="${escape(step.dependencies.join(","))}" data-binding-role="${escape(step.binding_role)}"
+    data-grain-relationships="${escape(relationships.join(","))}" data-frame-signature="${escape(dataframeSignature(functionDefinition))}"
+    data-stage="${stage}" aria-labelledby="step-${step.number}-title">
     <header class="data-lineage-step-header"><h3 id="step-${step.number}-title">${escape(step.operator)}</h3>
       <p class="data-lineage-step-dataset">Profile: ${escape(profile)}</p></header>
     <div class="data-lineage-scene"><div class="data-lineage-panel data-lineage-panel-output">
@@ -84,7 +79,7 @@ function animationStep(step, stage) {
       ${sampleTable(step.main_columns.filter(column => column.role !== "Existing"), keys, null, "output", step.row_count,
         isCollapse || isExpand, profile, joins, step.input_tables.length ? isExpand ? "added" : isCollapse ? "removed" : null : null)}
     </div><div class="data-lineage-arrow" data-flow="${isSink ? "down" : "up"}">
-      <span class="data-lineage-edge" aria-hidden="true"></span><span class="data-lineage-node icon--functions" aria-hidden="true">${icon(operationIcon, "")}</span>
+      <span class="data-lineage-edge" aria-hidden="true"></span><span class="data-lineage-node icon--operators" aria-hidden="true">${icon(operationIcon, "")}</span>
       <span class="data-lineage-node-label"><small class="data-lineage-invocation-type">${escape(operationTitle)}</small>
         <code title="${escape(step.function)}">${escape(step.function_label)}</code></span>
     </div><div class="data-lineage-panel data-lineage-sources">${sources}</div></div></article>`;
@@ -92,6 +87,7 @@ function animationStep(step, stage) {
 
 export function animation(data) {
   const stages = data.animation.stages.filter(stage => stage.length);
+  const functions = data.catalogs?.configuration?.functions || {};
   const datasets = new Map(), stageNumbers = new Map();
   stages.forEach((stage, index) => stage.forEach(step => {
     stageNumbers.set(step.number, index);
@@ -126,7 +122,7 @@ export function animation(data) {
       ${stages.length ? `<p id="animation-dataset-prompt" role="status" hidden>Choose a profile in Animation controls to view its operator.</p>
         <div id="data-lineage-board">${stages.map((stage, index) => `<section class="data-lineage-stage" aria-labelledby="stage-${index + 1}">
           <h2 id="stage-${index + 1}">Stage ${index + 1} / ${stage.length} independent step${stage.length === 1 ? "" : "s"}</h2>
-          ${stage.map(step => animationStep(step, index + 1)).join("")}</section>`).join("")}</div>`
+          ${stage.map(step => animationStep(step, index + 1, functions[step.function] || {})).join("")}</section>`).join("")}</div>`
         : "<p>No processing steps. Add function operator to the spec to display the animation.</p>"}</main>`,
   };
 }

@@ -5,6 +5,7 @@ import test from "node:test";
 const root = new URL("../../../src/uptimely/explorer/app/static/js/lineage/", import.meta.url);
 const moduleUrl = source => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
 const config = moduleUrl(await readFile(new URL("lineage_config.js", root), "utf8"));
+const shared = moduleUrl(await readFile(new URL("../rendering/shared_markup.js", root), "utf8"));
 const layoutModule = moduleUrl((await readFile(new URL("lineage_layout.js", root), "utf8"))
   .replace("./lineage_config.js", config));
 const { createLineageLinkRenderer, drawLineageLanes, lineageLinkRoute } = await import(layoutModule);
@@ -12,7 +13,8 @@ const { invocationRole, invocationColor, invocationContribution, invocationFlowD
   drawMainframeSpines, drawDatasetMarkers } =
   await import(moduleUrl((await readFile(new URL("invocation_layout.js", root), "utf8"))
     .replace("./lineage_config.js", config)
-    .replace("./lineage_layout.js", layoutModule)));
+    .replace("./lineage_layout.js", layoutModule)
+    .replace("../rendering/shared_markup.js", shared)));
 
 function node(id, stage, kind, profile = "pump") {
   const isMerge = kind === "merge";

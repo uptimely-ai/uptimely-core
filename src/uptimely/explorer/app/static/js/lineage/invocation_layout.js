@@ -1,5 +1,6 @@
 import { CARD_STYLE, DATASET_LAYOUT, MIN_RENDER_SCALE } from './lineage_config.js';
 import { prepareLineageLayout, prepareLineageRoutes } from './lineage_layout.js';
+import { ICONS, grainRelationshipIcon } from '../rendering/shared_markup.js';
 
 const INVOCATION_LAYOUT = Object.freeze({
 	cardHeight: CARD_STYLE.height, rowGap: 58, trackGap: 48, footerHeight: 28,
@@ -24,16 +25,8 @@ export function invocationRole(node) {
 }
 
 export function invocationIcon(node) {
-	const role = invocationRole(node);
-	if (role === 'merge') return 'git-merge';
-	if (role === 'effect') return 'arrow-up-right';
-	if (role === 'sink') return 'send';
-	const relationships = (node.grain_relationships || []).map(item => item.relationship);
-	if (relationships.includes('collapse')) return 'combine';
-	if (relationships.includes('expand')) return 'expand';
-	if (relationships.includes('same')) return 'table-properties';
-	if (relationships.includes('unrelated')) return 'shuffle';
-	return 'square-function';
+	const relationship = grainRelationshipIcon(node.grain_relationships);
+	return ICONS[relationship] || ICONS.operators;
 }
 
 export function invocationColor(node) {

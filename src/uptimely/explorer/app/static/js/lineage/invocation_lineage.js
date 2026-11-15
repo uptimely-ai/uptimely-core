@@ -60,7 +60,7 @@ export function initializeInvocationLineage(signal) {
 			outputRows.push(['Declared inputs', formatList(node.input_features)]);
 		}
 		ExplorerLineage.showDetails(invocationNodeDetails, invocationLabel(node), [
-			{ title: 'Invocation', icon: 'square-function', rows: definitionRows },
+			{ title: 'Invocation', icon: invocationIcon(node), rows: definitionRows },
 			{ title: 'Arguments', icon: 'braces', rows: Object.entries(node.arguments || {}).length
 				? Object.entries(node.arguments).map(([name, value]) => [name, JSON.stringify(value)])
 				: [['Bindings', 'None']] },

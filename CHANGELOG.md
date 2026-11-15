@@ -14,6 +14,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Binding dataframe contracts are available in the Spec vocabulary.
 - Explorer function entries infer frame operations from dataframe input and
   output counts.
+- The Functions overview groups functions by dataframe signature.
 - Profiles can designate an explicitly identified seed operator that initializes
   their dataset before other fragments are merged.
 - Python `Operator` declarations can omit `id`. It is generated from the compute
@@ -30,6 +31,12 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Operator boxes no longer display a grain-relationship badge. Merge tooltips
   retain that information where applicable.
 - Operator boxes no longer display binding-contract details.
+- The Functions by return type chart spans the full overview width.
+- Explorer function icons reflect dataframe signatures, and operator icons
+  reflect grain relationships instead of function-return or binding-role icons.
+  Function signature groups are named read, transform, merge, write, and workflow,
+  each with its own icon. Function details show the category and a dataframe
+  input/output graphic.
 - Portable execution plans use format version 14 and no longer contain inferred
   operator labels. Explorer presents inferred grain relationships separately.
 - Python `Operator` declarations accept only `compute` and optional `merge`

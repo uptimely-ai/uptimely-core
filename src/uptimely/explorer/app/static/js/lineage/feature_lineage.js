@@ -1,16 +1,11 @@
 import { ExplorerLineage } from './lineage_components.js';
 import { initializeLineage } from './lineage_initializer.js';
 import { projectFeatureLineage } from './feature_projection.js';
-import { ICONS, dataTypeIconName } from '../rendering/shared_markup.js';
+import { ICONS, dataTypeIconName, grainRelationshipIcon } from '../rendering/shared_markup.js';
 
 function operatorIcon(node) {
-	if (node.function_returns === 'any') return 'arrow-up-right';
-	if (node.function_returns === 'none') return 'send';
-	const relationships = (node.grain_relationships || []).map(item => item.relationship);
-	if (relationships.includes('collapse')) return 'combine';
-	if (relationships.includes('expand')) return 'expand';
-	if (relationships.includes('same')) return 'table-properties';
-	return 'square-function';
+	const relationship = grainRelationshipIcon(node.grain_relationships);
+	return ICONS[relationship] || ICONS.operators;
 }
 
 function grainRelationships(values) {
@@ -53,7 +48,7 @@ export function initializeFeatureLineage(signal) {
 			];
 			if (entrypoint) functionRows.push(['Entrypoint', entrypoint]);
 			ExplorerLineage.showDetails(nodeDetails, label, [
-				{ title: 'Definition', icon: 'square-function', rows: [
+				{ title: 'Definition', icon: operatorIcon(node), rows: [
 					['Operator ID', node.operator_id || label], ...functionRows,
 				] },
 				profileSection,

@@ -11,11 +11,17 @@ export function initializeCatalog(signal) {
   const catalogSectionTitle = catalogTitle.textContent;
   const catalogDocumentTitle = document.title;
   const catalogHeading = document.querySelector("main h1");
+  const functionCategoryBadge = document.createElement("span");
   const catalogIcon = catalogHeading.querySelector("[data-lucide]").cloneNode(true);
   const catalogSectionCount = document.querySelector("[data-section-count]");
   const catalogDescription = document.querySelector("[data-section-description]");
   const catalogSectionDescription = catalogDescription?.textContent;
   catalogHeading.setAttribute("tabindex", "-1");
+  if (catalogPanel.dataset.contextLabel === "functions") {
+    functionCategoryBadge.className = "function-category-badge";
+    functionCategoryBadge.hidden = true;
+    catalogHeading.parentElement.append(functionCategoryBadge);
+  }
   history.scrollRestoration = "manual";
   let scrollFrame;
   signal.addEventListener("abort", () => cancelAnimationFrame(scrollFrame), { once: true });
@@ -30,6 +36,10 @@ export function initializeCatalog(signal) {
     const selected = catalogItems.find(item => item === target || item.contains(target) || target?.contains(item))
       || document.getElementById(decodeURIComponent(catalogLinks[0].hash.slice(1)));
     const isOverview = selected.id === "overview";
+    if (catalogPanel.dataset.contextLabel === "functions") {
+      functionCategoryBadge.textContent = isOverview ? "" : selected.dataset.functionCategory || "";
+      functionCategoryBadge.hidden = !functionCategoryBadge.textContent;
+    }
     const dimensionLabel = document.querySelector("[data-dimension-label]");
     if (dimensionLabel) dimensionLabel.hidden = isOverview;
     if (catalogSectionCount) {
