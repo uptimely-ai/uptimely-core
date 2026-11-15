@@ -119,13 +119,7 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
     )
     assert series_compute.fragment_keys == reader.fragment_keys
     assert "pump_assets_source" not in series_compute.arguments
-    reader_merge = next(
-        invocation
-        for invocation in restored.invocations
-        if invocation.profile_id == "pump"
-        and invocation.operator_id == reader.operator_id
-        and invocation.role == "merge"
-    )
+    assert reader.is_seed
     series_merge = next(
         invocation
         for invocation in restored.invocations
@@ -133,7 +127,7 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         and invocation.operator_id == series_compute.operator_id
         and invocation.role == "merge"
     )
-    assert reader_merge.id not in series_merge.dependency_ids
+    assert reader.id in series_merge.dependency_ids
     assert "key_columns" not in series_merge.arguments
     paths = _configured_paths(bundle.project_root)
 

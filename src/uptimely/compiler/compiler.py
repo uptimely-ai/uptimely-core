@@ -367,6 +367,19 @@ class Compiler:
                 if producer is not None and producer != node:
                     dependencies[node.node_id].add(producer.node_id)
 
+        for node in invocations:
+            profile = spec_definition.profiles[node.profile_id]
+            if profile.seed is None or node.operator_id == profile.seed:
+                continue
+            seed = by_binding[(node.profile_id, profile.seed, "compute")]
+            if (
+                node.role == "merge"
+                or node.result == "target"
+                or node.is_sink
+                or node.dataframe_input_scope == "target"
+            ):
+                dependencies[node.node_id].add(seed.node_id)
+
         for key, operator in spec_definition.operator_items:
             profile_id = spec_definition.profiles_by_key[key[0]].id
             for role, binding in operator.bindings.items():

@@ -246,7 +246,7 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
     configuration = _configuration()
     operator_id = _operator_key(configuration, "pump_telemetry", "pressure_flow_efficiency")
     operator = configuration["profiles"]["pump_telemetry"]["assembly"][operator_id]
-    operator["compute"]["args"] = {"unexpected": None}
+    operator["compute"]["args"] = {"dataset": "$profiles.@.dataset", "unexpected": None}
     model = spec.Spec.model_validate(configuration)
 
     with pytest.raises(validation.SpecError) as error:

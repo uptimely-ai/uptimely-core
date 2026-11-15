@@ -57,6 +57,24 @@ class Profile:
     A ProfileFeatures instance may group feature declarations referenced by
     assembly outputs. Relations declare resolutions linking to other profiles
     without changing the observation grain.
+
+    Args:
+        id: Globally unique profile identifier.
+        assembly: Operators as a sequence or as named groups of operators.
+        name: Human-readable profile name.
+        description: Description of the profile.
+        category: Free-form grouping label.
+        scope: Free-form description of the observation scope.
+        seed: ID of the assembly operator that initializes the dataset. The
+            operator must have an explicit ID, return a complete dataframe
+            containing the profile's grain keys, and use a seed binding without
+            a merge. It cannot consume the target dataset. A source dataframe
+            from another profile must be non-nullable. Other
+            fragments merge after the seed. When omitted, accumulation follows
+            the existing behavior.
+        grain: Resolutions identifying profile rows.
+        relations: Resolutions relating the profile to other profiles.
+        order: Logical ordering of profile observations.
     """
 
     id: str
@@ -68,6 +86,7 @@ class Profile:
     grain: abc.Sequence[dimension_module.Resolution] = ()
     relations: abc.Sequence[dimension_module.Resolution] = ()
     order: abc.Sequence[Order] = ()
+    seed: str | None = None
     assembly: (
         abc.Sequence[assembly.Operator] | abc.Mapping[str, abc.Sequence[assembly.Operator]]
     ) = ()
@@ -123,6 +142,7 @@ class Profile:
         description: str | None = None,
         category: str | None = None,
         scope: str | None = None,
+        seed: str | None = None,
         grain: abc.Sequence[dimension_module.Resolution] | None = None,
         relations: abc.Sequence[dimension_module.Resolution] | None = None,
         order: abc.Sequence[Order] | None = None,
@@ -167,6 +187,8 @@ class Profile:
             self.relations = tuple(relations)
         if order is not None:
             self.order = tuple(order)
+        if seed is not None:
+            self.seed = seed
         self.assembly = self._flatten_assembly(self.assembly if assembly is None else assembly)
         _ = self._assembly_by_id
 
@@ -186,7 +208,23 @@ class Profile:
                 )
             if operator.id in collected:
                 raise ValueError(f"Profile '{self.id}' has duplicate operator ID '{operator.id}'")
+            if operator.seed is not None and operator.id != self.seed:
+                raise ValueError(
+                    f"Profile '{self.id}' seed binding must be referenced by profile seed"
+                )
             collected[operator.id] = operator
+        if self.seed is not None:
+            if not isinstance(self.seed, str) or not self.seed.strip():
+                raise ValueError(f"Profile '{self.id}' seed must be a non-empty operator ID")
+            seed = collected.get(self.seed)
+            if seed is None:
+                raise ValueError(f"Profile '{self.id}' seed operator '{self.seed}' does not exist")
+            if not seed._id_explicit:
+                raise ValueError(f"Profile '{self.id}' seed operator must have an explicit id")
+            if seed.seed is None:
+                raise ValueError(f"Profile '{self.id}' seed operator must use a seed binding")
+            if seed.merge is not None:
+                raise ValueError(f"Profile '{self.id}' seed operator must not have a merge")
         return collected
 
     def _flatten_assembly(
@@ -237,6 +275,7 @@ class Profile:
             description=self.description,
             category=self.category,
             scope=self.scope,
+            seed=self.seed,
             grain=grain,
             relations=[
                 spec_model.Grain(dimension=dimension.id, resolution=resolution.id)

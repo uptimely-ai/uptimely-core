@@ -34,16 +34,17 @@ class PumpCategory(Profile):
     grain = [dimension.MACHINE_DIMENSION.resolution("machine_category")]
     scope = "Cooling-pump categories declared in the data-center asset registry"
     features = PumpCategoryFeatures()
+    seed = "read_pump_category"
     assembly = [
         Operator(
+            id="read_pump_category",
             outputs=[features.max_capacity],
-            read=Bind(
+            seed=Bind(
                 io.read_file,
                 source=ref.paths("pump_category_source"),
                 rename={"max_capacity": features.max_capacity},
                 schema={"max_capacity": "float"},
             ),
-            merge=merge.default(),
         ),
         Operator(
             inputs=[ref.feature("bearing_temperature")],

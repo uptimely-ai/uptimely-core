@@ -150,11 +150,13 @@ measurement_id = up.Dimension(
 
 class MyAnalyticalProfile(up.Profile):
     grain = [measurement_id.resolution("measurement_id")]
+    seed = "read_values"
 
     assembly = [
         up.Operator(
+            id="read_values",
             outputs=[up.Feature(id="value")],
-            read=up.Bind(read_values),
+            seed=up.Bind(read_values),
         ),
         up.Operator(
             outputs=[up.Feature(id="doubled")],

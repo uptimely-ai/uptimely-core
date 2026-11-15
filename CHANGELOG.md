@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Profiles can designate an explicitly identified seed operator that initializes
+  their dataset before other fragments are merged.
 - Python `Operator` declarations can omit `id`. It is generated from the compute
   or stage function ID and output feature ID or count, with a short SHA-256 suffix.
 - Named configs in `config/<name>.toml` recursively override
@@ -23,8 +25,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   sources and sinks. Reads can use a merge to add their returned fragment.
 - Python `Operator` declarations place feature `inputs` and `outputs` directly
   on the operator instead of wrapping them in an `Interface`.
-- Python operators use `stage` with `merge` for fragments and cross-profile
-  feature inputs. `compute` is reserved for operations without a merge.
+- Python operators use `seed` for dataset initialization and `stage` with
+  `merge` for fragments. `compute` is reserved for operations without a merge.
 - Python authoring uses `Bind` (renamed from `Binding`), taking the function
   positionally and its arguments as keywords.
 - CLI actions now use one top-level command, including `uptimely build`,

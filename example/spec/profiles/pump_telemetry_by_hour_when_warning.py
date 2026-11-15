@@ -5,7 +5,7 @@ import pump_analytics as analytics
 import pump_io as io
 from spec import dimension
 
-from uptimely import Bind, Feature, FeatureSet, Operator, Order, Profile, merge, ref
+from uptimely import Bind, Feature, FeatureSet, Operator, Order, Profile, ref
 
 
 class HourlyWarningTelemetryFeatures(FeatureSet):
@@ -74,9 +74,11 @@ class PumpTelemetryByHourWhenWarning(Profile):
     scope = "Only telemetry records with pump_mode = warning."
     order = (Order(dimension.MACHINE_TIMESTAMP, "hour", direction="asc"),)
     features = HourlyWarningTelemetryFeatures()
+    seed = "aggregate_warning"
 
     assembly = [
         Operator(
+            id="aggregate_warning",
             inputs=[
                 ref.feature("warning_differential_pressure"),
                 ref.feature("warning_flow_rate"),
@@ -91,7 +93,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
                 features.warning_hour_max_bearing_temperature,
                 features.warning_hour_max_vibration_rms,
             ],
-            stage=Bind(
+            seed=Bind(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry_when_warning"),
                 aggregations={
@@ -115,7 +117,6 @@ class PumpTelemetryByHourWhenWarning(Profile):
                     "warning_vibration_rms": features.warning_hour_max_vibration_rms,
                 },
             ),
-            merge=merge.default(),
         ),
         Operator(
             outputs=[features.operating_point_recommendation],

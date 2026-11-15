@@ -15,7 +15,9 @@ from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import model as spec_model
 from uptimely.spec import operator_kinds
+from uptimely.spec import serialization as spec_serialization
 from uptimely.spec.python import assembly, dimension, feature, merge, profile, ref
+from uptimely.spec.validation import validate_spec
 
 
 def read_values(lazy: bool = False, empty: bool = False) -> pl.DataFrame | pl.LazyFrame:
@@ -129,6 +131,15 @@ def conform_source(source: pl.DataFrame, matching_keys: list[str]) -> pl.DataFra
     assert source.columns == ["group", "source_value"]
     assert matching_keys == ["group"]
     return source.select(*matching_keys, pl.col("source_value").alias("conformed_value"))
+
+
+def merge_seeded_dataset(dataset: pl.DataFrame | None, fragment: pl.DataFrame) -> pl.DataFrame:
+    assert dataset is not None
+    return dataset.join(fragment, on="group", how="full", coalesce=True)
+
+
+def write_seeded_dataset(dataset: pl.DataFrame, output: str) -> None:
+    dataset.write_csv(output)
 
 
 def nested_maximum(
@@ -334,6 +345,158 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     assert result.datasets["target"].sort("group").to_dicts() == [
         {"group": "B", "conformed_value": 2},
         {"group": "C", "conformed_value": 3},
+    ]
+
+
+@pytest.mark.parametrize("foreign_seed", [False, True])
+def test_profile_seed_is_persisted_and_runs_before_fragment_merges(
+    foreign_seed: bool, engine_for_plan: execution_support.EngineFactory
+) -> None:
+    group = dimension.Dimension(
+        id="group",
+        resolutions=[dimension.Resolution(id="group", key="group", type="string")],
+    )
+    if foreign_seed:
+        seed = assembly.Operator(
+            id="initial",
+            inputs=[ref.feature("source_value")],
+            outputs=[feature.Feature(id="conformed_value")],
+            seed=assembly.Bind(
+                ref.function(conform_source),
+                source=ref.profile("foreign").dataset,
+                matching_keys=ref.profile().grain.ids,
+            ),
+        )
+        foreign = profile.Profile(
+            id="foreign",
+            grain=[group.resolution("group")],
+            assembly=[
+                assembly.Operator(
+                    id="foreign_read",
+                    outputs=[feature.Feature(id="source_value")],
+                    read=assembly.Bind(ref.function(read_conform_source)),
+                    merge=merge.default(),
+                )
+            ],
+        )
+        profiles = [foreign]
+    else:
+        seed = assembly.Operator(
+            id="initial",
+            outputs=[feature.Feature(id="source_value")],
+            seed=assembly.Bind(ref.function(read_conform_source)),
+        )
+        profiles = []
+
+    target = profile.Profile(
+        id="target",
+        seed="initial",
+        grain=[group.resolution("group")],
+        assembly=[
+            assembly.Operator(
+                outputs=[feature.Feature(id="base_value")],
+                read=assembly.Bind(ref.function(read_conform_target)),
+                merge=assembly.Bind(
+                    ref.function(merge_seeded_dataset),
+                    dataset=ref.dataset(),
+                    fragment=ref.fragment(),
+                ),
+            ),
+            seed,
+        ],
+    )
+    spec_definition = spec.from_python(profiles=[target, *profiles])
+    document = spec_serialization.to_document(spec_definition)
+    restored = spec_model.Spec.model_validate(json.loads(json.dumps(document)))
+    validate_spec(restored)
+    assert restored.profiles["target"].seed == "initial"
+
+    plan = compiler.Compiler().compile(restored, features=["base_value"])
+    portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
+    initial = next(item for item in portable.invocations if item.operator_id == "initial")
+    merged = next(
+        item
+        for item in portable.invocations
+        if item.profile_id == "target" and item.role == "merge"
+    )
+    assert initial.is_seed
+    assert initial.id in merged.dependency_ids
+    assert not any(
+        item.operator_id == "initial" and item.role == "merge" for item in portable.invocations
+    )
+
+    result = engine_for_plan(portable, spec_definition=restored).run()
+    assert result.failures == {}
+    assert result.datasets["target"].sort("group")["group"].to_list() == ["A", "B", "C"]
+    assert not any(profile_id == "target" for profile_id, _ in result.calculated_outputs)
+
+
+def test_seed_requires_all_target_grain_keys(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    group = dimension.Dimension(
+        id="group",
+        resolutions=[dimension.Resolution(id="group", key="group", type="string")],
+    )
+    target = profile.Profile(
+        id="target",
+        grain=[group.resolution("group")],
+        seed="initial",
+        assembly=[
+            assembly.Operator(
+                id="initial",
+                outputs=[feature.Feature(id="source_value")],
+                seed=assembly.Bind(ref.function(read_reference_constant)),
+            )
+        ],
+    )
+    spec_definition = spec.from_python(profiles=[target])
+    plan = compiler.Compiler().compile(spec_definition)
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
+    assert any("missing identifier columns: group" in error for error in result.failures.values())
+
+
+def test_write_receives_the_seeded_dataset(
+    tmp_path: pathlib.Path, engine_for_plan: execution_support.EngineFactory
+) -> None:
+    group = dimension.Dimension(
+        id="group",
+        resolutions=[dimension.Resolution(id="group", key="group", type="string")],
+    )
+    output = tmp_path / "output.csv"
+    target = profile.Profile(
+        id="target",
+        grain=[group.resolution("group")],
+        seed="initial",
+        assembly=[
+            assembly.Operator(
+                id="initial",
+                outputs=[feature.Feature(id="source_value")],
+                seed=assembly.Bind(ref.function(read_conform_source)),
+            ),
+            assembly.Operator(
+                id="write",
+                write=assembly.Bind(
+                    ref.function(write_seeded_dataset),
+                    dataset=ref.dataset(),
+                    output=str(output),
+                ),
+            ),
+        ],
+    )
+    spec_definition = spec.from_python(profiles=[target])
+    plan = compiler.Compiler().compile(spec_definition, features=["source_value"])
+    seed = next(invocation for invocation in plan.invocations if invocation.is_seed)
+    writer = next(
+        invocation for invocation in plan.invocations if invocation.operator_id == "write"
+    )
+    assert seed.id in writer.dependency_ids
+
+    result = engine_for_plan(plan, spec_definition=spec_definition).run()
+    assert result.failures == {}
+    assert pl.read_csv(output).to_dicts() == [
+        {"group": "B", "source_value": 2},
+        {"group": "C", "source_value": 3},
     ]
 
 

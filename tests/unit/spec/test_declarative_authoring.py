@@ -8,7 +8,7 @@ import pytest
 
 from uptimely.spec import model as spec_model
 from uptimely.spec import python as authoring
-from uptimely.spec.python import conversion, dimension, ref, row_context
+from uptimely.spec.python import conversion, dimension, merge, ref, row_context
 from uptimely.spec.validation import errors as validation_errors
 from uptimely.spec.validation import validate_spec
 
@@ -37,6 +37,108 @@ def test_dataset_name_defaults_to_humanized_id() -> None:
 
     assert declaration.name == "Pump Telemetry Dataset"
     assert declaration.to_model().name == "Pump Telemetry Dataset"
+
+
+def test_seed_requires_an_explicit_operator_id_only_for_the_seed() -> None:
+    generated = authoring.Operator(
+        outputs=[authoring.Feature(id="other")],
+        read=authoring.Bind(ref.function("reader:read_other", returns="dataframe")),
+    )
+    seed = authoring.Operator(
+        id="initial",
+        outputs=[authoring.Feature(id="value")],
+        seed=authoring.Bind(ref.function("reader:read", returns="dataframe")),
+    )
+    declaration = authoring.Profile(id="example", seed="initial", assembly=[generated, seed])
+
+    assert declaration.to_model().seed == "initial"
+    assert generated.id in declaration.to_model().assembly
+    generated_seed = authoring.Operator(
+        outputs=[authoring.Feature(id="seed_value")],
+        seed=authoring.Bind(ref.function("reader:seed", returns="dataframe")),
+    )
+    with pytest.raises(ValueError, match="explicit id"):
+        authoring.Profile(id="example", seed=generated_seed.id, assembly=[generated_seed])
+    with pytest.raises(ValueError, match="does not exist"):
+        authoring.Profile(id="example", seed="missing", assembly=[generated])
+    with pytest.raises(ValueError, match="merge is allowed only with read or stage"):
+        dataclasses.replace(seed, merge=merge.default())
+    with pytest.raises(ValueError, match="referenced by profile seed"):
+        authoring.Profile(id="example", assembly=[seed])
+
+
+@pytest.mark.parametrize("role", ["read", "compute"])
+def test_profile_seed_requires_seed_binding(role: str) -> None:
+    operator = authoring.Operator(
+        id="initial",
+        outputs=[authoring.Feature(id="value")],
+        **{role: authoring.Bind(ref.function("reader:read", returns="dataframe"))},
+    )
+    with pytest.raises(ValueError, match="must use a seed binding"):
+        authoring.Profile(id="example", seed="initial", assembly=[operator])
+
+
+def test_seed_binding_requires_a_dataframe_result() -> None:
+    declaration = authoring.Profile(
+        id="example",
+        seed="initial",
+        assembly=[
+            authoring.Operator(
+                id="initial",
+                seed=authoring.Bind(ref.function("reader:run", returns="none")),
+            )
+        ],
+    )
+    with pytest.raises(ValueError, match="seed binding must return a dataframe"):
+        conversion.to_model(profiles=[declaration])
+
+
+@pytest.mark.parametrize(
+    ("invalid", "message"),
+    [
+        ("unknown", "must reference an operator"),
+        ("merge", "must not have a merge"),
+        ("non_dataframe", "must return a dataframe"),
+        ("target_input", "cannot consume its own target dataframe"),
+        ("nullable_target", "cannot consume its own target dataframe"),
+        ("nullable_foreign", "dataframe input must not be nullable"),
+    ],
+)
+def test_loaded_spec_rejects_invalid_seed(invalid: str, message: str) -> None:
+    declaration = authoring.Profile(
+        id="example",
+        assembly=[
+            authoring.Operator(
+                id="initial",
+                outputs=[authoring.Feature(id="value")],
+                read=authoring.Bind(ref.function("reader:read", returns="dataframe")),
+            ),
+            authoring.Operator(
+                id="other",
+                outputs=[authoring.Feature(id="other")],
+                read=authoring.Bind(ref.function("reader:other", returns="dataframe")),
+                merge=merge.default(),
+            ),
+        ],
+    )
+    document = conversion.to_dict(profiles=[declaration])
+    profile = document["profiles"]["example"]
+    profile["seed"] = "missing" if invalid == "unknown" else "initial"
+    seed = profile["assembly"]["initial"]
+    if invalid == "merge":
+        seed["merge"] = profile["assembly"]["other"]["merge"]
+    elif invalid == "non_dataframe":
+        document["functions"][seed["compute"]["function"]]["returns"] = "none"
+    elif invalid in {"target_input", "nullable_target", "nullable_foreign"}:
+        document["functions"][seed["compute"]["function"]]["args"]["dataset"] = {
+            "type": "dataframe" if invalid == "target_input" else "dataframe | null"
+        }
+        seed["compute"]["args"]["dataset"] = (
+            "$profiles.foreign.dataset" if invalid == "nullable_foreign" else "$profiles.@.dataset"
+        )
+
+    with pytest.raises(ValueError, match=message):
+        validate_spec(spec_model.Spec.model_validate(document))
 
 
 def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:

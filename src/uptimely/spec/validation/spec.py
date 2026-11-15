@@ -37,6 +37,7 @@ REFERENCE_CHECKS: tuple[Validator, ...] = (
     functions.validate_function_contracts,
     operator_outputs.validate_compute_function_exists,
     operator_outputs.validate_merge_function_exists,
+    profiles.validate_seeds,
     operator_inputs.validate_feature_only_interfaces,
     operator_inputs.validate_input_feature,
     operator_inputs.validate_feature_reference,

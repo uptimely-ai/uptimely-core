@@ -59,6 +59,7 @@ planned function call. Its portable fields are:
 | `operator_kind` | Descriptive operator label used by tools and diagnostics. Execution behavior is declared by the other contract fields. |
 | `produces_features` | Whether this invocation publishes its outputs as feature dependencies. |
 | `is_sink` | Whether this invocation performs a configured publication or write. |
+| `is_seed` | Whether this invocation initializes its profile dataset as the designated seed. |
 | `dataframe_input_scope` | Declares the scope of dataframe input provided to the invocation. |
 | `fragment_dimensions` | Describes the allowed dimensional grain of a fragment result relative to its target. |
 | `row_count_relation` | States whether output rows must preserve the existing row count or may differ. |

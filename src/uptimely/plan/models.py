@@ -82,6 +82,7 @@ class Invocation(_PlanModel):
     operator_kind: operator_kinds.OperatorKindId
     produces_features: bool = False
     is_sink: bool = False
+    is_seed: bool = False
     dataframe_input_scope: operator_kinds.DataFrameInputScope = "unrestricted"
     fragment_dimensions: operator_kinds.FragmentDimensions = "not_applicable"
     row_count_relation: operator_kinds.RowCountRelation = "unrestricted"
@@ -171,6 +172,7 @@ class Invocation(_PlanModel):
             operator_kind=node.operator_kind,
             produces_features=node.produces_features,
             is_sink=node.is_sink,
+            is_seed=node.role == "compute" and profile.seed == node.operator_id,
             dataframe_input_scope=node.dataframe_input_scope,
             fragment_dimensions=node.fragment_dimensions,
             row_count_relation=node.row_count_relation,

@@ -39,10 +39,12 @@ def maximum(
 class CoolingPumpTelemetry(up.Profile):
     id = "cooling_pump_telemetry"
     grain = [machine.resolution("machine"), timestamp.resolution("timestamp")]
+    seed = "read_telemetry"
     assembly = [
         up.Operator(
+            id="read_telemetry",
             outputs=[up.Feature(id="motor_bearing_temperature")],
-            read=up.Bind(read_telemetry),
+            seed=up.Bind(read_telemetry),
         ),
     ]
 
@@ -50,18 +52,19 @@ class CoolingPumpTelemetry(up.Profile):
 class CoolingPump(up.Profile):
     id = "cooling_pump_summary"
     grain = [machine.resolution("machine")]
+    seed = "summarize"
     assembly = [
         up.Operator(
+            id="summarize",
             inputs=[up.ref.feature("motor_bearing_temperature")],
             outputs=[up.Feature(id="motor_bearing_temperature_max")],
-            stage=up.Bind(
+            seed=up.Bind(
                 maximum,
                 dataset=up.ref.dataset("cooling_pump_telemetry"),
                 feature=up.ref.feature("motor_bearing_temperature"),
                 dimensions=up.ref.profile().grain.ids,
                 output=up.ref.feature("motor_bearing_temperature_max").id,
             ),
-            merge=up.merge.default(),
         ),
     ]
 
@@ -76,6 +79,7 @@ When omitted, an operator ID is generated from its primary binding's function
 ID, output interface, and an eight-character SHA-256 hash of that prefix. A
 single output contributes its feature ID to the prefix. Otherwise, the output
 count is used.
+The operator referenced by a profile's `seed` must have an explicit ID.
 
 ## Profiles and features
 
@@ -119,11 +123,17 @@ input. A read may use `merge` to combine its returned fragment with the profile
 data. Use `write` for a function that takes one dataframe and returns no result.
 Use `compute` for transformations of data in the current profile. For
 transformations that use another profile's dataframe, or return a fragment for
-Uptimely to combine with existing data, use `stage` together with a merge
-binding such as `merge=up.merge.default()`. Custom merge functions are also
-supported.
+Uptimely to combine with existing data, use `stage` together with a merge binding such as
+`merge=up.merge.default()`. Custom merge functions are also supported.
 
-Each operator declares one primary binding: `read`, `compute`, `write`, or
+An optional `seed` names the assembly operator that initializes the profile
+dataset. It must return a complete target dataframe, including every grain key,
+and must use a `seed` binding without a merge or consuming the target dataset.
+It can read external data or use a non-nullable dataframe from another profile.
+Other fragments merge after the seed, regardless of assembly order. Profiles
+without a seed retain their existing accumulation behavior.
+
+Each operator declares one primary binding: `seed`, `read`, `compute`, `write`, or
 `stage`. A stage requires a merge, while a read can optionally use one. The
 generated Spec stores the primary binding as `compute`; function contracts and
 dataframe inputs determine its operator kind. See the [engine reference](engine.md)

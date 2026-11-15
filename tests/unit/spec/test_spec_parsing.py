@@ -505,6 +505,9 @@ def test_spec_validation_rejects_duplicate_fragment_input_names(
     profile = configuration["profiles"]["pump_telemetry"]
     profile["assembly"]["duplicate_input"] = {
         "compute": profile["assembly"]["read_pump_telemetry"]["compute"],
+        "merge": configuration["profiles"]["pump"]["assembly"]["bearing_temperature_by_pump"][
+            "merge"
+        ],
         "interface": {"inputs": [], "outputs": ["$features.bearing_temperature"]},
     }
     spec_path = tmp_path / "spec.json"

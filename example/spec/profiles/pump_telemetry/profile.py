@@ -46,6 +46,7 @@ class PumpTelemetry(Profile):
     scope = "Synthetic data-center cooling pump telemetry for demonstration"
     order = (Order(dimension.MACHINE_TIMESTAMP, "timestamp", direction="asc"),)
     features = TelemetryFeatures()
+    seed = "read_pump_telemetry"
 
     assembly = dict(
         ingestion=[
@@ -59,12 +60,11 @@ class PumpTelemetry(Profile):
                     features.motor_power,
                     features.mode,
                 ],
-                read=Bind(
+                seed=Bind(
                     io.read_pump_telemetry,
                     pump_telemetry_source=ref.paths("telemetry_source"),
                     pump_source=ref.paths("pump_assets_source"),
                 ),
-                merge=merge.default(),
             ),
         ],
         calculations=[

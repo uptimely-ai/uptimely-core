@@ -724,7 +724,11 @@ def test_engine_rejects_invalid_fragments(
         paths=_engine_paths(pump_bundle.project_root),
     )
     operation = next(
-        operation for operation in engine.plan.invocations if operation.profile_id == "pump"
+        operation
+        for operation in engine.plan.invocations
+        if operation.profile_id == "pump"
+        and operation.operator_id == "bearing_temperature_by_pump"
+        and operation.result == "fragment"
     )
 
     main = execution_support.dataset(

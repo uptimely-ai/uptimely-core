@@ -177,6 +177,7 @@ class Profile(base.StrictModel):
     description: str | None = None
     category: str | None = None
     scope: str | None = None
+    seed: str | None = None
     grain: list[Grain] = pydantic.Field(default_factory=list)
     relations: list[Grain] = pydantic.Field(default_factory=list)
     features: dict[str, Feature] = pydantic.Field(default_factory=dict)

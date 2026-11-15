@@ -255,6 +255,7 @@ keys.
 | `description` | string or null | No | `null` | Explanation of the profile. |
 | `category` | string or null | No | `null` | Optional free-form grouping label. |
 | `scope` | string or null | No | `null` | Free-form descriptive information. It does not affect validation or execution. |
+| `seed` | string or null | No | `null` | Assembly operator ID initializing the complete profile dataset before accumulation. |
 | `grain` | array of objects | No | `[]` | Ordered dimension-resolution references defining row detail. |
 | `relations` | array of objects | No | `[]` | Resolutions relating observations to foreign profiles without contributing to row identity. |
 | `order` | array of objects | No | `[]` | Logical ordering by selected grain references. |
@@ -262,6 +263,13 @@ keys.
 | `assembly` | object | No | `{}` | Operators keyed by identifier, unique within this profile. |
 
 Selectors not accepted as values.
+
+When set, `seed` refers to an operator in the profile's assembly. The operator
+returns a complete dataframe with the target grain keys, does not have a merge,
+and does not consume the target profile's dataframe. It can read a source or
+derive the dataset from another profile using a non-nullable dataframe input.
+Other fragments merge after the seed.
+Profiles without a seed retain the existing accumulation behavior.
 
 Each grain reference contains a bare `dimension` identifier and a `resolution`
 identifier from that dimension. Together they identify the resolution. A
