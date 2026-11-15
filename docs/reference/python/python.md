@@ -13,6 +13,20 @@ machine = up.Dimension(
     id="machine",
     resolutions=[up.Resolution(id="machine", key="machine", type="string")],
 )
+timestamp = up.Dimension(
+    id="timestamp",
+    resolutions=[up.Resolution(id="timestamp", key="timestamp", type="integer")],
+)
+
+
+def read_telemetry() -> pl.LazyFrame:
+    return pl.LazyFrame(
+        {
+            "machine": ["pump_1", "pump_1"],
+            "timestamp": [1, 2],
+            "motor_bearing_temperature": [60, 65],
+        }
+    )
 
 
 @up.function(returns="dataframe")
@@ -22,12 +36,26 @@ def maximum(
     return dataset.group_by(dimensions).agg(pl.col(feature).max().alias(output))
 
 
+class CoolingPumpTelemetry(up.Profile):
+    id = "cooling_pump_telemetry"
+    grain = [machine.resolution("machine"), timestamp.resolution("timestamp")]
+    assembly = [
+        up.Operator(
+            interface=up.Interface(
+                outputs=[up.Feature(id="motor_bearing_temperature")],
+            ),
+            compute=up.Binding(read_telemetry),
+        ),
+    ]
+
+
 class CoolingPump(up.Profile):
     id = "cooling_pump_summary"
     grain = [machine.resolution("machine")]
     assembly = [
         up.Operator(
             interface=up.Interface(
+                inputs=[up.ref.feature("motor_bearing_temperature")],
                 outputs=[up.Feature(id="motor_bearing_temperature_max")],
             ),
             stage=up.Binding(
@@ -42,12 +70,16 @@ class CoolingPump(up.Profile):
     ]
 
 
-specification = up.Spec(profiles=[CoolingPump], name="Data-center cooling pump analytics")
+specification = up.Spec(
+    profiles=[CoolingPumpTelemetry, CoolingPump],
+    name="Data-center cooling pump analytics",
+)
 ```
 
-When omitted, an operator ID is generated from its compute or stage function ID, output
-interface, and an eight-character SHA-256 hash of that prefix. A single output
-contributes its feature ID to the prefix. Otherwise, the output count is used.
+When omitted, an operator ID is generated from its compute or stage function ID,
+output interface, and an eight-character SHA-256 hash of that prefix. A single
+output contributes its feature ID to the prefix. Otherwise, the output count is
+used.
 
 ## Profiles and features
 
@@ -70,12 +102,13 @@ arguments. If `inputs` is omitted, feature references in the arguments are used
 to infer dependencies. Set `inputs=[]` to disable that inference.
 
 Use `up.ref` to refer to profile data, features, and other Spec values without
-loading data during authoring. `up.ref.feature("name")` refers to a feature's
-value; append `.id` when the function needs its identifier, such as an output
-column name. Use `up.ref.paths("name")` for a file or directory configured in
-the project's `paths` map. The Engine resolves relative paths against the
-project root before invoking the function. Use `up.ref.params("name")` for a
-scalar configured in `params`, which is passed unchanged.
+loading data during authoring. `up.ref.feature("name")` passes a feature's
+identifier and declares an input dependency. Append `.id` to pass the identifier
+without adding an input dependency, such as for an output column name. Use
+`up.ref.paths("name")` for a file or directory configured in the project's
+`paths` map. The Engine resolves relative paths against the project root before
+invoking the function. Use `up.ref.params("name")` for a scalar configured in
+`params`, which is passed unchanged.
 
 `@up.function(returns=...)` describes what a function returns. Use
 `"dataframe"` for a dataframe, `"none"` for no result, or `"any"` when the

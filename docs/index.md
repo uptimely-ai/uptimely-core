@@ -149,28 +149,24 @@ measurement_id = up.Dimension(
 
 
 class MyAnalyticalProfile(up.Profile):
-    id = "calculated_profile"
     grain = [measurement_id.resolution("measurement_id")]
 
     assembly = [
         up.Operator(
-            id="read",
             interface=up.Interface(outputs=[up.Feature(id="value")]),
             compute=up.Binding(read_values),
         ),
         up.Operator(
-            id="double",
             interface=up.Interface(outputs=[up.Feature(id="doubled")]),
             compute=up.Binding(
                 double,
                 dataset=up.ref.dataset(),
                 value=up.ref.feature("value"),
-                output=up.ref.feature("doubled"),
+                output=up.ref.feature("doubled").id,
             ),
         ),
         up.Operator(
-            id="print",
-            interface=up.Interface(outputs=[]),
+            interface=up.Interface(inputs=[up.ref.feature("doubled")], outputs=[]),
             compute=up.Binding(print_results, dataset=up.ref.dataset()),
         ),
     ]
