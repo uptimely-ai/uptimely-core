@@ -36,7 +36,7 @@ class PumpTelemetryByMinute(Profile):
                 inputs=[ref.feature("bearing_temperature")],
                 outputs=[features.bearing_temperature_max],
             ),
-            compute=Binding(
+            stage=Binding(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry"),
                 aggregations={"bearing_temperature": "max"},

@@ -11,7 +11,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Added
 
 - Python `Operator` declarations can omit `id`. It is generated from the compute
-  function ID and output feature ID or count, with a short SHA-256 suffix.
+  or stage function ID and output feature ID or count, with a short SHA-256 suffix.
 - Named configs in `config/<name>.toml` recursively override
   project defaults from `uptimely.toml`.
 - `[application]` settings can provide default spec sources and source directories
@@ -19,6 +19,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Python operators use `stage` with `merge` for fragments and cross-profile
+  feature inputs. `compute` is reserved for operations without a merge.
 - Python `Binding` declarations now take the function positionally and pass
   function arguments as keyword arguments.
 - CLI actions now use one top-level command, including `uptimely build`,

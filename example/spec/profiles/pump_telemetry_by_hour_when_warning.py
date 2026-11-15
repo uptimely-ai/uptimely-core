@@ -93,7 +93,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
                     features.warning_hour_max_vibration_rms,
                 ],
             ),
-            compute=Binding(
+            stage=Binding(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry_when_warning"),
                 aggregations={

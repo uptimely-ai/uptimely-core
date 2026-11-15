@@ -125,4 +125,19 @@ def to_model(
                     for reference in interface.inputs
                     if reference.removeprefix(selectors.FEATURE_PREFIX) not in document.key_ids
                 ]
+    for declaration in declarations:
+        if not isinstance(declaration, profile_module.Profile):
+            continue
+        for operator in declaration._assembly_by_id.values():
+            if operator.compute is None:
+                continue
+            interface = document.profiles[declaration.id].assembly[operator.id].interface
+            for feature_id in interface.input_ids:
+                owners = document.feature_owners.get(feature_id, [])
+                if owners and declaration.id not in owners:
+                    raise ValueError(
+                        f"Profile '{declaration.id}', operator '{operator.id}': "
+                        f"input feature '{feature_id}' belongs to another profile; "
+                        "use stage and merge"
+                    )
     return document
