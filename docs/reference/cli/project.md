@@ -1,10 +1,6 @@
-# `uptimely project`
+# `uptimely build`
 
 Build the generated resources for an analytics project.
-
-For the direct shortcut, use `uptimely build` with the same options.
-
-## `project build`
 
 ```console
 uptimely build [PROJECT_ROOT] \
@@ -14,8 +10,7 @@ uptimely build [PROJECT_ROOT] \
 ```
 
 The project directory may be given positionally or with `--project-root`, but
-not both. If omitted, the current working directory is used. The grouped form
-`uptimely project build [PROJECT_ROOT]` is also available.
+not both. If omitted, the current working directory is used.
 
 The command validates the complete source specification, compiles one execution
 plan, and prepares a versioned Explorer data snapshot. The active build manifest

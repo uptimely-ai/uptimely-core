@@ -8,7 +8,7 @@ from uptimely.application import paths
 from uptimely.explorer import presentation
 from uptimely.run import store as run_store
 
-_BUILD_INSTRUCTION = "Run 'uptimely project build' to generate a valid Explorer snapshot."
+_BUILD_INSTRUCTION = "Run 'uptimely build' to generate a valid Explorer snapshot."
 _STATIC_CONFIG_FILE = pathlib.Path("config.js")
 _EXPORTED_DATA_FILE = pathlib.Path("data") / "explorer.json"
 _EXPORTED_RUN_FILE = pathlib.Path("data") / "run.json"

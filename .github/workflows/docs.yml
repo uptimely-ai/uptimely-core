@@ -43,11 +43,11 @@ jobs:
           cd example
           "$UPTIMELY" build
           "$UPTIMELY" run
-          "$UPTIMELY" explorer export . --output "$RUNNER_TEMP/example-explorer.zip"
+          "$UPTIMELY" export . --output "$RUNNER_TEMP/example-explorer.zip"
           test -s "$RUNNER_TEMP/example-explorer.zip"
       - name: Export static Explorer to the docs
         run: |
-          poetry run uptimely explorer export \
+          poetry run uptimely export \
             --project-root example \
             --output docs/example
       - run: poetry run mkdocs build --site-dir site

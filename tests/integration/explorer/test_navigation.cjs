@@ -66,7 +66,7 @@ test("preserves migrated hash bookmarks and reports missing, incompatible or unk
   assert.equal(legacy.location.href, "https://example.test/docs/explorer/?view=lineage");
   const missing = await boot({ ok: false });
   assert.match(missing.elements["error-status"].textContent, /HTTP 404/);
-  assert.match(missing.elements["error-status"].textContent, /uptimely project build/);
+  assert.match(missing.elements["error-status"].textContent, /uptimely build/);
   const incompatible = await boot({ data: { format_version: 999 } });
   assert.match(incompatible.elements["error-status"].textContent, /unsupported format/);
   const unknown = await boot({ view: "<unknown>" });

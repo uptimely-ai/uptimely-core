@@ -362,7 +362,6 @@ def test_engine_cli_reports_processed_profiles(
         "argv",
         [
             "uptimely",
-            "engine",
             "run",
             "--project-root",
             str(project_root),
@@ -409,7 +408,6 @@ def test_engine_cli_reports_scoped_saved_build(
         "argv",
         [
             "uptimely",
-            "engine",
             "run",
             "--project-root",
             str(project_root),

@@ -46,15 +46,6 @@ def _port(value: str) -> int:
     return port
 
 
-def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure Explorer commands."""
-    actions = parser.add_subparsers(dest="action", required=True)
-    serve = actions.add_parser("serve", help="Serve the active build's Explorer data")
-    configure_serve_parser(serve)
-    export = actions.add_parser("export", help="Export the static frontend and Explorer snapshot")
-    configure_export_parser(export)
-
-
 def configure_serve_parser(parser: argparse.ArgumentParser) -> None:
     """Configure the Explorer serve command."""
     common.configure_project_root_arguments(
@@ -91,7 +82,7 @@ def configure_export_parser(parser: argparse.ArgumentParser) -> None:
 def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     """Run an Explorer command."""
     project_root = common.resolve_project_root(args, parser).resolve()
-    if getattr(args, "action", "serve") == "export":
+    if args.command == "export":
         try:
             output = explorer_export.export_static(project_root, args.output)
             logger.info("Explorer export created at %s", output)

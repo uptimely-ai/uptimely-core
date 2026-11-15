@@ -177,42 +177,29 @@ def download_examples(
 
 
 def configure_parser(parser: argparse.ArgumentParser) -> None:
-    """Configure the examples command and its download action."""
-    parser.set_defaults(
-        action="download",
-        output=pathlib.Path("example"),
-        ref=None,
-    )
+    """Configure the example download command."""
     configure_download_parser(parser)
-    actions = parser.add_subparsers(dest="action")
-    download = actions.add_parser("download", help="Download examples from public GitHub")
-    configure_download_parser(download, suppress_defaults=True)
 
 
-def configure_download_parser(
-    parser: argparse.ArgumentParser, *, suppress_defaults: bool = False
-) -> None:
+def configure_download_parser(parser: argparse.ArgumentParser) -> None:
     """Configure options for downloading examples."""
-    output_default = argparse.SUPPRESS if suppress_defaults else pathlib.Path("example")
-    ref_default = argparse.SUPPRESS if suppress_defaults else None
     parser.add_argument(
         "--dir",
         "--output",
         dest="output",
         type=pathlib.Path,
         metavar="DIR",
-        default=output_default,
+        default=pathlib.Path("example"),
         help="Destination directory (default: example)",
     )
     parser.add_argument(
         "--ref",
-        default=ref_default,
+        default=None,
         help="Branch, tag, or commit (default: v<installed package version>)",
     )
     parser.add_argument(
         "--no-setup",
         action="store_true",
-        default=argparse.SUPPRESS if suppress_defaults else False,
         help="Exclude project setup files and allow an existing destination",
     )
 

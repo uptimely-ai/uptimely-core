@@ -329,7 +329,7 @@ async def test_missing_build_fails_with_recovery_command(tmp_path: pathlib.Path)
     project_root = tmp_path / "missing project"
     state = mcp_state.ServerState(application.Uptimely(project_root))
 
-    with pytest.raises(Exception, match="uptimely project build") as error:
+    with pytest.raises(Exception, match="uptimely build") as error:
         await _call(state, "list_functions")
 
     assert shlex.quote(str(project_root.resolve())) in str(error.value)

@@ -17,6 +17,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- CLI actions now use one top-level command, including `uptimely build`,
+  `uptimely run`, `uptimely explore`, `uptimely export`, and
+  `uptimely feature-graph`.
 - Project-generated builds, Explorer snapshots, and run outputs now live in
   `artifacts/`.
 - The public `Project` class is now `Uptimely`. Use `app.build()` to publish a

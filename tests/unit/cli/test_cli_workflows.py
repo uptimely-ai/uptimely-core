@@ -166,8 +166,7 @@ def test_formatter_preserves_multiline_terminal_content(
     [
         (("--invalid-option",), 2),
         (("run", "--log-level", "INFO"), 2),
-        (("engine", "run", "--log-level", "INFO"), 2),
-        (("project", "build", "--log-level", "INFO"), 2),
+        (("build", "--log-level", "INFO"), 2),
         (("run", "--preview", "0"), 2),
         (("run", "--build"), 1),
     ],
@@ -234,7 +233,6 @@ def test_feature_graph_summary_subset_and_tree(
     )
     invoke(
         monkeypatch,
-        "spec",
         "feature-graph",
         "--project-root",
         str(PROJECT),
@@ -269,7 +267,7 @@ def test_engine_run_consumes_scoped_build_without_compiling(
     assert "Processed profile pump_telemetry: 13 features" in text
 
 
-@pytest.mark.parametrize("command", [("run",), ("engine", "run")])
+@pytest.mark.parametrize("command", [("run",)])
 @pytest.mark.parametrize("validate", [False, True])
 def test_engine_cli_forwards_validation_flag(
     tmp_path: pathlib.Path,
@@ -397,7 +395,7 @@ def test_engine_cli_uses_project_preview_and_source_defaults(
     assert received == [(expected_preview_rows, pathlib.Path("custom-src"))]
 
 
-@pytest.mark.parametrize("command", [("run",), ("engine", "run")])
+@pytest.mark.parametrize("command", [("run",)])
 def test_engine_cli_builds_before_running(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -458,7 +456,7 @@ def test_engine_cli_builds_before_running(
     assert events == ["build", "run"]
 
 
-@pytest.mark.parametrize("command", [("run",), ("engine", "run")])
+@pytest.mark.parametrize("command", [("run",)])
 def test_engine_cli_does_not_run_after_build_failure(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
@@ -502,7 +500,7 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
     )
     capsys.readouterr()
 
-    invoke(monkeypatch, "engine", "run", "--project-root", str(project_root))
+    invoke(monkeypatch, "run", "--project-root", str(project_root))
 
     result = capsys.readouterr()
     assert not result.err
@@ -526,7 +524,7 @@ def test_engine_default_logs_only_duration_and_processed_profiles(
     assert "Scope:" not in result.out
 
 
-@pytest.mark.parametrize("command", [("run",), ("engine", "run")])
+@pytest.mark.parametrize("command", [("run",)])
 @pytest.mark.parametrize("level", ["debug", "info", "warning", "error", "critical"])
 @pytest.mark.parametrize("failed", [False, True])
 def test_run_log_level_filters_uptimely_only_and_restores_configuration(
@@ -656,7 +654,6 @@ def test_engine_previews_final_profiles(
         original_config = pl.Config.state()
         invoke(
             monkeypatch,
-            "engine",
             "run",
             "--project-root",
             str(tmp_path),
@@ -700,7 +697,7 @@ def test_engine_rejects_invalid_preview_before_execution(
 
     monkeypatch.setattr(engine_module.Engine, "run", fail_run)
     with pytest.raises(SystemExit) as error:
-        invoke(monkeypatch, "engine", "run", "--preview", rows)
+        invoke(monkeypatch, "run", "--preview", rows)
     assert error.value.code == 2
     output = capsys.readouterr()
     assert "--preview" in output.err
@@ -733,7 +730,6 @@ def test_engine_preview_errors_are_reported(
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
-            "engine",
             "run",
             "--project-root",
             str(tmp_path),
@@ -771,7 +767,6 @@ def test_engine_empty_plan_summary(
 
     invoke(
         monkeypatch,
-        "engine",
         "run",
         "--project-root",
         str(tmp_path),
@@ -808,18 +803,12 @@ def test_engine_empty_plan_summary(
 @pytest.mark.parametrize(
     "arguments",
     [
-        ["spec"],
-        ["spec"],
-        ["plan"],
-        ["engine"],
-        ["spec", "unknown"],
-        ["plan", "unknown"],
-        ["engine", "unknown"],
-        ["engine", "run", "--compile", "false"],
-        ["engine", "run", "--features", "health_signal_normalized"],
-        ["engine", "run", "--spec", "spec.json"],
-        ["engine", "run", "--plan", "plan.json"],
-        ["engine", "run", "--verbose"],
+        ["feature-graph", "--verbose"],
+        ["run", "--compile", "false"],
+        ["run", "--features", "health_signal_normalized"],
+        ["run", "--spec", "spec.json"],
+        ["run", "--plan", "plan.json"],
+        ["run", "--verbose"],
         ["run", "--verbose"],
         ["run", "--log-level", "invalid"],
     ],
@@ -832,7 +821,7 @@ def test_workflow_argument_errors(monkeypatch: pytest.MonkeyPatch, arguments: li
 
 @pytest.mark.parametrize(
     "command",
-    [["spec", "feature-graph"], ["engine", "run"]],
+    [["feature-graph"], ["run"]],
 )
 def test_workflow_missing_inputs_are_reported(
     tmp_path: pathlib.Path,
@@ -840,7 +829,7 @@ def test_workflow_missing_inputs_are_reported(
     capsys: pytest.CaptureFixture[str],
     command: list[str],
 ) -> None:
-    if command == ["engine", "run"]:
+    if command == ["run"]:
         monkeypatch.setattr(
             "uptimely.compiler.Compiler.compile",
             lambda *_args, **_kwargs: pytest.fail("Engine must not compile without a build"),
@@ -856,14 +845,14 @@ def test_workflow_missing_inputs_are_reported(
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "ERROR    |" in result.err
-    assert "uptimely project build --project-root" in result.err
-    if command == ["engine", "run"]:
+    assert "uptimely build --project-root" in result.err
+    if command == ["run"]:
         assert result.out == ("INFO     | Start Uptimely engine run\n")
     else:
         assert not result.out
 
 
-@pytest.mark.parametrize("command", [["spec", "feature-graph"]])
+@pytest.mark.parametrize("command", [["feature-graph"]])
 @pytest.mark.usefixtures("example_projects")
 def test_unknown_feature_is_reported(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], command: list[str]
@@ -894,7 +883,6 @@ def test_engine_invalid_config_is_reported(
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
-            "engine",
             "run",
             "--project-root",
             str(tmp_path),
@@ -916,7 +904,6 @@ def test_engine_operation_failures_are_reported(
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
-            "engine",
             "run",
             "--project-root",
             str(project_root),
@@ -1009,7 +996,6 @@ def test_engine_invalid_build_fails_before_execution(
     with pytest.raises(SystemExit) as error:
         invoke(
             monkeypatch,
-            "engine",
             "run",
             "--project-root",
             str(tmp_path),
@@ -1017,14 +1003,14 @@ def test_engine_invalid_build_fails_before_execution(
     assert error.value.code == 1
     result = capsys.readouterr()
     assert "ERROR    |" in result.err
-    assert "uptimely project build --project-root" in result.err
+    assert "uptimely build --project-root" in result.err
     expected = "INFO     | Start Uptimely engine run\n"
     if content is not None:
         expected += "INFO     | Start spec validation\nINFO     | Spec validated\n"
     assert result.out == expected
 
 
-@pytest.mark.parametrize("command", [["spec", "feature-graph"]])
+@pytest.mark.parametrize("command", [["feature-graph"]])
 def test_invalid_spec_is_reported(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,

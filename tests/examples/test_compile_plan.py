@@ -223,7 +223,6 @@ def test_project_build_cli_exports_complete_bundle(
         "argv",
         [
             "uptimely",
-            "project",
             "build",
             "--project-root",
             str(project_root),

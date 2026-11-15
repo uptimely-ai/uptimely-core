@@ -4,12 +4,9 @@ The `uptimely` command provides project utilities for downloading examples,
 building project bundles, inspecting feature dependencies, running analytics
 workflows, and previewing the Analytics Explorer.
 
-For common tasks, use the top-level shortcuts `uptimely build`, `uptimely run`,
-and `uptimely explore`. The grouped forms `uptimely project build`,
-`uptimely engine run`, and `uptimely explorer serve` remain available and accept
-the same options. Project-specific commands accept an optional project
-directory immediately after the action name, such as
-`uptimely build example`. If omitted, the current working
+Commands use one top-level action followed by its arguments. Project-specific
+commands accept an optional project directory immediately after the action
+name, such as `uptimely build example`. If omitted, the current working
 directory is used. `--project-root PATH` is also supported as an explicit
 alternative; do not pass both forms.
 
@@ -48,14 +45,12 @@ source filenames and line numbers; other log levels retain concise errors.
 
 | Command | Reference | Purpose |
 | --- | --- | --- |
-| `uptimely spec feature-graph` | [Spec feature-graph](spec.md) | Inspect feature dependencies. |
-| `uptimely engine` | [Engine](engine.md) | Run an analytics workflow. |
 | `uptimely example` | [Examples](examples.md) | Download runnable example projects. |
-| `uptimely explorer` | [Explorer](explorer.md) | Preview or export the Analytics Explorer. |
-| `uptimely project` | [Project](project.md) | Build and publish a complete active bundle. |
-| `uptimely build` | [Project build](project.md) | Shortcut for `uptimely project build`. |
-| `uptimely run` | [Engine run](engine.md) | Shortcut for `uptimely engine run`. |
-| `uptimely explore` | [Explorer serve](explorer.md) | Shortcut for `uptimely explorer serve`. |
+| `uptimely build` | [Project build](project.md) | Build and publish a complete active bundle. |
+| `uptimely run` | [Engine run](engine.md) | Run an analytics workflow. |
+| `uptimely explore` | [Explorer serve](explorer.md) | Preview the Analytics Explorer. |
+| `uptimely export` | [Explorer export](explorer.md) | Export a static Explorer site. |
+| `uptimely feature-graph` | [Feature graph](spec.md) | Inspect feature dependencies. |
 
 ## Typical workflow
 
@@ -75,8 +70,8 @@ uptimely run pump-analytics
 
 The command defaults and options are documented on each command page. Project
 build consumers use the active bundle under `artifacts/build/`; rebuild it
-with `uptimely build` (or `uptimely project build`) to change the saved plan or
-feature scope. The `uptimely-mcp` server is a separate optional command. See
+with `uptimely build` to change the saved plan or feature scope. The
+`uptimely-mcp` server is a separate optional command. See
 [MCP API](../mcp/index.md) for installation and client setup.
 
 </div>

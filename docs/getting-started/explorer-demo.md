@@ -16,7 +16,7 @@ $ cd pump-analytics
 $ uv sync
 $ uv run uptimely build
 $ uv run uptimely run --preview 10 --log-level debug
-$ uv run uptimely explorer export . --output ../docs/example
+$ uv run uptimely export . --output ../docs/example
 $ uv run uptimely explore
 ```
 

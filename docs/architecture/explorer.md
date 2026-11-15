@@ -28,7 +28,7 @@ uptimely run example
 Build the project and run it before exporting to include run information:
 
 ```console
-uptimely explorer export example --output docs/example
+uptimely export example --output docs/example
 ```
 
 !!! info
