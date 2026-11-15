@@ -20,7 +20,8 @@ const { Router } = await import(moduleUrl(
   await readFile(new URL("application/history_router.js", root), "utf8"),
 ));
 const {
-  badge, dataTypeIcon, dataTypeIconName, distribution, heading, icon, shell, typedName,
+  badge, dataTypeIcon, dataTypeIconName, distribution, grainRelationshipIcon, heading,
+  icon, shell, typedName,
   statistic, contextHeader,
 } = await import(shared);
 const { dashboard, lineage, planOverview } = await import(pages);
@@ -49,6 +50,10 @@ test("resolutions use the scan square icon", () => {
 
 test("grain relationships map to their relationship icons", () => {
   assert.match(icon("same"), /data-lucide="table-properties"/);
+  assert.match(icon("emerge"), /data-lucide="square-sparkles"/);
+  assert.match(icon("vanish"), /data-lucide="minimize"/);
+  assert.equal(grainRelationshipIcon([{ relationship: "emerge" }]), "emerge");
+  assert.equal(grainRelationshipIcon([{ relationship: "vanish" }]), "vanish");
 });
 
 test("function usage groups named operators by profile without semantic metadata", () => {

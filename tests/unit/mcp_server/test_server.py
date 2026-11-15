@@ -197,7 +197,7 @@ async def test_describe_function_reports_bindings_and_derived_operator_usage(
             "operator": "external_audit",
             "role": "compute",
             "execution_form": "compute",
-            "grain_relationships": [{"source_profile": "pump_telemetry", "relationship": "same"}],
+            "grain_relationships": [{"source_profile": "pump_telemetry", "relationship": "vanish"}],
         }
     ]
 

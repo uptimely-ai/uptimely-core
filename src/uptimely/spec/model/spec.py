@@ -137,7 +137,7 @@ class Spec(base.StrictModel):
                 return None
         return (
             source_profile
-            if operator.grain_relationships(self, key).get(source_profile) == "collapse"
+            if operator.grain_relationships(self, key).get(source_profile) in {"collapse", "vanish"}
             else self.operator_profile_keys[key]
         )
 

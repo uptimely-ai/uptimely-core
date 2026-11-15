@@ -132,7 +132,9 @@ export function createDataLineageTables(allSteps, datasetSteps, onFold) {
     const table = step.querySelector('table[data-side="output"]');
     const preparation = [{ type: "inputs" }];
     const relationships = step.dataset.grainRelationships.split(",");
-    if (relationships.includes("collapse")) preparation.push({ type: "group" });
+    if (relationships.some(relationship => ["collapse", "vanish"].includes(relationship))) {
+      preparation.push({ type: "group" });
+    }
     preparation.push({ type: "invocation" });
     if (step.dataset.frameSignature === "1->0") preparation.push({ type: "write" });
     if (!table) return preparation;

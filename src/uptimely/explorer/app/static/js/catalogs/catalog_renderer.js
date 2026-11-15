@@ -248,16 +248,19 @@ function functionOverview(data) {
     dataframeSignatureCounts.set(signature, (dataframeSignatureCounts.get(signature) || 0) + 1);
   });
   return `<section id="overview" data-context-item aria-label="Functions overview" class="mb-12">
-    <div class="catalog-charts lg:grid-cols-2">${distribution("Functions by category", groups.map(([category, items]) => {
-      const count = Object.keys(items).length;
-      return [category, count, count ? `#functions-${encodeURIComponent(category)}` : null];
-    }), { total: data.catalogs.summary.function_count, labelFormatter: humanizeCategory })}
+    <div class="catalog-charts lg:grid-cols-2">
       ${distribution("Functions by dataframe signature", [...dataframeSignatureCounts], {
         total: data.catalogs.summary.function_count, dataframeSignatureLabels: true,
       })}
-      <div class="lg:col-span-2">${distribution("Functions by return type", [...returnTypeCounts], {
+      ${distribution("Functions by return type", [...returnTypeCounts], {
         typeLabels: true, returnTypeLabels: true,
-      })}</div></div></section>`;
+      })}
+      <div class="lg:col-span-2">${distribution("Functions by category", groups.map(([category, items]) => {
+        const count = Object.keys(items).length;
+        return [category, count, count ? `#functions-${encodeURIComponent(category)}` : null];
+      }), { total: data.catalogs.summary.function_count, labelFormatter: humanizeCategory })}</div>
+    </div>
+  </section>`;
 }
 
 function featureCards(config, invocations) {

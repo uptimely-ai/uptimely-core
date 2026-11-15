@@ -94,11 +94,12 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(categorizedCatalog.content, /href="#functions-data_loading"/);
   assert.match(functionOverview, /Functions by return type/);
   assert.match(functionOverview, /data-category="DataFrame" data-count="1"[^]*?icon--return-arrow[^>]*data-lucide="arrow-right"[^]*?class="data-type-label-text">DataFrame/);
-  assert.ok(functionOverview.indexOf("Functions by category")
-    < functionOverview.indexOf("Functions by dataframe signature"));
   assert.ok(functionOverview.indexOf("Functions by dataframe signature")
     < functionOverview.indexOf("Functions by return type"));
-  assert.match(functionOverview, /class="lg:col-span-2"><section class="ui-panel ui-chart">[\s\S]*?<h3>Functions by return type<\/h3>/);
+  assert.ok(functionOverview.indexOf("Functions by return type")
+    < functionOverview.indexOf("Functions by category"));
+  assert.match(functionOverview, /class="lg:col-span-2"><section class="ui-panel ui-chart">[\s\S]*?<h3>Functions by category<\/h3>/);
+  assert.doesNotMatch(functionOverview, /class="lg:col-span-2"><section class="ui-panel ui-chart">[\s\S]*?<h3>Functions by return type<\/h3>/);
   const signatureData = sampleData();
   Object.assign(signatureData.catalogs.function_groups.Uncategorized, {
     write: { returns: "none", args: { dataset: { type: "dataframe" } } },
@@ -539,8 +540,17 @@ test("dashboard, Features charts and plan show visual components and counts", as
   assert.match(features, /data-section-count class="ui-badge">1 features<\/span>/);
   assert.doesNotMatch(features, /<h2[^>]*>Features overview<\/h2>|data-stat=/);
   assert.match(features, /data-category="output" data-count="1"/);
-  const plan = planOverview(data);
+  const plan = planOverview({
+    ...data,
+    plan: {
+      ...data.plan,
+      invocation_count: 2,
+      invocation_role_counts: [["compute", 1], ["merge", 1]],
+    },
+  });
   assert.match(plan, /Invocations by binding role/);
+  assert.match(plan, /data-category="compute"[^]*?<span[^>]*>Compute<\/span>/);
+  assert.match(plan, /data-category="merge"[^]*?<span[^>]*>Merge<\/span>/);
   assert.match(plan, /Invocations by stage/);
   assert.doesNotMatch(plan, /Max parallel invocations|data-stat=/);
 });

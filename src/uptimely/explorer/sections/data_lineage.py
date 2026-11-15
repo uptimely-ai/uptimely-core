@@ -134,7 +134,7 @@ class _DataLineageBuilder:
             key = (invocation.profile_id, invocation.operator_id)
             operator = definition.operators_by_key[key]
             relationships = operator.grain_relationships(definition, key)
-            if "collapse" in relationships.values():
+            if {"collapse", "vanish"} & set(relationships.values()):
                 self.compact_datasets.add(invocation.profile_id)
             if "expand" in relationships.values():
                 self.compact_datasets.update(
