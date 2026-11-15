@@ -32,6 +32,29 @@ def test_operator_is_the_public_work_declaration_name() -> None:
     assert not hasattr(authoring, "action")
 
 
+@pytest.mark.parametrize("kind", ["seed", "read", "stage", "compute", "write", "workflow"])
+def test_operator_serialization_preserves_primary_binding_kind(kind: str) -> None:
+    returns = "none" if kind in {"write", "workflow"} else "dataframe"
+    operator = authoring.Operator(
+        **{kind: authoring.Bind(ref.function("example:run", returns=returns))},
+        **({"merge": merge.default()} if kind in {"read", "stage"} else {}),
+    )
+    serialized = operator.to_model().model_dump()
+    restored = spec_model.Operator.model_validate(serialized | {"id": operator.id})
+    assert restored.binding_kind == kind
+    assert restored.is_workflow == (kind == "workflow")
+
+
+def test_serialized_binding_kind_must_match_workflow_marker() -> None:
+    operator = authoring.Operator(
+        workflow=authoring.Bind(ref.function("example:run", returns="none"))
+    ).to_model()
+    with pytest.raises(ValueError, match="Workflow marker must agree"):
+        spec_model.Operator.model_validate(
+            operator.model_dump() | {"id": operator.id, "binding_kind": "compute"}
+        )
+
+
 def test_dataset_name_defaults_to_humanized_id() -> None:
     declaration = authoring.Profile(id="pump_telemetry-dataset")
 
@@ -43,6 +66,7 @@ def test_seed_requires_an_explicit_operator_id_only_for_the_seed() -> None:
     generated = authoring.Operator(
         outputs=[authoring.Feature(id="other")],
         read=authoring.Bind(ref.function("reader:read_other", returns="dataframe")),
+        merge=merge.default(),
     )
     seed = authoring.Operator(
         id="initial",
@@ -61,7 +85,7 @@ def test_seed_requires_an_explicit_operator_id_only_for_the_seed() -> None:
         authoring.Profile(id="example", seed=generated_seed.id, assembly=[generated_seed])
     with pytest.raises(ValueError, match="does not exist"):
         authoring.Profile(id="example", seed="missing", assembly=[generated])
-    with pytest.raises(ValueError, match="merge is allowed only with read or stage"):
+    with pytest.raises(ValueError, match="allowed only with read or stage"):
         dataclasses.replace(seed, merge=merge.default())
     with pytest.raises(ValueError, match="referenced by profile seed"):
         authoring.Profile(id="example", assembly=[seed])
@@ -73,6 +97,7 @@ def test_profile_seed_requires_seed_binding(role: str) -> None:
         id="initial",
         outputs=[authoring.Feature(id="value")],
         **{role: authoring.Bind(ref.function("reader:read", returns="dataframe"))},
+        **({"merge": merge.default()} if role == "read" else {}),
     )
     with pytest.raises(ValueError, match="must use a seed binding"):
         authoring.Profile(id="example", seed="initial", assembly=[operator])
@@ -91,6 +116,87 @@ def test_seed_binding_requires_a_dataframe_result() -> None:
     )
     with pytest.raises(ValueError, match="seed binding must return a dataframe"):
         conversion.to_model(profiles=[declaration])
+
+
+def test_fragment_bindings_require_a_merge() -> None:
+    binding = authoring.Bind(ref.function("reader:read", returns="dataframe"))
+    seed = authoring.Operator(id="initial", seed=binding)
+    with pytest.raises(ValueError, match="read binding requires a merge"):
+        authoring.Profile(
+            id="example",
+            seed="initial",
+            assembly=[seed, authoring.Operator(read=binding)],
+        )
+    with pytest.raises(ValueError, match="stage requires a merge"):
+        authoring.Operator(stage=binding)
+
+
+@pytest.mark.parametrize(
+    ("role", "dataset", "message"),
+    [
+        ("compute", "other", "current profile's dataset"),
+        ("stage", None, "another profile's dataset"),
+    ],
+)
+def test_dataframe_bindings_require_the_correct_profile(
+    role: str, dataset: str | None, message: str
+) -> None:
+    binding = authoring.Bind(
+        ref.function("example:transform", returns="dataframe"),
+        dataset=ref.dataset(dataset),
+    )
+    operator = authoring.Operator(
+        **{role: binding},
+        **({"merge": merge.default()} if role == "stage" else {}),
+    )
+    seed = authoring.Operator(
+        id="initial", seed=authoring.Bind(ref.function("example:initial", returns="dataframe"))
+    )
+    with pytest.raises(ValueError, match=message):
+        authoring.Profile(id="example", seed="initial", assembly=[seed, operator]).to_model()
+
+
+def test_workflow_binding_rejects_dataframe_contracts() -> None:
+    workflow = authoring.Bind(ref.function("example:run", returns="any"))
+    with pytest.raises(ValueError, match="allowed only with read or stage"):
+        authoring.Operator(workflow=workflow, merge=merge.default())
+    with pytest.raises(ValueError, match="must not accept dataframe inputs"):
+        authoring.Operator(
+            workflow=authoring.Bind(
+                ref.function("example:run", returns="any"), dataset=ref.dataset()
+            )
+        ).function_catalog()
+    with pytest.raises(ValueError, match="must not declare a dataframe result"):
+        authoring.Operator(
+            workflow=authoring.Bind(ref.function("example:run", returns="dataframe"))
+        ).function_catalog()
+
+
+@pytest.mark.parametrize("invalid", ["dataframe_input", "dataframe_result", "merge"])
+def test_serialized_workflow_rejects_dataframe_contracts(invalid: str) -> None:
+    declaration = authoring.Profile(
+        id="example",
+        assembly=[
+            authoring.Operator(
+                id="run",
+                workflow=authoring.Bind(ref.function("example:run", returns="any")),
+            )
+        ],
+    )
+    document = conversion.to_dict(profiles=[declaration])
+    operator = document["profiles"]["example"]["assembly"]["run"]
+    function = document["functions"]["run"]
+    assert operator["is_workflow"] is True
+    assert operator["binding_kind"] == "workflow"
+    if invalid == "dataframe_input":
+        function["args"]["dataset"] = {"type": "dataframe"}
+        operator["compute"]["args"]["dataset"] = "$profiles.@.dataset"
+    elif invalid == "dataframe_result":
+        function["returns"] = "dataframe"
+    else:
+        operator["merge"] = merge.default().to_model().model_dump()
+    with pytest.raises(ValueError, match="Workflow cannot declare"):
+        validate_spec(spec_model.Spec.model_validate(document))
 
 
 @pytest.mark.parametrize(
@@ -112,6 +218,7 @@ def test_loaded_spec_rejects_invalid_seed(invalid: str, message: str) -> None:
                 id="initial",
                 outputs=[authoring.Feature(id="value")],
                 read=authoring.Bind(ref.function("reader:read", returns="dataframe")),
+                merge=merge.default(),
             ),
             authoring.Operator(
                 id="other",
@@ -125,6 +232,7 @@ def test_loaded_spec_rejects_invalid_seed(invalid: str, message: str) -> None:
     profile = document["profiles"]["example"]
     profile["seed"] = "missing" if invalid == "unknown" else "initial"
     seed = profile["assembly"]["initial"]
+    seed.pop("merge")
     if invalid == "merge":
         seed["merge"] = profile["assembly"]["other"]["merge"]
     elif invalid == "non_dataframe":
@@ -160,6 +268,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
                 read=authoring.Bind(
                     ref.function("reader:read", returns="dataframe"),
                 ),
+                merge=merge.default(),
             )
         ],
     )
@@ -195,6 +304,7 @@ def test_mapping_rejects_duplicate_output_ids() -> None:
             read=authoring.Bind(
                 ref.function("reader:read", returns="dataframe"),
             ),
+            merge=merge.default(),
         )
 
 
@@ -287,6 +397,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
         read=authoring.Bind(
             ref.function("reader:read", returns="dataframe"),
         ),
+        merge=merge.default(),
     )
     replacement = authoring.Operator(
         id="read",
@@ -294,6 +405,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
         read=authoring.Bind(
             ref.function("reader:replacement", returns="dataframe"),
         ),
+        merge=merge.default(),
     )
     sink = authoring.Operator(
         id="write",
@@ -321,7 +433,7 @@ def test_dataset_subclasses_inherit_and_replace_collections() -> None:
     assert list(derived.to_model().assembly) == ["read"]
     assert derived.to_model().description == "Inherited metadata"
     assert derived.to_model().features["value"].type == "integer"
-    assert set(derived.function_catalog()) == {"replacement"}
+    assert set(derived.function_catalog()) == {"replacement", "merge_by_grain"}
 
 
 @pytest.mark.parametrize(
@@ -412,6 +524,7 @@ def test_programmatic_dataset_uses_function_name_for_catalog_id() -> None:
         outputs=[authoring.Feature(id="result", type="float")],
         compute=authoring.Bind(
             ref.function("calculation:calculate", returns="dataframe"),
+            dataset=ref.dataset(),
             column=ref.feature("inferred"),
         ),
     )
@@ -457,6 +570,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
                     keys=ref.profile().grain.ids,
                     source_keys=ref.profile("source").grain.ids,
                 ),
+                merge=merge.default(),
             )
         ],
     )
@@ -585,6 +699,7 @@ def test_function_catalog_records_independent_return_contract(returns: str) -> N
         outputs=[],
         compute=authoring.Bind(
             ref.function("implementation:work", returns=returns),
+            dataset=ref.dataset(),
         ),
     )
     declaration = authoring.Profile(id="example", assembly=[operator])
@@ -608,7 +723,7 @@ def test_python_spec_merge_binding_export() -> None:
     operator = authoring.Operator(
         id="read",
         outputs=[authoring.Feature(id="value")],
-        stage=authoring.Bind(
+        read=authoring.Bind(
             read_frames,
         ),
         merge=authoring.Bind(
@@ -667,6 +782,7 @@ def test_operator_groups_flatten_in_mapping_order() -> None:
         read=authoring.Bind(
             ref.function("reader:read", returns="dataframe"),
         ),
+        merge=merge.default(),
     )
     second = authoring.Operator(
         id="write",
@@ -694,6 +810,7 @@ def test_operator_ids_are_unique_across_groups(returns: str) -> None:
         read=authoring.Bind(
             ref.function("reader:read", returns="dataframe"),
         ),
+        merge=merge.default(),
     )
     second = authoring.Operator(
         id="duplicate",
@@ -714,6 +831,7 @@ def test_operator_defaults_and_inherited_lists_are_not_shared_between_instances(
         read=authoring.Bind(
             ref.function("reader:read", returns="dataframe"),
         ),
+        merge=merge.default(),
     )
 
     class Base(authoring.Profile):
@@ -740,6 +858,7 @@ def test_subclasses_can_explicitly_extend_or_clear_inherited_operator() -> None:
         read=authoring.Bind(
             ref.function("reader:read", returns="dataframe"),
         ),
+        merge=merge.default(),
     )
 
     class Base(authoring.Profile):
@@ -789,6 +908,7 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
                     outputs=[authoring.Feature(id="result")],
                     compute=authoring.Bind(
                         ref.function("implementation:calculate", returns="dataframe"),
+                        dataset=ref.dataset(),
                         column=ref.feature("pipeline_result"),
                     ),
                 )

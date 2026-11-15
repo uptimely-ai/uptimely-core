@@ -71,6 +71,20 @@ def test_operator_kind_definitions_and_registry_are_immutable() -> None:
         operator_kinds.OPERATOR_KINDS[operator_kinds.WRITE] = definition
 
 
+def test_binding_contracts_distinguish_primary_bindings_from_merge() -> None:
+    contracts = operator_kinds.OPERATOR_BINDINGS
+    assert {name for name, contract in contracts.items() if contract.primary} == set(
+        typing.get_args(operator_kinds.PrimaryBindingKind.__value__)
+    )
+    assert not contracts["merge"].primary
+    assert contracts["workflow"].dataframe_inputs == (0,)
+    assert contracts["workflow"].dataframe_result == "none"
+    with pytest.raises(dataclasses.FrozenInstanceError):
+        contracts["workflow"].description = "changed"
+    with pytest.raises(TypeError):
+        contracts["workflow"] = contracts["merge"]
+
+
 @pytest.mark.parametrize(
     ("kind", "produces_fragment", "dimension_change", "fragment_dimensions"),
     [

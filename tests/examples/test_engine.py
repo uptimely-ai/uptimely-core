@@ -824,6 +824,7 @@ def test_engine_executes_requested_feature_and_its_dependencies(
         "expand",
         "vectorize",
         "write",
+        "escape",
     }
 
     result = engine.run()

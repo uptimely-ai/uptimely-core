@@ -292,7 +292,10 @@ class Compiler:
                         role=role,
                         result=result,
                         produces_features=definition.produces_features if is_compute else False,
-                        is_sink=definition.is_sink if is_compute else False,
+                        is_sink=(definition.is_sink or operator.is_workflow)
+                        if is_compute
+                        else False,
+                        is_workflow=operator.is_workflow if is_compute else False,
                         dataframe_input_scope=(
                             definition.dataframe_input_scope if is_compute else "unrestricted"
                         ),

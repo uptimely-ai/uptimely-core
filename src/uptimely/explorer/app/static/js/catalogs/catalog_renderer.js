@@ -448,6 +448,44 @@ function operatorCard({ attributes, title, derivedLabel, hasMerge, relationships
   </article>`;
 }
 
+function bindingContractDetails(kind, contract, merge) {
+  if (!kind || !contract) return "";
+  const source = contract.dataframe_source.replaceAll("_", " ");
+  const counts = contract.dataframe_inputs.join(" or ");
+  const mergeDescription = merge ? `<p>${escape(merge.description)}</p>` : "";
+  return `<details class="profile-operator-bindings" data-binding-contract="${escape(kind)}">
+    <summary>Binding contract</summary>
+    <p>${escape(contract.description)}</p>
+    <dl class="profile-operator-contract">
+      <div><dt>Dataframe inputs</dt><dd>${escape(counts)} (${escape(source)})</dd></div>
+      <div><dt>Dataframe output</dt><dd>${escape(contract.dataframe_result)}</dd></div>
+      <div><dt>Merge</dt><dd>${escape(contract.merge)}</dd></div>
+    </dl>${mergeDescription}
+  </details>`;
+}
+
+function bindingReference(contracts) {
+  if (!contracts) return "";
+  const rows = Object.entries(contracts).map(([name, contract]) => `<tr>
+    <th scope="row"><code>${escape(name)}</code></th>
+    <td>${escape(contract.description)}</td>
+    <td>${escape(contract.dataframe_inputs.join(" or "))} (${escape(contract.dataframe_source.replaceAll("_", " "))})</td>
+    <td>${escape(contract.dataframe_result)}</td>
+    <td>${escape(contract.merge)}</td>
+  </tr>`).join("");
+  return `<details class="profile-operator-bindings mb-6" data-binding-reference>
+    <summary>Operator binding contracts</summary>
+    <p>Feature inputs and outputs are logical declarations, independent of dataframe contracts. Profiles without a seed may use legacy read, stage, and compute contracts.</p>
+    <div class="ui-table-scroll" tabindex="0" role="region" aria-label="Operator binding contracts">
+      <table class="ui-table">
+        <caption class="sr-only">Operator binding dataframe contracts</caption>
+        <thead><tr><th>Binding</th><th>Purpose</th><th>Dataframe inputs</th><th>Dataframe output</th><th>Merge</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>
+  </details>`;
+}
+
 function profileOperatorCards(config, profileId, profile, operators, invocations, idPrefix = "operator") {
   const featureList = references => references.length
     ? references.map(reference => {
@@ -513,12 +551,13 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       && Object.keys(invocation.args).length);
     return operatorCard({
       attributes: `id="${escape(idPrefix)}-${escape(profileId)}-${escape(id)}" data-profile-operator="${escape(id)}" data-execution-form="${escape(operator.execution_form)}"`,
-      title: operatorLabel(id, operator), derivedLabel: operator.operator_label,
+      title: operatorLabel(id, operator), derivedLabel: operator.binding_kind || operator.operator_label,
       hasMerge: operator.binding_roles?.includes("merge") === true,
       relationships: operator.grain_relationships,
       inputs: featureList(operatorInputs(operator)), outputs: featureList(operator.interface.outputs),
-      uncontrolled: fn.returns === "any", functionId, functionName: fn.name || functionId,
+      uncontrolled: operator.is_workflow || fn.returns === "any", functionId, functionName: fn.name || functionId,
       argumentsMarkup: resolvedArgumentDetails(id, operator, "Arguments", computeInvocations),
+      details: bindingContractDetails(operator.binding_kind, operator.binding_contract, operator.merge_contract),
     });
   }).join("")}</div>`;
 }
@@ -714,6 +753,6 @@ export function renderCatalog(data, view) {
       ${view === "stages" ? '<p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Execution plan</p>' : ""}
       ${view === "dimensions" ? '<p data-dimension-label class="dimension-detail-label" hidden>Dimension</p>' : ""}
       ${heading(title, descriptions[view] ?? null, view, view === "features" ? data.catalogs.summary.feature_count : null)}
-      ${catalogOverview(data, view)}<div class="space-y-8">${renderers[view]()}</div></section>`),
+      ${catalogOverview(data, view)}${view === "profiles" ? bindingReference(data.catalogs.binding_contracts) : ""}<div class="space-y-8">${renderers[view]()}</div></section>`),
   };
 }

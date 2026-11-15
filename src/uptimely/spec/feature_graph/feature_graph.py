@@ -259,6 +259,7 @@ class FeatureGraph(FeatureGraphBase):
                 function_returns=self.spec.functions[operator.compute.function].returns,
             )
             operator_node = node(operator_metadata)
+            graph.add_node(operator_node)
             for output in outputs:
                 output_node = node(feature_meta(output, operator_metadata))
                 graph.add_edge(operator_node, output_node)

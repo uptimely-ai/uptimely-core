@@ -464,8 +464,10 @@ and dataframe arguments determine the operator kind.
 | `interface.outputs` | array of strings | Yes | No | `[]` | Features produced in the owning profile. |
 | `row_context` | object or null | No | No | `null` | Surrounding-observation requirements. |
 | `compute` | object | No | Yes | N/A | Function call. |
+| `binding_kind` | string or null | No | No | `null` | Primary Python binding name, when supplied. |
 | `compute.function` | string | No | Yes | N/A | ID of the function to call. Use the function ID without a selector. |
 | `compute.args` | object | Yes | No | `{}` | Values passed to the function. |
+| `is_workflow` | boolean | No | No | `false` | Marks an opaque workflow without dataframe inputs or outputs. |
 | `merge` | object or null | No | No | `null` | Optional function that combines the current dataset with the compute result. |
 | `merge.function` | string | No | Yes when `merge` is set | N/A | ID of the function that combines the data. |
 | `merge.args` | object | Yes | No | `{}` | Arguments including the current dataset and the compute result. |
@@ -677,7 +679,13 @@ against input dimensions and order, and feature requirements for cycles. Each
 non-dimension feature may have at most one producer. Declare `returns: "any"`
 when the function's result is intentionally ignored. Outputs from an `escape`
 operator satisfy feature requirements during validation, but the engine does
-not create their data. A declared feature with no producing operator causes a
+not create their data. A workflow has no dataframe inputs, dataframe output, or
+merge, and its result is ignored. Its feature inputs and outputs declare logical
+dependencies and are not dataframe values passed to or produced by the engine.
+Selected plans include workflows belonging to profiles of requested features.
+The existing derived operator label for a workflow is `escape`, while
+`is_workflow` identifies its distinct execution role.
+A declared feature with no producing operator causes a
 warning, but does not prevent the Spec from loading. Spec validation does not
 import implementations or inspect calculated data. Parameter and path
 references are resolved from project configuration during execution.

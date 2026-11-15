@@ -51,7 +51,11 @@ class InvocationExecutor:
         if invocation.role == "merge":
             self._execute_merge(invocation)
             return
-        if self.validate and (invocation.result != "none" or invocation.is_sink):
+        if (
+            self.validate
+            and not invocation.is_workflow
+            and (invocation.result != "none" or invocation.is_sink)
+        ):
             self.check_input_requirements(invocation)
         if invocation.result == "none":
             self._invoke(invocation)

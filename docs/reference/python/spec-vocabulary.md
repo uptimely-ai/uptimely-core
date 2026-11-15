@@ -3,7 +3,23 @@
 These modules provide shared types used when describing and checking a Spec.
 Most projects use the Python helpers in [Python authoring](python.md) instead.
 
-## Operator labels
+## Operator bindings
+
+`OPERATOR_BINDINGS` describes the dataframe contract of each primary binding
+and the additional `merge` binding. Logical feature inputs and outputs are
+declared independently.
+
+::: uptimely.spec.operator_kinds
+    options:
+      heading_level: 2
+      show_root_heading: false
+      members:
+        - BindingContract
+        - BindingKind
+        - PrimaryBindingKind
+        - OPERATOR_BINDINGS
+
+## Derived execution labels
 
 Uptimely derives a label from each operator's bindings and source and target
 profiles. The labels describe the work; they are not set on the function.

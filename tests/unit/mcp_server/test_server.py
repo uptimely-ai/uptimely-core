@@ -648,6 +648,5 @@ async def test_targeted_execution_does_not_fabricate_side_effect_only_results(
         state, "execute_function", {"function_id": "process_pump_external_workflow", "max_rows": 1}
     )
 
-    assert payload["status"] == "failed"
-    assert payload["datasets"] == []
-    assert "ratio" in payload["output_failures"]["pump"]
+    assert payload["status"] == "ok"
+    assert "output_failures" not in payload

@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Python operators can run opaque external functions with `workflow` bindings.
+- Binding dataframe contracts are available in the Explorer and Spec vocabulary.
 - Profiles can designate an explicitly identified seed operator that initializes
   their dataset before other fragments are merged.
 - Python `Operator` declarations can omit `id`. It is generated from the compute

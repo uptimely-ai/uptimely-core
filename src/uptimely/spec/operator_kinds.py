@@ -1,4 +1,4 @@
-"""Derived operator labels and their spec-level execution rules."""
+"""Operator binding contracts and derived execution policies."""
 
 from __future__ import annotations
 
@@ -8,10 +8,121 @@ import typing
 
 from . import arg_types
 
+type PrimaryBindingKind = typing.Literal["seed", "read", "stage", "compute", "write", "workflow"]
+type BindingKind = typing.Literal["seed", "read", "stage", "compute", "write", "workflow", "merge"]
+type DataframeSource = typing.Literal[
+    "none", "foreign_or_none", "foreign", "current", "dataset", "dataset_and_fragment"
+]
+type DataframeResult = typing.Literal["dataset", "fragment", "none"]
+type MergeRequirement = typing.Literal["required", "forbidden", "additional"]
+
+
+@dataclasses.dataclass(frozen=True)
+class BindingContract:
+    """Describe a binding's dataframe contract independently of logical features.
+
+    Args:
+        description: Purpose of the binding.
+        primary: Whether this binding determines the operator kind.
+        dataframe_inputs: Allowed numbers of dataframe inputs.
+        dataframe_source: Origin of the dataframe inputs.
+        dataframe_result: How the dataframe result is used.
+        merge: Whether a separate merge is required, forbidden, or additional.
+    """
+
+    description: str
+    primary: bool
+    dataframe_inputs: tuple[int, ...]
+    dataframe_source: DataframeSource
+    dataframe_result: DataframeResult
+    merge: MergeRequirement
+
+
+SEED: typing.Final[PrimaryBindingKind] = "seed"
+READ: typing.Final[typing.Literal["read"]] = "read"
+STAGE: typing.Final[PrimaryBindingKind] = "stage"
+COMPUTE: typing.Final[PrimaryBindingKind] = "compute"
+WRITE: typing.Final[typing.Literal["write"]] = "write"
+WORKFLOW: typing.Final[PrimaryBindingKind] = "workflow"
+MERGE: typing.Final[typing.Literal["merge"]] = "merge"
+
+OPERATOR_BINDINGS: typing.Final[typing.Mapping[BindingKind, BindingContract]] = (
+    types.MappingProxyType(
+        {
+            SEED: BindingContract(
+                "Initialize the profile dataset.",
+                True,
+                (0, 1),
+                "foreign_or_none",
+                "dataset",
+                "forbidden",
+            ),
+            READ: BindingContract(
+                "Read a fragment from an external source.",
+                True,
+                (0,),
+                "none",
+                "fragment",
+                "required",
+            ),
+            STAGE: BindingContract(
+                "Prepare a fragment from another profile's dataset.",
+                True,
+                (1,),
+                "foreign",
+                "fragment",
+                "required",
+            ),
+            COMPUTE: BindingContract(
+                "Calculate features from the current dataset.",
+                True,
+                (1,),
+                "current",
+                "dataset",
+                "forbidden",
+            ),
+            WRITE: BindingContract(
+                "Write a dataset without producing a dataframe.",
+                True,
+                (1,),
+                "dataset",
+                "none",
+                "forbidden",
+            ),
+            WORKFLOW: BindingContract(
+                "Run an external workflow without dataframe inputs or outputs.",
+                True,
+                (0,),
+                "none",
+                "none",
+                "forbidden",
+            ),
+            MERGE: BindingContract(
+                "Combine a fragment with the current dataset.",
+                False,
+                (2,),
+                "dataset_and_fragment",
+                "dataset",
+                "additional",
+            ),
+        }
+    )
+)
+
 __all__ = [
+    "BindingContract",
+    "BindingKind",
+    "COMPUTE",
+    "OPERATOR_BINDINGS",
+    "PrimaryBindingKind",
+    "SEED",
+    "STAGE",
+    "WORKFLOW",
     "CONFORM",
     "COLLAPSE",
     "DataFrameInputScope",
+    "DataframeResult",
+    "DataframeSource",
     "DimensionChange",
     "ESCAPE",
     "EXPAND",
@@ -23,6 +134,7 @@ __all__ = [
     "OperatorKindId",
     "KeyRelation",
     "MERGE",
+    "MergeRequirement",
     "READ",
     "ReturnKind",
     "RowCountRelation",
@@ -79,15 +191,11 @@ class OperatorKind:
     feature_input_scope: FeatureInputScope = "unrestricted"
 
 
-WRITE: typing.Final[OperatorKindId] = "write"
-READ: typing.Final[OperatorKindId] = "read"
 ESCAPE: typing.Final[OperatorKindId] = "escape"
 CONFORM: typing.Final[OperatorKindId] = "conform"
 EXPAND: typing.Final[OperatorKindId] = "expand"
 COLLAPSE: typing.Final[OperatorKindId] = "collapse"
 VECTORIZE: typing.Final[OperatorKindId] = "vectorize"
-MERGE: typing.Final[OperatorKindId] = "merge"
-
 OPERATOR_KINDS: typing.Final[typing.Mapping[OperatorKindId, OperatorKind]] = types.MappingProxyType(
     {
         WRITE: OperatorKind(
@@ -252,27 +360,3 @@ OPERATOR_KINDS: typing.Final[typing.Mapping[OperatorKindId, OperatorKind]] = typ
         ),
     }
 )
-
-
-__all__ = [
-    "COLLAPSE",
-    "CONFORM",
-    "DataFrameInputScope",
-    "DimensionChange",
-    "ESCAPE",
-    "ExistingDataRelation",
-    "EXPAND",
-    "FeatureInputScope",
-    "FragmentDimensions",
-    "OPERATOR_KINDS",
-    "OperatorKind",
-    "OperatorKindId",
-    "KeyRelation",
-    "MERGE",
-    "READ",
-    "RowCountRelation",
-    "RowOrderRelation",
-    "ReturnKind",
-    "VECTORIZE",
-    "WRITE",
-]

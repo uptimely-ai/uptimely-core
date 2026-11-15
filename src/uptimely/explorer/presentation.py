@@ -17,6 +17,7 @@ from uptimely.application.build import source as build_source
 from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
+from uptimely.spec import operator_kinds
 
 EXPLORER_FORMAT_VERSION = 3
 
@@ -121,6 +122,10 @@ def build_presentation_data(
             "summary": spec_data["summary"],
             "feature_dependencies": spec_data["feature_dependencies"],
             "function_groups": spec_data["function_groups"],
+            "binding_contracts": {
+                name: dataclasses.asdict(contract)
+                for name, contract in operator_kinds.OPERATOR_BINDINGS.items()
+            },
         },
         "graphs": {
             "feature_lineage": _graph_payload(feature_data["graph_data"]),

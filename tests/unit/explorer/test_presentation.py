@@ -1,5 +1,6 @@
 """Tests for JSON-ready Explorer presentation data."""
 
+import dataclasses
 import json
 import pathlib
 
@@ -10,6 +11,7 @@ from support import examples as example_support
 from uptimely import application
 from uptimely.application.build import builder
 from uptimely.explorer import presentation
+from uptimely.spec import operator_kinds
 
 
 def test_build_presentation_data_returns_versioned_json_structures(
@@ -29,6 +31,16 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert data["scope"]["features"] == ["health_signal_normalized"]
     assert data["scope"]["is_scoped"]
     assert data["catalogs"]["configuration"]
+    assert data["catalogs"]["binding_contracts"] == {
+        name: json.loads(json.dumps(dataclasses.asdict(contract)))
+        for name, contract in operator_kinds.OPERATOR_BINDINGS.items()
+    }
+    pump = data["catalogs"]["configuration"]["profiles"]["pump"]
+    workflow = next(item for item in pump["assembly"].values() if item.get("is_workflow"))
+    assert workflow["binding_kind"] == "workflow"
+    assert workflow["binding_contract"] == data["catalogs"]["binding_contracts"]["workflow"]
+    merged = next(item for item in pump["assembly"].values() if item.get("merge"))
+    assert merged["merge_contract"] == data["catalogs"]["binding_contracts"]["merge"]
     assert all(
         "kind" not in function
         for function in data["catalogs"]["configuration"]["functions"].values()

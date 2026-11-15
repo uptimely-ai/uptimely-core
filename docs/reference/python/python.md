@@ -118,13 +118,26 @@ run the function or check that its calculations are correct. Function
 signatures are checked when the project is compiled. External functions can be
 referenced by `"package.module:function"` with `up.ref.function(...)`.
 
-Use `read` for a function that returns a dataframe without taking a dataframe
-input. A read may use `merge` to combine its returned fragment with the profile
-data. Use `write` for a function that takes one dataframe and returns no result.
-Use `compute` for transformations of data in the current profile. For
-transformations that use another profile's dataframe, or return a fragment for
-Uptimely to combine with existing data, use `stage` together with a merge binding such as
-`merge=up.merge.default()`. Custom merge functions are also supported.
+Each operator declares one primary binding. `merge` is an additional binding
+used to combine fragments with the current dataset.
+
+| Binding | Dataframe input | Dataframe output | Merge | Purpose |
+| --- | --- | --- | --- | --- |
+| `seed` | None or another profile's dataset | Initial dataset | Not allowed | Initialize the profile dataset. |
+| `read` | None | Fragment | Required | Read data to add to the dataset. |
+| `stage` | Another profile's dataset | Fragment | Required | Prepare data to add to the dataset. |
+| `compute` | Current dataset | Updated dataset | Not allowed | Calculate features from the current dataset. |
+| `write` | One dataset | None | Not allowed | Write a dataset. |
+| `workflow` | None | None declared | Not allowed | Run a self-contained external workflow. |
+| `merge` | Dataset and fragment | Updated dataset | Not applicable | Combine a fragment with the dataset. |
+
+Use `merge=up.merge.default()` or a custom merge function with `read` and
+`stage`. A `workflow` does not define dataframe inputs or outputs. Its function
+may take ordinary arguments and its return value is ignored. Its `inputs` and
+`outputs` declare logical feature dependencies independently of its arguments.
+The engine does not add workflow outputs to the profile dataframe. Workflows
+run with their profile and are included when features of that profile are
+selected.
 
 An optional `seed` names the assembly operator that initializes the profile
 dataset. It must return a complete target dataframe, including every grain key,
@@ -132,11 +145,12 @@ and must use a `seed` binding without a merge or consuming the target dataset.
 It can read external data or use a non-nullable dataframe from another profile.
 Other fragments merge after the seed, regardless of assembly order. Profiles
 without a seed retain their existing accumulation behavior.
+For compatibility, profiles without a seed may also use legacy read, stage,
+and compute bindings with less restrictive dataframe contracts.
 
-Each operator declares one primary binding: `seed`, `read`, `compute`, `write`, or
-`stage`. A stage requires a merge, while a read can optionally use one. The
-generated Spec stores the primary binding as `compute`; function contracts and
-dataframe inputs determine its operator kind. See the [engine reference](engine.md)
+The generated Spec stores the primary call as `compute` and records its
+`binding_kind`. The shared binding contracts are available in Explorer and the
+[Spec vocabulary](spec-vocabulary.md). See the [engine reference](engine.md)
 for runtime behavior.
 
 For calculations that need nearby rows, see [Row context](row-context.md).

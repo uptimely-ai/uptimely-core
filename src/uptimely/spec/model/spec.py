@@ -400,7 +400,7 @@ class Spec(base.StrictModel):
     @functools.cached_property
     def operator_binding_roles(
         self,
-    ) -> dict[OperatorKey, tuple[semantics.BindingRole, ...]]:
+    ) -> dict[OperatorKey, tuple[str, ...]]:
         """Return the binding roles declared by each operator."""
         return self._derived_semantics.operator_binding_roles
 

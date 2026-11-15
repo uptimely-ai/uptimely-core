@@ -54,6 +54,18 @@ def validate_binding_contracts(spec: spec_model.Spec) -> None:
     """Validate arity and return contracts from binding positions, not callable kinds."""
     logger.debug("Check compute and merge binding contracts")
     for key, operator in spec.operator_items:
+        if operator.is_workflow:
+            function = spec.functions.get(operator.compute.function)
+            if function is not None and (
+                operator.merge is not None
+                or function.returns == "dataframe"
+                or any(arg_types.is_dataframe(arg.type) for arg in function.args.values())
+            ):
+                raise errors.SpecError(
+                    "Workflow cannot declare dataframe inputs, a dataframe result, or a merge",
+                    code="invalid_workflow_binding",
+                    path=spec.declaration_paths[key],
+                )
         for role, binding in operator.bindings.items():
             function = spec.functions.get(binding.function)
             if function is None:

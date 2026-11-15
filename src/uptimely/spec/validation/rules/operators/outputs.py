@@ -92,7 +92,12 @@ def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
     logger.debug("Check nonproducing operator do not declare outputs")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is not None and function.returns == "none" and operator.output_features:
+        if (
+            function is not None
+            and function.returns == "none"
+            and not operator.is_workflow
+            and operator.output_features
+        ):
             raise ValueError(f"Operator {key[1]} cannot produce features")
 
 
@@ -101,7 +106,7 @@ def validate_output_feature(spec: spec_model.Spec) -> None:
     logger.debug("Check operator outputs are declared in the target profile")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or function.returns == "none":
+        if function is None or (function.returns == "none" and not operator.is_workflow):
             continue
         for feature in operator.output_features:
             if feature not in spec.profiles_by_key[key[0]].features:
@@ -114,7 +119,7 @@ def validate_unique_producer(spec: spec_model.Spec) -> None:
     producers: dict[tuple[spec_model.ProfileKey, str], str] = {}
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)
-        if function is None or function.returns == "none":
+        if function is None or (function.returns == "none" and not operator.is_workflow):
             continue
         for feature in operator.output_features:
             if feature in spec.identifiers_by_profile[key[0]]:
@@ -183,7 +188,10 @@ def warn_unproduced_features(spec: spec_model.Spec) -> None:
             for feature, producers in profile.feature_producers.items()
             if any(
                 spec.functions.root.get(operator.compute.function) is not None
-                and spec.functions.root[operator.compute.function].returns != "none"
+                and (
+                    spec.functions.root[operator.compute.function].returns != "none"
+                    or operator.is_workflow
+                )
                 for operator_id, operator in producers
             )
         }

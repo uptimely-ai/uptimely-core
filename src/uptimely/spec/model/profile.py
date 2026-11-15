@@ -71,7 +71,16 @@ class Operator(base.StrictModel):
     interface: Interface = pydantic.Field(default_factory=Interface)
     row_context: uptimely_row_context.RowContext | None = None
     compute: binding.Binding
+    binding_kind: operator_kinds.PrimaryBindingKind | None = None
+    is_workflow: bool = False
     merge: binding.Binding | None = None
+
+    @pydantic.model_validator(mode="after")
+    def validate_binding_kind(self) -> typing.Self:
+        """Ensure the workflow marker agrees with an explicitly declared binding."""
+        if self.binding_kind is not None and self.is_workflow != (self.binding_kind == "workflow"):
+            raise ValueError("Workflow marker must agree with the primary binding kind")
+        return self
 
     @property
     def bindings(self) -> dict[str, binding.Binding]:
