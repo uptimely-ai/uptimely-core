@@ -200,29 +200,31 @@ intermediate columns in one physical table.
 ## Function contracts
 
 A **function** is reusable code with typed arguments and a declared return
-contract. An operator uses a function in one of two binding roles. Each role
-accepts a fixed number of dataframe arguments and returns a dataframe or nothing.
+contract. Its dataframe signature is the number of dataframe inputs and outputs.
+Explorer infers a frame operation from that signature. The operation is
+derived, not stored in the Spec. Signatures outside the listed forms are
+labeled `unknown`.
 
 <div class="concepts-visual">
   <div class="cv-contracts" role="group" aria-label="Function contracts by dataframe inputs and outputs">
     <div class="cv-contract">
-      <span class="cv-tag">COMPUTE 0&#8594;1</span>
+      <span class="cv-tag">READ 0&#8594;1</span>
       <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot cv-slot-empty">no input</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot">dataframe</span></div></div>
       <p>Produces data from outside the spec, such as a source read.</p>
     </div>
     <div class="cv-contract">
-      <span class="cv-tag">COMPUTE 1&#8594;1</span>
+      <span class="cv-tag">TRANSFORM 1&#8594;1</span>
       <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot">dataframe</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot">dataframe</span></div></div>
       <p>Transforms a dataframe into a new dataframe or fragment.</p>
     </div>
     <div class="cv-contract">
-      <span class="cv-tag">COMPUTE 1&#8594;0</span>
+      <span class="cv-tag">WRITE 1&#8594;0</span>
       <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot">dataframe</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot cv-slot-empty">no output</span></div></div>
       <p>Consumes a dataframe for a side effect, such as a write.</p>
     </div>
     <div class="cv-contract">
-      <span class="cv-tag">COMPUTE any&#8594;any</span>
-      <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot cv-slot-empty">any input</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot cv-slot-empty">ignored</span></div></div>
+      <span class="cv-tag">WORKFLOW ?&#8594;?</span>
+      <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot cv-slot-empty">unknown input</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot cv-slot-empty">unknown output</span></div></div>
       <p>Runs an opaque external workflow and ignores its result.</p>
     </div>
     <div class="cv-contract cv-contract-merge">
@@ -240,7 +242,7 @@ accepts a fixed number of dataframe arguments and returns a dataframe or nothing
   </div>
 </div>
 
-### Compute 0→1
+### Read 0→1
 
 <p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>read</span></p>
 
@@ -256,7 +258,7 @@ accepts a fixed number of dataframe arguments and returns a dataframe or nothing
   </div>
 </div>
 
-### Compute 1→1
+### Transform 1→1
 
 The function receives one dataframe and returns a dataframe. The result is
 either the complete target or a fragment that a merge combines with the current
@@ -332,7 +334,7 @@ callable.
   </div>
 </div>
 
-### Compute 1→0
+### Write 1→0
 
 The function receives one dataframe and returns nothing, so it declares no
 materialized features.
@@ -353,11 +355,13 @@ materialized features.
   </div>
 </div>
 
-### Compute any→any
+### Workflow unknown→unknown
 
-The function accepts any arguments and its result is ignored (`returns="any"`). Declared features act as logical dependencies and are not materialized as dataframe columns.
+The function's dataframe inputs and output are not part of a dataframe contract,
+and its result is ignored (`returns="any"`). Declared features act as logical
+dependencies and are not materialized as dataframe columns.
 
-#### Escape
+#### Workflow
 
 <p class="cv-label-line"><span class="cv-label-badge"><small>inferred label</small>escape</span></p>
 
@@ -369,7 +373,7 @@ explicit dataframe dataflow and runtime checks when they fit the work.
 <div class="concepts-visual">
   <div class="cv-operation">
     <div class="cv-endpoint">
-      <span class="cv-tag">ESCAPE / ONE FUNCTION</span>
+      <span class="cv-tag">WORKFLOW / ONE FUNCTION</span>
       <strong>External workflow</strong>
       <span>Read source <span aria-hidden="true">&rarr;</span> calculate <span aria-hidden="true">&rarr;</span> write result</span>
     </div>

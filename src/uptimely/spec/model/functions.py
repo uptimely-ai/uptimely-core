@@ -38,6 +38,20 @@ class FunctionTemplate(base.StrictModel):
     args: dict[str, Argument] = pydantic.Field(default_factory=dict)
     description: str | None = None
 
+    @property
+    def frame_signature(self) -> function_contracts.FrameSignature:
+        """Return dataframe input and output counts, or unknown for a workflow."""
+        if self.returns == "any":
+            return (None, None)
+        dataframe_inputs = len(self.arguments_by_type.get(arg_types.DATAFRAME, {}))
+        dataframe_outputs = int(self.returns == "dataframe")
+        return dataframe_inputs, dataframe_outputs
+
+    @property
+    def frame_operation(self) -> function_contracts.FrameOperation:
+        """Infer the frame operation from its dataframe signature."""
+        return function_contracts.FRAME_SIGNATURE_TO_OPERATION.get(self.frame_signature, "unknown")
+
     def check_return_contract(self) -> None:
         """Require a supported independent return contract."""
         logger.debug("Check function return contract: %s", self.id)
