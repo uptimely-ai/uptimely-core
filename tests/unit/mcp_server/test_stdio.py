@@ -14,6 +14,8 @@ pytest.importorskip("fastmcp", reason="fastmcp extra is not installed")
 import fastmcp  # noqa: E402
 from fastmcp.client import transports  # noqa: E402
 
+from uptimely import application  # noqa: E402
+
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 
 
@@ -36,6 +38,10 @@ async def test_documented_stdio_launchers_build_and_execute(
         check=False,
     )
     assert built.returncode == 0, built.stdout + built.stderr
+    bundle = application.load_build_bundle(root)
+    operator_id = example_support.operator_id_for_output(
+        bundle.spec_definition.profiles["pump_telemetry"].assembly, "pressure_flow_efficiency"
+    )
 
     if launcher == "vscode":
         poetry = shutil.which("poetry")
@@ -70,7 +76,7 @@ async def test_documented_stdio_launchers_build_and_execute(
             "execute_operator",
             {
                 "profile_id": "pump_telemetry",
-                "operator_id": "pressure_flow_efficiency",
+                "operator_id": operator_id,
                 "max_rows": 1,
             },
         )

@@ -4,11 +4,20 @@ import dataclasses
 
 import polars as pl
 import pytest
+from support import examples as example_support
 
 from uptimely import application, engine
 from uptimely.mcp import results
 
-TARGET = ("pump_telemetry", "pump_health_score")
+TARGET_PROFILE = "pump_telemetry"
+TARGET_FEATURE = "pump_health_score"
+
+
+def _target(bundle: application.BuildBundle) -> tuple[str, str]:
+    """Return the operator producing the selected health-score feature."""
+    profile = bundle.spec_definition.profiles[TARGET_PROFILE]
+    operator_id = example_support.operator_id_for_output(profile.assembly, TARGET_FEATURE)
+    return TARGET_PROFILE, operator_id
 
 
 def _result(bundle: application.BuildBundle) -> engine.ExecutionResult:
@@ -59,38 +68,40 @@ def test_full_build_reports_missing_outputs_as_failure(
 
 
 def test_targeted_run_keeps_execution_failure(pump_bundle: application.BuildBundle) -> None:
+    target = _target(pump_bundle)
     result = dataclasses.replace(
         _result(pump_bundle), failures={"calculation": "Calculation failed"}
     )
 
-    payload = results.ExecutionResponse.format(pump_bundle, result, TARGET)
+    payload = results.ExecutionResponse.format(pump_bundle, result, target)
 
     assert payload["status"] == "failed"
     assert payload["failures"] == result.failures
     assert payload["datasets"] == []
-    assert payload["target"] == {"profile": TARGET[0], "operator": TARGET[1]}
+    assert payload["target"] == {"profile": target[0], "operator": target[1]}
 
 
 def test_unrelated_preview_failure_does_not_fail_target(
     pump_bundle: application.BuildBundle,
 ) -> None:
-    identifiers = pump_bundle.spec_definition.identifiers_by_profile[TARGET[0]]
-    frame = pl.DataFrame({name: [] for name in [*identifiers, TARGET[1], "unrequested"]})
+    target = _target(pump_bundle)
+    identifiers = pump_bundle.spec_definition.identifiers_by_profile[TARGET_PROFILE]
+    frame = pl.DataFrame({name: [] for name in [*identifiers, TARGET_FEATURE, "unrequested"]})
     result = dataclasses.replace(
         _result(pump_bundle),
-        preview_frames={TARGET[0]: frame},
+        preview_frames={TARGET_PROFILE: frame},
         preview_failures={"unrelated_profile": "Cannot collect"},
     )
 
-    payload = results.ExecutionResponse.format(pump_bundle, result, TARGET)
+    payload = results.ExecutionResponse.format(pump_bundle, result, target)
 
     assert payload["status"] == "ok"
     assert "preview_failures" not in payload
     assert payload["datasets"] == [
         {
-            "profile": TARGET[0],
-            "features": [TARGET[1]],
-            "columns": [*identifiers, TARGET[1]],
+            "profile": TARGET_PROFILE,
+            "features": [TARGET_FEATURE],
+            "columns": [*identifiers, TARGET_FEATURE],
             "row_count": 0,
             "rows": [],
         }
@@ -100,5 +111,6 @@ def test_unrelated_preview_failure_does_not_fail_target(
 def test_missing_preview_without_engine_failure_is_explicit(
     pump_bundle: application.BuildBundle,
 ) -> None:
+    target = _target(pump_bundle)
     with pytest.raises(TypeError, match="without a serializable dataset preview"):
-        results.ExecutionResponse.format(pump_bundle, _result(pump_bundle), TARGET)
+        results.ExecutionResponse.format(pump_bundle, _result(pump_bundle), target)

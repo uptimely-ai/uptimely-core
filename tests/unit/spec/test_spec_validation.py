@@ -532,12 +532,12 @@ def test_conform_rejects_the_target_dataframe_as_an_argument(tmp_path: pathlib.P
         spec.load_spec(path)
 
 
-@pytest.mark.parametrize("operator_id", ["bearing_temperature_by_pump", "health_signal_normalized"])
-def test_operator_rejects_explicit_source(tmp_path: pathlib.Path, operator_id: str) -> None:
+@pytest.mark.parametrize("feature_id", ["bearing_temperature_max", "health_signal_normalized"])
+def test_operator_rejects_explicit_source(tmp_path: pathlib.Path, feature_id: str) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    configuration["profiles"]["pump"]["assembly"][operator_id]["source"] = (
-        "$profiles.pump_telemetry"
-    )
+    profile = configuration["profiles"]["pump"]
+    operator_id = example_support.operator_id_for_output(profile["assembly"], feature_id)
+    profile["assembly"][operator_id]["source"] = "$profiles.pump_telemetry"
     invalid_operation_path = tmp_path / "invalid_aggregation_operation.json"
     invalid_operation_path.write_text(json.dumps(configuration), encoding="utf-8")
 

@@ -82,7 +82,6 @@ class Pump(Profile):
 
     assembly = [
         Operator(
-            id="read_pump_capacity",
             interface=Interface(outputs=[features.pump_max_capacity]),
             compute=Binding(
                 function=io.read_file,
@@ -95,7 +94,6 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
-            id="expand_series_capacity",
             interface=Interface(
                 inputs=[ref.feature("max_capacity_series")],
                 outputs=[features.series_max_capacity],
@@ -114,7 +112,6 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
-            id="expand_category_capacity",
             interface=Interface(
                 inputs=[ref.feature("max_capacity_category")],
                 outputs=[features.category_max_capacity],
@@ -133,7 +130,6 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
-            id="resolve_max_capacity",
             interface=Interface(
                 inputs=[
                     features.pump_max_capacity,
@@ -173,7 +169,6 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
-            id="health_signal_normalized",
             interface=Interface(
                 inputs=[features.bearing_temperature_max],
                 outputs=[features.health_signal_normalized],
@@ -191,7 +186,6 @@ class Pump(Profile):
             ),
         ),
         Operator(
-            id="read_pump_external_inputs",
             interface=Interface(
                 outputs=[features.measurement, features.reference_value],
             ),
@@ -220,7 +214,6 @@ class Pump(Profile):
             ),
         ),
         Operator(
-            id="process_pump_external_workflow",
             interface=Interface(
                 inputs=[features.measurement, features.reference_value],
                 outputs=[features.ratio],
@@ -234,7 +227,6 @@ class Pump(Profile):
             ),
         ),
         Operator(
-            id="write_pump",
             interface=Interface(outputs=[]),
             compute=Binding(
                 function=io.write_file,

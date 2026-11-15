@@ -36,7 +36,6 @@ class PumpCategory(Profile):
     features = PumpCategoryFeatures()
     assembly = [
         Operator(
-            id="read_pump_category",
             interface=Interface(outputs=[features.max_capacity]),
             compute=Binding(
                 function=io.read_file,
@@ -49,7 +48,6 @@ class PumpCategory(Profile):
             merge=merge.default(),
         ),
         Operator(
-            id="bearing_temperature_max",
             interface=Interface(
                 inputs=[ref.feature("bearing_temperature")],
                 outputs=[features.bearing_temperature_max],
@@ -66,7 +64,6 @@ class PumpCategory(Profile):
             merge=merge.default(),
         ),
         Operator(
-            id="write_pump_category",
             interface=Interface(outputs=[]),
             compute=Binding(
                 function=io.write_file,

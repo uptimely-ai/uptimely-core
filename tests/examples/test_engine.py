@@ -381,9 +381,8 @@ def test_engine_cli_reports_processed_profiles(
     assert "Profile: pump_telemetry\n" in output
     assert output.index("Processed profile pump: 9 features") < output.index("Profile: pump\n")
     assert "shape:" not in output
-    assert (
-        "Executing operator read_constants, function read_file (role=compute, result=fragment)"
-    ) in output
+    assert "Executing operator op-read_file-features2-" in output
+    assert ", function read_file (role=compute, result=fragment)" in output
     assert f"{'DEBUG':8} | Check fragment dataframe type" in output
     assert f"{'DEBUG':8} | Check dataset dataframe type" in output
     assert f"{'DEBUG':8} | Check values and row order of existing columns" in output

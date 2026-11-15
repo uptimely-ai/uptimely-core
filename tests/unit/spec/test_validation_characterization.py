@@ -23,6 +23,12 @@ def _configuration() -> dict:
     return json.loads(SPEC_PATH.read_text(encoding="utf-8"))
 
 
+def _operator_key(configuration: dict, profile_id: str, feature_id: str) -> str:
+    return example_support.operator_id_for_output(
+        configuration["profiles"][profile_id]["assembly"], feature_id
+    )
+
+
 def test_document_validation_accepts_valid_document_without_mutation() -> None:
     document = spec.Spec.model_validate(_configuration())
     original = document.model_copy(deep=True)
@@ -33,7 +39,10 @@ def test_document_validation_accepts_valid_document_without_mutation() -> None:
 
 def test_binding_feature_selectors_do_not_become_input_dependencies() -> None:
     document = spec.Spec.model_validate(_configuration())
-    operator = document.profiles["pump_telemetry"].assembly["pressure_flow_efficiency"]
+    profile = document.profiles["pump_telemetry"]
+    operator = profile.assembly[
+        example_support.operator_id_for_output(profile.assembly, "pressure_flow_efficiency")
+    ]
     operator.interface.inputs = []
     operator.compute.args["dependency_hint"] = spec.model.BindingArgument(
         "$features.bearing_temperature"
@@ -116,7 +125,10 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
 ) -> None:
     document = spec.Spec.model_validate(_configuration())
     dataset = document.profiles["pump_telemetry"]
-    operator = dataset.assembly.pop("pressure_flow_efficiency")
+    operator_id = example_support.operator_id_for_output(
+        dataset.assembly, "pressure_flow_efficiency"
+    )
+    operator = dataset.assembly.pop(operator_id)
     dataset.assembly["alias"] = operator
     if invalid_binding:
         operator.compute.args["unexpected"] = spec.model.BindingArgument(None)
@@ -173,7 +185,9 @@ def test_duplicate_ids_block_operator_cycle_validation() -> None:
     document = spec.Spec.model_validate(_configuration())
     dataset = document.profiles["pump"]
     document.profiles["wrong"] = spec.Profile(id="different")
-    operator = dataset.assembly["health_signal_normalized"]
+    operator = dataset.assembly[
+        example_support.operator_id_for_output(dataset.assembly, "health_signal_normalized")
+    ]
     operator.interface.inputs.append("$features.health_signal_normalized")
     with pytest.raises(validation.SpecError) as error:
         validation.validate_spec(document)
@@ -183,7 +197,8 @@ def test_duplicate_ids_block_operator_cycle_validation() -> None:
 def test_document_validation_rejects_duplicate_output_producers() -> None:
     configuration = _configuration()
     assembly = configuration["profiles"]["pump_telemetry"]["assembly"]
-    assembly["duplicate"] = copy.deepcopy(assembly["pressure_flow_efficiency"])
+    operator_id = _operator_key(configuration, "pump_telemetry", "pressure_flow_efficiency")
+    assembly["duplicate"] = copy.deepcopy(assembly[operator_id])
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError, match="produced by multiple operators"):
@@ -206,9 +221,8 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
     configuration = _configuration()
     function = configuration["functions"]["ratio"]
     function["args"]["numerator_features"]["type"] = argument_type
-    binding = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"][
-        "compute"
-    ]
+    operator_id = _operator_key(configuration, "pump_telemetry", "pressure_flow_efficiency")
+    binding = configuration["profiles"]["pump_telemetry"]["assembly"][operator_id]["compute"]
     binding["args"]["numerator_features"] = argument_value
     model = spec.Spec.model_validate(configuration)
 
@@ -221,7 +235,7 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
         "profiles",
         "pump_telemetry",
         "assembly",
-        "pressure_flow_efficiency",
+        operator_id,
         "compute",
         "args",
         "numerator_features",
@@ -230,7 +244,8 @@ def test_nested_binding_selectors_preserve_expected_argument_type(
 
 def test_binding_argument_name_contract_keeps_structured_error() -> None:
     configuration = _configuration()
-    operator = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
+    operator_id = _operator_key(configuration, "pump_telemetry", "pressure_flow_efficiency")
+    operator = configuration["profiles"]["pump_telemetry"]["assembly"][operator_id]
     operator["compute"]["args"] = {"unexpected": None}
     model = spec.Spec.model_validate(configuration)
 
@@ -242,7 +257,7 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
         "profiles",
         "pump_telemetry",
         "assembly",
-        "pressure_flow_efficiency",
+        operator_id,
         "compute",
         "args",
     )
@@ -252,8 +267,11 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
 
 def test_mapping_dependency_cycle_keeps_its_message() -> None:
     configuration = _configuration()
+    operator_id = _operator_key(
+        configuration, "pump_telemetry_by_hour_when_warning", "recommended_flow_rate"
+    )
     operator = configuration["profiles"]["pump_telemetry_by_hour_when_warning"]["assembly"][
-        "recommended_flow_rate"
+        operator_id
     ]
     operator["interface"]["inputs"].append("$features.recommended_flow_rate")
     model = spec.Spec.model_validate(configuration)
@@ -262,14 +280,14 @@ def test_mapping_dependency_cycle_keeps_its_message() -> None:
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "Operator feature dependency cycle: "
-        "pump_telemetry_by_hour_when_warning.recommended_flow_rate"
+        f"Operator feature dependency cycle: pump_telemetry_by_hour_when_warning.{operator_id}"
     )
 
 
 def test_mapping_dependency_rejects_unknown_feature() -> None:
     configuration = _configuration()
-    operator = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
+    operator_id = _operator_key(configuration, "pump_telemetry", "pressure_flow_efficiency")
+    operator = configuration["profiles"]["pump_telemetry"]["assembly"][operator_id]
     operator["interface"]["inputs"].append("$features.missing_feature")
     model = spec.Spec.model_validate(configuration)
 
@@ -277,14 +295,17 @@ def test_mapping_dependency_rejects_unknown_feature() -> None:
         validation.validate_spec(model)
 
     assert str(error.value) == (
-        "Operator pressure_flow_efficiency references unknown input feature: missing_feature"
+        f"Operator {operator_id} references unknown input feature: missing_feature"
     )
 
 
 def test_new_document_validation_observes_an_edit() -> None:
     document = spec.Spec.model_validate(_configuration())
     validation.validate_spec(document)
-    operator = document.profiles["pump_telemetry"].assembly["pressure_flow_efficiency"]
+    profile = document.profiles["pump_telemetry"]
+    operator = profile.assembly[
+        example_support.operator_id_for_output(profile.assembly, "pressure_flow_efficiency")
+    ]
     operator.interface.inputs.append("$features.health_signal_normalized")
     document = spec.Spec.model_validate(document.model_dump())
 
@@ -295,7 +316,8 @@ def test_new_document_validation_observes_an_edit() -> None:
 def test_document_validation_rejects_blank_calculation_function_id() -> None:
     configuration = _configuration()
     configuration["functions"][" "] = configuration["functions"].pop("ratio")
-    operator = configuration["profiles"]["pump_telemetry"]["assembly"]["pressure_flow_efficiency"]
+    operator_id = _operator_key(configuration, "pump_telemetry", "pressure_flow_efficiency")
+    operator = configuration["profiles"]["pump_telemetry"]["assembly"][operator_id]
     operator["compute"]["function"] = " "
     document = spec.Spec.model_validate(configuration)
 
@@ -306,8 +328,9 @@ def test_document_validation_rejects_blank_calculation_function_id() -> None:
 def test_document_validation_rejects_blank_calculated_output() -> None:
     configuration = _configuration()
     dataset = configuration["profiles"]["pump_telemetry"]
+    operator_id = _operator_key(configuration, "pump_telemetry", "pressure_flow_efficiency")
     dataset["features"][" "] = dict(dataset["features"]["pressure_flow_efficiency"])
-    dataset["assembly"]["pressure_flow_efficiency"]["interface"]["outputs"] = ["$features. "]
+    dataset["assembly"][operator_id]["interface"]["outputs"] = ["$features. "]
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError, match="non-empty output feature names"):
@@ -322,8 +345,12 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     dataset = document.profiles["pump"]
     dataset.assembly["bearing_temperature_by_pump"].interface.inputs = ["$features.missing"]
     other = document.profiles["pump_telemetry"]
-    other.assembly["pressure_flow_efficiency"].compute.function = "missing"
-    other.assembly["pump_mode"].compute.args = {"unexpected": spec.model.BindingArgument(None)}
+    other.assembly[
+        example_support.operator_id_for_output(other.assembly, "pressure_flow_efficiency")
+    ].compute.function = "missing"
+    other.assembly[
+        example_support.operator_id_for_output(other.assembly, "pump_mode")
+    ].compute.args = {"unexpected": spec.model.BindingArgument(None)}
     document.profiles["pump_copy"] = dataset.model_copy(update={"id": "pump_copy"}, deep=True)
     original = document.model_copy(deep=True)
     profiles = document.profile_items

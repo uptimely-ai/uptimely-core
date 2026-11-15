@@ -55,6 +55,11 @@ async def _call(state: mcp_state.ServerState, tool: str, arguments: dict | None 
     return json.loads(result.content[0].text)
 
 
+def _operator_id_for_output(state: mcp_state.ServerState, profile_id: str, feature_id: str) -> str:
+    profile = state.load_bundle().spec_definition.profiles[profile_id]
+    return example_support.operator_id_for_output(profile.assembly, feature_id)
+
+
 @pytest.mark.anyio
 async def test_lists_all_tools(state: mcp_state.ServerState) -> None:
     """The server exposes the expected tool names."""
@@ -93,6 +98,7 @@ async def test_list_functions_returns_callable_contracts(state: mcp_state.Server
 @pytest.mark.anyio
 async def test_describe_function_resolves_signature(state: mcp_state.ServerState) -> None:
     """describe_function returns declared args and the resolved Python signature."""
+    operator_id = _operator_id_for_output(state, "pump_telemetry", "pump_health_score")
     payload = await _call(state, "describe_function", {"function_id": "pump_health_score"})
     assert payload["category"] == "calculate"
     assert "kind" not in payload
@@ -108,7 +114,7 @@ async def test_describe_function_resolves_signature(state: mcp_state.ServerState
     }
     assert usage == {
         "profile": "pump_telemetry",
-        "operator": "pump_health_score",
+        "operator": operator_id,
         "role": "compute",
         "execution_form": "compute",
     }
@@ -372,11 +378,16 @@ async def test_describe_spec_counts_all_declarations(state: mcp_state.ServerStat
 @pytest.mark.anyio
 async def test_list_operators_reports_bindings_and_scope(state: mcp_state.ServerState) -> None:
     payload = await _call(state, "list_operators")
-    operator = next(item for item in payload if item["operator"] == "pump_health_score")
+    operator_id = _operator_id_for_output(state, "pump_telemetry", "pump_health_score")
+    operator = next(
+        item
+        for item in payload
+        if item["profile"] == "pump_telemetry" and item["output_features"] == ["pump_health_score"]
+    )
 
     assert operator == {
         "profile": "pump_telemetry",
-        "operator": "pump_health_score",
+        "operator": operator_id,
         "bindings": {"compute": "pump_health_score"},
         "input_features": [
             "bearing_temperature_delta",
@@ -401,8 +412,11 @@ async def test_targeted_execution_returns_only_requested_outputs(
         lambda *_args, **_kwargs: pytest.fail("MCP must not compile plans"),
     )
     bundle = state.load_bundle()
+    operator_id = example_support.operator_id_for_output(
+        bundle.spec_definition.profiles["pump_telemetry"].assembly, "pump_health_score"
+    )
     arguments = (
-        {"profile_id": "pump_telemetry", "operator_id": "pump_health_score"}
+        {"profile_id": "pump_telemetry", "operator_id": operator_id}
         if tool == "execute_operator"
         else {"function_id": "pump_health_score"}
     )
@@ -410,7 +424,7 @@ async def test_targeted_execution_returns_only_requested_outputs(
     payload = await _call(state, tool, {**arguments, "max_rows": 2})
 
     assert payload["status"] == "ok"
-    assert payload["target"] == {"profile": "pump_telemetry", "operator": "pump_health_score"}
+    assert payload["target"] == {"profile": "pump_telemetry", "operator": operator_id}
     assert len(payload["datasets"]) == 1
     dataset = payload["datasets"][0]
     assert dataset["features"] == ["pump_health_score"]
@@ -420,7 +434,7 @@ async def test_targeted_execution_returns_only_requested_outputs(
         "pump_health_score",
     }
     saved = run_store.RunStore(state.project_root).read_manifest()
-    selected = bundle.execution_plan.for_operator("pump_telemetry", "pump_health_score")
+    selected = bundle.execution_plan.for_operator("pump_telemetry", operator_id)
     assert {
         invocation_id
         for invocation_id, outcome in saved.invocations.items()
@@ -509,6 +523,11 @@ async def test_targeted_optimization_returns_structured_numerical_results(
 async def test_targeted_execution_rejects_invalid_requests(
     state: mcp_state.ServerState, tool: str, arguments: dict[str, object], message: str
 ) -> None:
+    if tool == "execute_operator" and arguments.get("operator_id") == "pump_health_score":
+        arguments = {
+            **arguments,
+            "operator_id": _operator_id_for_output(state, "pump_telemetry", "pump_health_score"),
+        }
     async with fastmcp_.Client(server.create_server(state)) as client:
         with pytest.raises(Exception, match=message):
             await client.call_tool(tool, arguments)
@@ -522,7 +541,9 @@ async def test_targeted_execution_rejects_operators_outside_saved_scope(
     state = mcp_state.ServerState(application.Uptimely(root))
     listing = await _call(state, "list_operators")
     assert not next(
-        item for item in listing if item["operator"] == "process_pump_external_workflow"
+        item
+        for item in listing
+        if item["bindings"].get("compute") == "process_pump_external_workflow"
     )["in_saved_scope"]
     async with fastmcp_.Client(server.create_server(state)) as client:
         with pytest.raises(Exception, match="not in the saved execution scope"):
@@ -548,7 +569,10 @@ async def test_last_run_tools_read_external_execution_without_current_build(
         return original_execute(validate=validate, plan=plan)
 
     monkeypatch.setattr(runtime, "_execute", execute)
-    runtime.run(operator=("pump_telemetry", "pressure_flow_efficiency"), preview_rows=1)
+    operator_id = example_support.operator_id_for_output(
+        bundle.spec_definition.profiles["pump_telemetry"].assembly, "pressure_flow_efficiency"
+    )
+    runtime.run(operator=("pump_telemetry", operator_id), preview_rows=1)
     monkeypatch.setattr(
         state, "load_bundle", lambda **kwargs: pytest.fail("Run tools must not load the build")
     )

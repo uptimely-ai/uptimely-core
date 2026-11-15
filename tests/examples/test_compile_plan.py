@@ -63,7 +63,6 @@ def test_hourly_warning_aggregates_all_measurements_in_one_operator(
 
     assert len(invocations) == 1
     invocation = invocations[0]
-    assert invocation.operator_id == "aggregate_warning_telemetry"
     assert set(invocation.input_features) == {
         "warning_differential_pressure",
         "warning_flow_rate",

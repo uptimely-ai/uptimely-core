@@ -45,7 +45,6 @@ class PumpTelemetryWhenWarning(Profile):
     features = WarningTelemetryFeatures()
     assembly = [
         Operator(
-            id="select_warning_telemetry",
             interface=Interface(
                 inputs=[
                     ref.feature("pump_mode"),

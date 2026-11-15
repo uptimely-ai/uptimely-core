@@ -152,7 +152,6 @@ class PumpTelemetry(Profile):
         ],
         calculations=[
             Operator(
-                id="pump_mode",
                 interface=Interface(
                     outputs=[features.pump_mode],
                 ),
@@ -169,7 +168,6 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                id="pressure_flow_efficiency",
                 interface=Interface(
                     outputs=[features.pressure_flow_efficiency],
                 ),
@@ -188,7 +186,6 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                id="room_temperature_reference",
                 interface=Interface(
                     outputs=[features.room_temperature_reference],
                 ),
@@ -203,7 +200,6 @@ class PumpTelemetry(Profile):
                 merge=merge.default(),
             ),
             Operator(
-                id="bearing_temperature_rise",
                 interface=Interface(
                     outputs=[features.bearing_temperature_rise],
                 ),
@@ -218,7 +214,6 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                id="bearing_temperature_delta",
                 interface=Interface(
                     outputs=[features.bearing_temperature_delta],
                 ),
@@ -236,7 +231,6 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                id="vibration_delta",
                 interface=Interface(
                     outputs=[features.vibration_delta],
                 ),
@@ -254,7 +248,6 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
-                id="pump_health_score",
                 interface=Interface(
                     outputs=[features.pump_health_score],
                 ),
@@ -274,7 +267,6 @@ class PumpTelemetry(Profile):
         ],
         publishing=[
             Operator(
-                id="write_pump_telemetry",
                 interface=Interface(
                     outputs=[],
                 ),
