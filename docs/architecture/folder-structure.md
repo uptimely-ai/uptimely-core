@@ -21,6 +21,10 @@ project/
 ├── spec/
 │   ├── spec.py <-- default spec entrypoint
 │   ├── profile_<name>.py
+│   ├── profile_<name>/
+│   │   ├── __init__.py
+│   │   ├── profile.py
+│   │   └── features.py
 │   └── dimension.py
 └── artifacts/
     ├── build/
@@ -38,6 +42,10 @@ project/
 The included cooling-pump example uses distinctively named Python files
 directly under `src/` instead of the package directory shown above. Both
 layouts work with project source imports.
+
+Keep a profile in one module while its declarations remain easy to navigate.
+For larger profiles, use a package to separate the profile, features, and
+related declarations while keeping a `profile.py` entrypoint.
 
 ## Folder responsibilities
 
