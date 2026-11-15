@@ -83,7 +83,7 @@ class Pump(Profile):
     assembly = [
         Operator(
             outputs=[features.pump_max_capacity],
-            stage=Binding(
+            read=Binding(
                 io.read_file,
                 source=ref.paths("pump_assets_source"),
                 rename={"max_capacity": features.pump_max_capacity},
@@ -165,7 +165,7 @@ class Pump(Profile):
         ),
         Operator(
             outputs=[features.measurement, features.reference_value],
-            stage=Binding(
+            read=Binding(
                 io.read_file,
                 source=ref.paths("pump_external_inputs_source"),
                 schema={"measurement": "float", "reference_value": "float"},
@@ -196,7 +196,7 @@ class Pump(Profile):
         ),
         Operator(
             outputs=[],
-            compute=Binding(
+            write=Binding(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[

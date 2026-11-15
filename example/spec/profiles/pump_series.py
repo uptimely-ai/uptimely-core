@@ -37,7 +37,7 @@ class PumpSeries(Profile):
     assembly = [
         Operator(
             outputs=[features.max_capacity],
-            stage=Binding(
+            read=Binding(
                 io.read_file,
                 source=ref.paths("pump_series_source"),
                 rename={"max_capacity": features.max_capacity},
@@ -59,7 +59,7 @@ class PumpSeries(Profile):
         ),
         Operator(
             outputs=[],
-            compute=Binding(
+            write=Binding(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[features.bearing_temperature_max, features.max_capacity],

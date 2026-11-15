@@ -418,6 +418,10 @@ identifies one operator. Do not include an `id` field. The key names this
 calculation, not a reusable function or output feature. Multiple operators can
 use the same function with different arguments.
 
+In Python authoring, the primary binding is named `read`, `compute`, `write`, or
+`stage`. The generated Spec stores it under `compute`; the function contract
+and dataframe arguments determine the operator kind.
+
 ```json
 {
   "assembly": {

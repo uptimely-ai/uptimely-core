@@ -48,7 +48,7 @@ class PumpTelemetryByDay(Profile):
         ),
         Operator(
             outputs=[],
-            compute=Binding(
+            write=Binding(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[features.bearing_temperature_max],
