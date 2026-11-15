@@ -380,9 +380,10 @@ explicit dataframe dataflow and runtime checks when they fit the work.
 
 <p class="cv-function-subtitle">Combine the current dataset with a staged fragment</p>
 
-When an operator declares a merge, its compute step returns a fragment instead
-of the complete target. Fragment is data transformed to fit to target profiles,grain. The merge receives the current dataset, which is empty
-for the first operator, and that fragment. It returns the updated dataset.
+In Python, an operator uses `stage` to produce a fragment and `merge` to combine
+it with the current dataset. The dataset may be absent for the first operator.
+The merge returns the updated dataset. In the generated Spec and execution plan,
+the stage function is represented by the `compute` binding.
 
 <div class="concepts-visual">
   <div class="cv-operation">
