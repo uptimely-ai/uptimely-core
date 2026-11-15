@@ -20,7 +20,7 @@ def app(tmp_path: pathlib.Path) -> application_module.Uptimely:
     """Create a project with a minimal discoverable source Spec."""
     spec_path = tmp_path / application_module.SPEC_JSON_ENTRY_FILE
     spec_path.parent.mkdir(parents=True)
-    spec_path.write_text('{"spec_version": 8, "name": "First build"}', encoding="utf-8")
+    spec_path.write_text('{"spec_version": 9, "name": "First build"}', encoding="utf-8")
     return application_module.Uptimely(tmp_path)
 
 
@@ -53,7 +53,7 @@ def test_project_loads_and_passes_config_to_engine(tmp_path: pathlib.Path) -> No
     config_path.write_text("[params]\nthreshold = 99\n", encoding="utf-8")
     (tmp_path / "spec").mkdir()
     (tmp_path / "spec/spec.json").write_text(
-        '{"spec_version": 8, "name": "Config test"}', encoding="utf-8"
+        '{"spec_version": 9, "name": "Config test"}', encoding="utf-8"
     )
 
     runtime = app.create_engine(app.build())
@@ -112,10 +112,10 @@ def test_project_build_uses_configured_source_and_cli_overrides(tmp_path: pathli
     spec_dir = tmp_path / "spec"
     spec_dir.mkdir()
     (spec_dir / "configured.json").write_text(
-        '{"spec_version": 8, "name": "Configured source"}', encoding="utf-8"
+        '{"spec_version": 9, "name": "Configured source"}', encoding="utf-8"
     )
     override_spec = tmp_path / "override.json"
-    override_spec.write_text('{"spec_version": 8, "name": "CLI source"}', encoding="utf-8")
+    override_spec.write_text('{"spec_version": 9, "name": "CLI source"}', encoding="utf-8")
     (tmp_path / "configured-src").mkdir()
     (tmp_path / "uptimely.toml").write_text(
         '[application]\njson_spec = "spec/configured.json"\nsrc_path = "configured-src"\n'
@@ -187,7 +187,7 @@ def test_project_builds_and_loads_fresh_bundles(app: application_module.Uptimely
     assert loaded.spec_definition.name == "First build"
 
     spec_path = app.root / application_module.SPEC_JSON_ENTRY_FILE
-    spec_path.write_text('{"spec_version": 8, "name": "Second build"}', encoding="utf-8")
+    spec_path.write_text('{"spec_version": 9, "name": "Second build"}', encoding="utf-8")
     second = app.build()
 
     assert second.spec_definition.name == "Second build"
@@ -233,7 +233,7 @@ def test_run_forwards_options_and_holds_build_lock(app: application_module.Uptim
 def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) -> None:
     (tmp_path / "spec").mkdir()
     (tmp_path / "spec/spec.json").write_text(
-        '{"spec_version": 8, "name": "Run config"}', encoding="utf-8"
+        '{"spec_version": 9, "name": "Run config"}', encoding="utf-8"
     )
     (tmp_path / "custom-src").mkdir()
     (tmp_path / "uptimely.toml").write_text(

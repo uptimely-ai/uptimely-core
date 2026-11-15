@@ -26,7 +26,7 @@ def test_build_services_resolve_root_once(
 def test_builder_and_store_can_be_reused_after_failed_build(tmp_path: pathlib.Path) -> None:
     spec_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
     spec_path.parent.mkdir()
-    spec_path.write_text('{"spec_version": 8, "name": "First build"}', encoding="utf-8")
+    spec_path.write_text('{"spec_version": 9, "name": "First build"}', encoding="utf-8")
     project_builder = builder.ProjectBuilder(tmp_path)
     store = bundle.BundleStore(tmp_path)
     first = project_builder.build()
@@ -36,7 +36,7 @@ def test_builder_and_store_can_be_reused_after_failed_build(tmp_path: pathlib.Pa
         project_builder.build(features=[])
     assert store.load().spec_definition.name == "First build"
 
-    spec_path.write_text('{"spec_version": 8, "name": "Second build"}', encoding="utf-8")
+    spec_path.write_text('{"spec_version": 9, "name": "Second build"}', encoding="utf-8")
     second = project_builder.build()
     assert second.spec_definition.name == "Second build"
     assert second.manifest.features is None
@@ -52,12 +52,12 @@ def test_builder_and_store_can_be_reused_after_failed_build(tmp_path: pathlib.Pa
 def test_store_loads_staged_bundle_under_existing_lock(tmp_path: pathlib.Path) -> None:
     spec_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
     spec_path.parent.mkdir()
-    spec_path.write_text('{"spec_version": 8, "name": "Active build"}', encoding="utf-8")
+    spec_path.write_text('{"spec_version": 9, "name": "Active build"}', encoding="utf-8")
     active = builder.ProjectBuilder(tmp_path).build()
     staging_root = tmp_path / application.ARTIFACTS_DIR / "staged"
     shutil.copytree(active.root, staging_root)
     (staging_root / "spec.json").write_text(
-        '{"spec_version": 8, "name": "Staged build"}', encoding="utf-8"
+        '{"spec_version": 9, "name": "Staged build"}', encoding="utf-8"
     )
     store = bundle.BundleStore(tmp_path)
 

@@ -8,7 +8,7 @@ import typing
 
 import pydantic
 
-from uptimely.spec import arg_types, operator_bindings, selectors
+from uptimely.spec import arg_types, selectors
 from uptimely.spec import row_context as uptimely_row_context
 
 from . import base, binding, binding_argument
@@ -108,16 +108,8 @@ class Operator(base.StrictModel):
     interface: Interface = pydantic.Field(default_factory=Interface)
     row_context: uptimely_row_context.RowContext | None = None
     compute: binding.Binding
-    binding_kind: operator_bindings.PrimaryBindingKind | None = None
     is_workflow: bool = False
     merge: binding.Binding | None = None
-
-    @pydantic.model_validator(mode="after")
-    def validate_binding_kind(self) -> typing.Self:
-        """Ensure the workflow marker agrees with an explicitly declared binding."""
-        if self.binding_kind is not None and self.is_workflow != (self.binding_kind == "workflow"):
-            raise ValueError("Workflow marker must agree with the primary binding kind")
-        return self
 
     @property
     def bindings(self) -> dict[str, binding.Binding]:
@@ -217,7 +209,7 @@ class Operator(base.StrictModel):
                 is_sink=False,
                 is_effect=False,
                 dimension_change="preserve",
-                fragment_dimensions="not_applicable",
+                fragment_dimensions="target" if self.merge is not None else "not_applicable",
                 row_count_relation="same",
                 key_relation="identical",
                 row_order_relation="preserve",

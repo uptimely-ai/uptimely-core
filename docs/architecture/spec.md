@@ -1,6 +1,6 @@
 # Spec
 
-**Current spec version: 8**
+**Current spec version: 9**
 
 The Spec is a JSON document that describes profiles, feature dependencies, and
 the functions used by operators. The same format is used by tools that check,
@@ -57,7 +57,7 @@ For example, dimensions and profiles use their identifiers as object keys:
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | `null` | Display name. |
-| `spec_version` | integer | No | `8` | Spec format version. Only version `8` is accepted. |
+| `spec_version` | integer | No | `9` | Spec format version. Only version `9` is accepted. |
 | `source` | object | No | `{"name": "manual", "generated": false}` | Information about where the document came from. |
 | `dimensions` | object | No | `{}` | Dimension definitions keyed by identifier. |
 | `functions` | object | No | `{}` | Reusable function definitions keyed by identifier. |
@@ -99,7 +99,7 @@ declared.
 ```json
 {
   "name": "Data-center cooling pump analytics",
-  "spec_version": 8,
+  "spec_version": 9,
   "source": {"name": "manual", "generated": false},
   "dimensions": {
     "machine": {
@@ -429,9 +429,11 @@ identifies one operator. Do not include an `id` field. The key names this
 calculation, not a reusable function or output feature. Multiple operators can
 use the same function with different arguments.
 
-In Python authoring, the primary binding is named `read`, `compute`, `write`, or
-`stage`. The generated Spec stores it under `compute`; the function contract
-and dataframe arguments determine its binding and execution contracts.
+In Python authoring and JSON, every operator has a `compute` binding and may
+have a `merge` binding. Function signatures, dataframe arguments, the profile's
+seed reference, and the presence of a merge determine execution contracts.
+Read, transform, write, and workflow describe function signatures, not operator
+attributes.
 
 ```json
 {
@@ -467,10 +469,9 @@ and dataframe arguments determine its binding and execution contracts.
 | `interface.outputs` | array of strings | Yes | No | `[]` | Features produced in the owning profile. |
 | `row_context` | object or null | No | No | `null` | Surrounding-observation requirements. |
 | `compute` | object | No | Yes | N/A | Function call. |
-| `binding_kind` | string or null | No | No | `null` | Primary Python binding name, when supplied. |
 | `compute.function` | string | No | Yes | N/A | ID of the function to call. Use the function ID without a selector. |
 | `compute.args` | object | Yes | No | `{}` | Values passed to the function. |
-| `is_workflow` | boolean | No | No | `false` | Marks an opaque workflow without dataframe inputs or outputs. |
+| `is_workflow` | boolean | No | No | `false` | Marks an opaque workflow without dataframe inputs or outputs. Python authoring derives it for non-dataframe functions with no dataframe input. |
 | `merge` | object or null | No | No | `null` | Optional function that combines the current dataset with the compute result. |
 | `merge.function` | string | No | Yes when `merge` is set | N/A | ID of the function that combines the data. |
 | `merge.args` | object | Yes | No | `{}` | Arguments including the current dataset and the compute result. |
@@ -522,6 +523,13 @@ Use selectors in `compute.args` only where the argument accepts them. See
 [Selectors](#selectors) for supported references and their value types.
 
 ### Merge
+
+Declare a merge when the compute function returns a fragment to combine with
+the current profile dataset, such as a separate read or a calculation from
+another profile. A seed returns the initial complete dataset and must not
+have a merge. A calculation that returns the complete current dataset does not
+use a merge. A function without a dataframe result cannot use a merge, even
+when it has logical feature dependencies.
 
 The merge is optional, but declare it explicitly. Its function must accept
 exactly two dataframe arguments, `dataset` and `fragment`. It may also accept

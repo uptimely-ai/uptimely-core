@@ -60,7 +60,7 @@ class PumpTelemetry(Profile):
                     features.motor_power,
                     features.mode,
                 ],
-                seed=Bind(
+                compute=Bind(
                     io.read_pump_telemetry,
                     pump_telemetry_source=ref.paths("telemetry_source"),
                     pump_source=ref.paths("pump_assets_source"),
@@ -96,7 +96,7 @@ class PumpTelemetry(Profile):
             ),
             Operator(
                 outputs=[features.room_temperature_reference],
-                stage=Bind(
+                compute=Bind(
                     analytics.select_columns,
                     dataset=ref.dataset("constants"),
                     columns=[ref.feature("room_temperature")],
@@ -157,7 +157,7 @@ class PumpTelemetry(Profile):
         publishing=[
             Operator(
                 outputs=[],
-                write=Bind(
+                compute=Bind(
                     io.write_file,
                     dataset=ref.dataset(),
                     features=[

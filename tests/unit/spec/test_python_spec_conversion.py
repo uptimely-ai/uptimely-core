@@ -73,7 +73,7 @@ def test_output_reference_logging_is_one_counted_summary(
                 assembly.Operator(
                     id=f"read_{operator}",
                     outputs=[feature.Feature(id=f"value_{operator}")],
-                    read=assembly.Bind(
+                    compute=assembly.Bind(
                         ref.function("reader:read", returns="dataframe"),
                         column=ref.feature(f"value_{operator}"),
                     ),
@@ -140,8 +140,7 @@ def _declaration(
             id=f"{identifier}_mapping",
             inputs=[ref.feature("temperature")] if is_dimensional else [],
             outputs=[],
-            compute=None if is_dimensional else binding,
-            stage=binding if is_dimensional else None,
+            compute=binding,
             merge=merge.default() if is_dimensional else None,
         )
     ]
@@ -157,13 +156,13 @@ def _python_spec(profiles: list[profile.Profile], name: str | None = None) -> Sp
 
 @pytest.mark.parametrize("explicit", [False, True])
 @pytest.mark.parametrize("staged", [False, True])
-def test_foreign_feature_inputs_require_stage_and_merge(explicit: bool, staged: bool) -> None:
+def test_foreign_feature_inputs_are_independent_of_merge(explicit: bool, staged: bool) -> None:
     source = profile.Profile(
         id="source",
         assembly=[
             assembly.Operator(
                 outputs=[feature.Feature(id="value")],
-                read=assembly.Bind(ref.function("reader:read", returns="dataframe")),
+                compute=assembly.Bind(ref.function("reader:read", returns="dataframe")),
             )
         ],
     )
@@ -177,36 +176,31 @@ def test_foreign_feature_inputs_require_stage_and_merge(explicit: bool, staged: 
             assembly.Operator(
                 inputs=["value"] if explicit else None,
                 outputs=[feature.Feature(id="copied")],
-                compute=None if staged else binding,
-                stage=binding if staged else None,
+                compute=binding,
                 merge=merge.default() if staged else None,
             )
         ],
     )
-    if not staged:
-        with pytest.raises(ValueError, match="input feature 'value'.*use stage and merge"):
-            conversion.to_model([source, target])
-    else:
-        document = conversion.to_model([source, target])
-        operator = next(iter(document.profiles["target"].assembly.values()))
-        assert operator.compute.function == "copy"
-        assert operator.merge is not None
-        assert operator.input_features == ["value"]
+    document = conversion.to_model([source, target])
+    operator = next(iter(document.profiles["target"].assembly.values()))
+    assert operator.compute.function == "copy"
+    assert (operator.merge is not None) == staged
+    assert operator.input_features == ["value"]
 
 
-def test_compute_accepts_local_inputs_but_rejects_mixed_profile_inputs() -> None:
+def test_compute_preserves_mixed_logical_profile_inputs() -> None:
     source = profile.Profile(
         id="source",
         assembly=[
             assembly.Operator(
                 outputs=[feature.Feature(id="foreign")],
-                read=assembly.Bind(ref.function("reader:foreign", returns="dataframe")),
+                compute=assembly.Bind(ref.function("reader:foreign", returns="dataframe")),
             )
         ],
     )
     local = assembly.Operator(
         outputs=[feature.Feature(id="local")],
-        read=assembly.Bind(ref.function("reader:local", returns="dataframe")),
+        compute=assembly.Bind(ref.function("reader:local", returns="dataframe")),
     )
     binding = assembly.Bind(ref.function("reader:calculate", returns="dataframe"))
     calculation = assembly.Operator(
@@ -219,8 +213,11 @@ def test_compute_accepts_local_inputs_but_rejects_mixed_profile_inputs() -> None
     assert document.profiles["target"].assembly[calculation.id].input_features == ["local"]
 
     calculation.inputs.append("foreign")
-    with pytest.raises(ValueError, match="input feature 'foreign'.*use stage and merge"):
-        conversion.to_model([source, target])
+    document = conversion.to_model([source, target])
+    assert document.profiles["target"].assembly[calculation.id].input_features == [
+        "local",
+        "foreign",
+    ]
 
 
 def _mapping_source() -> profile.Profile:
@@ -606,7 +603,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
     )
     assert pump.to_model().name == "Machine"
     assert payload["name"] == "Pump analytics"
-    assert payload["spec_version"] == 8
+    assert payload["spec_version"] == 9
     assert "options" not in payload
     assert payload["source"] == {"name": "python_api", "generated": True}
     assert payload["dimensions"] == {

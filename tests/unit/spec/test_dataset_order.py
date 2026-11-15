@@ -33,7 +33,7 @@ ORDER = [
 
 def _configuration() -> dict[str, typing.Any]:
     return {
-        "spec_version": 8,
+        "spec_version": 9,
         "dimensions": {
             "machine": {"resolutions": {"machine": {"key": "machine_id", "type": "string"}}},
             "timestamp": {"resolutions": {"timestamp": {"key": "timestamp", "type": "datetime"}}},

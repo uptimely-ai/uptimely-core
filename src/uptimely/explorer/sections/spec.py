@@ -197,10 +197,9 @@ def _build_context(
             for source, relationship in relationships_by_source.items()
         ]
         operator_data = configuration["profiles"][key[0]]["assembly"][key[1]]
-        if operator.binding_kind is not None:
-            operator_data["binding_contract"] = dataclasses.asdict(
-                operator_bindings.OPERATOR_BINDINGS[operator.binding_kind]
-            )
+        operator_data["binding_contract"] = dataclasses.asdict(
+            operator_bindings.OPERATOR_BINDINGS["compute"]
+        )
         if operator.merge is not None:
             operator_data["merge_contract"] = dataclasses.asdict(
                 operator_bindings.OPERATOR_BINDINGS["merge"]

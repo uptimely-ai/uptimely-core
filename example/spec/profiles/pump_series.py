@@ -39,7 +39,7 @@ class PumpSeries(Profile):
         Operator(
             id="read_pump_series",
             outputs=[features.max_capacity],
-            seed=Bind(
+            compute=Bind(
                 io.read_file,
                 source=ref.paths("pump_series_source"),
                 rename={"max_capacity": features.max_capacity},
@@ -49,7 +49,7 @@ class PumpSeries(Profile):
         Operator(
             inputs=[ref.feature("bearing_temperature")],
             outputs=[features.bearing_temperature_max],
-            stage=Bind(
+            compute=Bind(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry"),
                 aggregations={"bearing_temperature": "max"},
@@ -60,7 +60,7 @@ class PumpSeries(Profile):
         ),
         Operator(
             outputs=[],
-            write=Bind(
+            compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[features.bearing_temperature_max, features.max_capacity],

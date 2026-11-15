@@ -143,7 +143,6 @@ def test_row_context_references_resolve_scalar_extents(
         "interface",
         "row_context",
         "compute",
-        "binding_kind",
         "is_workflow",
         "merge",
     ]
@@ -552,7 +551,7 @@ def test_collapse_functions_execute_without_row_context(
                 id="summary",
                 inputs=[ref.feature("temperature")],
                 outputs=[feature.Feature(id="temperature_max", type="integer")],
-                stage=assembly.Bind(
+                compute=assembly.Bind(
                     ref.function(maximum),
                     dataset=ref.profile("observations").dataset,
                     column=ref.feature("temperature").id,

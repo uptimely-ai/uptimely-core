@@ -112,7 +112,7 @@ class Bind:
 
 @dataclasses.dataclass(frozen=True, kw_only=True, init=False)
 class Operator:
-    """Declare an operator with one primary binding and an optional merge.
+    """Declare an operator with a compute binding and an optional merge.
 
     Args:
         id: Optional non-empty identifier, unique within its profile. When omitted,
@@ -123,17 +123,10 @@ class Operator:
         outputs: Feature declarations produced by the operator.
         row_context: Operator-specific observation requirements, merged with
             argument annotations.
-        seed: Function producing the initial profile dataframe from an external
-            source or another profile.
-        read: Function producing a fragment without a dataframe input. Requires
-            a merge.
-        compute: Function calculating features from the current dataset.
-        write: Function consuming one dataframe and returning no result.
-        stage: Function producing a fragment from another profile's dataset.
-            Requires a merge.
-        workflow: Function running an opaque workflow without dataframe inputs
-            or dataframe outputs. Its result is ignored.
-        merge: Function combining a staged fragment with the target.
+        compute: Function accepting zero or one dataframe. A dataframe result
+            is the complete target without a merge, or a fragment with a merge.
+            Non-dataframe results are not added to the target.
+        merge: Function combining the compute fragment with the target.
     """
 
     id: str
@@ -142,110 +135,48 @@ class Operator:
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
-    seed: Bind | None = None
-    read: Bind | None = None
-    compute: Bind | None = None
-    write: Bind | None = None
-    stage: Bind | None = None
-    workflow: Bind | None = None
+    compute: Bind
     merge: Bind | None = None
-    _primary_role: operator_bindings.PrimaryBindingKind = dataclasses.field(
-        init=False,
-        repr=False,
-        compare=False,
-    )
-    _primary_binding: Bind = dataclasses.field(init=False, repr=False, compare=False)
     _id_explicit: bool = dataclasses.field(init=False, repr=False, compare=False)
 
     def __init__(
         self,
         *,
+        compute: Bind,
         id: str | None = None,
         inputs: abc.Sequence[feature_module.Feature | ref.Reference | str] | None = None,
         outputs: abc.Sequence[feature_module.Feature] = (),
         row_context: (
             row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
         ) = None,
-        seed: Bind | None = None,
-        read: Bind | None = None,
-        compute: Bind | None = None,
-        write: Bind | None = None,
-        stage: Bind | None = None,
-        workflow: Bind | None = None,
         merge: Bind | None = None,
     ) -> None:
         """Create an operator, deriving its identifier when one is not supplied."""
-        for role, binding in (
-            ("seed", seed),
-            ("read", read),
-            ("compute", compute),
-            ("write", write),
-            ("stage", stage),
-            ("workflow", workflow),
-            ("merge", merge),
-        ):
-            if binding is not None and not isinstance(binding, Bind):
-                raise TypeError(f"Operator {role} must be a Bind or None")
+        if not isinstance(compute, Bind):
+            raise TypeError("Operator compute must be a Bind")
+        if merge is not None and not isinstance(merge, Bind):
+            raise TypeError("Operator merge must be a Bind or None")
         if inputs is not None and (
             not isinstance(inputs, abc.Sequence) or isinstance(inputs, (str, bytes))
         ):
             raise TypeError("Operator inputs must be a sequence of feature references")
         if not isinstance(outputs, abc.Sequence) or isinstance(outputs, (str, bytes)):
             raise TypeError("Operator outputs must be a sequence of Features")
-        primary_bindings: list[tuple[operator_bindings.PrimaryBindingKind, Bind]] = []
-        if seed is not None:
-            primary_bindings.append(("seed", seed))
-        if read is not None:
-            primary_bindings.append(("read", read))
-        if compute is not None:
-            primary_bindings.append(("compute", compute))
-        if write is not None:
-            primary_bindings.append(("write", write))
-        if stage is not None:
-            primary_bindings.append(("stage", stage))
-        if workflow is not None:
-            primary_bindings.append(("workflow", workflow))
-        if len(primary_bindings) != 1:
-            raise ValueError(
-                "Operator requires one primary binding; stage requires a merge, "
-                "which is allowed only with read or stage"
-            )
-        primary_role, primary = primary_bindings[0]
-        merge_rule = operator_bindings.OPERATOR_BINDINGS[primary_role].merge
-        if (merge_rule == "required" and primary_role != "read" and merge is None) or (
-            merge is not None and merge_rule != "required"
-        ):
-            raise ValueError(
-                "Operator requires one primary binding; stage requires a merge, "
-                "which is allowed only with read or stage"
-            )
         id_explicit = id is not None
         if id is None:
-            id = self._generate_id(outputs, primary.reference.name)
+            id = self._generate_id(outputs, compute.reference.name)
         if not isinstance(id, str) or not id.strip():
             raise ValueError("Operator requires a non-empty id")
         object.__setattr__(self, "id", id)
         object.__setattr__(self, "inputs", list(inputs) if inputs is not None else None)
         object.__setattr__(self, "outputs", list(outputs))
         object.__setattr__(self, "row_context", row_context)
-        object.__setattr__(self, "seed", seed)
-        object.__setattr__(self, "read", read)
         object.__setattr__(self, "compute", compute)
-        object.__setattr__(self, "write", write)
-        object.__setattr__(self, "stage", stage)
-        object.__setattr__(self, "workflow", workflow)
         object.__setattr__(self, "merge", merge)
-        object.__setattr__(self, "_primary_role", primary_role)
-        object.__setattr__(self, "_primary_binding", primary)
         object.__setattr__(self, "_id_explicit", id_explicit)
         self._input_ids()
         _ = self.output_ids
         self.__post_init__()
-
-    @property
-    def _primary(self) -> Bind:
-        """Return the primary function binding."""
-        return self._primary_binding
 
     @classmethod
     def _generate_id(cls, outputs: abc.Sequence[feature_module.Feature], function_id: str) -> str:
@@ -319,13 +250,13 @@ class Operator:
         object.__setattr__(
             self,
             "row_context",
-            row_context_module._context(self._primary.arguments, self.row_context),
+            row_context_module._context(self.compute.arguments, self.row_context),
         )
 
     @property
     def reference(self) -> ref.FunctionReference:
         """Return the normalized entrypoint without importing string references."""
-        return self._primary.reference
+        return self.compute.reference
 
     @property
     def catalog_id(self) -> str:
@@ -338,11 +269,11 @@ class Operator:
         Entrypoint strings are not imported during authoring; signature validation
         for those functions is deferred until compilation.
         """
-        return self._primary.bound_arguments()
+        return self.compute.bound_arguments()
 
     def to_model(self) -> spec_model.Operator:
         """Convert this declaration to its canonical document model."""
-        compute = self._primary.to_model()
+        compute = self.compute.to_model()
         merge = self.merge.to_model() if self.merge is not None else None
         if self.inputs is None:
             output_ids = set(self.output_ids)
@@ -355,8 +286,13 @@ class Operator:
         return spec_model.Operator(
             id=self.id,
             compute=compute,
-            binding_kind=self._primary_role,
-            is_workflow=self.workflow is not None,
+            is_workflow=(
+                self.reference.returns in {"none", "any"}
+                and not compute.profile_dataframe_references
+                and not any(
+                    arg_types.is_dataframe(value) for value in (self.reference.args or {}).values()
+                )
+            ),
             merge=merge,
             interface=spec_model.Interface(
                 inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in input_ids],
@@ -367,9 +303,7 @@ class Operator:
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Build the reusable function contract declared by this operator."""
-        bindings: list[tuple[operator_bindings.BindingKind, Bind]] = [
-            (self._primary_role, self._primary)
-        ]
+        bindings: list[tuple[operator_bindings.BindingKind, Bind]] = [("compute", self.compute)]
         if self.merge is not None:
             bindings.append(("merge", self.merge))
         catalogs = []
@@ -378,34 +312,16 @@ class Operator:
             dataframe_count = sum(
                 arg_types.is_dataframe(argument.type) for argument in template.args.values()
             )
-            contract = operator_bindings.OPERATOR_BINDINGS[role]
-            if role == "read":
-                if dataframe_count not in contract.dataframe_inputs:
-                    raise ValueError("Read binding must not accept dataframe inputs")
-                if template.returns != "dataframe":
-                    raise ValueError("Read binding must return a dataframe")
-            elif role == "write":
-                if dataframe_count not in contract.dataframe_inputs:
-                    raise ValueError("Write binding must accept exactly one dataframe input")
-                if template.returns != "none":
-                    raise ValueError("Write binding must return no result")
-            elif role == "workflow":
-                if dataframe_count not in contract.dataframe_inputs:
-                    raise ValueError("Workflow binding must not accept dataframe inputs")
-                if template.returns == "dataframe":
-                    raise ValueError("Workflow binding must not declare a dataframe result")
-            if (role in {"seed", "compute", "stage"} and dataframe_count > 1) or (
+            if (role == "compute" and dataframe_count > 1) or (
                 role == "merge" and dataframe_count != 2
             ):
                 raise ValueError(
                     f"Operator {self.id} {role} binding has invalid dataframe arity: "
                     f"{dataframe_count}"
                 )
-            if role == "merge" and template.returns != "dataframe":
-                raise ValueError("Merge binding must return a dataframe")
-            if role == "stage" and template.returns != "dataframe":
-                raise ValueError("A stage binding must return a dataframe")
-            if role == "seed" and template.returns != "dataframe":
-                raise ValueError("A seed binding must return a dataframe")
+            if (role == "merge" or self.merge is not None) and template.returns != "dataframe":
+                raise ValueError(
+                    f"Operator {self.id} {role} binding must return a dataframe when merging"
+                )
             catalogs.append(spec_model.FunctionCatalog(root={template.id: template}))
         return spec_model.FunctionCatalog.merge(catalogs)

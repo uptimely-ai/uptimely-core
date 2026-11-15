@@ -450,12 +450,12 @@ function operatorCard({ attributes, title, hasMerge, relationships, role = null,
   </article>`;
 }
 
-function bindingContractDetails(kind, contract, merge) {
-  if (!kind || !contract) return "";
+function bindingContractDetails(contract, merge) {
+  if (!contract) return "";
   const source = contract.dataframe_source.replaceAll("_", " ");
   const counts = contract.dataframe_inputs.join(" or ");
   const mergeDescription = merge ? `<p>${escape(merge.description)}</p>` : "";
-  return `<details class="profile-operator-bindings" data-binding-contract="${escape(kind)}">
+  return `<details class="profile-operator-bindings" data-binding-contract="compute">
     <summary>Binding contract</summary>
     <p>${escape(contract.description)}</p>
     <dl class="profile-operator-contract">
@@ -477,7 +477,7 @@ function bindingReference(contracts) {
   </tr>`).join("");
   return `<details class="profile-operator-bindings mb-6" data-binding-reference>
     <summary>Operator binding contracts</summary>
-    <p>Feature inputs and outputs are logical declarations, independent of dataframe contracts. Profiles without a seed may use legacy read, stage, and compute contracts.</p>
+    <p>Feature inputs and outputs are logical declarations, independent of dataframe contracts. Each operator has a compute binding and may declare a merge.</p>
     <div class="ui-table-scroll" tabindex="0" role="region" aria-label="Operator binding contracts">
       <table class="ui-table">
         <caption class="sr-only">Operator binding dataframe contracts</caption>
@@ -559,7 +559,7 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       inputs: featureList(operatorInputs(operator)), outputs: featureList(operator.interface.outputs),
       uncontrolled: operator.is_workflow || fn.returns === "any", functionId, functionName: fn.name || functionId,
       argumentsMarkup: resolvedArgumentDetails(id, operator, "Arguments", computeInvocations),
-      details: bindingContractDetails(operator.binding_kind, operator.binding_contract, operator.merge_contract),
+      details: bindingContractDetails(operator.binding_contract, operator.merge_contract),
     });
   }).join("")}</div>`;
 }
