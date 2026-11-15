@@ -285,8 +285,7 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_operator(
                     outputs=[feature.Feature(id="external_result")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function("example:escape", returns="any"),
-                    arguments={},
+                    ref.function("example:escape", returns="any"),
                 ),
             )
         ],
@@ -314,8 +313,7 @@ def test_python_dataset_accepts_escape_feature_outputs() -> None:
                     outputs=[feature.Feature(id="external_result")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function("example:escape", returns="any"),
-                    arguments={},
+                    ref.function("example:escape", returns="any"),
                 ),
             )
         ],

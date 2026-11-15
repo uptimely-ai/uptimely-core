@@ -15,12 +15,13 @@ def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.FunctionReference(
+                    ref.FunctionReference(
                         module=__name__ if not conflicting else f"{__name__}.alternate",
                         name="source",
                         returns="dataframe",
                     ),
-                    arguments={"path": "readings.json", "columns": [ref.feature("temperature")]},
+                    path="readings.json",
+                    columns=[ref.feature("temperature")],
                 ),
             )
         ],

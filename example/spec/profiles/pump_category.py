@@ -38,12 +38,10 @@ class PumpCategory(Profile):
         Operator(
             interface=Interface(outputs=[features.max_capacity]),
             compute=Binding(
-                function=io.read_file,
-                arguments=dict(
-                    source=ref.paths("pump_category_source"),
-                    rename={"max_capacity": features.max_capacity},
-                    schema={"max_capacity": "float"},
-                ),
+                io.read_file,
+                source=ref.paths("pump_category_source"),
+                rename={"max_capacity": features.max_capacity},
+                schema={"max_capacity": "float"},
             ),
             merge=merge.default(),
         ),
@@ -53,25 +51,21 @@ class PumpCategory(Profile):
                 outputs=[features.bearing_temperature_max],
             ),
             compute=Binding(
-                function=analytics.aggregate,
-                arguments=dict(
-                    dataset=ref.dataset("pump_telemetry"),
-                    aggregations={"bearing_temperature": "max"},
-                    dimensions=[dimension.MACHINE_DIMENSION.resolution("machine_category").key],
-                    rename={"bearing_temperature": features.bearing_temperature_max},
-                ),
+                analytics.aggregate,
+                dataset=ref.dataset("pump_telemetry"),
+                aggregations={"bearing_temperature": "max"},
+                dimensions=[dimension.MACHINE_DIMENSION.resolution("machine_category").key],
+                rename={"bearing_temperature": features.bearing_temperature_max},
             ),
             merge=merge.default(),
         ),
         Operator(
             interface=Interface(outputs=[]),
             compute=Binding(
-                function=io.write_file,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    features=[features.bearing_temperature_max, features.max_capacity],
-                    output=ref.paths("pump_category_output"),
-                ),
+                io.write_file,
+                dataset=ref.dataset(),
+                features=[features.bearing_temperature_max, features.max_capacity],
+                output=ref.paths("pump_category_output"),
             ),
         ),
     ]

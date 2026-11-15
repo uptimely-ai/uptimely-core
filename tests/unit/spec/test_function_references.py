@@ -56,7 +56,9 @@ def test_category_survives_conversion_to_spec_document() -> None:
         assembly.Operator(
             id="calculate",
             interface=assembly.Interface(outputs=[]),
-            compute=assembly.Binding(function=reference, arguments={}),
+            compute=assembly.Binding(
+                reference,
+            ),
         ),
     )
 
@@ -73,10 +75,7 @@ def test_omitted_category_is_serialized_as_null_in_spec_json() -> None:
             id="calculate",
             interface=assembly.Interface(outputs=[]),
             compute=assembly.Binding(
-                function=ref.function(
-                    "unavailable_package.functions:calculate", returns="dataframe"
-                ),
-                arguments={},
+                ref.function("unavailable_package.functions:calculate", returns="dataframe"),
             ),
         ),
     )
@@ -118,8 +117,7 @@ def test_signature_validation_setting_survives_conversion_without_importing(
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=reference,
-                arguments={},
+                reference,
             ),
         ),
     )
@@ -182,8 +180,8 @@ def test_description_survives_conversion_to_exported_document() -> None:
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=reference,
-                arguments={"dataset": ref.dataset()},
+                reference,
+                dataset=ref.dataset(),
             ),
         ),
     )
@@ -243,13 +241,12 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
                         outputs=[],
                     ),
                     compute=assembly.Binding(
-                        function=ref.function(
+                        ref.function(
                             "math:ceil",
                             returns="dataframe",
                             args={},
                             validate_signature=validate_signature,
                         ),
-                        arguments={},
                     ),
                 )
             ],
@@ -279,8 +276,8 @@ def test_string_locations_are_preserved_without_importing(
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=reference,
-                    arguments={"x": 1.2},
+                    reference,
+                    x=1.2,
                 ),
             )
         ],
@@ -311,8 +308,8 @@ def test_generic_mapping_exports_return_contract_without_importing(
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=ref.function("unavailable_package.functions:calculate", returns=returns),
-                arguments={"dataset": ref.profile().dataset},
+                ref.function("unavailable_package.functions:calculate", returns=returns),
+                dataset=ref.profile().dataset,
             ),
         ),
     )
@@ -331,8 +328,8 @@ def test_generic_mapping_requires_return_metadata() -> None:
             outputs=[],
         ),
         compute=assembly.Binding(
-            function=ref.function("math:ceil"),
-            arguments={"x": 1.2},
+            ref.function("math:ceil"),
+            x=1.2,
         ),
     )
     with pytest.raises(ValueError, match="Explicit returns metadata is required"):
@@ -350,8 +347,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
                     outputs=[],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function("math:ceil", returns="any"),
-                    arguments={},
+                    ref.function("math:ceil", returns="any"),
                 ),
             )
         ],
@@ -373,8 +369,8 @@ def test_references_supply_function_names_as_catalog_ids(returns: str) -> None:
             outputs=[],
         ),
         compute=assembly.Binding(
-            function=ref.function("math:ceil", returns=returns),
-            arguments={"x": 1.2},
+            ref.function("math:ceil", returns=returns),
+            x=1.2,
         ),
     )
     catalog = _dataset(declaration).function_catalog()

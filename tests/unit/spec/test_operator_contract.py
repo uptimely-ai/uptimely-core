@@ -75,8 +75,7 @@ def _spec() -> spec.Spec:
                             ],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(read_values),
-                            arguments={},
+                            ref.function(read_values),
                         ),
                     ),
                     assembly.Operator(
@@ -86,11 +85,9 @@ def _spec() -> spec.Spec:
                             outputs=[feature.Feature(id="result", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(add_one),
-                            arguments={
-                                "dataset": ref.profile().dataset,
-                                "output": ref.feature("result").id,
-                            },
+                            ref.function(add_one),
+                            dataset=ref.profile().dataset,
+                            output=ref.feature("result").id,
                         ),
                     ),
                     assembly.Operator(
@@ -100,11 +97,9 @@ def _spec() -> spec.Spec:
                             outputs=[feature.Feature(id="metadata", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(metadata_only),
-                            arguments={
-                                "dataset": ref.profile().dataset,
-                                "identifier": ref.feature("result").id,
-                            },
+                            ref.function(metadata_only),
+                            dataset=ref.profile().dataset,
+                            identifier=ref.feature("result").id,
                         ),
                     ),
                 ],
@@ -216,12 +211,14 @@ def test_merge_binding_contract_is_validated_by_json_and_python_authoring(
         id="vectorize",
         interface=assembly.Interface(),
         compute=assembly.Binding(
-            function=ref.function(add_one),
-            arguments={"dataset": ref.dataset(), "output": "result"},
+            ref.function(add_one),
+            dataset=ref.dataset(),
+            output="result",
         ),
         merge=assembly.Binding(
-            function=ref.function(add_one),
-            arguments={"dataset": ref.dataset(), "output": "result"},
+            ref.function(add_one),
+            dataset=ref.dataset(),
+            output="result",
         ),
     )
     with pytest.raises(ValueError, match="invalid dataframe arity"):
@@ -347,8 +344,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                             outputs=[feature.Feature(id="value", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(read_lower_grain),
-                            arguments={},
+                            ref.function(read_lower_grain),
                         ),
                     )
                 ],
@@ -367,8 +363,8 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                             outputs=[feature.Feature(id="target_value", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(read_target_grain),
-                            arguments={"include_second": dataframe},
+                            ref.function(read_target_grain),
+                            include_second=dataframe,
                         ),
                     ),
                     assembly.Operator(
@@ -382,10 +378,10 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                             ],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(
+                            ref.function(
                                 copy_values if dataframe else dataset_identifier,
                             ),
-                            arguments={
+                            **{
                                 "dataset": source_reference.dataset,
                                 "output": ref.feature("copied").id,
                                 **({} if dataframe else {"identifier": source_reference.id}),

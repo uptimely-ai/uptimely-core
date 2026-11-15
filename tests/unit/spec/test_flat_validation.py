@@ -839,8 +839,8 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
                     outputs=[python_feature.Feature(id="result")],
                 ),
                 compute=assembly.Binding(
-                    function=python_ref.function("external:compute", returns="dataframe"),
-                    arguments={"data": python_ref.profile().dataset},
+                    python_ref.function("external:compute", returns="dataframe"),
+                    data=python_ref.profile().dataset,
                 ),
             )
         ],

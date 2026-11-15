@@ -72,8 +72,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                             ],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(read_observations),
-                            arguments={},
+                            ref.function(read_observations),
                         ),
                     ),
                     assembly.Operator(
@@ -83,13 +82,11 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                             outputs=[feature.Feature(id="result", type="integer")],
                         ),
                         compute=assembly.Binding(
-                            function=ref.function(calculate),
-                            arguments={
-                                "dataset": ref.profile().dataset,
-                                "column": ref.feature("temperature").id,
-                                "output": ref.feature("result").id,
-                                "configuration": {"windows": ["8h", "24h"]},
-                            },
+                            ref.function(calculate),
+                            dataset=ref.profile().dataset,
+                            column=ref.feature("temperature").id,
+                            output=ref.feature("result").id,
+                            configuration={"windows": ["8h", "24h"]},
                         ),
                         row_context=context,
                     ),
@@ -135,8 +132,8 @@ def test_row_context_references_resolve_scalar_extents(
         interface=assembly.Interface(),
         row_context=context,
         compute=assembly.Binding(
-            function=ref.function("external:calculate", returns="dataframe"),
-            arguments={attribute: ref.row_context(attribute)},
+            ref.function("external:calculate", returns="dataframe"),
+            **{attribute: ref.row_context(attribute)},
         ),
     )
     model = declaration.to_model()
@@ -228,16 +225,14 @@ def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
             outputs=[],
         ),
         compute=assembly.Binding(
-            function=ref.function(f"{__name__}:calculate", returns="dataframe"),
-            arguments={
-                "configuration": {
-                    "windows": [
-                        authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h"),
-                        authoring.time(
-                            "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
-                        ),
-                    ]
-                }
+            ref.function(f"{__name__}:calculate", returns="dataframe"),
+            configuration={
+                "windows": [
+                    authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h"),
+                    authoring.time(
+                        "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
+                    ),
+                ]
             },
         ),
         row_context=authoring.time("explicit", dimension=ref.dimension("timestamp"), after="3h"),
@@ -266,8 +261,8 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=ref.function(calculate),
-                arguments={"configuration": [first, second]},
+                ref.function(calculate),
+                configuration=[first, second],
             ),
         )
     with pytest.raises(ValueError, match="one measurement"):
@@ -278,8 +273,8 @@ def test_consolidation_rejects_different_dimensions_and_measurements():
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=ref.function(calculate),
-                arguments={"configuration": [first, authoring.rows(8, before=7)]},
+                ref.function(calculate),
+                configuration=[first, authoring.rows(8, before=7)],
             ),
         )
 
@@ -318,8 +313,7 @@ def test_unknown_current_and_all_rows_context_are_distinct():
                 outputs=[],
             ),
             compute=assembly.Binding(
-                function=ref.function(calculate),
-                arguments={},
+                ref.function(calculate),
             ),
         ).row_context
         is None
@@ -485,8 +479,8 @@ def test_data_mapping_preserves_annotated_context():
             outputs=[],
         ),
         compute=assembly.Binding(
-            function=ref.function(f"{__name__}:calculate", returns="dataframe"),
-            arguments={"configuration": {"windows": [authoring.rows(8, before=7)]}},
+            ref.function(f"{__name__}:calculate", returns="dataframe"),
+            configuration={"windows": [authoring.rows(8, before=7)]},
         ),
     )
     assert declaration.to_model().row_context.before.rows == 7
@@ -580,8 +574,7 @@ def test_collapse_functions_execute_without_row_context(
                     ],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(read_observations),
-                    arguments={},
+                    ref.function(read_observations),
                 ),
             )
         ],
@@ -596,12 +589,10 @@ def test_collapse_functions_execute_without_row_context(
                     outputs=[feature.Feature(id="temperature_max", type="integer")],
                 ),
                 compute=assembly.Binding(
-                    function=ref.function(maximum),
-                    arguments={
-                        "dataset": ref.profile("observations").dataset,
-                        "column": ref.feature("temperature").id,
-                        "output": ref.feature("temperature_max").id,
-                    },
+                    ref.function(maximum),
+                    dataset=ref.profile("observations").dataset,
+                    column=ref.feature("temperature").id,
+                    output=ref.feature("temperature_max").id,
                 ),
             )
         ],

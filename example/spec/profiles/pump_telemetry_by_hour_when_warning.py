@@ -94,125 +94,109 @@ class PumpTelemetryByHourWhenWarning(Profile):
                 ],
             ),
             compute=Binding(
-                function=analytics.aggregate,
-                arguments=dict(
-                    dataset=ref.dataset("pump_telemetry_when_warning"),
-                    aggregations={
-                        "warning_differential_pressure": "mean",
-                        "warning_flow_rate": "mean",
-                        "warning_motor_power": "mean",
-                        "warning_bearing_temperature": "max",
-                        "warning_vibration_rms": "max",
-                    },
-                    dimensions=[
-                        dimension.MACHINE_DIMENSION.resolution("machine").key,
-                        dimension.MACHINE_TIMESTAMP.resolution("hour").key,
-                    ],
-                    rename={
-                        "warning_differential_pressure": (
-                            features.warning_hour_mean_differential_pressure
-                        ),
-                        "warning_flow_rate": features.warning_hour_mean_flow_rate,
-                        "warning_motor_power": features.warning_hour_mean_motor_power,
-                        "warning_bearing_temperature": (
-                            features.warning_hour_max_bearing_temperature
-                        ),
-                        "warning_vibration_rms": features.warning_hour_max_vibration_rms,
-                    },
-                ),
+                analytics.aggregate,
+                dataset=ref.dataset("pump_telemetry_when_warning"),
+                aggregations={
+                    "warning_differential_pressure": "mean",
+                    "warning_flow_rate": "mean",
+                    "warning_motor_power": "mean",
+                    "warning_bearing_temperature": "max",
+                    "warning_vibration_rms": "max",
+                },
+                dimensions=[
+                    dimension.MACHINE_DIMENSION.resolution("machine").key,
+                    dimension.MACHINE_TIMESTAMP.resolution("hour").key,
+                ],
+                rename={
+                    "warning_differential_pressure": (
+                        features.warning_hour_mean_differential_pressure
+                    ),
+                    "warning_flow_rate": features.warning_hour_mean_flow_rate,
+                    "warning_motor_power": features.warning_hour_mean_motor_power,
+                    "warning_bearing_temperature": (features.warning_hour_max_bearing_temperature),
+                    "warning_vibration_rms": features.warning_hour_max_vibration_rms,
+                },
             ),
             merge=merge.default(),
         ),
         Operator(
             interface=Interface(outputs=[features.operating_point_recommendation]),
             compute=Binding(
-                function=analytics.operation_point_optimization,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    optimization_features=[
-                        features.warning_hour_mean_differential_pressure,
-                        features.warning_hour_mean_flow_rate,
-                        features.warning_hour_mean_motor_power,
-                        features.warning_hour_max_bearing_temperature,
-                        features.warning_hour_max_vibration_rms,
-                    ],
-                    output=features.operating_point_recommendation,
-                    bearing_temperature_warning_limit=90.0,
-                    vibration_warning_limit=4.5,
-                ),
+                analytics.operation_point_optimization,
+                dataset=ref.dataset(),
+                optimization_features=[
+                    features.warning_hour_mean_differential_pressure,
+                    features.warning_hour_mean_flow_rate,
+                    features.warning_hour_mean_motor_power,
+                    features.warning_hour_max_bearing_temperature,
+                    features.warning_hour_max_vibration_rms,
+                ],
+                output=features.operating_point_recommendation,
+                bearing_temperature_warning_limit=90.0,
+                vibration_warning_limit=4.5,
             ),
         ),
         Operator(
             interface=Interface(outputs=[features.recommended_flow_rate]),
             compute=Binding(
-                function=ref.function(
+                ref.function(
                     pl.LazyFrame.with_columns,
                     returns="dataframe",
                     args={"self": "dataframe", "recommended_flow_rate": "string"},
                     validate_signature=False,
                 ),
-                arguments=dict(
-                    self=ref.dataset(),
-                    recommended_flow_rate=features.warning_hour_mean_flow_rate,
-                ),
+                self=ref.dataset(),
+                recommended_flow_rate=features.warning_hour_mean_flow_rate,
             ),
         ),
         Operator(
             interface=Interface(outputs=[features.recommended_differential_pressure]),
             compute=Binding(
-                function=analytics.extract_field,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    column=features.operating_point_recommendation,
-                    field="recommended_differential_pressure",
-                    output=features.recommended_differential_pressure,
-                ),
+                analytics.extract_field,
+                dataset=ref.dataset(),
+                column=features.operating_point_recommendation,
+                field="recommended_differential_pressure",
+                output=features.recommended_differential_pressure,
             ),
         ),
         Operator(
             interface=Interface(outputs=[features.energy_cost_score]),
             compute=Binding(
-                function=analytics.extract_field,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    column=features.operating_point_recommendation,
-                    field="energy_cost_score",
-                    output=features.energy_cost_score,
-                ),
+                analytics.extract_field,
+                dataset=ref.dataset(),
+                column=features.operating_point_recommendation,
+                field="energy_cost_score",
+                output=features.energy_cost_score,
             ),
         ),
         Operator(
             interface=Interface(outputs=[features.converged]),
             compute=Binding(
-                function=analytics.extract_field,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    column=features.operating_point_recommendation,
-                    field="converged",
-                    output=features.converged,
-                ),
+                analytics.extract_field,
+                dataset=ref.dataset(),
+                column=features.operating_point_recommendation,
+                field="converged",
+                output=features.converged,
             ),
         ),
         Operator(
             interface=Interface(outputs=[]),
             compute=Binding(
-                function=io.write_file,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    features=[
-                        features.warning_hour_mean_differential_pressure,
-                        features.warning_hour_mean_flow_rate,
-                        features.warning_hour_mean_motor_power,
-                        features.warning_hour_max_bearing_temperature,
-                        features.warning_hour_max_vibration_rms,
-                        features.operating_point_recommendation,
-                        features.recommended_flow_rate,
-                        features.recommended_differential_pressure,
-                        features.energy_cost_score,
-                        features.converged,
-                    ],
-                    output=ref.paths("pump_telemetry_by_hour_when_warning_output"),
-                ),
+                io.write_file,
+                dataset=ref.dataset(),
+                features=[
+                    features.warning_hour_mean_differential_pressure,
+                    features.warning_hour_mean_flow_rate,
+                    features.warning_hour_mean_motor_power,
+                    features.warning_hour_max_bearing_temperature,
+                    features.warning_hour_max_vibration_rms,
+                    features.operating_point_recommendation,
+                    features.recommended_flow_rate,
+                    features.recommended_differential_pressure,
+                    features.energy_cost_score,
+                    features.converged,
+                ],
+                output=ref.paths("pump_telemetry_by_hour_when_warning_output"),
             ),
         ),
     ]

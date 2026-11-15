@@ -15,8 +15,13 @@ def calculate(value: str) -> str:
     return value
 
 
+def calculate_named_arguments(function: str, arguments: str) -> str:
+    """Return values whose names overlap the binding constructor."""
+    return function + arguments
+
+
 def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
-    binding = assembly.Binding(function=calculate, arguments={"value": ref.feature("source")})
+    binding = assembly.Binding(calculate, value=ref.feature("source"))
     operator = assembly.Operator(id="calculate", interface=assembly.Interface(), compute=binding)
 
     assert binding.reference == operator.reference == ref.function(calculate)
@@ -31,12 +36,18 @@ def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
     assert template.args["value"].type == arg_types.STRING
 
 
+def test_binding_accepts_arguments_named_like_constructor_parameters() -> None:
+    binding = assembly.Binding(calculate_named_arguments, function="one", arguments="two")
+
+    assert binding.bound_arguments() == {"function": "one", "arguments": "two"}
+
+
 @pytest.mark.parametrize("arguments", [{}, {"value": "ok", "unexpected": True}])
 @pytest.mark.parametrize("method", ["bound_arguments", "to_model", "to_function_template"])
 def test_binding_validates_direct_callable_arguments(
     arguments: dict[str, typing.Any], method: str
 ) -> None:
-    binding = assembly.Binding(function=calculate, arguments=arguments)
+    binding = assembly.Binding(calculate, **arguments)
     with pytest.raises(TypeError):
         getattr(binding, method)()
 
@@ -49,7 +60,10 @@ def test_deferred_binding_preserves_metadata_without_importing_entrypoint() -> N
         validate_signature=False,
         description="Deferred calculation.",
     )
-    binding = assembly.Binding(function=reference, arguments={"value": 1})
+    binding = assembly.Binding(
+        reference,
+        value=1,
+    )
     assert binding.reference is reference
     assert binding.bound_arguments() == {"value": 1}
     assert binding.to_model().args["value"].root == 1
@@ -60,7 +74,9 @@ def test_deferred_binding_preserves_metadata_without_importing_entrypoint() -> N
 
 
 def test_plain_string_binding_conversion_does_not_require_function_semantics() -> None:
-    binding = assembly.Binding(function="unavailable_assembly_test_package:calculate")
+    binding = assembly.Binding(
+        "unavailable_assembly_test_package:calculate",
+    )
     assert binding.to_model().function == "calculate"
     assert not hasattr(binding, "kind")
     with pytest.raises(ValueError, match="Explicit returns metadata is required"):
@@ -86,8 +102,8 @@ def test_binding_dataframe_optionality_follows_annotation(
     implementation: typing.Callable[..., object], expected: str
 ) -> None:
     binding = assembly.Binding(
-        function=implementation,
-        arguments={"dataset": ref.dataset()},
+        implementation,
+        dataset=ref.dataset(),
     )
     assert binding.to_function_template().args["dataset"].type == expected
 
@@ -95,12 +111,12 @@ def test_binding_dataframe_optionality_follows_annotation(
 @pytest.mark.parametrize("explicit", [False, True])
 def test_interface_owns_input_selection_and_output_exclusion(explicit: bool) -> None:
     compute = assembly.Binding(
-        function="unavailable_assembly_test_package:calculate",
-        arguments={"values": [ref.feature("second"), ref.feature("first"), ref.feature("result")]},
+        "unavailable_assembly_test_package:calculate",
+        values=[ref.feature("second"), ref.feature("first"), ref.feature("result")],
     ).to_model()
     merge = assembly.Binding(
-        function="unavailable_assembly_test_package:combine",
-        arguments={"values": [ref.feature("first"), ref.feature("third")]},
+        "unavailable_assembly_test_package:combine",
+        values=[ref.feature("first"), ref.feature("third")],
     ).to_model()
     interface = assembly.Interface(
         inputs=[] if explicit else None, outputs=[feature.Feature(id="result")]
@@ -118,7 +134,9 @@ def test_interface_normalizes_explicit_inputs_and_copies_collections() -> None:
     inputs.clear()
     outputs.clear()
 
-    compute = assembly.Binding(function="unavailable_assembly_test_package:calculate").to_model()
+    compute = assembly.Binding(
+        "unavailable_assembly_test_package:calculate",
+    ).to_model()
     assert interface.to_model(compute=compute).input_ids == ["first", "second", "third", "fourth"]
     assert interface.output_ids == ["result"]
     interface.outputs.clear()
@@ -153,7 +171,9 @@ def test_interface_validates_mutated_inputs_again_when_converted() -> None:
     inputs = ["source"]
     interface = assembly.Interface(inputs=inputs)
     interface.inputs.append("$features.source")
-    compute = assembly.Binding(function="unavailable_assembly_test_package:calculate").to_model()
+    compute = assembly.Binding(
+        "unavailable_assembly_test_package:calculate",
+    ).to_model()
 
     with pytest.raises(ValueError, match="input feature IDs must not repeat"):
         interface.to_model(compute=compute)
@@ -176,19 +196,17 @@ def test_interface_validates_outputs_at_construction(
 
 def test_operator_combines_binding_contracts_but_only_compute_row_context() -> None:
     compute = assembly.Binding(
-        function=ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
-        arguments={"value": row_context.rows(ref.feature("source"), before=2)},
+        ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
+        value=row_context.rows(ref.feature("source"), before=2),
     )
     merge = assembly.Binding(
-        function=ref.function(
+        ref.function(
             "unavailable_assembly_test_package:combine",
             returns="dataframe",
             args={"dataset": "dataframe", "fragment": "dataframe"},
         ),
-        arguments={
-            "dataset": row_context.rows(ref.dataset(), before=9),
-            "fragment": ref.fragment(),
-        },
+        dataset=row_context.rows(ref.dataset(), before=9),
+        fragment=ref.fragment(),
     )
     operator = assembly.Operator(
         id="calculate",
@@ -210,17 +228,15 @@ def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
         id="calculate",
         interface=assembly.Interface(),
         compute=assembly.Binding(
-            function=ref.function(
-                "unavailable_assembly_test_package:calculate", returns="dataframe"
-            )
+            ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
         ),
         merge=assembly.Binding(
-            function=ref.function(
+            ref.function(
                 "unavailable_assembly_test_package:combine",
                 returns="dataframe",
                 args={"dataset": "dataframe"},
             ),
-            arguments={"dataset": ref.dataset()},
+            dataset=ref.dataset(),
         ),
     )
     with pytest.raises(ValueError, match="invalid dataframe arity: 1"):

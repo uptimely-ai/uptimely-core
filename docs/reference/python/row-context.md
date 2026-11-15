@@ -22,10 +22,7 @@ up.Operator(
     id="rolling_mean",
     interface=up.Interface(...),
     row_context=RowContext(before=1),
-    compute=up.Binding(
-        function=rolling_mean,
-        arguments={"before": up.ref.row_context("before")},
-    ),
+    compute=up.Binding(rolling_mean, before=up.ref.row_context("before")),
 )
 ```
 

@@ -294,7 +294,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
             "        id='read',\n"
             "        interface=Interface(outputs=[Feature(id='value')]),\n"
             "        compute=Binding(\n"
-            "            function=api.ref.function(build_functions.read, returns='dataframe'),\n"
+            "            api.ref.function(build_functions.read, returns='dataframe'),\n"
             "        ),\n"
             "    )]\n"
             "definition = api.Spec(profiles=[Values])\n",

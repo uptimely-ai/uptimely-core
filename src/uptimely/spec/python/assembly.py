@@ -126,12 +126,22 @@ class Interface:
         return identifier
 
 
-@dataclasses.dataclass(frozen=True, kw_only=True)
+@dataclasses.dataclass(frozen=True, init=False)
 class Binding:
     """Declare an implementation and its named arguments."""
 
     function: _Function
-    arguments: dict[str, typing.Any] = dataclasses.field(default_factory=dict)
+    arguments: dict[str, typing.Any]
+
+    def __init__(self, function: _Function, /, **arguments: typing.Any) -> None:
+        """Create a binding from an implementation and its keyword arguments.
+
+        Args:
+            function: Callable, function reference, or importable function path.
+            **arguments: Named values passed to the function.
+        """
+        object.__setattr__(self, "function", function)
+        object.__setattr__(self, "arguments", arguments)
 
     @property
     def reference(self) -> ref.FunctionReference:

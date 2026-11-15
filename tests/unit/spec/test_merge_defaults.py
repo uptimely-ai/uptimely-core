@@ -12,7 +12,7 @@ def _operator(operator_id: str, *, merge: assembly.Binding | None = None) -> ass
         id=operator_id,
         interface=assembly.Interface(outputs=[feature.Feature(id=f"value_{operator_id}")]),
         compute=assembly.Binding(
-            function=ref.function(f"reader:{operator_id}", returns="dataframe")
+            ref.function(f"reader:{operator_id}", returns="dataframe"),
         ),
         merge=merge,
     )

@@ -84,12 +84,10 @@ class Pump(Profile):
         Operator(
             interface=Interface(outputs=[features.pump_max_capacity]),
             compute=Binding(
-                function=io.read_file,
-                arguments=dict(
-                    source=ref.paths("pump_assets_source"),
-                    rename={"max_capacity": features.pump_max_capacity},
-                    schema={"max_capacity": "float"},
-                ),
+                io.read_file,
+                source=ref.paths("pump_assets_source"),
+                rename={"max_capacity": features.pump_max_capacity},
+                schema={"max_capacity": "float"},
             ),
             merge=merge.default(),
         ),
@@ -99,15 +97,13 @@ class Pump(Profile):
                 outputs=[features.series_max_capacity],
             ),
             compute=Binding(
-                function=analytics.select_columns,
-                arguments=dict(
-                    dataset=ref.dataset("pump_series"),
-                    columns=[
-                        dimension.MACHINE_DIMENSION.resolution("machine_series").key,
-                        ref.feature("max_capacity_series"),
-                    ],
-                    rename={"max_capacity_series": features.series_max_capacity},
-                ),
+                analytics.select_columns,
+                dataset=ref.dataset("pump_series"),
+                columns=[
+                    dimension.MACHINE_DIMENSION.resolution("machine_series").key,
+                    ref.feature("max_capacity_series"),
+                ],
+                rename={"max_capacity_series": features.series_max_capacity},
             ),
             merge=merge.default(),
         ),
@@ -117,15 +113,13 @@ class Pump(Profile):
                 outputs=[features.category_max_capacity],
             ),
             compute=Binding(
-                function=analytics.select_columns,
-                arguments=dict(
-                    dataset=ref.dataset("pump_category"),
-                    columns=[
-                        dimension.MACHINE_DIMENSION.resolution("machine_category").key,
-                        ref.feature("max_capacity_category"),
-                    ],
-                    rename={"max_capacity_category": features.category_max_capacity},
-                ),
+                analytics.select_columns,
+                dataset=ref.dataset("pump_category"),
+                columns=[
+                    dimension.MACHINE_DIMENSION.resolution("machine_category").key,
+                    ref.feature("max_capacity_category"),
+                ],
+                rename={"max_capacity_category": features.category_max_capacity},
             ),
             merge=merge.default(),
         ),
@@ -139,16 +133,14 @@ class Pump(Profile):
                 outputs=[features.max_capacity],
             ),
             compute=Binding(
-                function=analytics.first_non_null_value,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    features=[
-                        features.pump_max_capacity,
-                        features.series_max_capacity,
-                        features.category_max_capacity,
-                    ],
-                    output=features.max_capacity,
-                ),
+                analytics.first_non_null_value,
+                dataset=ref.dataset(),
+                features=[
+                    features.pump_max_capacity,
+                    features.series_max_capacity,
+                    features.category_max_capacity,
+                ],
+                output=features.max_capacity,
             ),
         ),
         Operator(
@@ -158,13 +150,11 @@ class Pump(Profile):
                 outputs=[features.bearing_temperature_max],
             ),
             compute=Binding(
-                function=analytics.aggregate,
-                arguments=dict(
-                    dataset=ref.dataset("pump_telemetry"),
-                    aggregations={"bearing_temperature": "max"},
-                    dimensions=ref.profile().grain.ids,
-                    rename={"bearing_temperature": features.bearing_temperature_max},
-                ),
+                analytics.aggregate,
+                dataset=ref.dataset("pump_telemetry"),
+                aggregations={"bearing_temperature": "max"},
+                dimensions=ref.profile().grain.ids,
+                rename={"bearing_temperature": features.bearing_temperature_max},
             ),
             merge=merge.default(),
         ),
@@ -174,15 +164,13 @@ class Pump(Profile):
                 outputs=[features.health_signal_normalized],
             ),
             compute=Binding(
-                function=analytics.min_max_scale,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    feature=features.bearing_temperature_max,
-                    lower_bound=-1.0,
-                    upper_bound=1.0,
-                    features=[features.bearing_temperature_max],
-                    output=features.health_signal_normalized,
-                ),
+                analytics.min_max_scale,
+                dataset=ref.dataset(),
+                feature=features.bearing_temperature_max,
+                lower_bound=-1.0,
+                upper_bound=1.0,
+                features=[features.bearing_temperature_max],
+                output=features.health_signal_normalized,
             ),
         ),
         Operator(
@@ -190,27 +178,23 @@ class Pump(Profile):
                 outputs=[features.measurement, features.reference_value],
             ),
             compute=Binding(
-                function=io.read_file,
-                arguments=dict(
-                    source=ref.paths("pump_external_inputs_source"),
-                    schema={"measurement": "float", "reference_value": "float"},
-                    rename={
-                        "measurement": features.measurement,
-                        "reference_value": features.reference_value,
-                    },
-                ),
+                io.read_file,
+                source=ref.paths("pump_external_inputs_source"),
+                schema={"measurement": "float", "reference_value": "float"},
+                rename={
+                    "measurement": features.measurement,
+                    "reference_value": features.reference_value,
+                },
             ),
             merge=Binding(
-                function=merge_functions.merge_pump_inputs,
-                arguments={
-                    "dataset": ref.dataset(),
-                    "fragment": ref.fragment(),
-                    "dataset_identifiers": [
-                        dimension.MACHINE_DIMENSION.resolution("machine").key,
-                        dimension.FACILITY_DIMENSION.resolution("server_room").key,
-                        dimension.FACILITY_DIMENSION.resolution("data_center").key,
-                    ],
-                },
+                merge_functions.merge_pump_inputs,
+                dataset=ref.dataset(),
+                fragment=ref.fragment(),
+                dataset_identifiers=[
+                    dimension.MACHINE_DIMENSION.resolution("machine").key,
+                    dimension.FACILITY_DIMENSION.resolution("server_room").key,
+                    dimension.FACILITY_DIMENSION.resolution("data_center").key,
+                ],
             ),
         ),
         Operator(
@@ -219,31 +203,27 @@ class Pump(Profile):
                 outputs=[features.ratio],
             ),
             compute=Binding(
-                function=io.process_pump_external_workflow,
-                arguments={
-                    "source": ref.paths("pump_external_inputs_source"),
-                    "output": ref.paths("pump_external_workflow_output"),
-                },
+                io.process_pump_external_workflow,
+                source=ref.paths("pump_external_inputs_source"),
+                output=ref.paths("pump_external_workflow_output"),
             ),
         ),
         Operator(
             interface=Interface(outputs=[]),
             compute=Binding(
-                function=io.write_file,
-                arguments=dict(
-                    dataset=ref.dataset(),
-                    features=[
-                        features.pump_max_capacity,
-                        features.series_max_capacity,
-                        features.category_max_capacity,
-                        features.max_capacity,
-                        features.measurement,
-                        features.reference_value,
-                        features.bearing_temperature_max,
-                        features.health_signal_normalized,
-                    ],
-                    output=ref.paths("pump_output"),
-                ),
+                io.write_file,
+                dataset=ref.dataset(),
+                features=[
+                    features.pump_max_capacity,
+                    features.series_max_capacity,
+                    features.category_max_capacity,
+                    features.max_capacity,
+                    features.measurement,
+                    features.reference_value,
+                    features.bearing_temperature_max,
+                    features.health_signal_normalized,
+                ],
+                output=ref.paths("pump_output"),
             ),
         ),
     ]
