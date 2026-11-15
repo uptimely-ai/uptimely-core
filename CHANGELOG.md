@@ -11,8 +11,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Added
 
 - Python operators can run opaque external functions with logical dependencies.
-- Binding dataframe contracts are available in per-operator Explorer details
-  and the Spec vocabulary.
+- Binding dataframe contracts are available in the Spec vocabulary.
 - Explorer function entries infer frame operations from dataframe input and
   output counts.
 - Profiles can designate an explicitly identified seed operator that initializes
@@ -28,6 +27,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - Explorer profile details no longer show the operator binding contracts
   reference table.
+- Operator boxes no longer display a grain-relationship badge. Merge tooltips
+  retain that information where applicable.
+- Operator boxes no longer display binding-contract details.
 - Portable execution plans use format version 14 and no longer contain inferred
   operator labels. Explorer presents inferred grain relationships separately.
 - Python `Operator` declarations accept only `compute` and optional `merge`
