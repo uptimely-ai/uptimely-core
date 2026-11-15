@@ -466,28 +466,6 @@ function bindingContractDetails(contract, merge) {
   </details>`;
 }
 
-function bindingReference(contracts) {
-  if (!contracts) return "";
-  const rows = Object.entries(contracts).map(([name, contract]) => `<tr>
-    <th scope="row"><code>${escape(name)}</code></th>
-    <td>${escape(contract.description)}</td>
-    <td>${escape(contract.dataframe_inputs.join(" or "))} (${escape(contract.dataframe_source.replaceAll("_", " "))})</td>
-    <td>${escape(contract.dataframe_result)}</td>
-    <td>${escape(contract.merge)}</td>
-  </tr>`).join("");
-  return `<details class="profile-operator-bindings mb-6" data-binding-reference>
-    <summary>Operator binding contracts</summary>
-    <p>Feature inputs and outputs are logical declarations, independent of dataframe contracts. Each operator has a compute binding and may declare a merge.</p>
-    <div class="ui-table-scroll" tabindex="0" role="region" aria-label="Operator binding contracts">
-      <table class="ui-table">
-        <caption class="sr-only">Operator binding dataframe contracts</caption>
-        <thead><tr><th>Binding</th><th>Purpose</th><th>Dataframe inputs</th><th>Dataframe output</th><th>Merge</th></tr></thead>
-        <tbody>${rows}</tbody>
-      </table>
-    </div>
-  </details>`;
-}
-
 function profileOperatorCards(config, profileId, profile, operators, invocations, idPrefix = "operator") {
   const featureList = references => references.length
     ? references.map(reference => {
@@ -755,6 +733,6 @@ export function renderCatalog(data, view) {
       ${view === "stages" ? '<p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Execution plan</p>' : ""}
       ${view === "dimensions" ? '<p data-dimension-label class="dimension-detail-label" hidden>Dimension</p>' : ""}
       ${heading(title, descriptions[view] ?? null, view, view === "features" ? data.catalogs.summary.feature_count : null)}
-      ${catalogOverview(data, view)}${view === "profiles" ? bindingReference(data.catalogs.binding_contracts) : ""}<div class="space-y-8">${renderers[view]()}</div></section>`),
+      ${catalogOverview(data, view)}<div class="space-y-8">${renderers[view]()}</div></section>`),
   };
 }
