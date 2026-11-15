@@ -54,7 +54,6 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
         role="compute",
         result="target",
         id="calculate",
-        operator_kind="vectorize",
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -122,7 +121,6 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         role="compute",
         result="fragment",
         id=read_id,
-        operator_kind="read",
         fragment_dimensions="target",
         entrypoint="example:read",
         function_id="read",
@@ -133,7 +131,6 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
     merge = execution_plan.Invocation(
         result="target",
         id=merge_id,
-        operator_kind="merge",
         role="merge",
         entrypoint="example:join",
         function_id="join",
@@ -326,8 +323,12 @@ def test_catalog_groups_callables_by_category_and_labels_each_operator_usage() -
     assert configuration["profiles"]["foreign"]["assembly"]["copy"]["grain_relationships"] == [
         {"source_profile": "local", "relationship": "same"}
     ]
-    assert local_operator["operator_label"] == "vectorize"
-    assert foreign_operator["operator_label"] == "conform"
+    assert local_operator["grain_relationships"] == [
+        {"source_profile": "local", "relationship": "same"}
+    ]
+    assert foreign_operator["grain_relationships"] == [
+        {"source_profile": "local", "relationship": "same"}
+    ]
     assert context["summary"]["feature_buckets"] == {
         "input": 1,
         "intermediate": 0,
@@ -420,7 +421,6 @@ def test_main_columns_replace_outputs_in_order_without_materializing_ignored_res
         role="compute",
         result="target",
         id="calculate",
-        operator_kind="vectorize",
         entrypoint="example:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -504,7 +504,6 @@ def test_plan_and_lineage_present_roles_separately_from_grain_relationships() ->
             role="compute",
             result="fragment",
             id=compute_id,
-            operator_kind="conform",
             fragment_dimensions="target",
             produces_features=True,
             entrypoint="example:calculate",
@@ -518,7 +517,6 @@ def test_plan_and_lineage_present_roles_separately_from_grain_relationships() ->
             role="merge",
             result="target",
             id=merge_id,
-            operator_kind="merge",
             entrypoint="example:merge",
             function_id="merge",
             operator_id="calculate",
@@ -535,9 +533,12 @@ def test_plan_and_lineage_present_roles_separately_from_grain_relationships() ->
     context = plan_render.build_context(compiled, definition)
     nodes, _ = invocation_lineage.invocation_lineage_payload(compiled, definition)
     step = data_lineage._build_stages(definition, compiled)[0][0]
-    assert definition.operator_execution_forms[("target", "calculate")] == "compute + merge"
-    assert definition.operator_binding_roles[("target", "calculate")] == ("compute", "merge")
-    assert definition.operator_grain_relationships[("target", "calculate")] == {"source": "same"}
+    operator = definition.operators_by_key[("target", "calculate")]
+    assert operator.execution_form == "compute + merge"
+    assert operator.binding_roles == ("compute", "merge")
+    assert definition.operators_by_key[("target", "calculate")].grain_relationships(
+        definition, ("target", "calculate")
+    ) == {"source": "same"}
     assert all(
         step["execution_form"] == "compute + merge" for step in context["stages"][0]["steps"]
     )

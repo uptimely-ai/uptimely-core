@@ -77,14 +77,6 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(functionArticle, /<pre class="function-detail-box mt-3 min-h-40/);
   assert.match(functionArticle, /aria-label="Function usage"[^]*?Used by operators[^]*?<li class="function-usage-item function-detail-box">[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=profiles#operator-readings-calculate">Calculate<\/a>/);
   assert.doesNotMatch(functionArticle, /<h3 class="ui-section-title">Raises<\/h3>/);
-  const escapeFunctionData = sampleData();
-  escapeFunctionData.catalogs.configuration.profiles.readings.assembly.calculate.kind = "escape";
-  const escapeFunction = renderCatalog(escapeFunctionData, "functions").content;
-  assert.match(escapeFunction, /data-lucide="square-function"[^>]*><\/i><span>&lt;Calculate&gt;<\/span>/);
-  assert.doesNotMatch(escapeFunction, /Function kind:|Escape kind|function-kind-graphic/);
-  assert.doesNotMatch(escapeFunction, /Uncontrolled external effect\. Declared feature dependencies do not materialize outputs; return values are ignored\./);
-  assert.match(escapeFunction, /aria-label="Function usage"[^]*?href="\?view=profiles#profile-readings">Readings<\/a>[^]*?href="\?view=profiles#operator-readings-calculate">Calculate<\/a>/);
-  assert.doesNotMatch(escapeFunction, /escape-operator-card/);
   const functionOverview = functions.content.slice(0, functions.content.indexOf('<div class="space-y-8">'));
   assert.doesNotMatch(functionOverview, /data-stat=/);
   assert.doesNotMatch(functionOverview, /<h2[^>]*>Functions overview<\/h2>/);
@@ -397,7 +389,6 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   config.functions.aggregate = { name: "Maximum <reading>", returns: "dataframe" };
   config.functions.external = { returns: "any" };
   config.profiles.readings.assembly.aggregate = {
-    operator_label: "Collapse",
     execution_form: "compute",
     binding_roles: ["compute"],
     grain_relationships: [{ source_profile: "source", relationship: "collapse" }],
@@ -410,7 +401,6 @@ test("profile operator expose engineering contracts and inspectable bindings", a
     interface: { inputs: ["$features.raw"], outputs: ["$features.value"] },
   };
   config.profiles.readings.assembly.external = {
-    operator_label: "Escape",
     execution_form: "compute",
     binding_roles: ["compute"],
     grain_relationships: [],
@@ -455,7 +445,8 @@ test("profile operator expose engineering contracts and inspectable bindings", a
     .map(([, row]) => row).find(row => row.includes("<span>dataset</span>"));
   assert.match(datasetRow, /<span class="ui-badge profile-operator-argument-value"><span class="profile-operator-engine-bind"[\s\S]*?<\/span><code class="language-json">\$profiles\.source\.dataset<\/code><\/span>/);
   assert.doesNotMatch(datasetRow, /<\/span><span class="profile-operator-engine-bind"/);
-  assert.doesNotMatch(html, /Group by grain keys:|ui-badge--neutral">collapse/);
+  assert.doesNotMatch(html, /Group by grain keys:/);
+  assert.match(html, /ui-badge--neutral">collapse<\/span>/);
   assert.match(html, /Output features \(logical\)<\/dt><dd><code>&lt;logical&gt;<\/code>/);
   assert.match(html, /None declared/);
   assert.match(html, /outputs are not materialized as dataframe columns/);

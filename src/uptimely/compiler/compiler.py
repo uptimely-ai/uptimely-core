@@ -7,7 +7,7 @@ from collections import abc
 
 from uptimely import entrypoint, spec
 from uptimely import plan as plan_module
-from uptimely.spec import arg_types, operator_kinds
+from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
 from uptimely.spec.validation import errors
@@ -257,7 +257,7 @@ class Compiler:
         invocations: list[invocation_graph.InvocationNode] = []
         for key, operator in spec_definition.operator_items:
             profile_id = spec_definition.profiles_by_key[key[0]].id
-            operator_kind = spec_definition.operator_kinds[key]
+            relationships = operator.grain_relationships(spec_definition, key)
             for role, binding in operator.bindings.items():
                 function = spec_definition.functions[binding.function]
                 dataframe_arity = sum(
@@ -274,7 +274,16 @@ class Compiler:
                         "must declare exactly two dataframe arguments"
                     )
                 is_compute = role == "compute"
-                definition = operator_kinds.OPERATOR_KINDS[operator_kind]
+                contract = operator.execution_contract(
+                    returns=function.returns,
+                    target_profile=key[0],
+                    dataframe_sources=spec_definition.dataframe_argument_profiles[key],
+                    grain_relationships={
+                        source: relationship
+                        for source, relationship in relationships.items()
+                        if source is not None
+                    },
+                )
                 if role == "merge":
                     result = "target"
                 elif function.returns != "dataframe":
@@ -288,29 +297,26 @@ class Compiler:
                         function_id=binding.function,
                         profile_id=profile_id,
                         operator_id=operator.id,
-                        operator_kind=operator_kind,
                         role=role,
                         result=result,
-                        produces_features=definition.produces_features if is_compute else False,
-                        is_sink=(definition.is_sink or operator.is_workflow)
-                        if is_compute
-                        else False,
+                        produces_features=contract.produces_features if is_compute else False,
+                        is_sink=(contract.is_sink or operator.is_workflow) if is_compute else False,
                         is_workflow=operator.is_workflow if is_compute else False,
                         dataframe_input_scope=(
-                            definition.dataframe_input_scope if is_compute else "unrestricted"
+                            contract.dataframe_input_scope if is_compute else "unrestricted"
                         ),
                         fragment_dimensions=(
-                            definition.fragment_dimensions if is_compute else "not_applicable"
+                            contract.fragment_dimensions if is_compute else "not_applicable"
                         ),
                         row_count_relation=(
-                            definition.row_count_relation if is_compute else "unrestricted"
+                            contract.row_count_relation if is_compute else "unrestricted"
                         ),
-                        key_relation=definition.key_relation if is_compute else "unrestricted",
+                        key_relation=contract.key_relation if is_compute else "unrestricted",
                         row_order_relation=(
-                            definition.row_order_relation if is_compute else "unrestricted"
+                            contract.row_order_relation if is_compute else "unrestricted"
                         ),
                         existing_data_relation=(
-                            definition.existing_data_relation if is_compute else "unrestricted"
+                            contract.existing_data_relation if is_compute else "unrestricted"
                         ),
                         output_features=tuple(operator.output_features) if is_compute else (),
                         arguments=binding.args,
@@ -326,9 +332,9 @@ class Compiler:
                 raise ValueError(
                     f"Invocation ID collision {invocation.node_id!r} between operators "
                     f"{previous.profile_id!r}/{previous.operator_id!r} "
-                    f"({previous.operator_kind}:{previous.function_id}) and "
+                    f"({previous.role}:{previous.function_id}) and "
                     f"{invocation.profile_id!r}/{invocation.operator_id!r} "
-                    f"({invocation.operator_kind}:{invocation.function_id})"
+                    f"({invocation.role}:{invocation.function_id})"
                 )
             nodes_by_id[invocation.node_id] = invocation
         return invocations

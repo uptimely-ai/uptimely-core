@@ -238,7 +238,8 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
     health_signal_producer = next(
         item for item in parsed_spec.operators if "health_signal_normalized" in item.output_features
     )
-    assert parsed_spec.operator_kinds[("pump", health_signal_producer.id)] == "vectorize"
+    key = ("pump", health_signal_producer.id)
+    assert parsed_spec.operators_by_key[key].produces_target_features(parsed_spec, key)
 
 
 @pytest.mark.parametrize(
@@ -349,7 +350,11 @@ def test_higher_dimensional_source_derives_collapse(tmp_path: pathlib.Path) -> N
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     document = spec.load_spec(path)
-    assert document.operator_kinds[("pump", "expand_op")] == "collapse"
+    key = ("pump", "expand_op")
+    assert (
+        document.operators_by_key[key].grain_relationships(document, key)["pump_telemetry"]
+        == "collapse"
+    )
 
 
 def test_shared_callable_can_derive_collapse(tmp_path: pathlib.Path) -> None:
@@ -380,7 +385,11 @@ def test_shared_callable_can_derive_collapse(tmp_path: pathlib.Path) -> None:
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     document = spec.load_spec(path)
-    assert document.operator_kinds[("pump", "conform_op")] == "collapse"
+    key = ("pump", "conform_op")
+    assert (
+        document.operators_by_key[key].grain_relationships(document, key)["pump_telemetry"]
+        == "collapse"
+    )
 
 
 def _matching_key_configuration(key_selector: object, *, key_type: str = "array[string]") -> dict:

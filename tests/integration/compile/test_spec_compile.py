@@ -1,23 +1,19 @@
-import dataclasses
 import json
 import pathlib
-import types
 
 import pytest
 from support import examples as example_support
 
 from uptimely import compiler, entrypoint, spec
 from uptimely import plan as compiler_plan
-from uptimely.compiler import compiler as compiler_module
 from uptimely.compiler import validation
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
-def _add_escape_mapping(
+def _add_unknown_result_mapping(
     configuration: dict,
     operator_id: str,
     function_id: str,
@@ -25,7 +21,7 @@ def _add_escape_mapping(
     entrypoint: str,
     output_features: list[str] | None = None,
 ) -> None:
-    """Add one escape operator with logical feature dependencies."""
+    """Add an operator with logical feature dependencies and an unknown return contract."""
     configuration["functions"][function_id] = {
         "returns": "any",
         "entrypoint": entrypoint,
@@ -43,44 +39,44 @@ def _add_escape_mapping(
     }
 
 
-def _escape_spec_configuration() -> dict:
-    """Return a valid pump spec with input-only, output-only, and chained escapes."""
+def _unknown_result_spec_configuration() -> dict:
+    """Return a valid pump spec with input-only, output-only, and chained mappings."""
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     dataset = configuration["profiles"]["pump_telemetry"]
-    dataset["features"]["escape_start_output"] = {"type": "float"}
-    dataset["features"]["escape_chain_output"] = {"type": "float"}
-    dataset["features"]["escape_source_output"] = {"type": "float"}
+    dataset["features"]["unknown_start_output"] = {"type": "float"}
+    dataset["features"]["unknown_chain_output"] = {"type": "float"}
+    dataset["features"]["unknown_source_output"] = {"type": "float"}
     entrypoint = "pump_io:process_pump_external_workflow"
-    _add_escape_mapping(
+    _add_unknown_result_mapping(
         configuration,
-        "escape_start",
-        "escape_start",
+        "unknown_start",
+        "unknown_start",
         ["bearing_temperature"],
         entrypoint,
-        ["escape_start_output"],
+        ["unknown_start_output"],
     )
-    _add_escape_mapping(
+    _add_unknown_result_mapping(
         configuration,
-        "escape_chain",
-        "escape_chain",
-        ["escape_start_output"],
+        "unknown_chain",
+        "unknown_chain",
+        ["unknown_start_output"],
         entrypoint,
-        ["escape_chain_output"],
+        ["unknown_chain_output"],
     )
-    _add_escape_mapping(
+    _add_unknown_result_mapping(
         configuration,
-        "escape_unrelated",
-        "escape_unrelated",
+        "unknown_unrelated",
+        "unknown_unrelated",
         ["bearing_temperature"],
         entrypoint,
     )
-    _add_escape_mapping(
+    _add_unknown_result_mapping(
         configuration,
-        "escape_source",
-        "escape_source",
+        "unknown_source",
+        "unknown_source",
         [],
         entrypoint,
-        ["escape_source_output"],
+        ["unknown_source_output"],
     )
     return configuration
 
@@ -154,9 +150,7 @@ def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Pat
     definition = spec.load_spec(path)
     plan = compiler.Compiler().compile(definition)
     invocation = next(
-        item
-        for item in plan.invocations
-        if item.operator_id == "bearing_temperature_by_pump" and item.operator_kind == "collapse"
+        item for item in plan.invocations if item.operator_id == "bearing_temperature_by_pump"
     )
 
     assert "bearing_temperature_max" in invocation.output_features
@@ -196,21 +190,19 @@ def test_compact_invocation_ids_are_stable_across_recompilation_and_selection() 
     repeated_plan = builder.compile(document)
     selected_plan = builder.compile(document, features=["health_signal_normalized"])
     full_by_binding = {
-        (item.operator_kind, item.function_id, item.profile_id, item.operator_id): item.id
+        (item.function_id, item.profile_id, item.operator_id, item.role): item.id
         for item in full_plan.invocations
     }
 
     assert {
-        (item.operator_kind, item.function_id, item.profile_id, item.operator_id): item.id
+        (item.function_id, item.profile_id, item.operator_id, item.role): item.id
         for item in repeated_plan.invocations
     } == full_by_binding
     assert selected_plan.invocations
     for item in selected_plan.invocations:
         assert (
             item.id
-            == full_by_binding[
-                (item.operator_kind, item.function_id, item.profile_id, item.operator_id)
-            ]
+            == full_by_binding[(item.function_id, item.profile_id, item.operator_id, item.role)]
         )
         assert len(item.id) <= 36
         assert item.id.count("--") == 1
@@ -222,14 +214,14 @@ def test_existing_invocation_ids_survive_unrelated_additions_and_reordering() ->
     builder = compiler.Compiler()
     original = builder.compile(document)
     configuration = document.model_dump(mode="json")
-    _add_escape_mapping(
+    _add_unknown_result_mapping(
         configuration,
-        "unrelated_escape",
-        "unrelated_escape",
+        "unrelated_unknown_result",
+        "unrelated_unknown_result",
         [],
         "pump_io:process_pump_external_workflow",
     )
-    configuration["functions"]["unrelated_escape"]["validate_signature"] = False
+    configuration["functions"]["unrelated_unknown_result"]["validate_signature"] = False
     configuration["profiles"] = dict(reversed(configuration["profiles"].items()))
     for profile in configuration["profiles"].values():
         profile["assembly"] = dict(reversed(profile["assembly"].items()))
@@ -295,7 +287,9 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     definition = spec_model.Spec.model_validate(definition.model_dump())
     plan = compiler.Compiler().compile(definition, features=["conformed_auxiliary"])
     conform = next(
-        invocation for invocation in plan.invocations if invocation.operator_kind == "conform"
+        invocation
+        for invocation in plan.invocations
+        if invocation.operator_id == "conform_auxiliary"
     )
     source = next(
         invocation
@@ -321,24 +315,17 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
         feature
         for stage in plan.execution_stages
         for invocation in stage
-        if invocation.operator_kind == "vectorize"
+        if invocation.dataframe_input_scope == "target"
         for feature in invocation.output_features
     ] == [
         "max_capacity",
         "health_signal_normalized",
     ]
-    assert {invocation.operator_kind for invocation in plan.invocations} == {
-        "read",
-        "collapse",
-        "expand",
-        "vectorize",
-        "write",
-        "escape",
-    }
+    assert all("operator_kind" not in invocation.model_dump() for invocation in plan.invocations)
     assert {
         feature
         for invocation in plan.invocations
-        if invocation.operator_kind == "vectorize"
+        if invocation.dataframe_input_scope == "target"
         for feature in invocation.output_features
     } == {
         "max_capacity",
@@ -393,25 +380,25 @@ def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib
     plan = compiler.Compiler().compile(
         spec.load_spec(spec_path), features=["health_signal_normalized"]
     )
-    vectorize_invocations = [
+    target_dataframe_invocations = [
         invocation
         for invocation in plan.invocations
-        if invocation.operator_kind == "vectorize"
+        if invocation.dataframe_input_scope == "target"
         and "health_signal_normalized" in invocation.output_features
     ]
 
-    assert len(vectorize_invocations) == 1
-    assert vectorize_invocations[0].output_features == [
+    assert len(target_dataframe_invocations) == 1
+    assert target_dataframe_invocations[0].output_features == [
         "health_signal_normalized",
         "health_signal_secondary",
     ]
 
 
-def test_escape_inputs_and_outputs_define_logical_dependencies(
+def test_unknown_result_inputs_and_outputs_define_logical_dependencies(
     tmp_path: pathlib.Path,
 ) -> None:
-    configuration = _escape_spec_configuration()
-    path = tmp_path / "escape_spec.json"
+    configuration = _unknown_result_spec_configuration()
+    path = tmp_path / "unknown_result_spec.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
     document = spec.load_spec(path)
     compiled = compiler.Compiler().compile(document)
@@ -423,94 +410,76 @@ def test_escape_inputs_and_outputs_define_logical_dependencies(
     assert {
         invocation.operator_id
         for invocation in compiled.invocations
-        if invocation.operator_kind == "escape"
+        if document.functions[invocation.function_id].returns == "any"
     } == {
-        "escape_start",
-        "escape_chain",
-        "escape_unrelated",
-        "escape_source",
+        "unknown_start",
+        "unknown_chain",
+        "unknown_unrelated",
+        "unknown_source",
         process_operator_id,
     }
     assert {
         by_id[dependency_id].operator_id
-        for dependency_id in by_operator["escape_start"].dependency_ids
+        for dependency_id in by_operator["unknown_start"].dependency_ids
     } == {"read_pump_telemetry"}
     assert {
         by_id[dependency_id].operator_id
-        for dependency_id in by_operator["escape_chain"].dependency_ids
-    } == {"escape_start"}
+        for dependency_id in by_operator["unknown_chain"].dependency_ids
+    } == {"unknown_start"}
 
     assert {
         by_id[dependency_id].operator_id
-        for dependency_id in by_operator["escape_unrelated"].dependency_ids
+        for dependency_id in by_operator["unknown_unrelated"].dependency_ids
     } == {"read_pump_telemetry"}
-    assert by_operator["escape_source"].dependency_ids == []
-    assert by_operator["escape_start"].output_features == ["escape_start_output"]
-    assert by_operator["escape_chain"].output_features == ["escape_chain_output"]
-    assert by_operator["escape_source"].input_features == []
-    assert by_operator["escape_source"].output_features == ["escape_source_output"]
+    assert by_operator["unknown_source"].dependency_ids == []
+    assert by_operator["unknown_start"].output_features == ["unknown_start_output"]
+    assert by_operator["unknown_chain"].output_features == ["unknown_chain_output"]
+    assert by_operator["unknown_source"].input_features == []
+    assert by_operator["unknown_source"].output_features == ["unknown_source_output"]
     assert {
-        "escape_chain_output",
-        "escape_source_output",
+        "unknown_chain_output",
+        "unknown_source_output",
     } <= spec.FeatureGraph(document).feature_names
-    feature_subset = compiler.Compiler().compile(document, features=["escape_chain_output"])
-    assert {"escape_start", "escape_chain"} <= {
+    feature_subset = compiler.Compiler().compile(document, features=["unknown_chain_output"])
+    assert {"unknown_start", "unknown_chain"} <= {
         invocation.operator_id for invocation in feature_subset.invocations
     }
-    compiled_escapes = {
+    compiled_unknown = {
         invocation.operator_id: invocation
         for invocation in compiled.invocations
-        if invocation.operator_kind == "escape"
+        if document.functions[invocation.function_id].returns == "any"
     }
-    assert compiled_escapes["escape_start"].output_features == ["escape_start_output"]
-    assert compiled_escapes["escape_chain"].output_features == ["escape_chain_output"]
-    assert compiled_escapes["escape_source"].input_features == []
-    assert compiled_escapes["escape_source"].output_features == ["escape_source_output"]
+    assert compiled_unknown["unknown_start"].output_features == ["unknown_start_output"]
+    assert compiled_unknown["unknown_chain"].output_features == ["unknown_chain_output"]
+    assert compiled_unknown["unknown_source"].input_features == []
+    assert compiled_unknown["unknown_source"].output_features == ["unknown_source_output"]
     restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(compiled))))
     assert restored == compiled
     assert restored.invocations == compiled.invocations
 
 
-def test_feature_subset_retains_sink_roles_independent_of_operator_kind(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    definitions = dict(operator_kinds.OPERATOR_KINDS)
-    definitions[operator_kinds.ESCAPE] = dataclasses.replace(
-        definitions[operator_kinds.ESCAPE], is_sink=True
-    )
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
-
-    path = tmp_path / "sink_spec.json"
-    path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
-    subset = compiler.Compiler().compile(spec.load_spec(path), features=["escape_start_output"])
-
-    assert "escape_unrelated" in {invocation.operator_id for invocation in subset.invocations}
-
-
-def test_feature_index_uses_operator_kind_output_contract(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
+def test_feature_index_uses_declared_interface_outputs(tmp_path: pathlib.Path) -> None:
     path = tmp_path / "feature_contract_spec.json"
-    path.write_text(json.dumps(_escape_spec_configuration()), encoding="utf-8")
+    path.write_text(json.dumps(_unknown_result_spec_configuration()), encoding="utf-8")
     document = spec.load_spec(path)
-    definitions = dict(operator_kinds.OPERATOR_KINDS)
-    definitions[operator_kinds.ESCAPE] = dataclasses.replace(
-        definitions[operator_kinds.ESCAPE], produces_features=False
-    )
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
-    monkeypatch.setattr(compiler_module.spec_validation, "validate_spec", lambda _spec: None)
 
     plan = compiler.Compiler().compile(document)
-    chain = next(item for item in plan.invocations if item.operator_id == "escape_chain")
-    assert chain.dependency_ids == []
-    with pytest.raises(ValueError, match=r"Unknown output feature\(s\): escape_start_output"):
-        compiler.Compiler().compile(document, features=["escape_start_output"])
+    chain = next(item for item in plan.invocations if item.operator_id == "unknown_chain")
+    assert {
+        plan.invocations_by_id[dependency_id].operator_id for dependency_id in chain.dependency_ids
+    } == {"unknown_start"}
+    assert any(
+        invocation.operator_id == "unknown_start"
+        for invocation in compiler.Compiler()
+        .compile(document, features=["unknown_start_output"])
+        .invocations
+    )
 
 
-def test_escape_return_annotations_do_not_constrain_compilation(
+def test_unknown_result_annotations_do_not_constrain_compilation(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    module_name = f"escape_functions_{tmp_path.name.replace('-', '_')}"
+    module_name = f"unknown_functions_{tmp_path.name.replace('-', '_')}"
     module_path = tmp_path / f"{module_name}.py"
     module_path.write_text(
         "import polars as pl\n"
@@ -530,22 +499,22 @@ def test_escape_return_annotations_do_not_constrain_compilation(
         "returns_dataframe",
         "returns_unannotated",
     ):
-        _add_escape_mapping(
+        _add_unknown_result_mapping(
             configuration,
             function_id,
             function_id,
             ["bearing_temperature"],
             f"{module_name}:{function_id}",
         )
-    path = tmp_path / "escape_signatures.json"
+    path = tmp_path / "unknown_signatures.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
     compiled = compiler.Compiler().compile(spec.load_spec(path))
-    escaped = {invocation.function_id: invocation for invocation in compiled.invocations}
+    unknown_results = {invocation.function_id: invocation for invocation in compiled.invocations}
 
     assert {
         function_id: invocation.return_type
-        for function_id, invocation in escaped.items()
+        for function_id, invocation in unknown_results.items()
         if function_id
         in {
             "returns_none",
@@ -562,7 +531,7 @@ def test_escape_return_annotations_do_not_constrain_compilation(
         "returns_unannotated": None,
     }
     assert all(
-        escaped[function_id].output_features == []
+        unknown_results[function_id].output_features == []
         for function_id in (
             "returns_none",
             "returns_scalar",
@@ -608,7 +577,7 @@ def test_compiler_feature_subset_contains_requested_output_and_ancestors() -> No
     assert {
         invocation.operator_id
         for invocation in subset.invocations
-        if invocation.operator_kind == "collapse"
+        if invocation.operator_id == "bearing_temperature_by_pump"
     } == {"bearing_temperature_by_pump"}
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):

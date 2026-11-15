@@ -431,7 +431,7 @@ use the same function with different arguments.
 
 In Python authoring, the primary binding is named `read`, `compute`, `write`, or
 `stage`. The generated Spec stores it under `compute`; the function contract
-and dataframe arguments determine the operator kind.
+and dataframe arguments determine its binding and execution contracts.
 
 ```json
 {
@@ -504,14 +504,19 @@ columns.
 A write operator has no outputs and lists its required inputs. Other operators
 that produce data must declare at least one feature output, except source
 readers that provide only profile identifiers or relations. A collapse
-operator must produce at least one feature. The function declaration specifies
-what kind of result it returns.
+relationship must produce at least one feature. The function declaration
+specifies what kind of result it returns.
 
 When a merge is declared, the compute result is a fragment. It must include the
 target keys available in its source profile and the operator's declared
-outputs. For an `expand` operation, the fragment may omit target keys that its
+outputs. For an `expand` relationship, the fragment may omit target keys that its
 source profile does not have. See the [Engine guide](engine.md#datasets-and-fragments)
 for details on combining and checking fragments.
+
+Explorer derives source-to-target grain relationships from the selected profile
+grains and dimension hierarchy. The relationship values are `same`, `expand`,
+`collapse`, `unrelated`, or `not_applicable`. They are presentation data, not
+stored in the Spec or execution plan.
 
 Use selectors in `compute.args` only where the argument accepts them. See
 [Selectors](#selectors) for supported references and their value types.
@@ -680,14 +685,12 @@ unknown fields. It checks structural references against declared resources,
 function arguments and return rules against their operator roles, row context
 against input dimensions and order, and feature requirements for cycles. Each
 non-dimension feature may have at most one producer. Declare `returns: "any"`
-when the function's result is intentionally ignored. Outputs from an `escape`
+when the function's result is intentionally ignored. Outputs from a workflow
 operator satisfy feature requirements during validation, but the engine does
 not create their data. A workflow has no dataframe inputs, dataframe output, or
 merge, and its result is ignored. Its feature inputs and outputs declare logical
 dependencies and are not dataframe values passed to or produced by the engine.
 Selected plans include workflows belonging to profiles of requested features.
-The existing derived operator label for a workflow is `escape`, while
-`is_workflow` identifies its distinct execution role.
 A declared feature with no producing operator causes a
 warning, but does not prevent the Spec from loading. Spec validation does not
 import implementations or inspect calculated data. Parameter and path

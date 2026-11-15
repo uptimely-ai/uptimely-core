@@ -270,7 +270,7 @@ function loadLineageScript(context, filename) {
 	let source = fs.readFileSync(path.join(scriptDirectory, filename), 'utf8');
 	if (filename === 'rendering/shared_markup.js') {
 		source = source.replace(/^export /gm, '');
-		source += '\nglobalThis.dataTypeIconName = dataTypeIconName;\nglobalThis.KINDS = KINDS;\nglobalThis.ICONS = ICONS;';
+		source += '\nglobalThis.dataTypeIconName = dataTypeIconName;\nglobalThis.ICONS = ICONS;';
 	} else if (filename === 'lineage/lineage_config.js') {
 		const exports = [...source.matchAll(/^export const (\w+)/gm)]
 			.map(([, name]) => name);

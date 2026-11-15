@@ -8,10 +8,11 @@ import typing
 import pydantic
 
 from uptimely import spec
-from uptimely.spec import arg_types, operator_kinds
+from uptimely.spec import arg_types
 from uptimely.spec import row_context as uptimely_row_context
+from uptimely.spec.model import profile as profile_module
 
-PLAN_VERSION = 13
+PLAN_VERSION = 14
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
@@ -23,16 +24,15 @@ class _InvocationNode(typing.Protocol):
     operator_id: str
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
-    operator_kind: operator_kinds.OperatorKindId
     produces_features: bool
     is_sink: bool
     is_workflow: bool
-    dataframe_input_scope: operator_kinds.DataFrameInputScope
-    fragment_dimensions: operator_kinds.FragmentDimensions
-    row_count_relation: operator_kinds.RowCountRelation
-    key_relation: operator_kinds.KeyRelation
-    row_order_relation: operator_kinds.RowOrderRelation
-    existing_data_relation: operator_kinds.ExistingDataRelation
+    dataframe_input_scope: profile_module.DataFrameInputScope
+    fragment_dimensions: profile_module.FragmentDimensions
+    row_count_relation: profile_module.RowCountRelation
+    key_relation: profile_module.KeyRelation
+    row_order_relation: profile_module.RowOrderRelation
+    existing_data_relation: profile_module.ExistingDataRelation
     output_features: tuple[str, ...]
     input_features: tuple[str, ...]
     row_context: uptimely_row_context.RowContext | None
@@ -80,17 +80,16 @@ class Invocation(_PlanModel):
     id: NonEmptyString
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
-    operator_kind: operator_kinds.OperatorKindId
     produces_features: bool = False
     is_sink: bool = False
     is_workflow: bool = False
     is_seed: bool = False
-    dataframe_input_scope: operator_kinds.DataFrameInputScope = "unrestricted"
-    fragment_dimensions: operator_kinds.FragmentDimensions = "not_applicable"
-    row_count_relation: operator_kinds.RowCountRelation = "unrestricted"
-    key_relation: operator_kinds.KeyRelation = "unrestricted"
-    row_order_relation: operator_kinds.RowOrderRelation = "unrestricted"
-    existing_data_relation: operator_kinds.ExistingDataRelation = "unrestricted"
+    dataframe_input_scope: profile_module.DataFrameInputScope = "unrestricted"
+    fragment_dimensions: profile_module.FragmentDimensions = "not_applicable"
+    row_count_relation: profile_module.RowCountRelation = "unrestricted"
+    key_relation: profile_module.KeyRelation = "unrestricted"
+    row_order_relation: profile_module.RowOrderRelation = "unrestricted"
+    existing_data_relation: profile_module.ExistingDataRelation = "unrestricted"
     entrypoint: NonEmptyString
     function_id: NonEmptyString
     operator_id: NonEmptyString
@@ -147,14 +146,19 @@ class Invocation(_PlanModel):
         profile_key = spec_definition.profile_keys[node.profile_id]
         target_identifiers = spec_definition.identifiers_by_profile[profile_key]
         operator = spec_definition.profiles[node.profile_id].assembly[node.operator_id]
+        feature_id = None
+        if node.role == "compute":
+            output_features = [
+                feature for feature in operator.output_features if feature not in target_identifiers
+            ]
+            feature_id = output_features[0] if len(output_features) == 1 else None
         arguments = operator.resolve_args(
-            role=node.role,
             function_id=node.function_id,
-            operator_kind=node.operator_kind,
             profile_id=node.profile_id,
             identifiers_by_profile=spec_definition.identifiers_by_profile,
             resources=spec_definition.binding_resources,
-            identifiers=target_identifiers,
+            role=node.role,
+            feature_id=feature_id,
         )
         profile = spec_definition.profiles[node.profile_id]
         column_types = {
@@ -171,7 +175,6 @@ class Invocation(_PlanModel):
             id=node.node_id,
             role=node.role,
             result=node.result,
-            operator_kind=node.operator_kind,
             produces_features=node.produces_features,
             is_sink=node.is_sink,
             is_workflow=node.is_workflow,
@@ -239,7 +242,7 @@ class Invocation(_PlanModel):
 class ExecutionPlan(_PlanModel):
     """Portable invocations and the compiler-selected execution schedule."""
 
-    plan_version: typing.Literal[13]
+    plan_version: typing.Literal[14]
     required_backend: NonEmptyString
     invocations: list[Invocation]
     stages: list[Stage]

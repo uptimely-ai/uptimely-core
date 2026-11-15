@@ -152,10 +152,11 @@ class FeatureGraph(FeatureGraphBase):
                 source_profile == profile_id
                 for _, _, source_profile in self.spec.operator_dataframe_arguments[key]
             )
+            relationships = operator.grain_relationships(self.spec, key)
             is_source_input = (
                 function.returns == "dataframe"
                 and not has_target_dataframe
-                and "collapse" not in self.spec.operator_grain_relationships[key].values()
+                and "collapse" not in relationships.values()
             )
             for name in operator.output_features:
                 if name in self.spec.key_ids_by_profile[key[0]]:
@@ -234,6 +235,7 @@ class FeatureGraph(FeatureGraphBase):
         for key, operator in self.spec.operator_items:
             profile = self.spec.operator_profiles[key]
             profile_id = self.spec.operator_profile_keys[key]
+            relationships = operator.grain_relationships(self.spec, key)
             outputs = [
                 name
                 for name in operator.output_features
@@ -246,16 +248,16 @@ class FeatureGraph(FeatureGraphBase):
                 profile_name=profile.name,
                 operator=operator,
                 function=self.spec.functions[operator.compute.function],
-                execution_form=self.spec.operator_execution_forms[key],
-                binding_roles=self.spec.operator_binding_roles[key],
+                execution_form=operator.execution_form,
+                binding_roles=operator.binding_roles,
                 grain_relationships=tuple(
                     (
                         self.spec.profiles_by_key[source].id if source is not None else None,
                         relationship,
                     )
-                    for source, relationship in self.spec.operator_grain_relationships[key].items()
+                    for source, relationship in relationships.items()
                 ),
-                source_status=self.spec.operator_source_statuses[key],
+                source_status=operator.source_details(self.spec, key)[1],
                 function_returns=self.spec.functions[operator.compute.function].returns,
             )
             operator_node = node(operator_metadata)
@@ -273,7 +275,7 @@ class FeatureGraph(FeatureGraphBase):
         return graph
 
     def _get_ancestor_nodes(self, feature_names: list[str]) -> set[Node]:
-        """Return the graph nodes required to vectorize the provided feature names."""
+        """Return graph nodes required to include the provided feature names."""
         requested_nodes = [self._node_index[fn] for fn in feature_names]
         subgraph_nodes = set(requested_nodes)
 

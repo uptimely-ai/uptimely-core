@@ -139,7 +139,6 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
         function = document.functions[operator.compute.function]
         argument = next(name for name, arg in function.args.items() if arg.type == "dataframe")
         operator.compute.args[argument] = spec.model.BindingArgument("$profiles.pump.dataset")
-        document.operator_kinds[(dataset.id, "alias")] = "vectorize"
         expected_id = "alias"
         expected_code = "invalid_mapping_dataframe_input"
         validate = contracts_validation.validate_dataframe_argument_feature_source

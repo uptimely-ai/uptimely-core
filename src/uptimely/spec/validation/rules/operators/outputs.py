@@ -173,8 +173,10 @@ def _has_dataframe_grain_relationship(
     spec: spec_model.Spec, key: spec_model.OperatorKey, relationship: str
 ) -> bool:
     """Return whether a dataframe argument has the selected source-to-target grain relation."""
+    operator = spec.operators_by_key[key]
+    relationships = operator.grain_relationships(spec, key)
     return any(
-        spec.operator_grain_relationships[key].get(source) == relationship
+        relationships.get(source) == relationship
         for source in spec.dataframe_argument_profiles[key]
     )
 

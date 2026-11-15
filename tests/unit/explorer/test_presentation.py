@@ -11,7 +11,7 @@ from support import examples as example_support
 from uptimely import application
 from uptimely.application.build import builder
 from uptimely.explorer import presentation
-from uptimely.spec import operator_kinds
+from uptimely.spec import operator_bindings
 
 
 def test_build_presentation_data_returns_versioned_json_structures(
@@ -33,7 +33,7 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert data["catalogs"]["configuration"]
     assert data["catalogs"]["binding_contracts"] == {
         name: json.loads(json.dumps(dataclasses.asdict(contract)))
-        for name, contract in operator_kinds.OPERATOR_BINDINGS.items()
+        for name, contract in operator_bindings.OPERATOR_BINDINGS.items()
     }
     pump = data["catalogs"]["configuration"]["profiles"]["pump"]
     workflow = next(item for item in pump["assembly"].values() if item.get("is_workflow"))
@@ -46,14 +46,8 @@ def test_build_presentation_data_returns_versioned_json_structures(
         for function in data["catalogs"]["configuration"]["functions"].values()
     } >= {"read", "write", "transform", "merge", "workflow"}
     assert all(
-        operator["operator_label"]
-        == bundle.spec_definition.operator_kinds[(profile_id, operator_id)]
-        for profile_id, profile in data["catalogs"]["configuration"]["profiles"].items()
-        for operator_id, operator in profile["assembly"].items()
-    )
-    assert all(
         operator["execution_form"]
-        == bundle.spec_definition.operator_execution_forms[(profile_id, operator_id)]
+        == bundle.spec_definition.operators_by_key[(profile_id, operator_id)].execution_form
         for profile_id, profile in data["catalogs"]["configuration"]["profiles"].items()
         for operator_id, operator in profile["assembly"].items()
     )
@@ -61,6 +55,19 @@ def test_build_presentation_data_returns_versioned_json_structures(
         "binding_roles" in operator and "grain_relationships" in operator
         for profile in data["catalogs"]["configuration"]["profiles"].values()
         for operator in profile["assembly"].values()
+    )
+    assert all(
+        operator["grain_relationships"]
+        == [
+            {"source_profile": source, "relationship": relationship}
+            for source, relationship in bundle.spec_definition.operators_by_key[
+                (profile_id, operator_id)
+            ]
+            .grain_relationships(bundle.spec_definition, (profile_id, operator_id))
+            .items()
+        ]
+        for profile_id, profile in data["catalogs"]["configuration"]["profiles"].items()
+        for operator_id, operator in profile["assembly"].items()
     )
     assert data["catalogs"]["configuration"]["profiles"]["pump"]["scope"] == (
         "Cooling-pump telemetry and external workflow inputs for data centers"

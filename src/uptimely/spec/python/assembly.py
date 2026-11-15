@@ -8,12 +8,7 @@ import inspect
 import typing
 from collections import abc
 
-from uptimely.spec import (
-    arg_types,
-    function_contracts,
-    operator_kinds,
-    selectors,
-)
+from uptimely.spec import arg_types, function_contracts, operator_bindings, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec import (
     row_context as row_context_values,
@@ -154,7 +149,7 @@ class Operator:
     stage: Bind | None = None
     workflow: Bind | None = None
     merge: Bind | None = None
-    _primary_role: operator_kinds.PrimaryBindingKind = dataclasses.field(
+    _primary_role: operator_bindings.PrimaryBindingKind = dataclasses.field(
         init=False,
         repr=False,
         compare=False,
@@ -197,7 +192,7 @@ class Operator:
             raise TypeError("Operator inputs must be a sequence of feature references")
         if not isinstance(outputs, abc.Sequence) or isinstance(outputs, (str, bytes)):
             raise TypeError("Operator outputs must be a sequence of Features")
-        primary_bindings: list[tuple[operator_kinds.PrimaryBindingKind, Bind]] = []
+        primary_bindings: list[tuple[operator_bindings.PrimaryBindingKind, Bind]] = []
         if seed is not None:
             primary_bindings.append(("seed", seed))
         if read is not None:
@@ -216,7 +211,7 @@ class Operator:
                 "which is allowed only with read or stage"
             )
         primary_role, primary = primary_bindings[0]
-        merge_rule = operator_kinds.OPERATOR_BINDINGS[primary_role].merge
+        merge_rule = operator_bindings.OPERATOR_BINDINGS[primary_role].merge
         if (merge_rule == "required" and primary_role != "read" and merge is None) or (
             merge is not None and merge_rule != "required"
         ):
@@ -372,7 +367,7 @@ class Operator:
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Build the reusable function contract declared by this operator."""
-        bindings: list[tuple[operator_kinds.BindingKind, Bind]] = [
+        bindings: list[tuple[operator_bindings.BindingKind, Bind]] = [
             (self._primary_role, self._primary)
         ]
         if self.merge is not None:
@@ -383,7 +378,7 @@ class Operator:
             dataframe_count = sum(
                 arg_types.is_dataframe(argument.type) for argument in template.args.values()
             )
-            contract = operator_kinds.OPERATOR_BINDINGS[role]
+            contract = operator_bindings.OPERATOR_BINDINGS[role]
             if role == "read":
                 if dataframe_count not in contract.dataframe_inputs:
                     raise ValueError("Read binding must not accept dataframe inputs")

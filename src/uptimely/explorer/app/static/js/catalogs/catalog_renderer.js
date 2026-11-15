@@ -1,4 +1,4 @@
-import { badge, contextGroup as group, contextHeader, contextLink, dataTypeLabel, display, distribution, escape, heading, href, icon, kindIcon, page, statistic, typedName } from "../rendering/shared_markup.js";
+import { badge, contextGroup as group, contextHeader, contextLink, dataTypeLabel, display, distribution, escape, heading, href, icon, page, statistic, typedName } from "../rendering/shared_markup.js";
 
 export function profiles(configuration) {
   return Object.entries(configuration.profiles).map(([id, profile]) => ({
@@ -92,7 +92,7 @@ const contextLinks = {
       const items = produced.filter(item => item.id === id);
       return items.length ? group(label(id, profile), items.map(item =>
         contextLink(`feature-${id}-${item.featureId}`, label(item.featureId, item.feature), null,
-          null, null, item.feature.type || "unspecified"))) : "";
+          null, item.feature.type || "unspecified"))) : "";
     }).join("");
   },
   profiles(data) {
@@ -398,7 +398,7 @@ export function schemaColumns(config, profile) {
   const producingOperators = new Map();
   for (const [operatorId, operator] of Object.entries(profile.assembly)) {
     const returns = config.functions[operator.compute.function]?.returns;
-    const color = returns === "any" ? "escape"
+    const color = returns === "any" ? "external"
       : operator.execution_form === "compute + merge" ? "teal"
         : returns === "dataframe" ? "amber" : "neutral";
     for (const ref of operator.interface.outputs) {
@@ -413,22 +413,24 @@ export function schemaColumns(config, profile) {
     ...[...relationColumns].map(id => ({ ...resolutionMetadata.get(id), id, role: "Relation", color: "dimension" })),
     ...Object.entries(profile.features).filter(([id]) => !identifiers.has(id) && !relationColumns.has(id)).map(([id, feature]) => {
       const color = producers.get(id) || "neutral";
-      return { id, ...feature, color, role: color === "teal" ? "Raw" : color === "escape" ? "External" : "Feature" };
+      return { id, ...feature, color, role: color === "teal" ? "Raw" : color === "external" ? "External" : "Feature" };
     }),
   ].map(column => ({ ...column, operators: [...(producingOperators.get(column.id) || [])] }));
 }
 
-function operatorCard({ attributes, title, derivedLabel, hasMerge, relationships, role = null,
+function operatorCard({ attributes, title, hasMerge, relationships, role = null,
   inputs, outputs, uncontrolled, functionId, functionName, argumentsMarkup, details = "" }) {
+  const relationshipLabel = [...new Set(relationships?.map(item => item.relationship) || [])]
+    .join(", ") || "not applicable";
   const grainRelationships = relationships?.map(item =>
     `${item.source_profile || "unresolved"}: ${item.relationship}`).join(", ") || "not applicable";
   const mergeTooltip = `The resulting fragment is merged into this profile's dataset. Grain relationships: ${grainRelationships}.`;
   return `<article ${attributes} class="profile-operator">
     <header class="profile-operator-header">
       <div class="profile-operator-identity"><h4>${escape(title)}</h4>
-        <div class="mt-2 flex flex-wrap gap-2">${derivedLabel ? badge(derivedLabel, "neutral") : ""}${role ? badge(`${role === "merge" ? "Merge" : "Compute"} binding`, "neutral") : ""}</div>
+        <div class="mt-2 flex flex-wrap gap-2">${badge(relationshipLabel, "neutral")}${role ? badge(`${role === "merge" ? "Merge" : "Compute"} binding`, "neutral") : ""}</div>
       </div>
-      ${hasMerge ? `<span class="profile-operator-merge-indicator" tabindex="0" title="${escape(mergeTooltip)}" aria-label="${escape(mergeTooltip)}">${kindIcon("merge", "profile-operator-icon")}</span>` : ""}
+      ${hasMerge ? `<span class="profile-operator-merge-indicator" tabindex="0" title="${escape(mergeTooltip)}" aria-label="${escape(mergeTooltip)}">${icon("merge", "profile-operator-icon")}</span>` : ""}
     </header>
     <dl class="profile-operator-contract">
       <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${inputs}</dd></div>
@@ -551,7 +553,7 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       && Object.keys(invocation.args).length);
     return operatorCard({
       attributes: `id="${escape(idPrefix)}-${escape(profileId)}-${escape(id)}" data-profile-operator="${escape(id)}" data-execution-form="${escape(operator.execution_form)}"`,
-      title: operatorLabel(id, operator), derivedLabel: operator.binding_kind || operator.operator_label,
+      title: operatorLabel(id, operator),
       hasMerge: operator.binding_roles?.includes("merge") === true,
       relationships: operator.grain_relationships,
       inputs: featureList(operatorInputs(operator)), outputs: featureList(operator.interface.outputs),
@@ -593,7 +595,7 @@ function profileCards(config, invocations) {
           <thead><tr>${["Column", "Role", "Unit", "Producing operator"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
           <tbody>${columns.map(column => `<tr data-schema-column="${escape(column.id)}">
             <th scope="row">${typedName(column.id, column.type)}</th>
-            <td>${badge(column.role, { dimension: "blue", teal: "green", amber: "amber", escape: "violet" }[column.color])}</td>
+            <td>${badge(column.role, { dimension: "blue", teal: "green", amber: "amber", external: "violet" }[column.color])}</td>
             <td class="profile-schema-unit">${escape(column.unit || "—")}</td>
             <td>${column.operators.length ? column.operators.map(operator => `<code class="profile-schema-operator">${escape(operator)}</code>`).join("") : '<span class="text-slate-500">None declared</span>'}</td>
           </tr>`).join("")}</tbody>
@@ -724,7 +726,7 @@ export function stageCards(data) {
       </details>`;
       return operatorCard({
         attributes: `id="invocation-${escape(step.invocation_id)}" data-invocation-id="${escape(step.invocation_id)}" data-role="${escape(step.role)}"`,
-        title: step.title, derivedLabel: step.operator_label, role: step.role,
+        title: step.title, role: step.role,
         hasMerge: step.binding_roles?.includes("merge") === true || step.role === "merge",
         relationships: step.grain_relationships,
         inputs: featureList(step.input_features), outputs: featureList(step.output_features),

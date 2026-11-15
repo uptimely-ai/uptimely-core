@@ -457,7 +457,7 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
 
     assert bundle.manifest.features == ["pump_health_score"]
     plan_invocations = bundle.execution_plan.invocations
-    sinks = [invocation for invocation in plan_invocations if invocation.operator_kind == "write"]
+    sinks = [invocation for invocation in plan_invocations if invocation.is_sink]
     assert sinks
     plan_ids = {invocation.id for invocation in plan_invocations}
     produced_features = {

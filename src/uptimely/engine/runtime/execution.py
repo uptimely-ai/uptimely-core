@@ -64,7 +64,7 @@ class InvocationExecutor:
             self._execute_dataframe_operator(invocation)
         elif invocation.result == "target":
             if invocation.dataframe_input_scope == "target":
-                self._execute_column_operator(invocation)
+                self._execute_target_transform(invocation)
             else:
                 self._execute_target_operator(invocation)
 
@@ -209,8 +209,8 @@ class InvocationExecutor:
         self.state.datasets[dataset_id] = dataset
         del self.state.staged_fragments[fragment_id]
 
-    def _execute_column_operator(self, invocation: plan_module.Invocation) -> None:
-        """Publish vectorized columns on the target frame without fragment assembly."""
+    def _execute_target_transform(self, invocation: plan_module.Invocation) -> None:
+        """Publish target dataframe outputs without fragment assembly."""
         dataset_id = self._profile_id(invocation)
         dataset = self.state.datasets.get(dataset_id)
         if dataset is None or dataset.dataframe is None:
@@ -228,7 +228,7 @@ class InvocationExecutor:
             frame = self._invoke(invocation, arguments=arguments)
         else:
             frame = self._invoke(invocation)
-        output_features = self._validate_vectorized_result(
+        output_features = self._validate_target_transform_result(
             frame,
             invocation,
             comparison_frame,
@@ -307,7 +307,7 @@ class InvocationExecutor:
         if not invocation.is_seed:
             self.state.calculated_outputs.update(calculated_outputs)
 
-    def _validate_vectorized_result(
+    def _validate_target_transform_result(
         self,
         frame: object,
         invocation: plan_module.Invocation,
@@ -315,7 +315,7 @@ class InvocationExecutor:
         *,
         preserve_data: bool,
     ) -> list[str]:
-        """Validate an invocation's vectorized result against its target frame.
+        """Validate an invocation's target transform result against its input frame.
 
         Args:
             frame: Candidate dataframe returned by the invocation.
@@ -327,7 +327,7 @@ class InvocationExecutor:
             Declared output feature names, excluding identifier columns.
 
         Raises:
-            ValueError: The result violates the vectorized dataframe contract.
+            ValueError: The result violates the target dataframe contract.
         """
         description = f"Target transform result {invocation.function_id}"
         context = (

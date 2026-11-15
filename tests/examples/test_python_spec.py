@@ -139,11 +139,9 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
     }
 
 
-def test_function_catalog_contracts_are_independent_of_operator_kinds() -> None:
+def test_function_catalog_contracts_are_independent_of_grain_relationships() -> None:
     spec_definition = pump_telemetry_spec.python_spec.to_model()
 
-    operator_kinds = set(spec_definition.operator_kinds.values())
-    assert "vectorize" in operator_kinds
     user_functions = {
         function_id: function
         for function_id, function in spec_definition.functions.root.items()
@@ -206,19 +204,16 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert isinstance(spec_definition, spec.Spec)
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
-    assert set(spec_definition.operator_kinds.values()) == {
-        "read",
-        "write",
-        "vectorize",
-        "collapse",
-        "conform",
-        "expand",
-        "escape",
-    }
     assert spec_definition.functions["aggregate"].returns == "dataframe"
 
     pump_profile = spec_definition.profiles["pump"]
     collapse = pump_profile.assembly["bearing_temperature_by_pump"]
+    assert (
+        collapse.grain_relationships(spec_definition, ("pump", "bearing_temperature_by_pump"))[
+            "pump_telemetry"
+        ]
+        == "collapse"
+    )
     assert not hasattr(collapse, "source")
     assert collapse.compute.function == "aggregate"
     assert "bearing_temperature_max" in collapse.output_features
@@ -245,7 +240,8 @@ def test_spec_from_profiles_python_api() -> None:
     assert spec_definition.name == pump_telemetry_spec.python_spec.name
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
-    assert "read" in spec_definition.operator_kinds.values()
+    reader = spec_definition.profiles["pump_telemetry"].assembly["read_pump_telemetry"]
+    assert spec_definition.functions[reader.compute.function].frame_operation == "read"
 
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
@@ -359,4 +355,7 @@ def test_sources_and_transforms_python_spec() -> None:
         "rename": {"input_2": "$features.collapsed_feature.id"},
     }
     assert collapse.output_features == ["collapsed_feature"]
-    assert spec_definition.operator_kinds[("summary", "collapse_data")] == "collapse"
+    assert (
+        collapse.grain_relationships(spec_definition, ("summary", "collapse_data"))["target"]
+        == "collapse"
+    )

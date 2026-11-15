@@ -372,7 +372,9 @@ def test_zero_dataframe_no_result_compute_contract_is_valid(document: spec.Spec)
 
 def test_dataframe_feature_source_must_match_its_argument_profile(document: spec.Spec) -> None:
     vectorize_key = next(
-        key for key, label in document.operator_kinds.items() if label == "vectorize"
+        key
+        for key, operator in document.operator_items
+        if operator.produces_target_features(document, key)
     )
     operator = document.operators_by_key[vectorize_key]
     dataframe_argument = next(
@@ -392,7 +394,9 @@ def test_dataframe_feature_source_must_match_its_argument_profile(document: spec
 
 def test_feature_inputs_require_a_dataframe_source(document: spec.Spec) -> None:
     vectorize_key = next(
-        key for key, label in document.operator_kinds.items() if label == "vectorize"
+        key
+        for key, operator in document.operator_items
+        if operator.produces_target_features(document, key)
     )
     operator = document.operators_by_key[vectorize_key]
     function = document.functions[operator.compute.function]
@@ -404,6 +408,10 @@ def test_feature_inputs_require_a_dataframe_source(document: spec.Spec) -> None:
         operator_contracts.validate_feature_input_scope(document)
 
 
-def test_escape_operator_policy_is_derived_from_any_return_role(document: spec.Spec) -> None:
-    key = next(key for key, label in document.operator_kinds.items() if label == "escape")
+def test_any_return_role_is_kept_distinct_from_dataframe_execution(document: spec.Spec) -> None:
+    key = next(
+        key
+        for key, operator in document.operator_items
+        if document.functions[operator.compute.function].returns == "any"
+    )
     assert document.functions[document.operators_by_key[key].compute.function].returns == "any"

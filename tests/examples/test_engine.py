@@ -630,7 +630,7 @@ def test_engine_validates_required_fragment_columns_and_types(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.profile_id == "pump" and item.operator_kind == "collapse"
+        if item.profile_id == "pump" and item.operator_id == "bearing_temperature_by_pump"
     )
     grain_keys = engine.spec_definition.identifiers_by_profile[invocation.profile_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
@@ -677,7 +677,7 @@ def test_engine_assembly_rejects_feature_collisions(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.profile_id == "pump" and item.operator_kind == "collapse"
+        if item.profile_id == "pump" and item.operator_id == "bearing_temperature_by_pump"
     )
     grain_keys = engine.spec_definition.identifiers_by_profile[invocation.profile_id]
     output = next(name for name in invocation.output_features if name not in grain_keys)
@@ -810,22 +810,17 @@ def test_engine_executes_requested_feature_and_its_dependencies(
         feature
         for stage in engine.plan.execution_stages
         for operation in stage
-        if operation.operator_kind == "vectorize"
+        if operation.dataframe_input_scope == "target"
         for feature in operation.output_features
     ] == [
         "max_capacity",
         "health_signal_normalized",
     ]
-    assert {
-        operation.operator_kind for stage in engine.plan.execution_stages for operation in stage
-    } == {
-        "read",
-        "collapse",
-        "expand",
-        "vectorize",
-        "write",
-        "escape",
-    }
+    assert all(
+        "operator_kind" not in operation.model_dump()
+        for stage in engine.plan.execution_stages
+        for operation in stage
+    )
 
     result = engine.run()
 

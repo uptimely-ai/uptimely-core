@@ -17,7 +17,6 @@ def _node(operator_id: str = "bearing_temperature_delta") -> graph.InvocationNod
         function_id="delta",
         profile_id="pump_telemetry",
         operator_id=operator_id,
-        operator_kind="vectorize",
         role="compute",
         result="target",
     )
@@ -97,11 +96,10 @@ def test_invocation_id_does_not_depend_on_runtime_metadata() -> None:
     assert changed.node_id == node.node_id
 
 
-@pytest.mark.parametrize("kind", ["read", "vectorize", "escape"])
-def test_invocation_id_does_not_depend_on_operator_kind(kind: str) -> None:
+def test_invocation_id_does_not_serialize_inferred_operator_kind() -> None:
     node = _node()
 
-    assert dataclasses.replace(node, operator_kind=kind).node_id == node.node_id
+    assert "operator_kind" not in dataclasses.asdict(node)
 
 
 def test_graph_rejects_id_collisions_before_overwriting_nodes(

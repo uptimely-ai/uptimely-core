@@ -37,6 +37,7 @@ def _build_step(
     output_labels = [feature_labels.get(name, name) for name in invocation.output_features]
     function = spec_definition.functions[invocation.function_id]
     key = (invocation.profile_id, invocation.operator_id)
+    operator = spec_definition.operators_by_key[key]
     grain_relationships = [
         {
             "source_profile": (
@@ -44,7 +45,7 @@ def _build_step(
             ),
             "relationship": relationship,
         }
-        for source, relationship in spec_definition.operator_grain_relationships[key].items()
+        for source, relationship in operator.grain_relationships(spec_definition, key).items()
     ]
     is_merge = invocation.role == "merge"
     return {
@@ -54,9 +55,8 @@ def _build_step(
         "role": invocation.role,
         "result": invocation.result,
         "function": invocation.function_id,
-        "operator_label": spec_definition.operator_kinds[key],
-        "execution_form": spec_definition.operator_execution_forms[key],
-        "binding_roles": list(spec_definition.operator_binding_roles[key]),
+        "execution_form": operator.execution_form,
+        "binding_roles": list(operator.binding_roles),
         "grain_relationships": grain_relationships,
         "function_returns": function.returns,
         "title": function_name,
@@ -89,12 +89,6 @@ def _build_step(
                 )
                 or invocations_by_id[dependency_id].function_id,
                 "operator_id": invocations_by_id[dependency_id].operator_id,
-                "operator_label": spec_definition.operator_kinds[
-                    (
-                        invocations_by_id[dependency_id].profile_id,
-                        invocations_by_id[dependency_id].operator_id,
-                    )
-                ],
                 "role": invocations_by_id[dependency_id].role,
             }
             for dependency_id in invocation.dependency_ids

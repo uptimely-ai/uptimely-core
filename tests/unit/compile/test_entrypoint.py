@@ -126,13 +126,15 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
         assert merge.output_types == {}
         assert compute.result == "fragment"
         assert compute.output_features
-    vectorized = next(
-        invocation for invocation in compiled.invocations if invocation.operator_kind == "vectorize"
+    target_transform = next(
+        invocation
+        for invocation in compiled.invocations
+        if invocation.dataframe_input_scope == "target"
     )
-    assert vectorized.row_count_relation == "same"
-    assert vectorized.key_relation == "identical"
-    assert vectorized.row_order_relation == "preserve"
-    assert vectorized.existing_data_relation == "preserve"
+    assert target_transform.row_count_relation == "same"
+    assert target_transform.key_relation == "identical"
+    assert target_transform.row_order_relation == "preserve"
+    assert target_transform.existing_data_relation == "preserve"
     assert all(
         len({(producer.profile_id, producer.operator_id) for producer in producers})
         == len(producers)

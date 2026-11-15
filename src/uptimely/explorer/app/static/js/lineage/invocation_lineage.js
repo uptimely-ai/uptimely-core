@@ -36,7 +36,6 @@ export function initializeInvocationLineage(signal) {
 			['Stage', node.stage],
 			['Execution form', node.execution_form || 'n/a'],
 			['Grain relationship', formatRelationships(node.grain_relationships)],
-			['Derived label', node.operator_label || 'n/a'],
 			['Function ID', node.function_id || 'n/a'],
 		];
 		if (node.operator_id && node.profile_id) {

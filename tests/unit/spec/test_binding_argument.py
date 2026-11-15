@@ -202,11 +202,10 @@ def test_operator_resolves_compute_arguments_using_its_output_context() -> None:
 
     assert operator.resolve_args(
         function_id="calculate",
-        operator_kind="vectorize",
         profile_id="telemetry",
         identifiers_by_profile=identifiers_by_profile,
         resources=resources,
-        identifiers=["pump", "time"],
+        feature_id="pressure",
     ) == {"output": "pressure"}
 
 

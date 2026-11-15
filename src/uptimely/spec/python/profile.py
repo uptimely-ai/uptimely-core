@@ -6,7 +6,7 @@ import dataclasses
 import typing
 from collections import abc
 
-from uptimely.spec import arg_types, operator_kinds, selectors
+from uptimely.spec import arg_types, operator_bindings, selectors
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import base as model_base
 
@@ -373,7 +373,7 @@ class Profile:
                 binding_kind = declaration._primary_role
                 if (
                     len(dataframe_names)
-                    not in operator_kinds.OPERATOR_BINDINGS[binding_kind].dataframe_inputs
+                    not in operator_bindings.OPERATOR_BINDINGS[binding_kind].dataframe_inputs
                 ):
                     raise ValueError(f"{role} binding must accept exactly one dataframe input")
                 argument = operator.compute.args.get(dataframe_names[0])

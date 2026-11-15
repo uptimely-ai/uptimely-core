@@ -9,7 +9,7 @@ Most projects use the Python helpers in [Python authoring](python.md) instead.
 and the additional `merge` binding. Logical feature inputs and outputs are
 declared independently.
 
-::: uptimely.spec.operator_kinds
+::: uptimely.spec.operator_bindings
     options:
       heading_level: 2
       show_root_heading: false
@@ -19,44 +19,15 @@ declared independently.
         - PrimaryBindingKind
         - OPERATOR_BINDINGS
 
-## Derived execution labels
+## Derived grain relationships
 
-Uptimely derives a label from each operator's bindings and source and target
-profiles. The labels describe the work; they are not set on the function.
+Explorer reports source-to-target relationships inferred from profile grains
+and their dimension hierarchies. These values are not stored in the Spec or
+portable execution plan.
 
-| Label | Purpose |
-| --- | --- |
-| `read` | Load data into a profile. |
-| `write` | Send data to an output. |
-| `escape` | Run a function without producing a dataframe. |
-| `conform` | Produce data at the same level as the target profile. |
-| `expand` | Produce data at a more detailed level. |
-| `collapse` | Produce data at a less detailed level. |
-| `vectorize` | Add calculated values to the existing profile dataframe. |
-
-For behavior and validation rules, see the
+The values are `same`, `expand`, `collapse`, `unrelated`, and
+`not_applicable`. For the execution contracts that remain in a plan, see the
 [Spec format reference](../../architecture/spec.md).
-
-::: uptimely.spec.operator_kinds
-    options:
-      heading_level: 2
-      show_root_heading: false
-      members:
-        - OperatorKind
-        - OperatorKindId
-        - ReturnKind
-        - DimensionChange
-        - FragmentDimensions
-        - RowCountRelation
-        - KeyRelation
-        - OPERATOR_KINDS
-        - WRITE
-        - READ
-        - ESCAPE
-        - CONFORM
-        - EXPAND
-        - COLLAPSE
-        - VECTORIZE
 
 ## Argument types
 

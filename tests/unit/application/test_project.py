@@ -8,6 +8,7 @@ import pydantic
 import pytest
 
 from uptimely import application
+from uptimely import plan as plan_module
 
 
 def test_default_spec_attribute() -> None:
@@ -86,7 +87,7 @@ def _write_bundle(project_root: pathlib.Path) -> pathlib.Path:
     (build_root / "execution_plan.json").write_text(
         json.dumps(
             {
-                "plan_version": 13,
+                "plan_version": plan_module.PLAN_VERSION,
                 "required_backend": "polars",
                 "invocations": [],
                 "stages": [],

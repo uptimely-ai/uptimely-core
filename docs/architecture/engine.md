@@ -38,7 +38,7 @@ publishes the resulting complete dataframe. The built-in merge uses declared
 dimension identifiers to align rows rather than relying on row position.
 Depending on the fragment grain, it can combine full-grain data or add
 lower-grain values to matching rows. A custom merge function can define
-different assembly behavior. Other invocations, such as vectorized
+different assembly behavior. Other invocations, such as target transforms,
 transformations, return a complete target dataframe instead of a fragment.
 
 ## Dataframe backend

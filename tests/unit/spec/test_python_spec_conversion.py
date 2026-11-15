@@ -110,23 +110,19 @@ def _other_source(
 
 
 def _declaration(
-    identifier: str, operator_kind: str, function: abc.Callable[..., object] = _source
+    identifier: str, scenario: str, function: abc.Callable[..., object] = _source
 ) -> profile.Profile:
-    is_expand = operator_kind == "expand"
-    is_dimensional = operator_kind in {"conform", "expand"}
+    is_expand = scenario == "expand"
+    is_dimensional = scenario in {"conform", "expand"}
     module = __name__ if function is _source else f"{__name__}.alternate"
     binding = assembly.Bind(
         ref.FunctionReference(
             module=module,
-            name=f"{operator_kind}_shared",
-            returns="none" if operator_kind == "write" else "dataframe",
+            name=f"{scenario}_shared",
+            returns="none" if scenario == "write" else "dataframe",
         ),
         **{
-            **(
-                {"dataset": ref.profile().dataset}
-                if operator_kind in {"write", "vectorize", "collapse"}
-                else {}
-            ),
+            **({"dataset": ref.profile().dataset} if scenario in {"write", "transform"} else {}),
             **(
                 {
                     "dataset": ref.profile(
@@ -422,7 +418,7 @@ def test_python_spec_infers_dimensions_in_profile_grain_order() -> None:
     assert list(definition.to_model().dimensions) == ["timestamp", "machine"]
 
 
-def test_function_catalog_keeps_distinct_contracts_without_operator_kinds() -> None:
+def test_function_catalog_keeps_distinct_contracts_without_operator_labels() -> None:
     additional = profile.Profile(
         id="additional",
         assembly=[
@@ -440,55 +436,52 @@ def test_function_catalog_keeps_distinct_contracts_without_operator_kinds() -> N
         [
             _declaration("first", "read"),
             additional,
-            _declaration("calculated", "vectorize"),
+            _declaration("calculated", "transform"),
         ]
     )
 
     catalog = spec_definition.function_catalog()
 
-    assert set(catalog) == {"read_shared", "_other_source", "vectorize_shared"}
+    assert set(catalog) == {"read_shared", "_other_source", "transform_shared"}
     assert catalog["_other_source"].entrypoint == f"{__name__}:_other_source"
     assert catalog["read_shared"].returns == "dataframe"
-    assert catalog["vectorize_shared"].returns == "dataframe"
+    assert catalog["transform_shared"].returns == "dataframe"
 
 
-@pytest.mark.parametrize(
-    "operator_kind", ["read", "write", "vectorize", "collapse", "expand", "conform"]
-)
-def test_function_catalog_merges_and_deduplicates_contracts(operator_kind: str) -> None:
-    first = _declaration("first", operator_kind)
-    second = _declaration("second", operator_kind)
+@pytest.mark.parametrize("scenario", ["read", "write", "transform", "expand", "conform"])
+def test_function_catalog_merges_and_deduplicates_contracts(scenario: str) -> None:
+    first = _declaration("first", scenario)
+    second = _declaration("second", scenario)
     profiles = [first, second]
-    if operator_kind == "conform":
+    if scenario == "conform":
         profiles.append(_conform_source("first"))
         profiles.append(_conform_source("second"))
-    if operator_kind == "expand":
+    if scenario == "expand":
         profiles.insert(0, _mapping_source())
     spec_definition = _python_spec(profiles)
 
     catalog = spec_definition.function_catalog()
 
-    function_id = f"{operator_kind}_shared"
+    function_id = f"{scenario}_shared"
     assert catalog[function_id] == first.function_catalog()[function_id]
     assert catalog[function_id].entrypoint == f"{__name__}:{function_id}"
     expected_dataframe_inputs = {
         "read": 0,
         "write": 1,
-        "vectorize": 1,
-        "collapse": 1,
+        "transform": 1,
         "expand": 1,
         "conform": 1,
-    }[operator_kind]
+    }[scenario]
     assert sum(arg.type == "dataframe" for arg in catalog[function_id].args.values()) == (
         expected_dataframe_inputs
     )
     assert catalog[function_id].args["columns"].type == "array[string]"
     payload = spec_definition.to_dict()
     assert payload["functions"][function_id] == {
-        "name": operator_kind.title() + " Shared",
+        "name": scenario.title() + " Shared",
         "description": None,
         "category": None,
-        "returns": "none" if operator_kind == "write" else "dataframe",
+        "returns": "none" if scenario == "write" else "dataframe",
         "entrypoint": f"{__name__}:{function_id}",
         "validate_signature": True,
         "args": {
@@ -504,9 +497,9 @@ def test_function_catalog_merges_and_deduplicates_contracts(operator_kind: str) 
     if expected_dataframe_inputs:
         source_id = (
             "shared_source"
-            if operator_kind == "expand"
+            if scenario == "expand"
             else "first_source"
-            if operator_kind == "conform"
+            if scenario == "conform"
             else "@"
         )
         expected_args["dataset"] = f"$profiles.{source_id}.dataset"
@@ -516,22 +509,20 @@ def test_function_catalog_merges_and_deduplicates_contracts(operator_kind: str) 
     }
 
 
-@pytest.mark.parametrize(
-    "operator_kind", ["read", "write", "vectorize", "collapse", "expand", "conform"]
-)
-def test_function_catalog_rejects_conflicting_entrypoints(operator_kind: str) -> None:
+@pytest.mark.parametrize("scenario", ["read", "write", "transform", "expand", "conform"])
+def test_function_catalog_rejects_conflicting_entrypoints(scenario: str) -> None:
     profiles = [
-        _declaration("first", operator_kind),
-        _declaration("second", operator_kind, _other_source),
+        _declaration("first", scenario),
+        _declaration("second", scenario, _other_source),
     ]
-    if operator_kind == "conform":
+    if scenario == "conform":
         profiles.extend([_conform_source("first"), _conform_source("second")])
-    if operator_kind == "expand":
+    if scenario == "expand":
         profiles.insert(0, _mapping_source())
     spec_definition = _python_spec(profiles)
 
     with pytest.raises(
-        ValueError, match=f"Conflicting function definition for '{operator_kind}_shared'"
+        ValueError, match=f"Conflicting function definition for '{scenario}_shared'"
     ):
         spec_definition.to_dict()
 
