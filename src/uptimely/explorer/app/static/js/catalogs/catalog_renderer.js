@@ -420,15 +420,13 @@ export function schemaColumns(config, profile) {
 
 function operatorCard({ attributes, title, hasMerge, relationships, role = null,
   inputs, outputs, uncontrolled, functionId, functionName, argumentsMarkup, details = "" }) {
-  const relationshipLabel = [...new Set(relationships?.map(item => item.relationship) || [])]
-    .join(", ") || "not applicable";
   const grainRelationships = relationships?.map(item =>
     `${item.source_profile || "unresolved"}: ${item.relationship}`).join(", ") || "not applicable";
   const mergeTooltip = `The resulting fragment is merged into this profile's dataset. Grain relationships: ${grainRelationships}.`;
   return `<article ${attributes} class="profile-operator">
     <header class="profile-operator-header">
       <div class="profile-operator-identity"><h4>${escape(title)}</h4>
-        <div class="mt-2 flex flex-wrap gap-2">${badge(relationshipLabel, "neutral")}${role ? badge(`${role === "merge" ? "Merge" : "Compute"} binding`, "neutral") : ""}</div>
+        ${role ? `<div class="mt-2 flex flex-wrap gap-2">${badge(`${role === "merge" ? "Merge" : "Compute"} binding`, "neutral")}</div>` : ""}
       </div>
       ${hasMerge ? `<span class="profile-operator-merge-indicator" tabindex="0" title="${escape(mergeTooltip)}" aria-label="${escape(mergeTooltip)}">${icon("merge", "profile-operator-icon")}</span>` : ""}
     </header>
@@ -448,22 +446,6 @@ function operatorCard({ attributes, title, hasMerge, relationships, role = null,
     </dl>
     ${details}
   </article>`;
-}
-
-function bindingContractDetails(contract, merge) {
-  if (!contract) return "";
-  const source = contract.dataframe_source.replaceAll("_", " ");
-  const counts = contract.dataframe_inputs.join(" or ");
-  const mergeDescription = merge ? `<p>${escape(merge.description)}</p>` : "";
-  return `<details class="profile-operator-bindings" data-binding-contract="compute">
-    <summary>Binding contract</summary>
-    <p>${escape(contract.description)}</p>
-    <dl class="profile-operator-contract">
-      <div><dt>Dataframe inputs</dt><dd>${escape(counts)} (${escape(source)})</dd></div>
-      <div><dt>Dataframe output</dt><dd>${escape(contract.dataframe_result)}</dd></div>
-      <div><dt>Merge</dt><dd>${escape(contract.merge)}</dd></div>
-    </dl>${mergeDescription}
-  </details>`;
 }
 
 function profileOperatorCards(config, profileId, profile, operators, invocations, idPrefix = "operator") {
@@ -537,7 +519,6 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
       inputs: featureList(operatorInputs(operator)), outputs: featureList(operator.interface.outputs),
       uncontrolled: operator.is_workflow || fn.returns === "any", functionId, functionName: fn.name || functionId,
       argumentsMarkup: resolvedArgumentDetails(id, operator, "Arguments", computeInvocations),
-      details: bindingContractDetails(operator.binding_contract, operator.merge_contract),
     });
   }).join("")}</div>`;
 }

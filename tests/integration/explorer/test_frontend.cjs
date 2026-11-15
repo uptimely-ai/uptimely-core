@@ -446,7 +446,6 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.match(datasetRow, /<span class="ui-badge profile-operator-argument-value"><span class="profile-operator-engine-bind"[\s\S]*?<\/span><code class="language-json">\$profiles\.source\.dataset<\/code><\/span>/);
   assert.doesNotMatch(datasetRow, /<\/span><span class="profile-operator-engine-bind"/);
   assert.doesNotMatch(html, /Group by grain keys:/);
-  assert.match(html, /ui-badge--neutral">collapse<\/span>/);
   assert.match(html, /Output features \(logical\)<\/dt><dd><code>&lt;logical&gt;<\/code>/);
   assert.match(html, /None declared/);
   assert.match(html, /outputs are not materialized as dataframe columns/);

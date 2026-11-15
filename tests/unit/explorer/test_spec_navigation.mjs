@@ -343,7 +343,6 @@ test("feature and function type displays use matching data type icons", () => {
   assert.match(featureOperator, /<td><code class="language-json">telemetry\.csv<\/code><\/td>/);
   assert.match(featureOperator, /<div class="profile-operator-function">\s*<i[^>]*class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
   assert.match(featureOperator, /profile-operator-merge-indicator/);
-  assert.match(featureOperator, /profile-operator-header[\s\S]*ui-badge[^>]*>collapse, not_applicable<\/span>/);
   assert.match(featureOperator, /tabindex="0" title="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
   assert.match(featureOperator, /aria-label="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
   assert.doesNotMatch(featureOperator, /<dt>Execution form<\/dt>|<dt>Grain relationship<\/dt>/);
@@ -935,7 +934,7 @@ test("stage cards share compact operator styling and retain invocation details",
   assert.equal((content.match(/class="profile-operator"/g) || []).length, 3);
   assert.equal((content.match(/<summary>Invocation details<\/summary>/g) || []).length, 3);
   assert.doesNotMatch(content, /<details[^>]*\bopen\b|Execution form|md:grid-cols|<dt>Grain relationship/);
-  assert.match(content, /profile-operator-header[\s\S]*ui-badge[^>]*>same<\/span>/);
+  assert.match(content, /profile-operator-header[\s\S]*ui-badge[^>]*>Compute binding<\/span>/);
   assert.match(content, /title="[^"]*Grain relationships: source: same\."/);
   assert.match(content, /href="\?view=functions#function-merge">Merge telemetry<\/a>/);
   assert.match(content, /href="\?view=profiles#operator-telemetry-load">load<\/a>/);
