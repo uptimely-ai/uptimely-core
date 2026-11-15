@@ -171,7 +171,7 @@ def _is_collapse_compute(
         function is not None
         and function.returns == "dataframe"
         and any(
-            spec.operator_grain_relationships[key].get(source) == "collapse"
+            spec.operators_by_key[key].grain_relationships(spec, key).get(source) == "collapse"
             for source in spec.dataframe_argument_profiles[key]
         )
     )

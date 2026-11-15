@@ -99,7 +99,7 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         invocation
         for invocation in restored.invocations
         if invocation.profile_id == "pump"
-        and invocation.operator_kind == "read"
+        and invocation.dataframe_input_scope == "none"
         and invocation.output_features == ["pump_max_capacity"]
     )
     assert set(reader.fragment_keys) == {
@@ -114,7 +114,7 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         invocation
         for invocation in restored.invocations
         if invocation.profile_id == "pump"
-        and invocation.operator_kind == "expand"
+        and invocation.fragment_dimensions == "subset"
         and invocation.output_features == ["series_max_capacity"]
     )
     assert series_compute.fragment_keys == reader.fragment_keys

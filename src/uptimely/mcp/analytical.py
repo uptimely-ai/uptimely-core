@@ -85,7 +85,7 @@ class AnalyticalTools:
                     },
                     "input_features": operator.input_features,
                     "output_features": operator.output_features,
-                    "execution_form": definition.operator_execution_forms[key],
+                    "execution_form": operator.execution_form,
                     "declared_returns": definition.functions[operator.compute.function].returns,
                     "in_saved_scope": key in available,
                 }
@@ -132,7 +132,7 @@ class AnalyticalTools:
                 "profile": key[0],
                 "operator": key[1],
                 "role": role,
-                "execution_form": definition.operator_execution_forms[key],
+                "execution_form": operator.execution_form,
                 "grain_relationships": [
                     {
                         "source_profile": (
@@ -140,11 +140,14 @@ class AnalyticalTools:
                         ),
                         "relationship": relationship,
                     }
-                    for source, relationship in definition.operator_grain_relationships[key].items()
+                    for source, relationship in operator.grain_relationships(
+                        definition, key
+                    ).items()
                 ],
             }
             for key in definition.operators_by_function.get(function_id, [])
-            for role, binding in definition.operators_by_key[key].bindings.items()
+            for operator in (definition.operators_by_key[key],)
+            for role, binding in operator.bindings.items()
             if binding.function == function_id
         ]
         return serialization.JsonSerializer.dumps(

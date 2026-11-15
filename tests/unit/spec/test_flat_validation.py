@@ -12,7 +12,7 @@ import pydantic
 import pytest
 
 from uptimely import row_context as row_context_model
-from uptimely.spec import api, model, operator_kinds
+from uptimely.spec import api, model
 from uptimely.spec.python import assembly
 from uptimely.spec.python import feature as python_feature
 from uptimely.spec.python import profile as python_profile
@@ -33,9 +33,10 @@ from uptimely.spec.validation.rules.operators import inputs as operator_inputs
 from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 
 type Mutation = collections.abc.Callable[[model.Spec], object]
+OPERATOR_CASES = ("read", "write", "escape", "conform", "expand", "collapse", "vectorize")
 
 
-def make_spec(kind: operator_kinds.OperatorKindId = "vectorize") -> model.Spec:
+def make_spec(kind: str = "vectorize") -> model.Spec:
     """Build a valid document without invoking semantic validation."""
     source_grain = (
         [{"dimension": "machine", "resolution": "machine"}]
@@ -77,11 +78,7 @@ def make_spec(kind: operator_kinds.OperatorKindId = "vectorize") -> model.Spec:
             },
             "compute": {
                 "returns": (
-                    "none"
-                    if kind == operator_kinds.WRITE
-                    else "any"
-                    if kind == operator_kinds.ESCAPE
-                    else "dataframe"
+                    "none" if kind == "write" else "any" if kind == "escape" else "dataframe"
                 ),
                 "entrypoint": "not_imported:compute",
                 "args": args,
@@ -160,7 +157,7 @@ def test_dimension_change_uses_dimension_identities_not_cardinality() -> None:
         operator_contracts.validate_dimension_change(spec)
 
     key = ("target", "compute")
-    assert spec.operator_grain_relationships[key]["source"] == "unrelated"
+    assert spec.operators_by_key[key].grain_relationships(spec, key)["source"] == "unrelated"
 
 
 @pytest.mark.parametrize(
@@ -182,51 +179,39 @@ def test_atomic_rules_accept_spec_and_do_not_mutate(
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize(
-    "kind", [kind for kind in operator_kinds.OPERATOR_KINDS if kind != "merge"]
-)
-def test_full_validation_preserves_valid_operator_kinds(
-    kind: operator_kinds.OperatorKindId,
-) -> None:
+@pytest.mark.parametrize("kind", OPERATOR_CASES)
+def test_full_validation_preserves_valid_operator_declarations(kind: str) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
     assert validation.validate_spec(spec) is None
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize(
-    "kind", [kind for kind in operator_kinds.OPERATOR_KINDS if kind != "merge"]
-)
-def test_source_discovery_visits_every_operator_kind(
-    kind: operator_kinds.OperatorKindId,
-) -> None:
+@pytest.mark.parametrize("kind", OPERATOR_CASES)
+def test_source_discovery_visits_each_operator_declaration(kind: str) -> None:
     spec = make_spec(kind)
     before = spec.model_dump()
     sources = spec.input_sources
     assert list(sources) == [key for key, _ in spec.operator_items]
     key = ("target", "compute")
     source = sources[key]
-    if kind == operator_kinds.READ:
+    if kind == "read":
         assert spec.input_candidates[key] == ()
         assert source is None
     else:
-        expected = (
-            "target" if kind in {operator_kinds.VECTORIZE, operator_kinds.WRITE} else "source"
-        )
+        expected = "target" if kind in {"vectorize", "write"} else "source"
         assert source is not None
         assert source == expected
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize(
-    "kind", [kind for kind in operator_kinds.OPERATOR_KINDS if kind != "merge"]
-)
+@pytest.mark.parametrize("kind", OPERATOR_CASES)
 @pytest.mark.parametrize(
     "inputs",
     [[], ["machine"], ["missing"], ["s", "x"], ["s", "missing"]],
 )
-def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
-    kind: operator_kinds.OperatorKindId, inputs: list[str]
+def test_source_discovery_preserves_unresolved_inputs_for_every_declaration(
+    kind: str, inputs: list[str]
 ) -> None:
     spec = make_spec(kind)
     compute(spec).interface.inputs = [f"$features.{feature}" for feature in inputs]
@@ -239,12 +224,8 @@ def test_source_discovery_preserves_unresolved_inputs_for_every_kind(
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize(
-    "kind", [kind for kind in operator_kinds.OPERATOR_KINDS if kind != "merge"]
-)
-def test_source_discovery_does_not_choose_an_ambiguous_owner(
-    kind: operator_kinds.OperatorKindId,
-) -> None:
+@pytest.mark.parametrize("kind", OPERATOR_CASES)
+def test_source_discovery_does_not_choose_an_ambiguous_owner(kind: str) -> None:
     spec = make_spec(kind)
     source = spec.profiles["source"]
     duplicate = source.model_copy(update={"id": "duplicate"}, deep=True)
@@ -707,15 +688,12 @@ def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch)
 )
 def test_atomic_rules_reject_their_own_invariant(
     validate: validation.Validator,
-    kind: operator_kinds.OperatorKindId,
+    kind: str,
     mutate: Mutation,
     message: str,
 ) -> None:
     spec = make_spec(kind)
-    # Isolate each policy rule from classification changes caused by its mutation.
     mutate(spec)
-    if compute(spec).compute.function in spec.functions:
-        spec.operator_kinds[("target", "compute")] = kind
     before = spec.model_dump()
     with pytest.raises(ValueError, match=message):
         validate(spec)

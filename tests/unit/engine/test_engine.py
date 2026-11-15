@@ -231,7 +231,6 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             id=read_first_id,
             role="compute",
             result="fragment",
-            operator_kind="read",
             fragment_dimensions="target",
             entrypoint="test:read_first",
             function_id="read_first",
@@ -244,7 +243,6 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             id=read_second_id,
             role="compute",
             result="fragment",
-            operator_kind="read",
             fragment_dimensions="target",
             entrypoint="test:read_second",
             function_id="read_second",
@@ -262,7 +260,6 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
             id=invocation_id,
             role="merge",
             result="target",
-            operator_kind="read",
             entrypoint="test:custom_merge",
             function_id="custom_merge",
             operator_id=operator_id,
@@ -287,7 +284,6 @@ def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
         id=write_id,
         role="compute",
         result="none",
-        operator_kind="write",
         entrypoint="test:write",
         function_id="write",
         operator_id="write",
@@ -445,7 +441,7 @@ def test_unsupported_feature_type_is_reported_in_warning(
 ) -> None:
     caplog.set_level(logging.WARNING, logger="uptimely.engine")
     plan = _plan()
-    read = next(item for item in plan.invocations if item.operator_kind == "read")
+    read = next(item for item in plan.invocations if item.result == "fragment")
     read.column_types["reading"] = "floatti"
     _patch_callables(
         monkeypatch,
@@ -576,9 +572,11 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
         state,
         validate=validate,
     )
-    read = next(item for item in engine.plan.invocations if item.operator_kind == "read")
+    read = next(item for item in engine.plan.invocations if item.result == "fragment")
     merge = next(item for item in engine.plan.invocations if item.role == "merge")
-    calculate = next(item for item in engine.plan.invocations if item.operator_kind == "vectorize")
+    calculate = next(
+        item for item in engine.plan.invocations if item.dataframe_input_scope == "target"
+    )
 
     executor.execute(read)
     assert state.datasets == {}
@@ -691,7 +689,6 @@ def test_executor_validates_inputs_against_current_runtime_state(
         id="invocation",
         role="compute",
         result="target",
-        operator_kind="vectorize",
         dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
@@ -826,7 +823,6 @@ def test_escape_ignores_any_return_without_materializing_features(
         id=invocation_id,
         role="compute",
         result="none",
-        operator_kind="escape",
         entrypoint="test:escape",
         function_id="external_operator",
         operator_id="operator",
@@ -870,7 +866,6 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         id=first_id,
         role="compute",
         result="none",
-        operator_kind="escape",
         entrypoint="test:first",
         function_id="first",
         operator_id="first",
@@ -882,7 +877,6 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
         id=second_id,
         role="compute",
         result="none",
-        operator_kind="escape",
         entrypoint="test:second",
         function_id="second",
         operator_id="second",
@@ -916,7 +910,6 @@ def test_escape_resolves_literal_and_runtime_arguments(
         id=invocation_id,
         role="compute",
         result="none",
-        operator_kind="escape",
         entrypoint="test:escape",
         function_id="external_operator",
         operator_id="operator",
@@ -954,7 +947,6 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
         id=first_id,
         role="compute",
         result="none",
-        operator_kind="escape",
         entrypoint="test:first",
         function_id="first",
         operator_id="first",
@@ -1010,7 +1002,6 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         id=read_id,
         role="compute",
         result="fragment",
-        operator_kind="read",
         fragment_dimensions="target",
         entrypoint="test:read",
         function_id="load",
@@ -1022,7 +1013,6 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         id=merge_id,
         role="merge",
         result="target",
-        operator_kind="read",
         entrypoint="test:merge",
         function_id="combine",
         operator_id="load",
@@ -1044,7 +1034,6 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         id=escape_id,
         role="compute",
         result="none",
-        operator_kind="escape",
         entrypoint="test:escape",
         function_id="external_operator",
         operator_id="external_result",
@@ -1059,7 +1048,6 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
         id=vectorize_id,
         role="compute",
         result="target",
-        operator_kind="vectorize",
         dataframe_input_scope="target",
         entrypoint="test:consume",
         function_id="consume",
@@ -1111,7 +1099,6 @@ def test_escape_exception_fails_and_skips_downstream(
         id=first_id,
         role="compute",
         result="none",
-        operator_kind="escape",
         entrypoint="test:first",
         function_id="first",
         operator_id="first",
@@ -1335,7 +1322,7 @@ def test_fragment_names_are_scoped_by_dataset_not_entity(
     )
     for profile_id in ("first", "second"):
         read = copy.replace(
-            next(item for item in engine.plan.invocations if item.operator_kind == "read"),
+            next(item for item in engine.plan.invocations if item.result == "fragment"),
             profile_id=profile_id,
             operator_id="shared",
         )
@@ -1420,7 +1407,6 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
     caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
     invocation = copy.replace(
         _plan().invocations[1],
-        operator_kind="expand",
         dataframe_input_scope="foreign",
         argument_types={"source": "dataframe"},
         arguments={"source": "source"},
@@ -1510,7 +1496,6 @@ def test_vectorize_requires_an_accumulated_target() -> None:
         id="vectorize",
         role="compute",
         result="target",
-        operator_kind="read",
         dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
@@ -1534,7 +1519,6 @@ def test_column_projection_failure_preserves_published_state(
         id="vectorize",
         role="compute",
         result="target",
-        operator_kind="vectorize",
         dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
@@ -1606,7 +1590,6 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
         id="vectorize",
         role="compute",
         result="target",
-        operator_kind="vectorize",
         dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
@@ -1669,13 +1652,13 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
             (pl.col("reading") * 2).alias("reading_times_two"),
         )
 
-    staged_kinds: list[str] = []
+    staged_function_ids: list[str] = []
     stage_fragment = fragment_module.Fragment.stage
     merge_calls = 0
     merge_by_grain = merge_module.merge_by_grain
 
     def stage_spy(backend: object, invocation: object, load: object, **kwargs: object) -> object:
-        staged_kinds.append(invocation.operator_kind)
+        staged_function_ids.append(invocation.function_id)
         return stage_fragment(backend, invocation, load, **kwargs)
 
     def merge_spy(*args: object, **kwargs: object) -> object:
@@ -1687,7 +1670,6 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         id="invocation:read:load:asset:telemetry:load",
         role="compute",
         result="fragment",
-        operator_kind="read",
         fragment_dimensions="target",
         entrypoint="test:read",
         function_id="load",
@@ -1699,7 +1681,6 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         id="invocation:merge:merge_by_grain:asset:telemetry:load",
         role="merge",
         result="target",
-        operator_kind="read",
         entrypoint="uptimely.library.merge.polars:merge_by_grain",
         function_id="merge_by_grain",
         operator_id="load",
@@ -1724,7 +1705,6 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         id="invocation:vectorize:calculate:asset:telemetry:reading_plus_one",
         role="compute",
         result="target",
-        operator_kind="vectorize",
         dataframe_input_scope="target",
         entrypoint="test:calculate",
         function_id="calculate",
@@ -1754,7 +1734,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
     assert result.datasets["telemetry"].select("reading_plus_one", "reading_times_two").rows() == [
         (4, 6)
     ]
-    assert staged_kinds == ["read"]
+    assert staged_function_ids == ["load"]
     assert merge_calls == 1
     assert set(result.calculated_outputs) == {
         ("telemetry", "reading_plus_one"),

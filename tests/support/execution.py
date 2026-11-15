@@ -37,7 +37,6 @@ def merge_fragment(
         id="standalone",
         role="compute",
         result="fragment",
-        operator_kind="read",
         entrypoint="test:read",
         function_id="read",
         operator_id="read",

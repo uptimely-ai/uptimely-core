@@ -30,9 +30,9 @@ function sampleData() {
               value: { name: "<Value>", type: "float" },
             },
             assembly: { calculate: {
-              operator_label: "Vectorize", execution_form: "compute", binding_roles: ["compute"],
+              execution_form: "compute", binding_roles: ["compute"],
               grain_relationships: [], source_status: "resolved", produces_target_features: true,
-              kind: "vectorize", compute: { function: "calculate", args: {} },
+              compute: { function: "calculate", args: {} },
               interface: { inputs: [], outputs: ["$features.value"] },
             } },
             scope: "one row per machine <source>",
@@ -74,7 +74,7 @@ function sampleData() {
       operator: "<Calculate>", dependencies: [], columns: [column], main_columns: [column],
       binding_role: "compute", execution_form: "compute", grain_relationships: [],
       function_returns: "dataframe", has_dataframe_inputs: true,
-      operator_label: "Vectorize", input_tables: [], row_count: 3,
+      input_tables: [], row_count: 3,
     }]] },
   };
 }

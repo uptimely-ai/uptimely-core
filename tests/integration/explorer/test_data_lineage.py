@@ -72,7 +72,6 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
         role="compute",
         result="target",
         id="transfer",
-        operator_kind="read",
         entrypoint="example:transfer",
         function_id="transfer",
         operator_id=operator.id,
@@ -91,8 +90,11 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
     source = step.input_tables[0]
 
     assert step.operator == "Transfer"
-    assert definition.operator_grain_relationships[("target", "transfer")]["source"] == (
-        expected_relationship
+    assert (
+        definition.operators_by_key[("target", "transfer")].grain_relationships(
+            definition, ("target", "transfer")
+        )["source"]
+        == expected_relationship
     )
     assert step.grain_relationships == [
         {"source_profile": "source", "relationship": expected_relationship}

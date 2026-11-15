@@ -15,7 +15,7 @@ The versioned JSON object has four root fields:
 
 ```json
 {
-  "plan_version": 13,
+  "plan_version": 14,
   "required_backend": "polars",
   "invocations": [
     {
@@ -40,7 +40,7 @@ The versioned JSON object has four root fields:
 
 | Field | Meaning |
 | --- | --- |
-| `plan_version` | Version of the portable plan format. The current supported version is `13`. |
+| `plan_version` | Version of the portable plan format. The current supported version is `14`. |
 | `required_backend` | Dataframe backend required by the plan. The built-in Compiler currently emits `polars`. |
 | `invocations` | Ordered list of executable function calls and their contracts. |
 | `stages` | Lists of invocation IDs grouped by execution order. |
@@ -56,7 +56,6 @@ planned function call. Its portable fields are:
 | `id` | Unique opaque identifier for this invocation. Consumers should not parse its spelling. |
 | `role` | Binding role: `compute` for the main function call or `merge` for a separate fragment merge. |
 | `result` | How the function result is handled: `none`, complete `target`, or staged `fragment`. |
-| `operator_kind` | Descriptive operator label used by tools and diagnostics. Execution behavior is declared by the other contract fields. |
 | `produces_features` | Whether this invocation publishes its outputs as feature dependencies. |
 | `is_sink` | Whether this invocation performs a configured publication or write. |
 | `is_workflow` | Whether this invocation runs an opaque workflow with logical feature dependencies rather than dataframe inputs or outputs. |

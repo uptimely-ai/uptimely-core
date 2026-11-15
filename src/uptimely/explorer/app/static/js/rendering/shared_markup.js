@@ -1,14 +1,3 @@
-export const KINDS = {
-  read: { icon: "database", label: "Read" },
-  conform: { icon: "shuffle", label: "Conform" },
-  expand: { icon: "expand", label: "Expand" },
-  collapse: { icon: "combine", label: "Collapse" },
-  vectorize: { icon: "table-properties", label: "Vectorize" },
-  merge: { icon: "git-merge", label: "Merge" },
-  write: { icon: "send", label: "Write" },
-  escape: { icon: "arrow-up-right", label: "Escape" },
-};
-
 export const ICONS = {
   home: "house", menu: "menu", "collapse-navigation": "panel-left-close",
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
@@ -87,11 +76,6 @@ export function icon(key, className = "nav-icon") {
   return `<i class="site-icon icon--${escape(key)} ${className}" data-lucide="${ICONS[key] || "braces"}" aria-hidden="true"></i>`;
 }
 
-export function kindIcon(kind, className = "nav-icon") {
-  const label = KINDS[kind]?.label || kind || "Unspecified";
-  return `<i class="site-icon icon--functions ${className}" data-lucide="${KINDS[kind]?.icon || "braces"}" title="Operator kind: ${escape(label)}" aria-hidden="true"></i>`;
-}
-
 export function href(view, target = "") {
   return `?view=${encodeURIComponent(view)}${target ? `#${encodeURIComponent(target)}` : ""}`;
 }
@@ -118,7 +102,7 @@ export function statistic(label, value) {
 }
 
 export function distribution(title, counts, {
-  total = null, note = null, typeLabels = false, iconLabels = false, dimensionLabels = false, kindLabels = false,
+  total = null, note = null, typeLabels = false, iconLabels = false, dimensionLabels = false,
   returnTypeLabels = false, tooltip = null, labelFormatter = label => label,
 } = {}) {
   const maximum = Math.max(0, ...counts.map(([, value]) => Number(value)));
@@ -131,8 +115,8 @@ export function distribution(title, counts, {
     <div class="space-y-4">${counts.map(([label, value, target]) => {
       const tag = target ? "a" : "div";
       return `<${tag}${target ? ` href="${escape(target)}"` : ""} class="ui-chart-row" data-category="${escape(label)}" data-count="${escape(value)}">
-        <span class="${iconLabels || dimensionLabels || kindLabels || returnTypeLabels ? "inline-flex items-center gap-2 break-words text-slate-400" : "break-words text-slate-400"}">${kindLabels ? kindIcon(label, "h-4 w-4 shrink-0") : dimensionLabels ? icon("dimensions", "h-4 w-4 shrink-0") : iconLabels ? icon(label, "h-4 w-4 shrink-0") : returnTypeLabels ? icon("return-arrow", "h-4 w-4 shrink-0") : ""}${returnTypeLabels ? `<span class="data-type-label-text">${escape(label)}</span>` : typeLabels ? dataTypeLabel(label) : escape(labelFormatter(label))}</span>
-        <div class="h-3 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "merge" ? "bg-amber-400" : label === "escape" ? "bg-violet-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
+        <span class="${iconLabels || dimensionLabels || returnTypeLabels ? "inline-flex items-center gap-2 break-words text-slate-400" : "break-words text-slate-400"}">${dimensionLabels ? icon("dimensions", "h-4 w-4 shrink-0") : iconLabels ? icon(label, "h-4 w-4 shrink-0") : returnTypeLabels ? icon("return-arrow", "h-4 w-4 shrink-0") : ""}${returnTypeLabels ? `<span class="data-type-label-text">${escape(label)}</span>` : typeLabels ? dataTypeLabel(label) : escape(labelFormatter(label))}</span>
+        <div class="h-3 overflow-hidden rounded-full bg-slate-800" aria-hidden="true"><div class="h-full rounded-full ${label === "merge" ? "bg-amber-400" : "bg-cyan-400"}" style="width:${maximum ? Number(value) / maximum * 100 : 0}%"></div></div>
         <span class="text-right font-mono text-xs text-white">${escape(value)}</span>
       </${tag}>`;
     }).join("") || '<p class="text-sm text-slate-400">No categories to display.</p>'}</div>
@@ -160,10 +144,10 @@ export function contextGroup(title, items) {
   <p class="context-group-label"><span>${escape(title)}</span><span class="context-link-count">${items.length}</span></p>${items.join("")}</div>`;
 }
 
-export function contextLink(target, label, key, count = null, kind = null, type = null) {
+export function contextLink(target, label, key, count = null, type = null) {
   return `<a href="#${encodeURIComponent(target)}">
     ${type !== null ? `<span class="context-link-icon" title="${escape(type)}">${dataTypeIcon(type, "nav-icon") || icon("data-type", "nav-icon")}</span>`
-      : key || kind ? `<span class="context-link-icon">${kind ? kindIcon(kind) : icon(key)}</span>` : ""}
+      : key ? `<span class="context-link-icon">${icon(key)}</span>` : ""}
     <span class="context-link-label">${escape(label)}</span>
     ${type === null ? "" : `<span class="sr-only"> (${escape(type)})</span>`}
     ${count === null ? "" : `<span class="context-link-count">${escape(count)}</span>`}
@@ -216,25 +200,4 @@ export function shell(data, view, context, content) {
         aria-label="Build coverage: ${data.scope.is_scoped ? "Partial" : "Full"} build. Spec: complete model. Plan and execution: ${escape(data.scope.label)}">${data.scope.is_scoped ? "Partial" : "Full"} build</span>
     </nav>
     ${context}</div><div class="site-content" id="content">${content}</div>`;
-}
-
-export function miniGraphic(kind) {
-  const key = "#475569", feature = "#22d3ee", foreign = "#a78bfa", result = "#fbbf24";
-  const table = (x, y, rows) => rows.map((row, i) => row.map((fill, j) =>
-    `<rect x="${x + j * 17}" y="${y + i * 10}" width="14" height="7" rx="2" fill="${fill}"/>`).join("")).join("");
-  const repeated = row => [row, row, row];
-  const arrow = '<path d="M62 22h14m-4.5-4.5 4.5 4.5-4.5 4.5" stroke="#64748b" stroke-width="1.5" fill="none" stroke-linecap="round" stroke-linejoin="round"/>';
-  const external = '<ellipse cx="30" cy="11" rx="15" ry="5" fill="none" stroke="#475569" stroke-width="1.5"/><path d="M15 11v21c0 2.8 6.7 5 15 5s15-2.2 15-5V11M15 22c0 2.8 6.7 5 15 5s15-2.2 15-5" fill="none" stroke="#475569" stroke-width="1.5"/>';
-  const input = kind === "read" ? external : kind === "conform"
-    ? table(14, 2, [[`${key}66`, `${foreign}55`], [key, foreign], [key, foreign], [`${key}66`, `${foreign}55`]])
-    : table(14, kind === "expand" ? 19 : 7,
-      kind === "expand" ? [[key, foreign]] : repeated(kind === "collapse" ? [key, key, feature] : kind === "write" ? [key, result] : [key, feature]));
-  const output = kind === "write"
-    ? '<g transform="translate(97 10)" fill="none" stroke="#22d3ee" stroke-width="1.5"><path d="m22 2-7 20-4-9-9-4ZM22 2 11 13"/></g>'
-    : kind === "escape"
-      ? '<rect x="96" y="9" width="26" height="26" rx="7" fill="none" stroke="#a78bfa" stroke-width="1.5" stroke-dasharray="3 3"/><path d="m104 27 10-10m-6 0h6v6" fill="none" stroke="#a78bfa" stroke-width="1.5"/>'
-      : kind === "conform" ? table(98, 12, [[key, foreign], [key, foreign]])
-        : table(kind === "collapse" ? 98 : 94, kind === "collapse" ? 19 : 7,
-          kind === "collapse" ? [[key, result]] : repeated(kind === "vectorize" ? [key, feature, result] : kind === "expand" ? [key, key, foreign] : kind === "read" ? [key, feature, feature] : [key, feature]));
-  return `<svg viewBox="0 0 150 44" class="h-11 w-auto" aria-hidden="true" focusable="false">${input}${arrow}${output}</svg>`;
 }

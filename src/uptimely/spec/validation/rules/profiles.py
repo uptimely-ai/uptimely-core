@@ -2,7 +2,7 @@
 
 import logging
 
-from uptimely.spec import arg_types, operator_kinds
+from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
@@ -62,8 +62,21 @@ def validate_seeds(spec: spec_model.Spec) -> None:
             if operator_id == profile.seed or operator.merge is not None:
                 continue
             other_key = (profile_id, operator_id)
-            kind = operator_kinds.OPERATOR_KINDS[spec.operator_kinds[other_key]]
-            if kind.is_source:
+            function = spec.functions.get(operator.compute.function)
+            if function is None:
+                continue
+            relationships = operator.grain_relationships(spec, other_key)
+            contract = operator.execution_contract(
+                returns=function.returns,
+                target_profile=profile_id,
+                dataframe_sources=spec.dataframe_argument_profiles[other_key],
+                grain_relationships={
+                    source: relationship
+                    for source, relationship in relationships.items()
+                    if source is not None
+                },
+            )
+            if contract.is_source:
                 raise errors.SpecError(
                     f"Profile {profile_id} operator {operator_id} must merge its result "
                     "instead of replacing the seed",

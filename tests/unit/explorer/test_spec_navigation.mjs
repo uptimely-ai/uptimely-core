@@ -20,7 +20,7 @@ const { Router } = await import(moduleUrl(
   await readFile(new URL("application/history_router.js", root), "utf8"),
 ));
 const {
-  badge, dataTypeIcon, dataTypeIconName, distribution, heading, icon, kindIcon, shell, typedName,
+  badge, dataTypeIcon, dataTypeIconName, distribution, heading, icon, shell, typedName,
   statistic, contextHeader,
 } = await import(shared);
 const { dashboard, lineage, planOverview } = await import(pages);
@@ -47,8 +47,8 @@ test("resolutions use the scan square icon", () => {
   assert.match(icon("resolutions"), /data-lucide="scan-square"/);
 });
 
-test("operator-kind icon helper retains its compatibility mapping", () => {
-  assert.match(kindIcon("vectorize"), /data-lucide="table-properties"/);
+test("grain relationships map to their relationship icons", () => {
+  assert.match(icon("same"), /data-lucide="table-properties"/);
 });
 
 test("function usage groups named operators by profile without semantic metadata", () => {
@@ -157,7 +157,7 @@ test("produced schema is a table listing declared columns vertically with their 
   assert.match(table, /data-schema-column="label"[\s\S]*?data-lucide="case-sensitive"[\s\S]*?<span>label<\/span>[\s\S]*?—<\/td>/);
 });
 
-test("schema columns include every producing operator including grain and vectorized features", () => {
+test("schema columns include every operator producing a declared feature", () => {
   const config = {
     dimensions: { machine: { resolutions: { unit: { key: "machine_id" } } } },
     functions: { read: { returns: "dataframe" }, compute: { returns: "dataframe" } },
@@ -166,9 +166,9 @@ test("schema columns include every producing operator including grain and vector
     grain: [{ dimension: "machine", resolution: "unit" }],
     features: { machine_id: {}, temperature: {}, score: {}, orphan: {} },
     assembly: {
-      load: { kind: "read", compute: { function: "read" }, interface: { outputs: ["$features.machine_id", "$features.temperature"] } },
-      calculate: { kind: "vectorize", compute: { function: "compute" }, interface: { outputs: ["$features.score", "$features.score"] } },
-      revise: { kind: "vectorize", compute: { function: "compute" }, interface: { outputs: ["$features.score"] } },
+      load: { compute: { function: "read" }, interface: { outputs: ["$features.machine_id", "$features.temperature"] } },
+      calculate: { compute: { function: "compute" }, interface: { outputs: ["$features.score", "$features.score"] } },
+      revise: { compute: { function: "compute" }, interface: { outputs: ["$features.score"] } },
     },
   };
   const columns = schemaColumns(config, profile);
@@ -212,19 +212,18 @@ test("grain keys and relations have distinct schema roles and use resolution typ
   assert.doesNotMatch(table, />Dimension<\/span>/);
 });
 
-test("profile details show every declared operator in order including vectorized operator", () => {
-  const kinds = ["read", "vectorize", "expand", "vectorize", "collapse", "escape", "write"];
-  const assembly = Object.fromEntries(kinds.map((kind, index) => [`operator_${index}`, {
-    operator_label: kind,
-    execution_form: kind === "collapse" ? "compute + merge" : "compute",
-    binding_roles: kind === "collapse" ? ["compute", "merge"] : ["compute"],
+test("profile details show every declared operator in order", () => {
+  const operators = ["load", "calculate", "expand", "derive", "aggregate", "notify", "publish"];
+  const assembly = Object.fromEntries(operators.map((operator, index) => [`operator_${index}`, {
+    execution_form: operator === "aggregate" ? "compute + merge" : "compute",
+    binding_roles: operator === "aggregate" ? ["compute", "merge"] : ["compute"],
     grain_relationships: [],
-    compute: { function: kind, args: { output: `$outputs.value_${index}` } },
+    compute: { function: operator, args: { output: `$outputs.value_${index}` } },
     interface: { inputs: [], outputs: [] },
   }]));
   const configuration = {
     dimensions: {},
-    functions: Object.fromEntries(kinds.map(kind => [kind, { name: `${kind} function`, returns: "dataframe" }])),
+    functions: Object.fromEntries(operators.map(operator => [operator, { name: `${operator} function`, returns: "dataframe" }])),
     profiles: { telemetry: { grain: [], features: {}, assembly } },
   };
   const stages = [{ steps: Object.keys(assembly).map((operator_id, index) => ({
@@ -235,20 +234,20 @@ test("profile details show every declared operator in order including vectorized
   const content = render();
   assert.deepEqual([...content.matchAll(/data-profile-operator="([^"]+)"/g)].map(match => match[1]),
     Object.keys(assembly));
-  assert.equal((content.match(/data-execution-form="compute"/g) || []).length, kinds.length - 1);
+  assert.equal((content.match(/data-execution-form="compute"/g) || []).length, operators.length - 1);
   assert.equal((content.match(/data-execution-form="compute \+ merge"/g) || []).length, 1);
   assert.match(content, /<summary>Arguments<\/summary>/);
   assert.match(content, /<span class="ui-badge profile-operator-argument-value"><code class="language-json">\$outputs\.value_1<\/code><\/span>/);
   assert.match(content, /class="language-json">resolved_1<\/code>/);
-  assert.match(content, /href="\?view=functions#function-vectorize">vectorize function/);
+  assert.match(content, /href="\?view=functions#function-calculate">calculate function/);
 
   configuration.profiles.telemetry.assembly = { calculate: assembly.operator_1 };
-  const vectorizedOnly = render();
-  assert.match(vectorizedOnly, /profile-detail-subheading[^>]*>[\s\S]*?<span>Assembly<\/span><\/h3>/);
-  assert.doesNotMatch(vectorizedOnly, /OPERATION|profile-operator-kicker/);
-  assert.match(vectorizedOnly, /profile-operator-list/);
-  assert.doesNotMatch(vectorizedOnly, /<div class="profile-operator">/);
-  assert.match(vectorizedOnly, /data-profile-operator="calculate" data-execution-form="compute"/);
+  const calculatedOnly = render();
+  assert.match(calculatedOnly, /profile-detail-subheading[^>]*>[\s\S]*?<span>Assembly<\/span><\/h3>/);
+  assert.doesNotMatch(calculatedOnly, /OPERATION|profile-operator-kicker/);
+  assert.match(calculatedOnly, /profile-operator-list/);
+  assert.doesNotMatch(calculatedOnly, /<div class="profile-operator">/);
+  assert.match(calculatedOnly, /data-profile-operator="calculate" data-execution-form="compute"/);
 });
 
 test("profile detail grain uses the shared resolution hierarchy and highlights its resolution", () => {
@@ -287,7 +286,7 @@ test("profile grain hierarchies use a responsive two-column layout", async () =>
 test("feature and function type displays use matching data type icons", () => {
   const data = { catalogs: {
     summary: {
-      feature_count: 1, vectorized_feature_count: 0,
+      feature_count: 1, computed_feature_count: 0,
       feature_buckets: { input: 1, intermediate: 0, output: 0 }, function_count: 1,
     },
     configuration: {
@@ -296,7 +295,6 @@ test("feature and function type displays use matching data type icons", () => {
       profiles: { telemetry: {
         grain: [], features: { temperature: { name: "Temperature", type: "float64" } },
         assembly: { load: {
-          operator_label: "Read",
           execution_form: "compute + merge",
           binding_roles: ["compute", "merge"],
           grain_relationships: [
@@ -345,7 +343,7 @@ test("feature and function type displays use matching data type icons", () => {
   assert.match(featureOperator, /<td><code class="language-json">telemetry\.csv<\/code><\/td>/);
   assert.match(featureOperator, /<div class="profile-operator-function">\s*<i[^>]*class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
   assert.match(featureOperator, /profile-operator-merge-indicator/);
-  assert.match(featureOperator, /profile-operator-header[\s\S]*ui-badge[^>]*>Read<\/span>/);
+  assert.match(featureOperator, /profile-operator-header[\s\S]*ui-badge[^>]*>collapse, not_applicable<\/span>/);
   assert.match(featureOperator, /tabindex="0" title="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
   assert.match(featureOperator, /aria-label="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
   assert.doesNotMatch(featureOperator, /<dt>Execution form<\/dt>|<dt>Grain relationship<\/dt>/);
@@ -375,7 +373,7 @@ test("feature details show metadata and direct used-by badges below the operator
     dimensions: {},
     functions: {
       read: { returns: "dataframe" },
-      vectorize: { returns: "dataframe" },
+      calculate: { returns: "dataframe" },
     },
     profiles: { telemetry: {
       grain: [],
@@ -387,21 +385,21 @@ test("feature details show metadata and direct used-by badges below the operator
       },
       assembly: {
         load: {
-          operator_label: "Read", execution_form: "compute", binding_roles: ["compute"],
+          execution_form: "compute", binding_roles: ["compute"],
           grain_relationships: [], produces_target_features: false,
-          kind: "read", compute: { function: "read" },
+          compute: { function: "read" },
           interface: { inputs: [], outputs: ["$features.raw"] },
         },
         normalize: {
-          operator_label: "Vectorize", execution_form: "compute", binding_roles: ["compute"],
+          execution_form: "compute", binding_roles: ["compute"],
           grain_relationships: [], produces_target_features: true,
-          kind: "vectorize", compute: { function: "vectorize" },
+          compute: { function: "calculate" },
           interface: { inputs: ["$features.raw"], outputs: ["$features.adjusted", "$features.offset"] },
         },
         flag: {
-          operator_label: "Vectorize", execution_form: "compute", binding_roles: ["compute"],
+          execution_form: "compute", binding_roles: ["compute"],
           grain_relationships: [], produces_target_features: true,
-          kind: "vectorize", compute: { function: "vectorize" },
+          compute: { function: "calculate" },
           interface: { inputs: ["$features.adjusted"], outputs: ["$features.alarm"] },
         },
       },
@@ -638,7 +636,7 @@ test("Features overview shows role and data type charts without summary cards", 
       },
       summary: {
         feature_buckets: { input: 3, intermediate: 2, output: 1 },
-        feature_count: 6, vectorized_feature_count: 2,
+        feature_count: 6, computed_feature_count: 2,
       },
     },
   };
@@ -914,7 +912,7 @@ test("stage cards share compact operator styling and retain invocation details",
   const step = {
     invocation_id: "read", operator_id: "load", profile: "telemetry", dataset_label: "Telemetry",
     title: "Load telemetry", function: "load", function_label: "Load telemetry",
-    role: "compute", operator_label: "read", binding_roles: ["compute", "merge"],
+    role: "compute", binding_roles: ["compute", "merge"],
     grain_relationships: [{ source_profile: "source", relationship: "same" }],
     input_features: [], output_features: ["Temperature"],
     args: {}, returns: { type: { engine: "DataFrame" } },
@@ -931,13 +929,13 @@ test("stage cards share compact operator styling and retain invocation details",
     }] },
     { stage: 3, steps: [{
       ...step, invocation_id: "effect", uncontrolled: true, binding_roles: ["compute"],
-      operator_label: "escape", input_features: ["Temperature"], output_features: ["Notification"],
+      input_features: ["Temperature"], output_features: ["Notification"],
     }] },
   ] });
   assert.equal((content.match(/class="profile-operator"/g) || []).length, 3);
   assert.equal((content.match(/<summary>Invocation details<\/summary>/g) || []).length, 3);
   assert.doesNotMatch(content, /<details[^>]*\bopen\b|Execution form|md:grid-cols|<dt>Grain relationship/);
-  assert.match(content, /profile-operator-header[\s\S]*ui-badge[^>]*>read<\/span>/);
+  assert.match(content, /profile-operator-header[\s\S]*ui-badge[^>]*>same<\/span>/);
   assert.match(content, /title="[^"]*Grain relationships: source: same\."/);
   assert.match(content, /href="\?view=functions#function-merge">Merge telemetry<\/a>/);
   assert.match(content, /href="\?view=profiles#operator-telemetry-load">load<\/a>/);

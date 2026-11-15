@@ -38,6 +38,7 @@ def invocation_lineage_payload(
         function = spec_definition.functions[invocation.function_id]
         is_merge = invocation.role == "merge"
         key = (invocation.profile_id, invocation.operator_id)
+        operator = spec_definition.operators_by_key[key]
         grain_relationships = [
             {
                 "source_profile": (
@@ -45,7 +46,7 @@ def invocation_lineage_payload(
                 ),
                 "relationship": relationship,
             }
-            for source, relationship in spec_definition.operator_grain_relationships[key].items()
+            for source, relationship in operator.grain_relationships(spec_definition, key).items()
         ]
         profile = (
             spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
@@ -56,9 +57,8 @@ def invocation_lineage_payload(
             {
                 "id": invocation.id,
                 "node_type": "invocation",
-                "operator_label": spec_definition.operator_kinds[key],
-                "execution_form": spec_definition.operator_execution_forms[key],
-                "binding_roles": list(spec_definition.operator_binding_roles[key]),
+                "execution_form": operator.execution_form,
+                "binding_roles": list(operator.binding_roles),
                 "grain_relationships": grain_relationships,
                 "function_returns": function.returns,
                 "role": invocation.role,

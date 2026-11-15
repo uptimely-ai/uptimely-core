@@ -25,6 +25,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Portable execution plans use format version 14 and no longer contain inferred
+  operator labels. Explorer presents inferred grain relationships separately.
 - Python `Operator` declarations use `read` and `write` bindings for dataframe
   sources and sinks. Reads can use a merge to add their returned fragment.
 - Python `Operator` declarations place feature `inputs` and `outputs` directly

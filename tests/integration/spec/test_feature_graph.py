@@ -1,4 +1,3 @@
-import dataclasses
 import pathlib
 import sys
 
@@ -7,33 +6,15 @@ from support import examples as example_support
 
 from uptimely import application, spec
 from uptimely.cli import cli
-from uptimely.spec import operator_kinds
 from uptimely.spec.feature_graph import models
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
 
 
-def test_graph_metadata_uses_derived_grain_semantics(
-    monkeypatch: pytest.MonkeyPatch, pump_bundle: application.BuildBundle
+def test_graph_metadata_uses_declared_operator_outputs(
+    pump_bundle: application.BuildBundle,
 ) -> None:
     graph = spec.FeatureGraph(pump_bundle.spec_definition)
-    original = graph._declared_features()
-    catalog = dict(operator_kinds.OPERATOR_KINDS)
-    catalog["read"] = dataclasses.replace(catalog["read"], is_source=False, is_transformer=True)
-    catalog["collapse"] = dataclasses.replace(catalog["collapse"], dimension_change="preserve")
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", catalog)
-    changed = graph._declared_features()
-    checked = {kind for kind in graph.spec.operator_kinds.values() if kind in {"read", "collapse"}}
-    assert changed == original
-    assert checked == {"read", "collapse"}
-    graph.spec = spec.Spec.model_validate(graph.spec.model_dump())
-    for profile_id, profile in graph.spec.profiles.items():
-        profile.assembly = {
-            key: operator
-            for key, operator in profile.assembly.items()
-            if graph.spec.operator_kinds[(profile_id, key)] == "read"
-        }
-    graph.operators = graph.spec.operators
     rebuilt_features = [
         node.reference
         for node in graph._create_graph()

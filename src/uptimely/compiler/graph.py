@@ -12,7 +12,8 @@ from collections.abc import Collection
 import graphable as graphable_
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds, row_context
+from uptimely.spec import row_context
+from uptimely.spec.model import profile as profile_module
 
 INVOCATION_LABEL_MAX_LENGTH = 24
 INVOCATION_HASH_LENGTH = 10
@@ -27,13 +28,12 @@ class InvocationNode:
     function_id: str
     profile_id: str
     operator_id: str
-    operator_kind: operator_kinds.OperatorKindId
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
     produces_features: bool = False
     is_sink: bool = False
     is_workflow: bool = False
-    dataframe_input_scope: operator_kinds.DataFrameInputScope = "unrestricted"
+    dataframe_input_scope: profile_module.DataFrameInputScope = "unrestricted"
     fragment_dimensions: typing.Literal["target", "subset", "not_applicable"] = "not_applicable"
     row_count_relation: typing.Literal["same", "unrestricted"] = "unrestricted"
     key_relation: typing.Literal["identical", "unrestricted"] = "unrestricted"
@@ -61,10 +61,10 @@ class InvocationNode:
         return f"{label}--{fingerprint}"
 
     def __str__(self) -> str:
-        return f"{self.operator_kind}:{self.role}:{self.function_id}({self.profile_id})"
+        return f"{self.role}:{self.function_id}({self.profile_id})"
 
     def __repr__(self) -> str:
-        return f"{self.operator_kind}:{self.role}:{self.function_id}({self.profile_id})"
+        return f"{self.role}:{self.function_id}({self.profile_id})"
 
 
 class InvocationGraph:

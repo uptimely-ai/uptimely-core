@@ -13,7 +13,7 @@ import docstring_parser
 
 from uptimely import entrypoint as entrypoint_module
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds, selectors
+from uptimely.spec import operator_bindings, selectors
 
 __all__ = [
     "ExplorerContext",
@@ -35,7 +35,7 @@ class ExplorerSummary:
     bound_feature_count: int
     function_count: int
     feature_buckets: dict[str, int]
-    vectorized_feature_count: int
+    computed_feature_count: int
     function_buckets: dict[str, int]
 
 
@@ -85,7 +85,7 @@ def _feature_data(
                 metadata.model_dump(mode="json", exclude_none=True) if metadata is not None else {}
             )
             feature["id"] = feature_id
-            if spec_definition.operator_produces_target_features[key]:
+            if operator.produces_target_features(spec_definition, key):
                 calculated_features.append(
                     {
                         **feature,
@@ -186,6 +186,7 @@ def _build_context(
         function["declared_returns"] = function["returns"]
         function["operator_usages"] = []
     for key, operator in spec_definition.operator_items:
+        relationships_by_source = operator.grain_relationships(spec_definition, key)
         relationships = [
             {
                 "source_profile": (
@@ -193,24 +194,23 @@ def _build_context(
                 ),
                 "relationship": relationship,
             }
-            for source, relationship in spec_definition.operator_grain_relationships[key].items()
+            for source, relationship in relationships_by_source.items()
         ]
         operator_data = configuration["profiles"][key[0]]["assembly"][key[1]]
         if operator.binding_kind is not None:
             operator_data["binding_contract"] = dataclasses.asdict(
-                operator_kinds.OPERATOR_BINDINGS[operator.binding_kind]
+                operator_bindings.OPERATOR_BINDINGS[operator.binding_kind]
             )
         if operator.merge is not None:
             operator_data["merge_contract"] = dataclasses.asdict(
-                operator_kinds.OPERATOR_BINDINGS["merge"]
+                operator_bindings.OPERATOR_BINDINGS["merge"]
             )
-        operator_data["operator_label"] = spec_definition.operator_kinds[key]
-        operator_data["execution_form"] = spec_definition.operator_execution_forms[key]
-        operator_data["binding_roles"] = list(spec_definition.operator_binding_roles[key])
+        operator_data["execution_form"] = operator.execution_form
+        operator_data["binding_roles"] = list(operator.binding_roles)
         operator_data["grain_relationships"] = relationships
-        operator_data["source_status"] = spec_definition.operator_source_statuses[key]
-        operator_data["produces_target_features"] = (
-            spec_definition.operator_produces_target_features[key]
+        operator_data["source_status"] = operator.source_details(spec_definition, key)[1]
+        operator_data["produces_target_features"] = operator.produces_target_features(
+            spec_definition, key
         )
         for role, binding in operator.bindings.items():
             function = function_definitions[binding.function]
@@ -219,7 +219,7 @@ def _build_context(
                     "profile": key[0],
                     "operator": operator.id,
                     "role": role,
-                    "execution_form": spec_definition.operator_execution_forms[key],
+                    "execution_form": operator.execution_form,
                     "grain_relationships": relationships,
                 }
             )
@@ -287,15 +287,14 @@ def _build_context(
             len(group) for group in function_groups.values() if isinstance(group, dict)
         ),
         feature_buckets=feature_buckets,
-        vectorized_feature_count=feature_buckets["intermediate"] + feature_buckets["output"],
+        computed_feature_count=feature_buckets["intermediate"] + feature_buckets["output"],
         function_buckets=function_buckets,
     )
     dependencies = [
         {
             "function": operator.compute.function,
-            "operator_label": spec_definition.operator_kinds[key],
-            "execution_form": spec_definition.operator_execution_forms[key],
-            "binding_roles": list(spec_definition.operator_binding_roles[key]),
+            "execution_form": operator.execution_form,
+            "binding_roles": list(operator.binding_roles),
             "grain_relationships": [
                 {
                     "source_profile": (
@@ -303,9 +302,9 @@ def _build_context(
                     ),
                     "relationship": relationship,
                 }
-                for source, relationship in spec_definition.operator_grain_relationships[
-                    key
-                ].items()
+                for source, relationship in operator.grain_relationships(
+                    spec_definition, key
+                ).items()
             ],
             "feature": feature,
             "dependencies": operator.input_features,

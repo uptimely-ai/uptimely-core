@@ -8,7 +8,7 @@ import typing
 
 import pydantic
 
-from uptimely.spec import arg_types, operator_kinds, selectors, semantics
+from uptimely.spec import arg_types, selectors
 
 from . import base, binding_argument, merge
 from . import dimension as dimension_module
@@ -59,16 +59,6 @@ class Spec(base.StrictModel):
                 raise ValueError("spec_version must be an integer")
             raise ValueError("Unsupported spec_version; rebuild or migrate to Spec version 8")
         return value
-
-    @functools.cached_property
-    def operator_kinds(self) -> dict[OperatorKey, operator_kinds.OperatorKindId]:
-        """Derive per-operator policy labels from bindings and profile grain."""
-        return self._derived_semantics.operator_kinds
-
-    @functools.cached_property
-    def _derived_semantics(self) -> semantics.Semantics:
-        """Share cached derived views without making them authoritative Spec fields."""
-        return semantics.Semantics(self)
 
     def rebuild(self) -> typing.Self:
         """Return a fresh Spec after declarations have been edited.
@@ -133,10 +123,21 @@ class Spec(base.StrictModel):
 
     def _row_context_profile_key(self, key: OperatorKey) -> ProfileKey | None:
         """Resolve the profile whose observations an operator's context describes."""
-        definition = operator_kinds.OPERATOR_KINDS[self.operator_kinds[key]]
+        operator = self.operators_by_key[key]
+        source_profile = self.input_sources[key]
+        if source_profile is None:
+            if self.input_candidates[key]:
+                return None
+            sources, status = operator.source_details(self, key)
+            if status == "resolved" and len(sources) == 1:
+                source_profile = sources[0]
+            elif status == "missing" and not sources:
+                return self.operator_profile_keys[key]
+            else:
+                return None
         return (
-            self.input_sources[key]
-            if definition.dimension_change == "remove"
+            source_profile
+            if operator.grain_relationships(self, key).get(source_profile) == "collapse"
             else self.operator_profile_keys[key]
         )
 
@@ -384,47 +385,16 @@ class Spec(base.StrictModel):
         }
 
     @functools.cached_property
-    def operator_grain_relationships(
-        self,
-    ) -> dict[OperatorKey, dict[ProfileKey | None, semantics.GrainRelationship]]:
-        """Return source-to-target grain relationships for each operator."""
-        return self._derived_semantics.operator_grain_relationships
-
-    @functools.cached_property
-    def operator_execution_forms(
-        self,
-    ) -> dict[OperatorKey, semantics.OperatorExecutionForm]:
-        """Return each operator's compute-only or compute-and-merge form."""
-        return self._derived_semantics.operator_execution_forms
-
-    @functools.cached_property
-    def operator_binding_roles(
-        self,
-    ) -> dict[OperatorKey, tuple[str, ...]]:
-        """Return the binding roles declared by each operator."""
-        return self._derived_semantics.operator_binding_roles
-
-    @functools.cached_property
-    def operator_produces_target_features(self) -> dict[OperatorKey, bool]:
-        """Return whether each operator computes dataframe outputs from its target dataset."""
-        return self._derived_semantics.operator_produces_target_features
-
-    @functools.cached_property
     def calculated_feature_producers(
         self,
     ) -> dict[str, tuple[ProfileKey, profile_module.Operator]]:
         """Return calculated feature IDs mapped to their owning profile and operator."""
-        return self._derived_semantics.calculated_feature_producers
-
-    @functools.cached_property
-    def operator_source_profile_keys(self) -> dict[OperatorKey, tuple[ProfileKey, ...]]:
-        """Return known source profiles for each operator."""
-        return self._derived_semantics.operator_source_profile_keys
-
-    @functools.cached_property
-    def operator_source_statuses(self) -> dict[OperatorKey, semantics.OperatorSourceStatus]:
-        """Return source-resolution status for each operator."""
-        return self._derived_semantics.operator_source_statuses
+        return {
+            feature: (key[0], operator)
+            for key, operator in self.operator_items
+            if operator.produces_target_features(self, key)
+            for feature in operator.output_features
+        }
 
     @functools.cached_property
     def dataframe_argument_identifiers(self) -> dict[OperatorKey, frozenset[str]]:

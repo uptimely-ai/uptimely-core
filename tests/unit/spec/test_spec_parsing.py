@@ -411,7 +411,13 @@ def test_dataset_dimension_selectors_resolve_for_host_and_foreign_datasets() -> 
 
 def test_system_and_subset_support_multiple_variables() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    assert sum(kind == "vectorize" for kind in spec_definition.operator_kinds.values()) == 13
+    assert (
+        sum(
+            operator.produces_target_features(spec_definition, key)
+            for key, operator in spec_definition.operator_items
+        )
+        == 13
+    )
     collapse = spec_definition.profiles["pump"].assembly["bearing_temperature_by_pump"]
     assert not hasattr(collapse, "source")
     assert collapse.compute.function == "aggregate"

@@ -1,8 +1,6 @@
-import dataclasses
 import datetime
 import json
 import pathlib
-import types
 import typing
 
 import polars as pl
@@ -13,7 +11,7 @@ from support import execution as execution_support
 from uptimely import compiler, row_context, spec
 from uptimely import plan as uptimely_plan
 from uptimely.explorer import presentation
-from uptimely.spec import arg_types, operator_kinds
+from uptimely.spec import arg_types
 from uptimely.spec.python import (
     assembly,
     binding_conversion,
@@ -137,11 +135,9 @@ def test_row_context_references_resolve_scalar_extents(
     assert declaration.function_catalog()["calculate"].args[attribute].type == expected_type
     assert model.resolve_args(
         function_id=model.compute.function,
-        operator_kind="vectorize",
         profile_id="observations",
         identifiers_by_profile={},
         resources={},
-        identifiers=[],
     ) == {attribute: expected_value}
     assert list(model.model_dump()) == [
         "interface",
@@ -166,7 +162,7 @@ def test_row_context_reference_is_validated_and_resolved_during_compilation() ->
 
     declaration = spec.Spec.model_validate(configuration)
     plan = compiler.Compiler().compile(declaration)
-    invocation = next(item for item in plan.invocations if item.operator_kind == "vectorize")
+    invocation = next(item for item in plan.invocations if item.row_context is not None)
 
     assert invocation.arguments["configuration"] == {"windows": [2]}
 
@@ -372,15 +368,7 @@ def test_directional_context_requires_dataset_order():
     _spec(authoring.all_rows(), ordered=False)
 
 
-@pytest.mark.parametrize(
-    "kind", [kind for kind in operator_kinds.OPERATOR_KINDS if kind != "merge"]
-)
-@pytest.mark.parametrize("dimension_change", ["preserve", "remove"])
-def test_row_context_dataset_selection_follows_dimension_contract(
-    kind: operator_kinds.OperatorKindId,
-    dimension_change: operator_kinds.DimensionChange,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+def test_row_context_dataset_selection_follows_collapse_relationship() -> None:
     configuration = _spec().model_dump()
     source = configuration["profiles"]["observations"]
     operator = source["assembly"].pop("result")
@@ -395,28 +383,19 @@ def test_row_context_dataset_selection_follows_dimension_contract(
         "assembly": {"result": operator},
     }
     document = spec.Spec.model_validate(configuration)
-    document.operator_kinds[("summary", "result")] = kind
-    definitions = dict(operator_kinds.OPERATOR_KINDS)
-    definitions[kind] = dataclasses.replace(definitions[kind], dimension_change=dimension_change)
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     key = ("summary", "result")
-    expected_source = "observations" if dimension_change == "remove" else "summary"
-    assert document.get_row_context_profile(key) is document.profiles[expected_source]
     assert (
-        document.get_row_context_dimensions(key) == document.dimensions_by_profile[expected_source]
+        document.operators_by_key[key].grain_relationships(document, key)["observations"]
+        == "collapse"
     )
-    if dimension_change == "remove":
-        row_context_rules.validate_row_context_profile_order(document)
-        row_context_rules.validate_dimension(document)
-        row_context_rules.validate_dimension_order(document)
-    else:
-        with pytest.raises(ValueError, match="requires profile order"):
-            row_context_rules.validate_row_context_profile_order(document)
-        with pytest.raises(ValueError, match="not in the input profile"):
-            row_context_rules.validate_dimension(document)
-        with pytest.raises(ValueError, match="must occur in profile order"):
-            row_context_rules.validate_dimension_order(document)
+    assert document.get_row_context_profile(key) is document.profiles["observations"]
+    assert (
+        document.get_row_context_dimensions(key) == document.dimensions_by_profile["observations"]
+    )
+    row_context_rules.validate_row_context_profile_order(document)
+    row_context_rules.validate_dimension(document)
+    row_context_rules.validate_dimension_order(document)
     row_context_rules.validate_dimension_type(document)
 
 
@@ -427,8 +406,6 @@ def test_row_context_accessors_preserve_unresolved_sources() -> None:
     ]
     document = spec.Spec.model_validate(configuration)
     key = ("observations", "result")
-    document.operator_kinds[key] = "collapse"
-
     assert document.get_row_context_profile(key) is None
     assert document.get_row_context_dimensions(key) is None
 
@@ -448,7 +425,7 @@ def test_spec_plan_execution_and_presentation_preserve_context(
     assert authored_dataset["assembly"]["result"]["row_context"] == context.to_dict()
     restored = spec.load_spec(path)
     compiled = compiler.Compiler().compile(restored)
-    operation = next(item for item in compiled.invocations if item.operator_kind == "vectorize")
+    operation = next(item for item in compiled.invocations if item.row_context is not None)
     assert operation.input_features == ["temperature"]
     assert operation.row_context == context
     portable = uptimely_plan.from_dict(uptimely_plan.to_dict(compiled))
@@ -510,11 +487,9 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     assert spec_definition.functions["calculate"].args["column"].type == "string"
 
     plan = compiler.Compiler().compile(restored_spec)
-    operation = next(item for item in plan.invocations if item.operator_kind == "vectorize")
+    operation = next(item for item in plan.invocations if item.row_context is not None)
     assert operation.row_context == context
-    assert all(
-        item.row_context is None for item in plan.invocations if item.operator_kind != "vectorize"
-    )
+    assert all(item.row_context is None for item in plan.invocations if item is not operation)
     assert operation.arguments == {
         "dataset": "observations",
         "column": "temperature",
@@ -605,7 +580,7 @@ def test_collapse_functions_execute_without_row_context(
         ]
     )
     plan = compiler.Compiler().compile(spec_definition)
-    operation = next(item for item in plan.invocations if item.operator_kind == "collapse")
+    operation = next(item for item in plan.invocations if item.entrypoint.endswith(":maximum"))
     assert operation.row_context is None
     assert operation.entrypoint.endswith(":maximum")
     assert operation.arguments == {

@@ -50,7 +50,6 @@ class DataLineageStep:
     operator: str
     binding_role: str
     execution_form: str
-    operator_label: str
     grain_relationships: list[dict[str, str | None]]
     function_returns: str
     has_dataframe_inputs: bool
@@ -133,7 +132,8 @@ class _DataLineageBuilder:
         self.compact_datasets = set()
         for invocation in invocations:
             key = (invocation.profile_id, invocation.operator_id)
-            relationships = definition.operator_grain_relationships[key]
+            operator = definition.operators_by_key[key]
+            relationships = operator.grain_relationships(definition, key)
             if "collapse" in relationships.values():
                 self.compact_datasets.add(invocation.profile_id)
             if "expand" in relationships.values():
@@ -256,7 +256,8 @@ class _DataLineageBuilder:
         has_dataframe_inputs = bool(
             self.definition.functions[invocation.function_id].arguments_by_type.get("dataframe", {})
         )
-        relationships = self.definition.operator_grain_relationships[key]
+        operator = self.definition.operators_by_key[key]
+        relationships = operator.grain_relationships(self.definition, key)
         grain_keys = set(
             self.definition.identifiers_by_profile[self.definition.profile_keys[profile.id]]
         )
@@ -286,8 +287,7 @@ class _DataLineageBuilder:
             else invocation.function_id,
             operator=model_base.humanize_identifier(invocation.operator_id),
             binding_role=invocation.role,
-            execution_form=self.definition.operator_execution_forms[key],
-            operator_label=self.definition.operator_kinds[key],
+            execution_form=operator.execution_form,
             grain_relationships=[
                 {
                     "source_profile": (

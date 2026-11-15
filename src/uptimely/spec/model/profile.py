@@ -2,16 +2,53 @@
 
 from __future__ import annotations
 
+import dataclasses
 import functools
 import typing
 
 import pydantic
 
-from uptimely.spec import operator_kinds, selectors
+from uptimely.spec import arg_types, operator_bindings, selectors
 from uptimely.spec import row_context as uptimely_row_context
 
 from . import base, binding, binding_argument
 from . import dimension as dimension_module
+
+type OperatorBindingRole = typing.Literal["compute", "merge"]
+type OperatorExecutionForm = typing.Literal["compute", "compute + merge"]
+type OperatorSourceStatus = typing.Literal["resolved", "missing", "ambiguous", "invalid_reference"]
+type GrainRelationship = typing.Literal["same", "expand", "collapse", "unrelated", "not_applicable"]
+type DataFrameInputScope = typing.Literal["none", "target", "foreign", "unrestricted"]
+type FeatureInputScope = typing.Literal["none", "target", "dataframe", "unrestricted"]
+type DimensionChange = typing.Literal["preserve", "add", "remove", "unrestricted"]
+type FragmentDimensions = typing.Literal["target", "subset", "not_applicable"]
+type RowCountRelation = typing.Literal["same", "unrestricted"]
+type KeyRelation = typing.Literal["identical", "unrestricted"]
+type RowOrderRelation = typing.Literal["preserve", "unrestricted"]
+type ExistingDataRelation = typing.Literal["preserve", "unrestricted"]
+
+
+@dataclasses.dataclass(frozen=True)
+class OperatorExecutionContract:
+    """Validation and execution policies derived from an operator's declaration."""
+
+    produces_features: bool
+    is_source: bool
+    is_transformer: bool
+    is_sink: bool
+    is_effect: bool
+    dimension_change: DimensionChange
+    fragment_dimensions: FragmentDimensions
+    row_count_relation: RowCountRelation
+    key_relation: KeyRelation
+    row_order_relation: RowOrderRelation
+    existing_data_relation: ExistingDataRelation
+    dataframe_input_scope: DataFrameInputScope
+    feature_input_scope: FeatureInputScope
+
+
+if typing.TYPE_CHECKING:
+    from .spec import OperatorKey, ProfileKey, Spec
 
 
 class Feature(base.StrictModel):
@@ -71,7 +108,7 @@ class Operator(base.StrictModel):
     interface: Interface = pydantic.Field(default_factory=Interface)
     row_context: uptimely_row_context.RowContext | None = None
     compute: binding.Binding
-    binding_kind: operator_kinds.PrimaryBindingKind | None = None
+    binding_kind: operator_bindings.PrimaryBindingKind | None = None
     is_workflow: bool = False
     merge: binding.Binding | None = None
 
@@ -86,6 +123,16 @@ class Operator(base.StrictModel):
     def bindings(self) -> dict[str, binding.Binding]:
         """Return compute and optional merge bindings in declaration order."""
         return {"compute": self.compute} | ({"merge": self.merge} if self.merge is not None else {})
+
+    @property
+    def execution_form(self) -> OperatorExecutionForm:
+        """Return whether this operator has a compute binding alone or with merge."""
+        return "compute + merge" if self.merge is not None else "compute"
+
+    @property
+    def binding_roles(self) -> tuple[OperatorBindingRole, ...]:
+        """Return the execution roles declared by this operator."""
+        return ("compute", "merge") if self.merge is not None else ("compute",)
 
     @property
     def input_features(self) -> list[str]:
@@ -105,24 +152,16 @@ class Operator(base.StrictModel):
     def resolve_args(
         self,
         function_id: str,
-        operator_kind: operator_kinds.OperatorKindId,
         profile_id: str,
         identifiers_by_profile: typing.Mapping[str, typing.Sequence[str]],
         resources: binding_argument.BindingResources,
-        identifiers: typing.Sequence[str],
         *,
         role: typing.Literal["compute", "merge"] = "compute",
+        feature_id: str | None = None,
     ) -> dict[str, object]:
         """Resolve arguments from the binding selected by its execution role."""
         if role == "compute":
             selected_binding = self.compute
-            kind = operator_kinds.OPERATOR_KINDS[operator_kind]
-            output_features = [
-                feature
-                for feature in self.output_features
-                if kind.dimension_change != "remove" or feature not in identifiers
-            ]
-            feature_id = output_features[0] if len(output_features) == 1 else None
         elif role == "merge" and self.merge is not None:
             selected_binding = self.merge
             feature_id = None
@@ -139,6 +178,173 @@ class Operator(base.StrictModel):
             identifiers_by_profile,
             resources,
             row_context=self.row_context,
+        )
+
+    def execution_contract(
+        self,
+        *,
+        returns: str,
+        target_profile: ProfileKey,
+        dataframe_sources: typing.Sequence[ProfileKey],
+        grain_relationships: typing.Mapping[ProfileKey, GrainRelationship],
+    ) -> OperatorExecutionContract:
+        """Derive validation policies from this declaration and its dataframe sources."""
+        if returns != arg_types.DATAFRAME:
+            is_workflow = self.is_workflow
+            return OperatorExecutionContract(
+                produces_features=returns == "any" or is_workflow,
+                is_source=False,
+                is_transformer=False,
+                is_sink=returns == "none" or is_workflow,
+                is_effect=returns == "any" and not is_workflow,
+                dimension_change="unrestricted",
+                fragment_dimensions="not_applicable",
+                row_count_relation="unrestricted",
+                key_relation="unrestricted",
+                row_order_relation="unrestricted",
+                existing_data_relation="unrestricted",
+                dataframe_input_scope="unrestricted",
+                feature_input_scope="unrestricted",
+            )
+
+        has_target_source = target_profile in dataframe_sources
+        has_foreign_source = any(source != target_profile for source in dataframe_sources)
+        if has_target_source:
+            return OperatorExecutionContract(
+                produces_features=True,
+                is_source=False,
+                is_transformer=True,
+                is_sink=False,
+                is_effect=False,
+                dimension_change="preserve",
+                fragment_dimensions="not_applicable",
+                row_count_relation="same",
+                key_relation="identical",
+                row_order_relation="preserve",
+                existing_data_relation="preserve",
+                dataframe_input_scope="target",
+                feature_input_scope="target",
+            )
+
+        relationship_values = set(grain_relationships.values())
+        dimension_change: DimensionChange = (
+            "add"
+            if "expand" in relationship_values
+            else "remove"
+            if "collapse" in relationship_values
+            else "preserve"
+            if has_foreign_source
+            else "unrestricted"
+        )
+        return OperatorExecutionContract(
+            produces_features=True,
+            is_source=True,
+            is_transformer=False,
+            is_sink=False,
+            is_effect=False,
+            dimension_change=dimension_change,
+            fragment_dimensions=("subset" if dimension_change == "add" else "target"),
+            row_count_relation="unrestricted",
+            key_relation="unrestricted",
+            row_order_relation="unrestricted",
+            existing_data_relation="unrestricted",
+            dataframe_input_scope="foreign" if has_foreign_source else "none",
+            feature_input_scope="dataframe" if has_foreign_source else "none",
+        )
+
+    def source_details(
+        self, spec: Spec, key: OperatorKey
+    ) -> tuple[tuple[ProfileKey, ...], OperatorSourceStatus]:
+        """Resolve this operator's feature and dataframe sources without hiding ambiguity."""
+        source_keys: list[ProfileKey] = []
+        unresolved_input = False
+        ambiguous_input = False
+        for _, owners in spec.input_candidates[key]:
+            if not owners:
+                unresolved_input = True
+            elif len(owners) > 1:
+                ambiguous_input = True
+                source_keys.extend(owners)
+            else:
+                source_keys.append(owners[0])
+
+        invalid_reference = False
+        for _, _, profile_id in spec.operator_dataframe_arguments[key]:
+            if profile_id is None:
+                continue
+            profile_key = spec.profile_keys.get(profile_id)
+            if profile_key is None:
+                invalid_reference = True
+            else:
+                source_keys.append(profile_key)
+
+        unique_sources = tuple(dict.fromkeys(source_keys))
+        if invalid_reference:
+            return unique_sources, "invalid_reference"
+        if ambiguous_input or len(unique_sources) > 1:
+            return unique_sources, "ambiguous"
+        if unresolved_input:
+            return unique_sources, "missing"
+        if unique_sources:
+            return unique_sources, "resolved"
+        return (), "missing"
+
+    def grain_relationships(
+        self, spec: Spec, key: OperatorKey
+    ) -> dict[ProfileKey | None, GrainRelationship]:
+        """Return this operator's source-to-target grain relationships."""
+        sources, status = self.source_details(spec, key)
+        return {source: self._grain_relationship(spec, source, key[0]) for source in sources} | (
+            {None: "not_applicable"} if status != "resolved" else {}
+        )
+
+    def profile_resolutions(
+        self, spec: Spec, profile_key: ProfileKey
+    ) -> tuple[dimension_module.Resolution, ...] | None:
+        """Resolve the selected dimension models for a source or target profile."""
+        resolutions: list[dimension_module.Resolution] = []
+        for grain in spec.profiles_by_key[profile_key].grain:
+            dimension = spec.dimensions.get(grain.dimension)
+            resolution = (
+                dimension.resolutions.get(grain.resolution) if dimension is not None else None
+            )
+            if resolution is None:
+                return None
+            resolutions.append(resolution)
+        return tuple(resolutions)
+
+    def _grain_relationship(
+        self, spec: Spec, source_profile_key: ProfileKey, target_profile_key: ProfileKey
+    ) -> GrainRelationship:
+        """Classify two profile grains using the declared resolution hierarchy."""
+        source = spec.profiles_by_key[source_profile_key]
+        target = spec.profiles_by_key[target_profile_key]
+        if (
+            self.profile_resolutions(spec, source_profile_key) is None
+            or self.profile_resolutions(spec, target_profile_key) is None
+        ):
+            return "not_applicable"
+        source_grain = source.grain_reference_set
+        target_grain = target.grain_reference_set
+        if source_grain == target_grain:
+            return "same"
+        if spec.grain_refines(source_profile_key, target_profile_key):
+            return "expand"
+        if spec.grain_refines(target_profile_key, source_profile_key):
+            return "collapse"
+        return "unrelated"
+
+    def produces_target_features(self, spec: Spec, key: OperatorKey) -> bool:
+        """Return whether this operator computes dataframe outputs from its target dataset."""
+        function = spec.functions.get(self.compute.function)
+        return (
+            self.merge is None
+            and function is not None
+            and function.returns == arg_types.DATAFRAME
+            and any(
+                source_profile == key[0]
+                for _, _, source_profile in spec.operator_dataframe_arguments[key]
+            )
         )
 
     @functools.cached_property

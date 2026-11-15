@@ -1,6 +1,5 @@
 import collections.abc
 import copy
-import json
 
 import pytest
 from support import execution as execution_support
@@ -17,7 +16,6 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 id="opaque-read",
                 role="compute",
                 result="target",
-                operator_kind="read",
                 dataframe_input_scope="none",
                 entrypoint="example.src:load",
                 function_id="load",
@@ -37,7 +35,6 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 id="opaque-collapse",
                 role="compute",
                 result="target",
-                operator_kind="collapse",
                 dataframe_input_scope="foreign",
                 entrypoint="example.src:maximum",
                 function_id="maximum",
@@ -51,7 +48,6 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 id="opaque-write",
                 role="compute",
                 result="none",
-                operator_kind="write",
                 entrypoint="example.src:save",
                 function_id="save",
                 operator_id="save_pressure_by_pump",
@@ -107,7 +103,7 @@ def test_operator_selection_retains_fragment_merge_pairs() -> None:
     ]
 
 
-def test_plan_round_trip_preserves_operator_kind_metadata() -> None:
+def test_plan_round_trip_preserves_execution_metadata() -> None:
     plan = _sample_plan()
 
     payload = uptimely_plan.to_dict(plan)
@@ -138,9 +134,7 @@ def test_plan_round_trip_preserves_operator_kind_metadata() -> None:
 
 def test_plan_round_trip_preserves_expansion_key_columns() -> None:
     original = _sample_plan()
-    invocation = original.invocations[1].__replace__(
-        operator_kind="expand", fragment_keys=["series"]
-    )
+    invocation = original.invocations[1].__replace__(fragment_keys=["series"])
     plan = original.__replace__(
         invocations=[original.invocations[0], invocation, original.invocations[2]]
     )
@@ -191,7 +185,6 @@ def test_test_spec_return_contract_comes_from_invocation_metadata() -> None:
         .invocations[0]
         .__replace__(
             result="none",
-            operator_kind="read",
             is_sink=False,
         )
     )
@@ -287,11 +280,10 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "invocations",
         "stages",
     }
-    assert payload["plan_version"] == 13
+    assert payload["plan_version"] == 14
     assert "phase" not in payload["invocations"][0]
     assert not hasattr(plan.invocations[0], "phase")
     assert {"function_id", "operator_id"} <= set(payload["invocations"][0])
-    assert "operator_kind" in payload["invocations"][0]
     assert payload["invocations"][0]["role"] == "compute"
     assert payload["invocations"][0]["result"] == "target"
     assert "operation" not in payload["invocations"][0]
@@ -308,10 +300,8 @@ def test_plan_json_helpers_round_trip(tmp_path) -> None:
     destination = tmp_path / "plan.json"
 
     uptimely_plan.export_json(plan, destination)
-    payload = json.loads(destination.read_text(encoding="utf-8"))
     recreated = uptimely_plan.from_json(destination)
 
-    assert payload["invocations"][0]["operator_kind"] == "read"
     assert recreated == plan
     assert recreated.invocations[0].id == "opaque-read"
 
@@ -347,7 +337,7 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["callables"] = payload.pop("invocations")
 
     with pytest.raises(
-        ValueError, match=r"Unsupported plan version: 1\. Supported version is 13\."
+        ValueError, match=r"Unsupported plan version: 1\. Supported version is 14\."
     ):
         uptimely_plan.from_dict(payload)
 
@@ -453,14 +443,12 @@ def test_plan_rejects_invalid_invocation_metadata(field: str, value: object, mes
         uptimely_plan.from_dict(payload)
 
 
-def test_plan_does_not_infer_runtime_contract_from_operator_kind() -> None:
+def test_plan_preserves_runtime_contract_fields() -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
-    payload["invocations"][1]["operator_kind"] = "expand"
     payload["invocations"][1]["row_count_relation"] = "same"
 
     plan = uptimely_plan.from_dict(payload)
 
-    assert plan.invocations[1].operator_kind == "expand"
     assert plan.invocations[1].row_count_relation == "same"
 
 
@@ -572,13 +560,6 @@ def test_plan_replacement_does_not_retain_stale_indexes() -> None:
     copied = copy.replace(plan)
     assert copied.invocations_by_id is not plan.invocations_by_id
     assert copied.invocations_by_id == plan.invocations_by_id
-
-
-def test_plan_rejects_unsupported_operator_kind() -> None:
-    payload = uptimely_plan.to_dict(_sample_plan())
-    payload["invocations"][0]["operator_kind"] = "unsupported"
-    with pytest.raises(ValueError):
-        uptimely_plan.from_dict(payload)
 
 
 def test_execution_invocations_follow_stages_not_declaration_order() -> None:

@@ -34,9 +34,8 @@ def test_canonical_models_do_not_import_outer_layers() -> None:
                 elif node.module == "uptimely.spec":
                     allowed_imports = {
                         "arg_types",
+                        "operator_bindings",
                         "function_contracts",
-                        "semantics",
-                        "operator_kinds",
                         "row_context",
                         "selectors",
                     }
@@ -112,7 +111,7 @@ def test_execution_plan_does_not_import_outer_layers() -> None:
     "module",
     [
         "uptimely.spec.model.spec",
-        "uptimely.spec.operator_kinds",
+        "uptimely.spec.operator_bindings",
         "uptimely.spec.validation",
         "uptimely.spec.validation.rules.operators.outputs",
         "uptimely.spec.validation.rules.operators.inputs",

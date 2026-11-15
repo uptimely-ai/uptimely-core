@@ -1,7 +1,6 @@
 import copy
 import json
 import pathlib
-import types
 
 import polars as pl
 import pytest
@@ -14,7 +13,6 @@ from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
 from uptimely.spec import model as spec_model
-from uptimely.spec import operator_kinds
 from uptimely.spec import serialization as spec_serialization
 from uptimely.spec.python import assembly, dimension, feature, merge, profile, ref
 from uptimely.spec.validation import validate_spec
@@ -251,7 +249,7 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(
     spec_definition = _spec(lazy=lazy)
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
     assert not any("unneeded" in item.output_features for item in plan.invocations)
-    collapse = next(item for item in plan.invocations if item.operator_kind == "collapse")
+    collapse = next(item for item in plan.invocations if item.profile_id == "summary")
     assert collapse.input_features == ["value", "doubled"]
     assert len(collapse.dependency_ids) == 2
     result = engine_for_plan(plan, spec_definition=spec_definition).run()
@@ -317,7 +315,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     plan = compiler.Compiler().compile(spec_definition, features=["conformed_value"])
     portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
     conform_invocation = next(
-        item for item in portable.invocations if item.operator_kind == "conform"
+        item for item in portable.invocations if item.operator_id == "conform_source"
     )
     source_merge = next(
         item
@@ -503,7 +501,7 @@ def test_write_receives_the_seeded_dataset(
 def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> None:
     spec_definition = _spec()
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
-    invocation = next(item for item in plan.invocations if item.operator_kind == "collapse")
+    invocation = next(item for item in plan.invocations if item.profile_id == "summary")
     invocation = copy.replace(invocation, input_features=["maximum"])
     state = state_module.RuntimeState(
         datasets={
@@ -835,17 +833,17 @@ def test_expand_left_joins_fragment_on_its_carried_dimension_keys(
     ]
 
 
-def test_fragment_dimension_policy_is_independent_of_expand_id(
-    monkeypatch: pytest.MonkeyPatch,
+def test_fragment_dimension_policy_is_compiled_from_profile_relationship(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     spec_definition = _broadcast_spec(read_group_limits, broadcast_group_limit, ["group"], False)
     plan = compiler.Compiler().compile(spec_definition)
-    definitions = dict(operator_kinds.OPERATOR_KINDS)
-    definitions[operator_kinds.EXPAND] = copy.replace(
-        definitions[operator_kinds.EXPAND], fragment_dimensions="target"
+    assert (
+        next(
+            item for item in plan.invocations if item.operator_id == "reference"
+        ).fragment_dimensions
+        == "subset"
     )
-    monkeypatch.setattr(operator_kinds, "OPERATOR_KINDS", types.MappingProxyType(definitions))
 
     result = engine_for_plan(plan, spec_definition=spec_definition).run(validate=True)
 

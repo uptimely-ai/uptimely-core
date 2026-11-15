@@ -19,7 +19,6 @@ def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
                 "id": invocation.id,
                 "role": invocation.role,
                 "result": invocation.result,
-                "operator_kind": invocation.operator_kind,
                 "produces_features": invocation.produces_features,
                 "is_sink": invocation.is_sink,
                 "is_workflow": invocation.is_workflow,

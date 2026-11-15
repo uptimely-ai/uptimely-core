@@ -188,8 +188,9 @@ def validate_dimension_change(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or function.returns != "dataframe":
             continue
+        relationships = operator.grain_relationships(spec, key)
         for source_key in spec.dataframe_argument_profiles[key]:
-            relationship = spec.operator_grain_relationships[key].get(source_key)
+            relationship = relationships.get(source_key)
             if relationship in {"same", "expand", "collapse"}:
                 continue
             raise errors.SpecError(
@@ -207,10 +208,11 @@ def validate_dimension_expansion_input(spec: spec_model.Spec) -> None:
         function = spec.functions.root.get(operator.compute.function)
         if function is None or function.returns != "dataframe":
             continue
+        relationships = operator.grain_relationships(spec, key)
         lower = {
             source
             for source in spec.dataframe_argument_profiles[key]
-            if spec.operator_grain_relationships[key].get(source) == "expand"
+            if relationships.get(source) == "expand"
         }
         if not lower:
             continue

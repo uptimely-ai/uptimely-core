@@ -194,7 +194,11 @@ def test_each_profile_publishes_its_features_with_the_shared_writer(
         writer = next(
             invocation
             for invocation in pump_bundle.execution_plan.invocations
-            if invocation.profile_id == profile_id and invocation.operator_kind == "write"
+            if (
+                invocation.profile_id == profile_id
+                and invocation.function_id == "write_file"
+                and invocation.is_sink
+            )
         )
         assert writer.function_id == "write_file"
         assert set(writer.arguments["features"]) == feature_ids
@@ -202,7 +206,8 @@ def test_each_profile_publishes_its_features_with_the_shared_writer(
 
     assert not any(
         invocation.profile_id == "pump_telemetry_when_warning"
-        and invocation.operator_kind == "write"
+        and invocation.function_id == "write_file"
+        and invocation.is_sink
         for invocation in pump_bundle.execution_plan.invocations
     )
 
@@ -256,20 +261,12 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "stages",
     }
     assert metadata["plan_version"] == execution_plan.PLAN_VERSION
-    assert {invocation["operator_kind"] for invocation in metadata["invocations"]} == {
-        "read",
-        "collapse",
-        "conform",
-        "expand",
-        "vectorize",
-        "write",
-        "escape",
-    }
+    assert all("operator_kind" not in invocation for invocation in metadata["invocations"])
     assert {invocation["role"] for invocation in metadata["invocations"]} == {"compute", "merge"}
     collapse_invocation = next(
         invocation
         for invocation in metadata["invocations"]
-        if invocation["operator_kind"] == "collapse"
+        if invocation["operator_id"] == "bearing_temperature_by_pump"
     )
     assert "entity_id" not in collapse_invocation
     assert collapse_invocation["entrypoint"].endswith(":aggregate")

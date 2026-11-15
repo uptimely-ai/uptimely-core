@@ -1,6 +1,6 @@
 import pytest
 
-from uptimely.spec import model, semantics, validation
+from uptimely.spec import model, validation
 
 
 def _make_spec(
@@ -78,29 +78,30 @@ def test_spec_classifies_profile_grains_using_resolution_hierarchy(
     relationship: str,
 ) -> None:
     spec = _make_spec(source, target)
-    spec_semantics = semantics.Semantics(spec)
     key = ("target", "calculate")
+    operator = spec.operators_by_key[key]
+    source_profiles, source_status = operator.source_details(spec, key)
+    relationships = operator.grain_relationships(spec, key)
 
-    assert spec_semantics.operator_source_profile_keys[key] == ("source",)
-    assert spec_semantics.operator_source_statuses[key] == "resolved"
-    assert spec_semantics.operator_grain_relationships[key]["source"] == relationship
-    assert spec_semantics.operator_source_resolutions[key]["source"] == tuple(
+    assert source_profiles == ("source",)
+    assert source_status == "resolved"
+    assert relationships["source"] == relationship
+    assert operator.profile_resolutions(spec, "source") == tuple(
         spec.dimensions[dimension].resolutions[resolution] for dimension, resolution in source
     )
-    assert spec_semantics.operator_target_resolutions[key] == tuple(
+    assert operator.profile_resolutions(spec, "target") == tuple(
         spec.dimensions[dimension].resolutions[resolution] for dimension, resolution in target
     )
 
 
 def test_spec_reports_operator_with_no_source() -> None:
     spec = _make_spec(None, [("scope", "root")])
-    spec_semantics = semantics.Semantics(spec)
     key = ("target", "calculate")
+    operator = spec.operators_by_key[key]
 
-    assert spec_semantics.operator_source_profile_keys[key] == ()
-    assert spec_semantics.operator_source_statuses[key] == "missing"
-    assert spec_semantics.operator_grain_relationships[key] == {None: "not_applicable"}
-    assert spec_semantics.operator_target_resolutions[key] == (
+    assert operator.source_details(spec, key) == ((), "missing")
+    assert operator.grain_relationships(spec, key) == {None: "not_applicable"}
+    assert operator.profile_resolutions(spec, "target") == (
         spec.dimensions["scope"].resolutions["root"],
     )
 
@@ -112,7 +113,8 @@ def test_spec_exposes_calculated_feature_producers() -> None:
     spec_definition = spec_definition.rebuild()
     key = ("target", "calculate")
 
-    assert spec_definition.operator_produces_target_features[key] is True
+    operator = spec_definition.operators_by_key[key]
+    assert operator.produces_target_features(spec_definition, key) is True
     assert spec_definition.calculated_feature_producers == {
         "result": ("target", spec_definition.profiles["target"].assembly["calculate"])
     }
@@ -120,15 +122,14 @@ def test_spec_exposes_calculated_feature_producers() -> None:
 
 def test_existing_operator_exposes_binding_and_output_declarations() -> None:
     spec = _make_spec([("scope", "root")], [("scope", "root")])
-    spec_semantics = semantics.Semantics(spec)
     key = ("target", "calculate")
     operator = spec.operators_by_key[key]
+    assert operator.execution_form == "compute"
+    assert operator.binding_roles == ("compute",)
     operator.merge = model.Binding(function="custom_merge", args={})
 
-    assert spec_semantics.operator_execution_forms[key] == "compute + merge"
-    assert spec_semantics.operator_binding_roles[key] == ("compute", "merge")
-    assert spec.operator_execution_forms[key] == "compute + merge"
-    assert spec.operator_binding_roles[key] == ("compute", "merge")
+    assert operator.execution_form == "compute + merge"
+    assert operator.binding_roles == ("compute", "merge")
     assert list(operator.bindings) == ["compute", "merge"]
     assert operator.bindings["compute"] is operator.compute
     assert operator.bindings["merge"] is operator.merge
@@ -143,12 +144,14 @@ def test_spec_reports_ambiguous_feature_sources() -> None:
         features={"signal": model.Feature(id="signal")},
     )
     spec = spec.rebuild()
-    spec_semantics = semantics.Semantics(spec)
     key = ("target", "calculate")
+    operator = spec.operators_by_key[key]
+    source_profiles, source_status = operator.source_details(spec, key)
+    relationships = operator.grain_relationships(spec, key)
 
-    assert spec_semantics.operator_source_profile_keys[key] == ("source", "other_source")
-    assert spec_semantics.operator_source_statuses[key] == "ambiguous"
-    assert spec_semantics.operator_grain_relationships[key] == {
+    assert source_profiles == ("source", "other_source")
+    assert source_status == "ambiguous"
+    assert relationships == {
         "source": "same",
         "other_source": "same",
         None: "not_applicable",
@@ -164,16 +167,16 @@ def test_invalid_profile_reference_is_rejected_before_relationship_validation(
     )
 
     assert (
-        semantics.Semantics(spec).operator_source_statuses["target", "calculate"]
+        spec.operators_by_key["target", "calculate"].source_details(spec, ("target", "calculate"))[
+            1
+        ]
         == "invalid_reference"
     )
 
-    def fail_if_derived(self: semantics.Semantics, *args: object) -> None:
-        raise AssertionError(
-            f"Unexpected relationship derivation before reference checks: {self.spec.name}, {args}"
-        )
+    def fail_if_derived(self: model.Operator, *args: object) -> None:
+        raise AssertionError(f"Unexpected relationship derivation before reference checks: {args}")
 
-    monkeypatch.setattr(semantics.Semantics, "_grain_relationship", fail_if_derived)
+    monkeypatch.setattr(model.Operator, "_grain_relationship", fail_if_derived)
     with pytest.raises(ValueError, match="references unknown profile: missing"):
         validation.validate_spec(spec)
 
@@ -184,12 +187,10 @@ def test_dimension_hierarchy_is_validated_before_grain_relationships(
     spec = _make_spec([("scope", "root")], [("scope", "child")])
     spec.dimensions["scope"].resolutions["root"].parent = "child"
 
-    def fail_if_derived(self: semantics.Semantics, *args: object) -> None:
-        raise AssertionError(
-            f"Unexpected relationship derivation before hierarchy checks: {self.spec.name}, {args}"
-        )
+    def fail_if_derived(self: model.Operator, *args: object) -> None:
+        raise AssertionError(f"Unexpected relationship derivation before hierarchy checks: {args}")
 
-    monkeypatch.setattr(semantics.Semantics, "_grain_relationship", fail_if_derived)
+    monkeypatch.setattr(model.Operator, "_grain_relationship", fail_if_derived)
     with pytest.raises(validation.SpecError) as error:
         validation.validate_spec(spec)
 
@@ -199,14 +200,13 @@ def test_dimension_hierarchy_is_validated_before_grain_relationships(
 def test_operator_semantics_are_refreshed_by_rebuild() -> None:
     spec = _make_spec([("scope", "root")], [("scope", "root")])
     key = ("target", "calculate")
-    previous_semantics = semantics.Semantics(spec)
-    previous_relationships = previous_semantics.operator_grain_relationships[key]
+    previous_relationships = spec.operators_by_key[key].grain_relationships(spec, key)
     spec.profiles["target"].grain = [model.Grain(dimension="scope", resolution="child")]
 
     rebuilt = spec.rebuild()
 
-    assert previous_semantics.operator_grain_relationships[key] is previous_relationships
-    assert semantics.Semantics(rebuilt).operator_grain_relationships[key]["source"] == "expand"
+    assert previous_relationships["source"] == "same"
+    assert rebuilt.operators_by_key[key].grain_relationships(rebuilt, key)["source"] == "expand"
 
 
 def test_shared_function_can_have_distinct_operator_relationships() -> None:
@@ -230,14 +230,20 @@ def test_shared_function_can_have_distinct_operator_relationships() -> None:
         },
     )
     spec = spec.rebuild()
-    spec_semantics = semantics.Semantics(spec)
-
     assert (
         spec.operators_by_key["target", "calculate"].compute.function
         == spec.operators_by_key["expanded", "calculate"].compute.function
         == "transform"
     )
-    assert spec_semantics.operator_grain_relationships["target", "calculate"]["source"] == "same"
     assert (
-        spec_semantics.operator_grain_relationships["expanded", "calculate"]["source"] == "expand"
+        spec.operators_by_key["target", "calculate"].grain_relationships(
+            spec, ("target", "calculate")
+        )["source"]
+        == "same"
+    )
+    assert (
+        spec.operators_by_key["expanded", "calculate"].grain_relationships(
+            spec, ("expanded", "calculate")
+        )["source"]
+        == "expand"
     )

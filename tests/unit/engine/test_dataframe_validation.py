@@ -12,26 +12,29 @@ from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import merge as merge_module
 from uptimely.engine.runtime import execution as execution_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.spec import operator_kinds as operator_kinds_module
 
 
 def _invocation(
-    kind: operator_kinds_module.OperatorKindId = "read",
     *,
     output_features: list[str] | None = None,
     column_types: dict[str, str] | None = None,
+    dataframe_input_scope: str = "none",
+    fragment_dimensions: str = "target",
+    row_count_relation: str = "unrestricted",
+    key_relation: str = "unrestricted",
+    row_order_relation: str = "unrestricted",
+    existing_data_relation: str = "unrestricted",
 ) -> plan_module.Invocation:
     return plan_module.Invocation(
         id="invocation",
         role="compute",
-        result="target" if kind == "vectorize" else "fragment",
-        operator_kind=kind,
-        dataframe_input_scope=operator_kinds_module.OPERATOR_KINDS[kind].dataframe_input_scope,
-        fragment_dimensions=operator_kinds_module.OPERATOR_KINDS[kind].fragment_dimensions,
-        row_count_relation=operator_kinds_module.OPERATOR_KINDS[kind].row_count_relation,
-        key_relation=operator_kinds_module.OPERATOR_KINDS[kind].key_relation,
-        row_order_relation=operator_kinds_module.OPERATOR_KINDS[kind].row_order_relation,
-        existing_data_relation=operator_kinds_module.OPERATOR_KINDS[kind].existing_data_relation,
+        result="target" if dataframe_input_scope == "target" else "fragment",
+        dataframe_input_scope=dataframe_input_scope,
+        fragment_dimensions=fragment_dimensions,
+        row_count_relation=row_count_relation,
+        key_relation=key_relation,
+        row_order_relation=row_order_relation,
+        existing_data_relation=existing_data_relation,
         entrypoint="test:calculate",
         function_id="calculate",
         operator_id="calculate",
@@ -114,7 +117,7 @@ def test_read_validates_carried_identifier_types() -> None:
 
 @pytest.mark.parametrize("validate", [False, True])
 def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
-    invocation = _invocation("expand", output_features=["value"]).__replace__(
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
         fragment_keys=["series"],
         column_types={"series": "string", "value": "float"},
     )
@@ -131,7 +134,7 @@ def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
 
 
 def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
-    invocation = _invocation("expand", output_features=["value"]).__replace__(
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
         fragment_keys=["plant", "series"]
     )
     fragment = fragment_module.Fragment.stage(
@@ -145,7 +148,7 @@ def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
 
 
 def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() -> None:
-    invocation = _invocation("expand", output_features=["value"]).__replace__(
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
         fragment_keys=["series"]
     )
 
@@ -159,7 +162,7 @@ def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() 
 
 
 def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
-    invocation = _invocation("expand", output_features=["value"]).__replace__(
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
         fragment_keys=["series"]
     )
     frame = pl.LazyFrame({"key": ["p1", "p2"], "value": [90.0, 80.0]})
@@ -173,7 +176,7 @@ def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
 
 
 def test_full_grain_fragment_retains_other_resolution_keys_without_changing_uniqueness() -> None:
-    invocation = _invocation("expand", output_features=["value"]).__replace__(
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
         fragment_keys=["key", "series"]
     )
     frame = pl.LazyFrame({"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0]})
@@ -338,12 +341,18 @@ def test_merge_skips_optional_checks_when_disabled(
     merge_module.Merge(dataset, fragment).validate_result(result)
 
 
-def test_executor_checks_vectorized_contract_and_preservation(
+def test_executor_checks_target_transform_contract_and_preservation(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
     caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
     invocation = _invocation(
-        "vectorize", output_features=["new"], column_types={"key": "string", "new": "integer"}
+        output_features=["new"],
+        column_types={"key": "string", "new": "integer"},
+        dataframe_input_scope="target",
+        row_count_relation="same",
+        key_relation="identical",
+        row_order_relation="preserve",
+        existing_data_relation="preserve",
     )
     backend = backend_module.PolarsBackend()
     executor = execution_module.InvocationExecutor(
@@ -360,13 +369,13 @@ def test_executor_checks_vectorized_contract_and_preservation(
     comparison = dataset.dataframe
 
     with pytest.raises(ValueError, match="must preserve existing column values and row order"):
-        executor._validate_vectorized_result(
+        executor._validate_target_transform_result(
             pl.DataFrame({"key": ["A"], "value": [9], "new": [2]}),
             invocation,
             comparison,
             preserve_data=True,
         )
-    assert executor._validate_vectorized_result(
+    assert executor._validate_target_transform_result(
         pl.DataFrame({"key": ["A"], "value": [1], "new": [2]}),
         invocation,
         comparison,
@@ -394,10 +403,17 @@ def test_executor_checks_vectorized_contract_and_preservation(
     )
 
 
-def test_vectorized_validation_skips_content_comparison_when_disabled(
+def test_target_transform_validation_skips_content_comparison_when_disabled(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    invocation = _invocation("vectorize", output_features=["new"])
+    invocation = _invocation(
+        output_features=["new"],
+        dataframe_input_scope="target",
+        row_count_relation="same",
+        key_relation="identical",
+        row_order_relation="preserve",
+        existing_data_relation="preserve",
+    )
     backend = backend_module.PolarsBackend()
     dataset = dataset_module.Dataset(
         backend,
@@ -416,7 +432,7 @@ def test_vectorized_validation_skips_content_comparison_when_disabled(
         lambda *_args, **_kwargs: pytest.fail("Content comparison should be skipped"),
     )
 
-    assert executor._validate_vectorized_result(
+    assert executor._validate_target_transform_result(
         pl.DataFrame({"key": ["A"], "new": [2]}),
         invocation,
         dataset.dataframe,
@@ -459,13 +475,20 @@ def test_vectorized_validation_skips_content_comparison_when_disabled(
         ),
     ],
 )
-def test_executor_rejects_invalid_vectorized_schema(
+def test_executor_rejects_invalid_target_transform_schema(
     frame: pl.DataFrame,
     outputs: list[str],
     comparison: pl.DataFrame,
     message: str,
 ) -> None:
-    invocation = _invocation("vectorize", output_features=outputs)
+    invocation = _invocation(
+        output_features=outputs,
+        dataframe_input_scope="target",
+        row_count_relation="same",
+        key_relation="identical",
+        row_order_relation="preserve",
+        existing_data_relation="preserve",
+    )
     executor = execution_module.InvocationExecutor(
         backend_module.PolarsBackend(),
         {},
@@ -474,7 +497,9 @@ def test_executor_rejects_invalid_vectorized_schema(
     )
 
     with pytest.raises(ValueError, match=message):
-        executor._validate_vectorized_result(frame, invocation, comparison, preserve_data=False)
+        executor._validate_target_transform_result(
+            frame, invocation, comparison, preserve_data=False
+        )
 
 
 def test_owner_validation_logs_checks(caplog: pytest.LogCaptureFixture) -> None:
