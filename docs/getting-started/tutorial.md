@@ -86,11 +86,10 @@ uv run uptimely export . --output cooling-pump-analytics-explorer.zip
 ```
 
 The export uses the current build and run snapshot. Rebuild, rerun, and export
-again to include later changes. See the
-[CLI Explorer guide](https://uptimely-ai.github.io/uptimely-core/reference/cli/explorer/)
-for export options and the
-[project folder guide](https://uptimely-ai.github.io/uptimely-core/architecture/folder-structure/)
-for generated and retained files.
+again to include later changes. See the [`uptimely export` reference](../reference/cli/export.md)
+for export options, and the [`uptimely explore` reference](../reference/cli/explorer.md)
+to serve the Explorer locally. For generated and retained files, see the
+[project folder guide](https://uptimely-ai.github.io/uptimely-core/architecture/folder-structure/).
 
 To browse the active build locally, start the Explorer:
 

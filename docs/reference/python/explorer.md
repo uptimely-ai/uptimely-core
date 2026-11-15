@@ -5,7 +5,7 @@ below prepare and check the data used by the static Explorer. They do not build
 the project or run calculations.
 
 For user workflows, see the [Explorer guide](../../architecture/explorer.md) and
-[CLI reference](../cli/explorer.md).
+[`uptimely explore` CLI reference](../cli/explorer.md).
 
 ::: uptimely.explorer.presentation
     options:

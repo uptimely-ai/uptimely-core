@@ -14,7 +14,7 @@ not both. If omitted, the current working directory is used.
 
 The command validates the complete source specification, compiles one execution
 plan, and prepares a versioned Explorer data snapshot. The active build manifest
-tracks the spec and execution plan; the snapshot is published separately at
+tracks the spec and execution plan. The snapshot is published separately at
 `artifacts/explorer.json`.
 
 ### Build output
@@ -35,22 +35,22 @@ atomically replaced only after the managed build succeeds.
 
 The spec export always contains the complete model. If `--features` is
 provided, the plan includes the selected outputs, their dependencies, and the
-associated profile sinks; the Explorer snapshot contains that exact plan
+associated profile sinks. The Explorer snapshot contains that exact plan
 alongside the complete spec model. Omit `--features` to compile all features.
 Selections must be nonempty and valid. Duplicate names are normalized.
 
 ### Options
 
-| Option | Required | Default | Purpose |
+| Option | TOML setting | Default | Purpose |
 | --- | --- | --- | --- |
-| `PROJECT_ROOT` | No | Current working directory | Project directory for source discovery and generated output paths. The project root and source directory are importable during the build. May be passed as `--project-root PATH` instead. |
-| `--project-root PATH` | No | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
-| `--config CONFIG_OR_PATH` | No | `uptimely.toml` under the project root, or defaults if absent | Load a named config from `config/<name>.toml` or an explicit TOML file. Configured values supply defaults for the build. |
-| `--src-path PATH` | No | `application.src_path`, then `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the configured value for this command. |
-| `--python-spec MODULE:ATTRIBUTE` | No | `application.python_spec`, then discover standard sources | Select an importable Python attribute containing a `Spec` instance. The project root and configured source directory are added while loading it. Mutually exclusive with `--json-spec`. |
-| `--json-spec PATH` | No | `application.json_spec`, then discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Explicit CLI paths are relative to the current working directory. Configured paths are relative to the project root. |
-| `--features FEATURE ...` | No | All features | Select one or more output features and their required dependencies. |
-| `--log-level LEVEL` | No | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes build duration, output folder, spec source, resource counts, and plan size. |
+| `PROJECT_ROOT` | — | Current working directory | Project directory for source discovery and generated output paths. The project root and source directory are importable during the build. May be passed as `--project-root PATH` instead. |
+| `--project-root PATH` | — | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
+| `--config CONFIG_OR_PATH` | — | Root `uptimely.toml`<br>Otherwise built-in defaults | Pass a config name such as `prod` to load `config/prod.toml`, recursively overriding root `uptimely.toml`. Pass a TOML path to load that file alone without merging root settings. Relative paths resolve from the current working directory. |
+| `--src-path PATH` | `application.src_path` | TOML setting if set<br>Otherwise the literal directory name `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the configured value for this command. |
+| `--python-spec MODULE:ATTRIBUTE` | `application.python_spec` | TOML setting if set<br>Otherwise discover standard sources | Select an importable Python attribute containing a `Spec` instance. The project root and configured source directory are added while loading it. Mutually exclusive with `--json-spec`. |
+| `--json-spec PATH` | `application.json_spec` | TOML setting if set<br>Otherwise discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Explicit CLI paths are relative to the current working directory. Configured paths are relative to the project root. |
+| `--features FEATURE ...` | — | All features | Select one or more output features and their required dependencies. |
+| `--log-level LEVEL` | — | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes build duration, output folder, spec source, resource counts, and plan size. |
 
 ### Build logging
 
@@ -67,7 +67,7 @@ Build logs stream as the build runs. Failed builds do not print a success summar
 
 Duration covers building, validating, and publishing the bundle, not workflow
 execution. Spec counts cover the complete specification, including for scoped
-builds; features are counted per profile, excluding dimensions. Plan counts
+builds. Features are counted per profile, excluding dimensions. Plan counts
 describe the compiled feature scope. The source identifier is the original JSON
 path or Python module entrypoint, not the generated spec export.
 
@@ -107,9 +107,9 @@ not a validated operational health limit.
 
 Building may import Python declarations and inspect function signatures, but it
 does not execute workflow functions or sinks. Python module-level code still
-runs when a declaration or function module is imported; build only trusted
+runs when a declaration or function module is imported. Build only trusted
 project sources. A successful full or scoped build replaces the previous
-active bundle. Source edits do not change an existing build; rebuild explicitly
+active bundle. Source edits do not change an existing build. Rebuild explicitly
 to publish updated artifacts. If building fails, the last successful bundle
 remains active.
 Rebuilding after changing callable contracts, operator bindings, or descriptive
@@ -124,7 +124,7 @@ validated, then published in place of the previous bundle. The Explorer
 snapshot is serialized before publication and atomically replaces the previous
 snapshot only after the build succeeds. A snapshot publication error is reported
 explicitly and leaves the previous snapshot intact. Builders coordinate through
-a project lock; a build fails rather than publishing while another builder or
+a project lock. A build fails rather than publishing while another builder or
 cooperating consumer holds the bundle lock. Bundle publication uses rollback if
-replacing the directory fails; it does not claim a filesystem-wide atomic
+replacing the directory fails. It does not claim a filesystem-wide atomic
 directory swap.

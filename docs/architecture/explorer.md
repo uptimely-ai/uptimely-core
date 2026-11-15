@@ -37,6 +37,6 @@ uptimely export example --output docs/example
     exports may differ from the locally served website as those capabilities
     evolve.
 
-See the [Explorer CLI reference](../reference/cli/explorer.md) for serving and export
-options, and the [Explorer API reference](../reference/python/explorer.md) for
-presentation data.
+See [`uptimely explore`](../reference/cli/explorer.md) for serving and
+[`uptimely export`](../reference/cli/export.md) for static exports, and the
+[Explorer API reference](../reference/python/explorer.md) for presentation data.

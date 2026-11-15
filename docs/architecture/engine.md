@@ -99,6 +99,6 @@ project data.
 ## Learn more
 
 See the [Compiler](compiler.md) and [Execution plan](execution-plan.md)
-references, the [Engine CLI reference](../reference/cli/engine.md) for run
+references, the [`uptimely run` CLI reference](../reference/cli/engine.md) for run
 options and artifacts, and the [Python Engine API](../reference/python/engine.md)
 for programmatic execution and result access.
