@@ -62,7 +62,7 @@ class PumpTelemetryWhenWarning(Profile):
                     features.warning_vibration_rms,
                 ],
             ),
-            compute=Binding(
+            stage=Binding(
                 analytics.filter_rows,
                 dataset=ref.dataset("pump_telemetry"),
                 feature=ref.feature("pump_mode"),

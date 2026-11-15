@@ -179,7 +179,7 @@ class Profile:
         for operator in self.assembly:
             if not isinstance(operator, assembly.Operator):
                 raise TypeError(f"Profile '{self.id}' assembly must contain Operators")
-            if operator.interface.outputs and operator.compute.reference.returns == "none":
+            if operator.interface.outputs and operator.reference.returns == "none":
                 raise ValueError(
                     f"Profile '{self.id}', operator '{operator.id}': "
                     "No-result operator cannot produce features"

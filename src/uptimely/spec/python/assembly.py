@@ -214,17 +214,18 @@ class Binding:
 
 @dataclasses.dataclass(frozen=True, kw_only=True, init=False)
 class Operator:
-    """Declare operator identity, logical interface, computation, and optional merge.
+    """Declare an operator with either compute or stage and merge bindings.
 
     Args:
         id: Optional non-empty identifier, unique within its profile. When omitted,
-            the ID is generated from the compute function and output interface.
+            the ID is generated from the compute or stage function and output interface.
         interface: Feature dependencies and outputs. Inputs are inferred from
-            compute and merge arguments when omitted.
+            binding arguments when omitted.
         row_context: Operator-specific observation requirements, merged with
             argument annotations.
-        compute: Computation function and named arguments.
-        merge: Optional merge function and named arguments.
+        compute: Function producing the complete target or a non-dataframe result.
+        stage: Function producing a fragment for merging.
+        merge: Function combining a staged fragment with the target.
     """
 
     id: str
@@ -232,7 +233,8 @@ class Operator:
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
-    compute: Binding
+    compute: Binding | None = None
+    stage: Binding | None = None
     merge: Binding | None = None
 
     def __init__(
@@ -243,26 +245,42 @@ class Operator:
         row_context: (
             row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
         ) = None,
-        compute: Binding,
+        compute: Binding | None = None,
+        stage: Binding | None = None,
         merge: Binding | None = None,
     ) -> None:
         """Create an operator, deriving its identifier when one is not supplied."""
-        if not isinstance(compute, Binding):
-            raise TypeError("Operator compute must be a Binding")
+        for role, binding in (("compute", compute), ("stage", stage), ("merge", merge)):
+            if binding is not None and not isinstance(binding, Binding):
+                raise TypeError(f"Operator {role} must be a Binding or None")
         if not isinstance(interface, Interface):
             raise TypeError("Operator interface must be an Interface")
-        if merge is not None and not isinstance(merge, Binding):
-            raise TypeError("Operator merge must be a Binding or None")
+        if not (
+            (compute is not None and stage is None and merge is None)
+            or (compute is None and stage is not None and merge is not None)
+        ):
+            raise ValueError("Operator requires either compute or both stage and merge")
+        primary = compute if compute is not None else stage
+        assert primary is not None
         if id is None:
-            id = self._generate_id(interface, compute.reference.name)
+            id = self._generate_id(interface, primary.reference.name)
         if not isinstance(id, str) or not id.strip():
             raise ValueError("Operator requires a non-empty id")
         object.__setattr__(self, "id", id)
         object.__setattr__(self, "interface", interface)
         object.__setattr__(self, "row_context", row_context)
         object.__setattr__(self, "compute", compute)
+        object.__setattr__(self, "stage", stage)
         object.__setattr__(self, "merge", merge)
         self.__post_init__()
+
+    @property
+    def _primary(self) -> Binding:
+        """Return the computation or fragment-producing binding."""
+        binding = self.compute if self.compute is not None else self.stage
+        if binding is None:
+            raise ValueError("Operator requires a compute or stage binding")
+        return binding
 
     @classmethod
     def _generate_id(cls, interface: Interface, function_id: str) -> str:
@@ -278,13 +296,13 @@ class Operator:
         object.__setattr__(
             self,
             "row_context",
-            row_context_module._context(self.compute.arguments, self.row_context),
+            row_context_module._context(self._primary.arguments, self.row_context),
         )
 
     @property
     def reference(self) -> ref.FunctionReference:
         """Return the normalized entrypoint without importing string references."""
-        return self.compute.reference
+        return self._primary.reference
 
     @property
     def catalog_id(self) -> str:
@@ -297,11 +315,11 @@ class Operator:
         Entrypoint strings are not imported during authoring; signature validation
         for those functions is deferred until compilation.
         """
-        return self.compute.bound_arguments()
+        return self._primary.bound_arguments()
 
     def to_model(self) -> spec_model.Operator:
         """Convert this declaration to its canonical document model."""
-        compute = self.compute.to_model()
+        compute = self._primary.to_model()
         merge = self.merge.to_model() if self.merge is not None else None
         return spec_model.Operator(
             id=self.id,
@@ -313,7 +331,7 @@ class Operator:
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Build the reusable function contract declared by this operator."""
-        bindings = [("compute", self.compute)]
+        bindings = [("stage" if self.stage is not None else "compute", self._primary)]
         if self.merge is not None:
             bindings.append(("merge", self.merge))
         catalogs = []
@@ -322,7 +340,7 @@ class Operator:
             dataframe_count = sum(
                 arg_types.is_dataframe(argument.type) for argument in template.args.values()
             )
-            if (role == "compute" and dataframe_count > 1) or (
+            if (role in {"compute", "stage"} and dataframe_count > 1) or (
                 role == "merge" and dataframe_count != 2
             ):
                 raise ValueError(
@@ -331,7 +349,7 @@ class Operator:
                 )
             if role == "merge" and template.returns != "dataframe":
                 raise ValueError("Merge binding must return a dataframe")
-            if role == "compute" and self.merge is not None and template.returns != "dataframe":
-                raise ValueError("A merge requires a dataframe-producing compute binding")
+            if role == "stage" and template.returns != "dataframe":
+                raise ValueError("A stage binding must return a dataframe")
             catalogs.append(spec_model.FunctionCatalog(root={template.id: template}))
         return spec_model.FunctionCatalog.merge(catalogs)

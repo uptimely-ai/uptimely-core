@@ -409,7 +409,7 @@ def test_mapping_constructor_requires_explicit_fields(required: str) -> None:
         ),
     }
     del arguments[required]
-    with pytest.raises(TypeError, match=required):
+    with pytest.raises((TypeError, ValueError), match=required):
         authoring.Operator(**arguments)
 
 
@@ -550,7 +550,7 @@ def test_python_spec_merge_binding_export() -> None:
     operator = authoring.Operator(
         id="read",
         interface=authoring.Interface(outputs=[authoring.Feature(id="value")]),
-        compute=authoring.Binding(
+        stage=authoring.Binding(
             read_frames,
         ),
         merge=authoring.Binding(

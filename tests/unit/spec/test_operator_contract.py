@@ -8,7 +8,7 @@ from support import execution as execution_support
 from uptimely import compiler, spec
 from uptimely.engine.runtime import bindings as bindings_module
 from uptimely.engine.runtime import state as state_module
-from uptimely.spec.python import assembly, dimension, feature, profile, ref
+from uptimely.spec.python import assembly, dimension, feature, merge, profile, ref
 
 
 def read_values() -> pl.DataFrame:
@@ -210,7 +210,7 @@ def test_merge_binding_contract_is_validated_by_json_and_python_authoring(
     operator = assembly.Operator(
         id="vectorize",
         interface=assembly.Interface(),
-        compute=assembly.Binding(
+        stage=assembly.Binding(
             ref.function(add_one),
             dataset=ref.dataset(),
             output="result",
@@ -377,7 +377,7 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                                 )
                             ],
                         ),
-                        compute=assembly.Binding(
+                        stage=assembly.Binding(
                             ref.function(
                                 copy_values if dataframe else dataset_identifier,
                             ),
@@ -387,13 +387,14 @@ def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
                                 **({} if dataframe else {"identifier": source_reference.id}),
                             },
                         ),
+                        merge=merge.default(),
                     ),
                 ],
             ),
         ],
     )
     compiled = compiler.Compiler().compile(spec_definition, features=["copied"])
-    assert len(compiled.invocations) == 2
+    assert len(compiled.invocations) == 3
     expand = next(item for item in compiled.invocations if item.operator_kind == "expand")
     source_merge = next(
         item

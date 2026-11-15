@@ -36,7 +36,7 @@ class Constants(Profile):
             interface=Interface(
                 outputs=[features.gravity, features.room_temperature],
             ),
-            compute=Binding(
+            stage=Binding(
                 io.read_file,
                 source=ref.paths("constants_source"),
                 schema={"gravity": "float", "room_temperature": "float"},

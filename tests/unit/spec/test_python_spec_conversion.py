@@ -11,6 +11,7 @@ from uptimely.spec.python import (
     conversion,
     dimension,
     feature,
+    merge,
     profile,
     ref,
 )
@@ -116,6 +117,30 @@ def _declaration(
     is_expand = operator_kind == "expand"
     is_dimensional = operator_kind in {"conform", "expand"}
     module = __name__ if function is _source else f"{__name__}.alternate"
+    binding = assembly.Binding(
+        ref.FunctionReference(
+            module=module,
+            name=f"{operator_kind}_shared",
+            returns="none" if operator_kind == "write" else "dataframe",
+        ),
+        **{
+            **(
+                {"dataset": ref.profile().dataset}
+                if operator_kind in {"write", "vectorize", "collapse"}
+                else {}
+            ),
+            **(
+                {
+                    "dataset": ref.profile(
+                        "shared_source" if is_expand else f"{identifier}_source"
+                    ).dataset,
+                }
+                if is_dimensional
+                else {}
+            ),
+            "columns": [ref.feature("temperature")],
+        },
+    )
     declarations = [
         assembly.Operator(
             id=f"{identifier}_mapping",
@@ -123,30 +148,9 @@ def _declaration(
                 inputs=[ref.feature("temperature")] if is_dimensional else [],
                 outputs=[],
             ),
-            compute=assembly.Binding(
-                ref.FunctionReference(
-                    module=module,
-                    name=f"{operator_kind}_shared",
-                    returns="none" if operator_kind == "write" else "dataframe",
-                ),
-                **{
-                    **(
-                        {"dataset": ref.profile().dataset}
-                        if operator_kind in {"write", "vectorize", "collapse"}
-                        else {}
-                    ),
-                    **(
-                        {
-                            "dataset": ref.profile(
-                                "shared_source" if is_expand else f"{identifier}_source"
-                            ).dataset,
-                        }
-                        if is_dimensional
-                        else {}
-                    ),
-                    "columns": [ref.feature("temperature")],
-                },
-            ),
+            compute=None if is_dimensional else binding,
+            stage=binding if is_dimensional else None,
+            merge=merge.default() if is_dimensional else None,
         )
     ]
     return profile.Profile(
@@ -157,6 +161,75 @@ def _declaration(
 
 def _python_spec(profiles: list[profile.Profile], name: str | None = None) -> Spec:
     return Spec(profiles=profiles, name=name)
+
+
+@pytest.mark.parametrize("explicit", [False, True])
+@pytest.mark.parametrize("staged", [False, True])
+def test_foreign_feature_inputs_require_stage_and_merge(explicit: bool, staged: bool) -> None:
+    source = profile.Profile(
+        id="source",
+        assembly=[
+            assembly.Operator(
+                interface=assembly.Interface(outputs=[feature.Feature(id="value")]),
+                compute=assembly.Binding(ref.function("reader:read", returns="dataframe")),
+            )
+        ],
+    )
+    binding = assembly.Binding(
+        ref.function("reader:copy", returns="dataframe"),
+        value=ref.feature("value"),
+    )
+    target = profile.Profile(
+        id="target",
+        assembly=[
+            assembly.Operator(
+                interface=assembly.Interface(
+                    inputs=["value"] if explicit else None,
+                    outputs=[feature.Feature(id="copied")],
+                ),
+                compute=None if staged else binding,
+                stage=binding if staged else None,
+                merge=merge.default() if staged else None,
+            )
+        ],
+    )
+    if not staged:
+        with pytest.raises(ValueError, match="input feature 'value'.*use stage and merge"):
+            conversion.to_model([source, target])
+    else:
+        document = conversion.to_model([source, target])
+        operator = next(iter(document.profiles["target"].assembly.values()))
+        assert operator.compute.function == "copy"
+        assert operator.merge is not None
+        assert operator.input_features == ["value"]
+
+
+def test_compute_accepts_local_inputs_but_rejects_mixed_profile_inputs() -> None:
+    source = profile.Profile(
+        id="source",
+        assembly=[
+            assembly.Operator(
+                interface=assembly.Interface(outputs=[feature.Feature(id="foreign")]),
+                compute=assembly.Binding(ref.function("reader:foreign", returns="dataframe")),
+            )
+        ],
+    )
+    local = assembly.Operator(
+        interface=assembly.Interface(outputs=[feature.Feature(id="local")]),
+        compute=assembly.Binding(ref.function("reader:local", returns="dataframe")),
+    )
+    binding = assembly.Binding(ref.function("reader:calculate", returns="dataframe"))
+    calculation = assembly.Operator(
+        interface=assembly.Interface(inputs=["local"], outputs=[feature.Feature(id="result")]),
+        compute=binding,
+    )
+    target = profile.Profile(id="target", assembly=[local, calculation])
+    document = conversion.to_model([source, target])
+    assert document.profiles["target"].assembly[calculation.id].input_features == ["local"]
+
+    calculation.interface.inputs.append("foreign")
+    with pytest.raises(ValueError, match="input feature 'foreign'.*use stage and merge"):
+        conversion.to_model([source, target])
 
 
 def _mapping_source() -> profile.Profile:

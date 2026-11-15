@@ -62,7 +62,7 @@ class PumpTelemetry(Profile):
                         features.mode,
                     ],
                 ),
-                compute=Binding(
+                stage=Binding(
                     io.read_pump_telemetry,
                     pump_telemetry_source=ref.paths("telemetry_source"),
                     pump_source=ref.paths("pump_assets_source"),
@@ -105,7 +105,7 @@ class PumpTelemetry(Profile):
                 interface=Interface(
                     outputs=[features.room_temperature_reference],
                 ),
-                compute=Binding(
+                stage=Binding(
                     analytics.select_columns,
                     dataset=ref.dataset("constants"),
                     columns=[ref.feature("room_temperature")],

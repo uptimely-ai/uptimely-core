@@ -30,13 +30,14 @@ class CoolingPump(up.Profile):
             interface=up.Interface(
                 outputs=[up.Feature(id="motor_bearing_temperature_max")],
             ),
-            compute=up.Binding(
+            stage=up.Binding(
                 maximum,
                 dataset=up.ref.dataset("cooling_pump_telemetry"),
                 feature=up.ref.feature("motor_bearing_temperature"),
                 dimensions=up.ref.profile().grain.ids,
                 output=up.ref.feature("motor_bearing_temperature_max").id,
             ),
+            merge=up.merge.default(),
         ),
     ]
 
@@ -44,7 +45,7 @@ class CoolingPump(up.Profile):
 specification = up.Spec(profiles=[CoolingPump], name="Data-center cooling pump analytics")
 ```
 
-When omitted, an operator ID is generated from its compute function ID, output
+When omitted, an operator ID is generated from its compute or stage function ID, output
 interface, and an eight-character SHA-256 hash of that prefix. A single output
 contributes its feature ID to the prefix. Otherwise, the output count is used.
 
@@ -83,10 +84,13 @@ run the function or check that its calculations are correct. Function
 signatures are checked when the project is compiled. External functions can be
 referenced by `"package.module:function"` with `up.ref.function(...)`.
 
-Without a `merge` binding, a dataframe-producing function returns the complete
-profile dataframe. To return a fragment for Uptimely to combine with existing
-data, declare a merge binding, such as `merge=up.merge.default()`. Custom merge
-functions are also supported. See the [engine reference](engine.md) for runtime
+Use `compute` for operations whose input features belong to the current profile.
+A dataframe-producing compute function returns the complete profile dataframe.
+For input features from another profile, or to return a fragment for Uptimely to
+combine with existing data, use `stage` together with a merge binding such as
+`merge=up.merge.default()`. An operator cannot combine `compute` with `stage`
+or `merge`. Custom merge functions are also supported. The generated Spec stores
+the stage binding as `compute`. See the [engine reference](engine.md) for runtime
 behavior.
 
 For calculations that need nearby rows, see [Row context](row-context.md).

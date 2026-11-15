@@ -194,8 +194,8 @@ def test_interface_validates_outputs_at_construction(
         assembly.Interface(outputs=outputs)
 
 
-def test_operator_combines_binding_contracts_but_only_compute_row_context() -> None:
-    compute = assembly.Binding(
+def test_operator_combines_binding_contracts_but_only_stage_row_context() -> None:
+    stage = assembly.Binding(
         ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
         value=row_context.rows(ref.feature("source"), before=2),
     )
@@ -211,12 +211,12 @@ def test_operator_combines_binding_contracts_but_only_compute_row_context() -> N
     operator = assembly.Operator(
         id="calculate",
         interface=assembly.Interface(),
-        compute=compute,
+        stage=stage,
         merge=merge,
         row_context=row_context.rows("explicit", after=3),
     )
     model = operator.to_model()
-    assert model.compute == compute.to_model()
+    assert model.compute == stage.to_model()
     assert model.merge == merge.to_model()
     assert model.row_context == row_context.rows("expected", before=2, after=3).row_context
     assert list(operator.function_catalog()) == ["calculate", "combine"]
@@ -227,7 +227,7 @@ def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
     operator = assembly.Operator(
         id="calculate",
         interface=assembly.Interface(),
-        compute=assembly.Binding(
+        stage=assembly.Binding(
             ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
         ),
         merge=assembly.Binding(
@@ -240,4 +240,46 @@ def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
         ),
     )
     with pytest.raises(ValueError, match="invalid dataframe arity: 1"):
+        operator.function_catalog()
+
+
+@pytest.mark.parametrize(
+    ("compute", "stage", "merge"),
+    [
+        (False, False, False),
+        (False, True, False),
+        (False, False, True),
+        (True, False, True),
+        (True, True, True),
+        (True, True, False),
+    ],
+)
+def test_operator_requires_one_complete_binding_form(
+    compute: bool, stage: bool, merge: bool
+) -> None:
+    binding = assembly.Binding(ref.function("example:work", returns="dataframe"))
+    with pytest.raises(ValueError, match="either compute or both stage and merge"):
+        assembly.Operator(
+            interface=assembly.Interface(),
+            compute=binding if compute else None,
+            stage=binding if stage else None,
+            merge=binding if merge else None,
+        )
+
+
+def test_stage_requires_dataframe_result() -> None:
+    operator = assembly.Operator(
+        interface=assembly.Interface(),
+        stage=assembly.Binding(ref.function("example:work", returns="none")),
+        merge=assembly.Binding(
+            ref.function(
+                "example:merge",
+                returns="dataframe",
+                args={"dataset": "dataframe", "fragment": "dataframe"},
+            ),
+            dataset=ref.dataset(),
+            fragment=ref.fragment(),
+        ),
+    )
+    with pytest.raises(ValueError, match="stage binding must return a dataframe"):
         operator.function_catalog()

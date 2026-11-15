@@ -156,7 +156,7 @@ def _spec(*, lazy=False, empty=False):
                     inputs=[],
                     outputs=[feature.Feature(id="value")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(read_values),
                     lazy=lazy,
                     empty=empty,
@@ -201,7 +201,7 @@ def _spec(*, lazy=False, empty=False):
                     inputs=[ref.feature("value"), ref.feature("doubled")],
                     outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(summarize),
                     dataset=ref.profile("observations").dataset,
                     column=ref.feature("value").id,
@@ -220,7 +220,7 @@ def _spec(*, lazy=False, empty=False):
                     inputs=[ref.feature("maximum")],
                     outputs=[feature.Feature(id="total")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(total),
                     dataset=ref.profile("summary").dataset,
                 ),
@@ -232,7 +232,7 @@ def _spec(*, lazy=False, empty=False):
                     inputs=[ref.feature("maximum")],
                     outputs=[feature.Feature(id="global_max")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(maximum),
                     dataset=ref.profile("summary").dataset,
                 ),
@@ -283,7 +283,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                     inputs=[],
                     outputs=[feature.Feature(id="base_value")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(read_conform_target),
                 ),
                 merge=merge.default(),
@@ -294,11 +294,12 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                     inputs=[ref.feature("source_value")],
                     outputs=[feature.Feature(id="conformed_value")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(conform_source),
                     source=ref.profile("foreign").dataset,
                     matching_keys=ref.profile().grain.ids,
                 ),
+                merge=merge.default(),
             ),
         ],
     )
@@ -312,7 +313,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                     inputs=[],
                     outputs=[feature.Feature(id="source_value")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(read_conform_source),
                 ),
                 merge=merge.default(),
@@ -612,7 +613,7 @@ def _broadcast_spec(
                     inputs=[],
                     outputs=[feature.Feature(id="value")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(read_values),
                     lazy=lazy,
                 ),
@@ -624,7 +625,7 @@ def _broadcast_spec(
                     inputs=[ref.feature("source_value")],
                     outputs=[feature.Feature(id="reference")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(expand_function),
                     source=ref.profile("reference_source").dataset,
                     feature=ref.feature("source_value").id,
@@ -644,7 +645,7 @@ def _broadcast_spec(
                     inputs=[],
                     outputs=[feature.Feature(id="source_value")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(reader),
                     lazy=lazy,
                 ),

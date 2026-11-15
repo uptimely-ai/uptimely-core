@@ -315,10 +315,11 @@ def test_sources_and_transforms_python_spec() -> None:
                     inputs=[python_spec.ref.feature("input_1")],
                     outputs=[python_spec.feature.Feature(id="input_2")],
                 ),
-                compute=python_spec.Binding(
+                stage=python_spec.Binding(
                     python_spec.ref.function(expand_data, returns="dataframe"),
                     source=python_spec.ref.profile("transformed_dataset").dataset,
                 ),
+                merge=python_spec.merge.default(),
             ),
         ],
     )
@@ -332,13 +333,14 @@ def test_sources_and_transforms_python_spec() -> None:
                     inputs=[python_spec.ref.feature("input_2")],
                     outputs=[python_spec.feature.Feature(id="collapsed_feature")],
                 ),
-                compute=python_spec.Binding(
+                stage=python_spec.Binding(
                     python_spec.ref.function(analytics.aggregate, returns="dataframe"),
                     dataset=python_spec.ref.profile("target").dataset,
                     aggregations={"input_2": "max"},
                     dimensions=python_spec.ref.profile().grain.ids,
                     rename={"input_2": python_spec.ref.feature("collapsed_feature").id},
                 ),
+                merge=python_spec.merge.default(),
             )
         ],
     )

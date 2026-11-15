@@ -19,6 +19,7 @@ from uptimely.spec.python import (
     binding_conversion,
     dimension,
     feature,
+    merge,
     profile,
     ref,
 )
@@ -588,12 +589,13 @@ def test_collapse_functions_execute_without_row_context(
                     inputs=[ref.feature("temperature")],
                     outputs=[feature.Feature(id="temperature_max", type="integer")],
                 ),
-                compute=assembly.Binding(
+                stage=assembly.Binding(
                     ref.function(maximum),
                     dataset=ref.profile("observations").dataset,
                     column=ref.feature("temperature").id,
                     output=ref.feature("temperature_max").id,
                 ),
+                merge=merge.default(),
             )
         ],
     )

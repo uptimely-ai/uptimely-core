@@ -83,7 +83,7 @@ class Pump(Profile):
     assembly = [
         Operator(
             interface=Interface(outputs=[features.pump_max_capacity]),
-            compute=Binding(
+            stage=Binding(
                 io.read_file,
                 source=ref.paths("pump_assets_source"),
                 rename={"max_capacity": features.pump_max_capacity},
@@ -96,7 +96,7 @@ class Pump(Profile):
                 inputs=[ref.feature("max_capacity_series")],
                 outputs=[features.series_max_capacity],
             ),
-            compute=Binding(
+            stage=Binding(
                 analytics.select_columns,
                 dataset=ref.dataset("pump_series"),
                 columns=[
@@ -112,7 +112,7 @@ class Pump(Profile):
                 inputs=[ref.feature("max_capacity_category")],
                 outputs=[features.category_max_capacity],
             ),
-            compute=Binding(
+            stage=Binding(
                 analytics.select_columns,
                 dataset=ref.dataset("pump_category"),
                 columns=[
@@ -149,7 +149,7 @@ class Pump(Profile):
                 inputs=[ref.feature("bearing_temperature")],
                 outputs=[features.bearing_temperature_max],
             ),
-            compute=Binding(
+            stage=Binding(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry"),
                 aggregations={"bearing_temperature": "max"},
@@ -177,7 +177,7 @@ class Pump(Profile):
             interface=Interface(
                 outputs=[features.measurement, features.reference_value],
             ),
-            compute=Binding(
+            stage=Binding(
                 io.read_file,
                 source=ref.paths("pump_external_inputs_source"),
                 schema={"measurement": "float", "reference_value": "float"},
