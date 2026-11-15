@@ -32,14 +32,14 @@ def test_root_authoring_api_compiles_and_executes(
             up.Operator(
                 id="read",
                 outputs=[up.Feature(id="value")],
-                compute=up.Binding(
+                compute=up.Bind(
                     read_values,
                 ),
             ),
             up.Operator(
                 id="double",
                 outputs=[up.Feature(id="doubled")],
-                compute=up.Binding(
+                compute=up.Bind(
                     double,
                     dataset=up.ref.dataset(),
                     value=up.ref.feature("value"),
@@ -105,7 +105,7 @@ def test_profile_features_attributes_can_be_operator_outputs() -> None:
     operator = up.Operator(
         id="read",
         outputs=[features.value],
-        compute=up.Binding(
+        compute=up.Bind(
             read_values,
         ),
     )
@@ -142,7 +142,7 @@ def test_feature_roles_follow_operator_inputs_in_nested_arguments(
         return up.Operator(
             id="calculate",
             outputs=[up.Feature(id="result")] if declared else [],
-            compute=up.Binding(
+            compute=up.Bind(
                 ref.function("external:calculate", returns="dataframe"),
                 output=shapes[shape],
             ),
@@ -157,7 +157,7 @@ def test_mutated_outputs_update_inferred_input_roles() -> None:
     operator = up.Operator(
         id="calculate",
         outputs=[up.Feature(id="result")],
-        compute=up.Binding(
+        compute=up.Bind(
             ref.function("external:calculate", returns="dataframe"),
             output=up.ref.feature("result"),
         ),

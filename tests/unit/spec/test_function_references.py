@@ -56,7 +56,7 @@ def test_category_survives_conversion_to_spec_document() -> None:
         assembly.Operator(
             id="calculate",
             outputs=[],
-            compute=assembly.Binding(
+            compute=assembly.Bind(
                 reference,
             ),
         ),
@@ -74,7 +74,7 @@ def test_omitted_category_is_serialized_as_null_in_spec_json() -> None:
         assembly.Operator(
             id="calculate",
             outputs=[],
-            compute=assembly.Binding(
+            compute=assembly.Bind(
                 ref.function("unavailable_package.functions:calculate", returns="dataframe"),
             ),
         ),
@@ -114,7 +114,7 @@ def test_signature_validation_setting_survives_conversion_without_importing(
         assembly.Operator(
             id="calculate",
             outputs=[],
-            compute=assembly.Binding(
+            compute=assembly.Bind(
                 reference,
             ),
         ),
@@ -175,7 +175,7 @@ def test_description_survives_conversion_to_exported_document() -> None:
         assembly.Operator(
             id="calculate",
             outputs=[],
-            compute=assembly.Binding(
+            compute=assembly.Bind(
                 reference,
                 dataset=ref.dataset(),
             ),
@@ -234,7 +234,7 @@ def test_conflicting_signature_validation_settings_are_rejected() -> None:
                     id="ceil",
                     inputs=[],
                     outputs=[],
-                    compute=assembly.Binding(
+                    compute=assembly.Bind(
                         ref.function(
                             "math:ceil",
                             returns="dataframe",
@@ -267,7 +267,7 @@ def test_string_locations_are_preserved_without_importing(
             assembly.Operator(
                 id="ceil",
                 outputs=[],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     reference,
                     x=1.2,
                 ),
@@ -297,7 +297,7 @@ def test_generic_mapping_exports_return_contract_without_importing(
             id="calculate",
             inputs=[],
             outputs=[],
-            compute=assembly.Binding(
+            compute=assembly.Bind(
                 ref.function("unavailable_package.functions:calculate", returns=returns),
                 dataset=ref.profile().dataset,
             ),
@@ -315,7 +315,7 @@ def test_generic_mapping_requires_return_metadata() -> None:
         id="operator",
         inputs=[],
         outputs=[],
-        compute=assembly.Binding(
+        compute=assembly.Bind(
             ref.function("math:ceil"),
             x=1.2,
         ),
@@ -332,7 +332,7 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
                 id="external_update",
                 inputs=[],
                 outputs=[],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function("math:ceil", returns="any"),
                 ),
             )
@@ -352,7 +352,7 @@ def test_references_supply_function_names_as_catalog_ids(returns: str) -> None:
     declaration = assembly.Operator(
         id="declaration",
         outputs=[],
-        compute=assembly.Binding(
+        compute=assembly.Bind(
             ref.function("math:ceil", returns=returns),
             x=1.2,
         ),

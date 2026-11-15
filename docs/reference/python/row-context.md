@@ -28,7 +28,7 @@ up.Operator(
     id="rolling_mean",
     outputs=[up.Feature(id="mean")],
     row_context=RowContext(before=1),
-    compute=up.Binding(
+    compute=up.Bind(
         rolling_mean,
         dataset=up.ref.dataset(),
         value=up.ref.feature("value"),

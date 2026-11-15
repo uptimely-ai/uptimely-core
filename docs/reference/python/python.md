@@ -42,7 +42,7 @@ class CoolingPumpTelemetry(up.Profile):
     assembly = [
         up.Operator(
             outputs=[up.Feature(id="motor_bearing_temperature")],
-            read=up.Binding(read_telemetry),
+            read=up.Bind(read_telemetry),
         ),
     ]
 
@@ -54,7 +54,7 @@ class CoolingPump(up.Profile):
         up.Operator(
             inputs=[up.ref.feature("motor_bearing_temperature")],
             outputs=[up.Feature(id="motor_bearing_temperature_max")],
-            stage=up.Binding(
+            stage=up.Bind(
                 maximum,
                 dataset=up.ref.dataset("cooling_pump_telemetry"),
                 feature=up.ref.feature("motor_bearing_temperature"),
@@ -93,7 +93,7 @@ for display. Logical feature types are available from
 ## Operators and functions
 
 An `Operator` connects a function to a profile. Its `inputs` and `outputs`
-declare feature dependencies and outputs, and its `Binding` takes a function
+declare feature dependencies and outputs, and its `Bind` takes a function
 followed by its named arguments. If `inputs` is omitted, feature references in
 the arguments are used to infer dependencies. Set `inputs=[]` to disable that
 inference.
@@ -161,7 +161,7 @@ For calculations that need nearby rows, see [Row context](row-context.md).
     options:
       heading_level: 2
       show_root_heading: false
-      members: [Operator, Binding]
+      members: [Operator, Bind]
 
 ::: uptimely.spec.python.functions
     options:

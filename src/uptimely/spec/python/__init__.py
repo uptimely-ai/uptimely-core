@@ -1,7 +1,7 @@
 """Python authoring declarations for spec."""
 
 from . import merge, ref
-from .assembly import Binding, Operator
+from .assembly import Bind, Operator
 from .dimension import Dimension, Resolution
 from .feature import Feature, FeatureSet
 from .functions import function
@@ -12,7 +12,7 @@ from .spec import Spec
 
 __all__ = [
     "Operator",
-    "Binding",
+    "Bind",
     "Profile",
     "Dimension",
     "Resolution",

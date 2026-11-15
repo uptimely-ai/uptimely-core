@@ -5,7 +5,7 @@ import pump_io as io
 from spec import dimension
 
 from uptimely import (
-    Binding,
+    Bind,
     Operator,
     Order,
     Profile,
@@ -59,7 +59,7 @@ class PumpTelemetry(Profile):
                     features.motor_power,
                     features.mode,
                 ],
-                read=Binding(
+                read=Bind(
                     io.read_pump_telemetry,
                     pump_telemetry_source=ref.paths("telemetry_source"),
                     pump_source=ref.paths("pump_assets_source"),
@@ -70,7 +70,7 @@ class PumpTelemetry(Profile):
         calculations=[
             Operator(
                 outputs=[features.pump_mode],
-                compute=Binding(
+                compute=Bind(
                     analytics.pump_mode,
                     dataset=ref.dataset(),
                     bearing_temperature=features.bearing_temperature,
@@ -82,7 +82,7 @@ class PumpTelemetry(Profile):
             ),
             Operator(
                 outputs=[features.pressure_flow_efficiency],
-                compute=Binding(
+                compute=Bind(
                     analytics.ratio,
                     dataset=ref.dataset(),
                     numerator_features=[
@@ -96,7 +96,7 @@ class PumpTelemetry(Profile):
             ),
             Operator(
                 outputs=[features.room_temperature_reference],
-                stage=Binding(
+                stage=Bind(
                     analytics.select_columns,
                     dataset=ref.dataset("constants"),
                     columns=[ref.feature("room_temperature")],
@@ -106,7 +106,7 @@ class PumpTelemetry(Profile):
             ),
             Operator(
                 outputs=[features.bearing_temperature_rise],
-                compute=Binding(
+                compute=Bind(
                     analytics.subtract,
                     dataset=ref.dataset(),
                     feature=features.bearing_temperature,
@@ -117,7 +117,7 @@ class PumpTelemetry(Profile):
             Operator(
                 outputs=[features.bearing_temperature_delta],
                 row_context=RowContext(before=1),
-                compute=Binding(
+                compute=Bind(
                     analytics.delta,
                     dataset=ref.dataset(),
                     feature=features.bearing_temperature,
@@ -130,7 +130,7 @@ class PumpTelemetry(Profile):
             Operator(
                 outputs=[features.vibration_delta],
                 row_context=RowContext(before=1),
-                compute=Binding(
+                compute=Bind(
                     analytics.delta,
                     dataset=ref.dataset(),
                     feature=features.vibration_rms,
@@ -142,7 +142,7 @@ class PumpTelemetry(Profile):
             ),
             Operator(
                 outputs=[features.pump_health_score],
-                compute=Binding(
+                compute=Bind(
                     analytics.pump_health_score,
                     dataset=ref.dataset(),
                     health_features=[
@@ -157,7 +157,7 @@ class PumpTelemetry(Profile):
         publishing=[
             Operator(
                 outputs=[],
-                write=Binding(
+                write=Bind(
                     io.write_file,
                     dataset=ref.dataset(),
                     features=[

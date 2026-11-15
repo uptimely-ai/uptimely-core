@@ -1,7 +1,7 @@
 """Python source with a relative import within an installed package."""
 
 from uptimely.spec.python import (
-    Binding,
+    Bind,
     Dimension,
     Feature,
     Operator,
@@ -27,7 +27,7 @@ class Values(Profile):
         Operator(
             id="read",
             outputs=[Feature(id="value")],
-            compute=Binding(
+            compute=Bind(
                 ref.function(functions.Readers.values),
             ),
         )

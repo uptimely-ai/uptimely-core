@@ -3,7 +3,7 @@
 import pump_analytics as analytics
 from spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Operator, Order, Profile, merge, ref
+from uptimely import Bind, Feature, FeatureSet, Operator, Order, Profile, merge, ref
 
 
 class WarningTelemetryFeatures(FeatureSet):
@@ -60,7 +60,7 @@ class PumpTelemetryWhenWarning(Profile):
                 features.warning_bearing_temperature,
                 features.warning_vibration_rms,
             ],
-            stage=Binding(
+            stage=Bind(
                 analytics.filter_rows,
                 dataset=ref.dataset("pump_telemetry"),
                 feature=ref.feature("pump_mode"),

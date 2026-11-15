@@ -12,7 +12,7 @@ def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
                 id="read",
                 inputs=[],
                 outputs=[],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.FunctionReference(
                         module=__name__ if not conflicting else f"{__name__}.alternate",
                         name="source",

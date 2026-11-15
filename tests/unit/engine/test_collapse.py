@@ -154,7 +154,7 @@ def _spec(*, lazy=False, empty=False):
                 id="read_values",
                 inputs=[],
                 outputs=[feature.Feature(id="value")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(read_values),
                     lazy=lazy,
                     empty=empty,
@@ -165,7 +165,7 @@ def _spec(*, lazy=False, empty=False):
                 id="double",
                 inputs=[ref.feature("value")],
                 outputs=[feature.Feature(id="doubled")],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function(double),
                     dataset=ref.profile().dataset,
                     column=ref.feature("value").id,
@@ -176,7 +176,7 @@ def _spec(*, lazy=False, empty=False):
                 id="unneeded",
                 inputs=[ref.feature("value")],
                 outputs=[feature.Feature(id="unneeded")],
-                compute=assembly.Binding(
+                compute=assembly.Bind(
                     ref.function(double),
                     dataset=ref.profile().dataset,
                     column=ref.feature("value").id,
@@ -193,7 +193,7 @@ def _spec(*, lazy=False, empty=False):
                 id="group_summary",
                 inputs=[ref.feature("value"), ref.feature("doubled")],
                 outputs=[feature.Feature(id=name) for name in ("maximum", "average", "values")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(summarize),
                     dataset=ref.profile("observations").dataset,
                     column=ref.feature("value").id,
@@ -210,7 +210,7 @@ def _spec(*, lazy=False, empty=False):
                 id="global_total",
                 inputs=[ref.feature("maximum")],
                 outputs=[feature.Feature(id="total")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(total),
                     dataset=ref.profile("summary").dataset,
                 ),
@@ -220,7 +220,7 @@ def _spec(*, lazy=False, empty=False):
                 id="global_maximum",
                 inputs=[ref.feature("maximum")],
                 outputs=[feature.Feature(id="global_max")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(maximum),
                     dataset=ref.profile("summary").dataset,
                 ),
@@ -269,7 +269,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                 id="read_target",
                 inputs=[],
                 outputs=[feature.Feature(id="base_value")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(read_conform_target),
                 ),
                 merge=merge.default(),
@@ -278,7 +278,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                 id="conform_source",
                 inputs=[ref.feature("source_value")],
                 outputs=[feature.Feature(id="conformed_value")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(conform_source),
                     source=ref.profile("foreign").dataset,
                     matching_keys=ref.profile().grain.ids,
@@ -295,7 +295,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
                 id="read_source",
                 inputs=[],
                 outputs=[feature.Feature(id="source_value")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(read_conform_source),
                 ),
                 merge=merge.default(),
@@ -593,7 +593,7 @@ def _broadcast_spec(
                 id="read_values",
                 inputs=[],
                 outputs=[feature.Feature(id="value")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(read_values),
                     lazy=lazy,
                 ),
@@ -603,7 +603,7 @@ def _broadcast_spec(
                 id="reference",
                 inputs=[ref.feature("source_value")],
                 outputs=[feature.Feature(id="reference")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(expand_function),
                     source=ref.profile("reference_source").dataset,
                     feature=ref.feature("source_value").id,
@@ -621,7 +621,7 @@ def _broadcast_spec(
                 id="read_reference",
                 inputs=[],
                 outputs=[feature.Feature(id="source_value")],
-                stage=assembly.Binding(
+                stage=assembly.Bind(
                     ref.function(reader),
                     lazy=lazy,
                 ),

@@ -5,7 +5,7 @@ import pump_analytics as analytics
 import pump_io as io
 from spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Operator, Order, Profile, merge, ref
+from uptimely import Bind, Feature, FeatureSet, Operator, Order, Profile, merge, ref
 
 
 class HourlyWarningTelemetryFeatures(FeatureSet):
@@ -91,7 +91,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
                 features.warning_hour_max_bearing_temperature,
                 features.warning_hour_max_vibration_rms,
             ],
-            stage=Binding(
+            stage=Bind(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry_when_warning"),
                 aggregations={
@@ -119,7 +119,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
         ),
         Operator(
             outputs=[features.operating_point_recommendation],
-            compute=Binding(
+            compute=Bind(
                 analytics.operation_point_optimization,
                 dataset=ref.dataset(),
                 optimization_features=[
@@ -136,7 +136,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
         ),
         Operator(
             outputs=[features.recommended_flow_rate],
-            compute=Binding(
+            compute=Bind(
                 ref.function(
                     pl.LazyFrame.with_columns,
                     returns="dataframe",
@@ -149,7 +149,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
         ),
         Operator(
             outputs=[features.recommended_differential_pressure],
-            compute=Binding(
+            compute=Bind(
                 analytics.extract_field,
                 dataset=ref.dataset(),
                 column=features.operating_point_recommendation,
@@ -159,7 +159,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
         ),
         Operator(
             outputs=[features.energy_cost_score],
-            compute=Binding(
+            compute=Bind(
                 analytics.extract_field,
                 dataset=ref.dataset(),
                 column=features.operating_point_recommendation,
@@ -169,7 +169,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
         ),
         Operator(
             outputs=[features.converged],
-            compute=Binding(
+            compute=Bind(
                 analytics.extract_field,
                 dataset=ref.dataset(),
                 column=features.operating_point_recommendation,
@@ -179,7 +179,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
         ),
         Operator(
             outputs=[],
-            write=Binding(
+            write=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[

@@ -324,7 +324,7 @@ def test_binding_contract_comparison_and_typed_reference_views() -> None:
 
 
 def test_python_inference_uses_argument_facts_and_keeps_explicit_inputs_authoritative() -> None:
-    binding = assembly.Binding(
+    binding = assembly.Bind(
         ref.function("calculation:calculate", returns="dataframe"),
         config=[
             ref.feature("pressure"),

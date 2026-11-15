@@ -4,7 +4,7 @@ import pump_analytics as analytics
 import pump_io as io
 from spec import dimension
 
-from uptimely import Binding, Feature, FeatureSet, Operator, Profile, merge, ref
+from uptimely import Bind, Feature, FeatureSet, Operator, Profile, merge, ref
 
 
 class PumpCategoryFeatures(FeatureSet):
@@ -37,7 +37,7 @@ class PumpCategory(Profile):
     assembly = [
         Operator(
             outputs=[features.max_capacity],
-            read=Binding(
+            read=Bind(
                 io.read_file,
                 source=ref.paths("pump_category_source"),
                 rename={"max_capacity": features.max_capacity},
@@ -48,7 +48,7 @@ class PumpCategory(Profile):
         Operator(
             inputs=[ref.feature("bearing_temperature")],
             outputs=[features.bearing_temperature_max],
-            stage=Binding(
+            stage=Bind(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry"),
                 aggregations={"bearing_temperature": "max"},
@@ -59,7 +59,7 @@ class PumpCategory(Profile):
         ),
         Operator(
             outputs=[],
-            write=Binding(
+            write=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
                 features=[features.bearing_temperature_max, features.max_capacity],

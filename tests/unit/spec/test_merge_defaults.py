@@ -7,8 +7,8 @@ from uptimely.spec import model as spec_model
 from uptimely.spec.python import Spec, assembly, feature, profile, ref
 
 
-def _operator(operator_id: str, *, merge: assembly.Binding | None = None) -> assembly.Operator:
-    binding = assembly.Binding(ref.function(f"reader:{operator_id}", returns="dataframe"))
+def _operator(operator_id: str, *, merge: assembly.Bind | None = None) -> assembly.Operator:
+    binding = assembly.Bind(ref.function(f"reader:{operator_id}", returns="dataframe"))
     return assembly.Operator(
         id=operator_id,
         outputs=[feature.Feature(id=f"value_{operator_id}")],

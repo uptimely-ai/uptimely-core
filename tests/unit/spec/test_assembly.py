@@ -21,7 +21,7 @@ def calculate_named_arguments(function: str, arguments: str) -> str:
 
 
 def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
-    binding = assembly.Binding(calculate, value=ref.feature("source"))
+    binding = assembly.Bind(calculate, value=ref.feature("source"))
     operator = assembly.Operator(id="calculate", compute=binding)
 
     assert binding.reference == operator.reference == ref.function(calculate)
@@ -39,11 +39,11 @@ def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
 def test_read_and_write_bindings_keep_their_roles_in_python_authoring() -> None:
     read = assembly.Operator(
         id="read",
-        read=assembly.Binding(ref.function("reader:read", returns="dataframe")),
+        read=assembly.Bind(ref.function("reader:read", returns="dataframe")),
     )
     write = assembly.Operator(
         id="write",
-        write=assembly.Binding(
+        write=assembly.Bind(
             ref.function(
                 "writer:write",
                 returns="none",
@@ -64,8 +64,8 @@ def test_read_and_write_bindings_keep_their_roles_in_python_authoring() -> None:
 def test_read_binding_can_merge_its_returned_fragment() -> None:
     operator = assembly.Operator(
         id="read",
-        read=assembly.Binding(ref.function("reader:read", returns="dataframe")),
-        merge=assembly.Binding(
+        read=assembly.Bind(ref.function("reader:read", returns="dataframe")),
+        merge=assembly.Bind(
             ref.function(
                 "merger:merge",
                 returns="dataframe",
@@ -87,7 +87,7 @@ def test_read_binding_can_merge_its_returned_fragment() -> None:
     [
         (
             "read",
-            assembly.Binding(
+            assembly.Bind(
                 ref.function(
                     "reader:read",
                     returns="dataframe",
@@ -99,12 +99,12 @@ def test_read_binding_can_merge_its_returned_fragment() -> None:
         ),
         (
             "read",
-            assembly.Binding(ref.function("reader:read", returns="none")),
+            assembly.Bind(ref.function("reader:read", returns="none")),
             "Read binding must return a dataframe",
         ),
         (
             "write",
-            assembly.Binding(
+            assembly.Bind(
                 ref.function("writer:write", returns="none", args={"value": "string"}),
                 value="value",
             ),
@@ -112,7 +112,7 @@ def test_read_binding_can_merge_its_returned_fragment() -> None:
         ),
         (
             "write",
-            assembly.Binding(
+            assembly.Bind(
                 ref.function(
                     "writer:write",
                     returns="dataframe",
@@ -125,7 +125,7 @@ def test_read_binding_can_merge_its_returned_fragment() -> None:
     ],
 )
 def test_read_and_write_bindings_validate_dataframe_contracts(
-    role: str, binding: assembly.Binding, message: str
+    role: str, binding: assembly.Bind, message: str
 ) -> None:
     operator = assembly.Operator(**{role: binding})
     with pytest.raises(ValueError, match=message):
@@ -133,7 +133,7 @@ def test_read_and_write_bindings_validate_dataframe_contracts(
 
 
 def test_binding_accepts_arguments_named_like_constructor_parameters() -> None:
-    binding = assembly.Binding(calculate_named_arguments, function="one", arguments="two")
+    binding = assembly.Bind(calculate_named_arguments, function="one", arguments="two")
 
     assert binding.bound_arguments() == {"function": "one", "arguments": "two"}
 
@@ -143,7 +143,7 @@ def test_binding_accepts_arguments_named_like_constructor_parameters() -> None:
 def test_binding_validates_direct_callable_arguments(
     arguments: dict[str, typing.Any], method: str
 ) -> None:
-    binding = assembly.Binding(calculate, **arguments)
+    binding = assembly.Bind(calculate, **arguments)
     with pytest.raises(TypeError):
         getattr(binding, method)()
 
@@ -156,7 +156,7 @@ def test_deferred_binding_preserves_metadata_without_importing_entrypoint() -> N
         validate_signature=False,
         description="Deferred calculation.",
     )
-    binding = assembly.Binding(
+    binding = assembly.Bind(
         reference,
         value=1,
     )
@@ -170,7 +170,7 @@ def test_deferred_binding_preserves_metadata_without_importing_entrypoint() -> N
 
 
 def test_plain_string_binding_conversion_does_not_require_function_semantics() -> None:
-    binding = assembly.Binding(
+    binding = assembly.Bind(
         "unavailable_assembly_test_package:calculate",
     )
     assert binding.to_model().function == "calculate"
@@ -197,7 +197,7 @@ def combine_required(dataset: pl.DataFrame) -> pl.DataFrame:
 def test_binding_dataframe_optionality_follows_annotation(
     implementation: typing.Callable[..., object], expected: str
 ) -> None:
-    binding = assembly.Binding(
+    binding = assembly.Bind(
         implementation,
         dataset=ref.dataset(),
     )
@@ -209,7 +209,7 @@ def test_operator_owns_input_selection_and_output_exclusion(explicit: bool) -> N
     operator = assembly.Operator(
         inputs=[] if explicit else None,
         outputs=[feature.Feature(id="result")],
-        compute=assembly.Binding(
+        compute=assembly.Bind(
             "unavailable_assembly_test_package:calculate",
             values=[ref.feature("second"), ref.feature("first"), ref.feature("result")],
         ),
@@ -226,7 +226,7 @@ def test_operator_normalizes_explicit_inputs_and_copies_collections() -> None:
     operator = assembly.Operator(
         inputs=inputs,
         outputs=outputs,
-        compute=assembly.Binding(calculate, value="source"),
+        compute=assembly.Bind(calculate, value="source"),
     )
     inputs.clear()
     outputs.clear()
@@ -241,7 +241,7 @@ def test_operator_rejects_duplicate_outputs_at_construction() -> None:
     with pytest.raises(ValueError, match="Operator output feature IDs must not repeat"):
         assembly.Operator(
             outputs=[feature.Feature(id="result"), feature.Feature(id="result")],
-            compute=assembly.Binding(calculate),
+            compute=assembly.Bind(calculate),
         )
 
 
@@ -257,13 +257,13 @@ def test_operator_rejects_duplicate_outputs_at_construction() -> None:
 )
 def test_operator_validates_inputs_at_construction(inputs: list[object], message: str) -> None:
     with pytest.raises((TypeError, ValueError), match=message):
-        assembly.Operator(inputs=inputs, compute=assembly.Binding(calculate))
+        assembly.Operator(inputs=inputs, compute=assembly.Bind(calculate))
 
 
 def test_operator_validates_mutated_inputs_again_when_converted() -> None:
     operator = assembly.Operator(
         inputs=["source"],
-        compute=assembly.Binding(
+        compute=assembly.Bind(
             "unavailable_assembly_test_package:calculate",
         ),
     )
@@ -285,15 +285,15 @@ def test_operator_validates_outputs_at_construction(
     outputs: object, error: type[Exception], message: str
 ) -> None:
     with pytest.raises(error, match=message):
-        assembly.Operator(outputs=outputs, compute=assembly.Binding(calculate))
+        assembly.Operator(outputs=outputs, compute=assembly.Bind(calculate))
 
 
 def test_operator_combines_binding_contracts_but_only_stage_row_context() -> None:
-    stage = assembly.Binding(
+    stage = assembly.Bind(
         ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
         value=row_context.rows(ref.feature("source"), before=2),
     )
-    merge = assembly.Binding(
+    merge = assembly.Bind(
         ref.function(
             "unavailable_assembly_test_package:combine",
             returns="dataframe",
@@ -319,10 +319,10 @@ def test_operator_combines_binding_contracts_but_only_stage_row_context() -> Non
 def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
     operator = assembly.Operator(
         id="calculate",
-        stage=assembly.Binding(
+        stage=assembly.Bind(
             ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
         ),
-        merge=assembly.Binding(
+        merge=assembly.Bind(
             ref.function(
                 "unavailable_assembly_test_package:combine",
                 returns="dataframe",
@@ -350,8 +350,8 @@ def test_operator_rejects_merge_with_wrong_dataframe_arity() -> None:
 def test_operator_requires_one_supported_binding_form(
     read: bool, compute: bool, write: bool, stage: bool, merge: bool
 ) -> None:
-    dataframe_binding = assembly.Binding(ref.function("example:work", returns="dataframe"))
-    no_result_binding = assembly.Binding(ref.function("example:write", returns="none"))
+    dataframe_binding = assembly.Bind(ref.function("example:work", returns="dataframe"))
+    no_result_binding = assembly.Bind(ref.function("example:write", returns="none"))
     with pytest.raises(ValueError, match="one primary binding"):
         assembly.Operator(
             read=dataframe_binding if read else None,
@@ -364,8 +364,8 @@ def test_operator_requires_one_supported_binding_form(
 
 def test_stage_requires_dataframe_result() -> None:
     operator = assembly.Operator(
-        stage=assembly.Binding(ref.function("example:work", returns="none")),
-        merge=assembly.Binding(
+        stage=assembly.Bind(ref.function("example:work", returns="none")),
+        merge=assembly.Bind(
             ref.function(
                 "example:merge",
                 returns="dataframe",

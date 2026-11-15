@@ -154,11 +154,11 @@ class MyAnalyticalProfile(up.Profile):
     assembly = [
         up.Operator(
             outputs=[up.Feature(id="value")],
-            read=up.Binding(read_values),
+            read=up.Bind(read_values),
         ),
         up.Operator(
             outputs=[up.Feature(id="doubled")],
-            compute=up.Binding(
+            compute=up.Bind(
                 double,
                 dataset=up.ref.dataset(),
                 value=up.ref.feature("value"),
@@ -167,7 +167,7 @@ class MyAnalyticalProfile(up.Profile):
         ),
         up.Operator(
             inputs=[up.ref.feature("doubled")],
-            write=up.Binding(print_results, dataset=up.ref.dataset()),
+            write=up.Bind(print_results, dataset=up.ref.dataset()),
         ),
     ]
 
