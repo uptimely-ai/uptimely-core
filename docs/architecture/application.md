@@ -1,4 +1,4 @@
-# App
+# Application {#app}
 
 `Uptimely` is the public-facing API for working with an analytics project. It
 binds operations to a project root and provides methods to build, load, or run the

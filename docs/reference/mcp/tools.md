@@ -1,4 +1,4 @@
-# Tool reference
+# MCP tool reference {#tool-reference}
 
 The signatures below use Python notation to describe MCP tool arguments.
 The AI client calls these tools, not ordinary Python function imports.

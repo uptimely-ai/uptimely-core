@@ -27,6 +27,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Documentation clarifies guide and reference titles.
 - Shared explanations of function contracts, configuration, validation, and
   run previews link to their owning documentation instead of repeating details.
 - Python workflow examples and detailed CLI logging instructions are grouped

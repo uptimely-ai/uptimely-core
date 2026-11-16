@@ -1,4 +1,4 @@
-# App
+# Build and run in Python {#app}
 
 `Uptimely` builds and runs a project. It uses the current directory by
 default. Pass a path to work with another project.

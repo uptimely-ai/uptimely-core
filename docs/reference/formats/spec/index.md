@@ -1,4 +1,4 @@
-# Spec
+# Spec JSON {#spec}
 
 **Current spec version: 9**
 

@@ -1,4 +1,4 @@
-# Execution engine
+# Execute analytics in Python {#execution-engine}
 
 `Engine` runs a project's saved build bundle. It returns the resulting dataframes
 and records a preview, logs, and run metadata under `artifacts/run/`.
