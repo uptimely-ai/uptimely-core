@@ -45,7 +45,7 @@ does not relax the dataframe limits.
     <div class="cv-contract cv-contract-merge">
       <span class="cv-tag">MERGE 2&#8594;1</span>
       <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot">dataset</span><span class="cv-slot">fragment</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot">dataframe</span></div></div>
-      <p>Combines the current dataset with a staged fragment.</p>
+      <p>Combines the current dataset with a computed fragment.</p>
     </div>
   </div>
 </div>
@@ -185,7 +185,7 @@ Logical workflow outputs establish dependencies, not dataframe columns.
 
 ### Merge 2→1
 
-<p class="cv-function-subtitle">Combine the current dataset with a staged fragment</p>
+<p class="cv-function-subtitle">Combine the current dataset with a computed fragment</p>
 
 Merge combines the current dataset and a computed fragment, returning the
 complete target. Feature consumers wait for it to succeed.

@@ -46,7 +46,7 @@ def merge_fragment(
         column_types=dict(dimension_types or {}),
     )
     if fragment.invocation is not None:
-        fragment = fragment_module.Fragment.stage(
+        fragment = fragment_module.Fragment.compute(
             main.backend,
             fragment.invocation,
             lambda: fragment.dataframe,

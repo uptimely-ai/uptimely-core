@@ -193,7 +193,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
 
 
 @pytest.mark.parametrize("merge_failure", [None, "exception", "incomplete"])
-def test_custom_merges_receive_staged_fragment_and_publish_only_on_success(
+def test_custom_merges_receive_computed_fragment_and_publish_only_on_success(
     monkeypatch: pytest.MonkeyPatch,
     engine_for_plan: execution_support.EngineFactory,
     merge_failure: str | None,
@@ -580,7 +580,7 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
 
     executor.execute(read)
     assert state.datasets == {}
-    assert set(state.staged_fragments) == {read.id}
+    assert set(state.computed_fragments) == {read.id}
     executor.execute(merge)
     main = state.datasets["telemetry"]
     source = main.fragments[read.operator_id]
@@ -1652,14 +1652,14 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
             (pl.col("reading") * 2).alias("reading_times_two"),
         )
 
-    staged_function_ids: list[str] = []
-    stage_fragment = fragment_module.Fragment.stage
+    computed_function_ids: list[str] = []
+    compute_fragment = fragment_module.Fragment.compute
     merge_calls = 0
     merge_by_grain = merge_module.merge_by_grain
 
-    def stage_spy(backend: object, invocation: object, load: object, **kwargs: object) -> object:
-        staged_function_ids.append(invocation.function_id)
-        return stage_fragment(backend, invocation, load, **kwargs)
+    def compute_spy(backend: object, invocation: object, load: object, **kwargs: object) -> object:
+        computed_function_ids.append(invocation.function_id)
+        return compute_fragment(backend, invocation, load, **kwargs)
 
     def merge_spy(*args: object, **kwargs: object) -> object:
         nonlocal merge_calls
@@ -1722,7 +1722,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
         stages=[[read_invocation.id], [merge_invocation.id], [vectorize_invocation.id]],
     )
     _patch_callables(monkeypatch, {"test:read": read, "test:calculate": calculate})
-    monkeypatch.setattr(fragment_module.Fragment, "stage", staticmethod(stage_spy))
+    monkeypatch.setattr(fragment_module.Fragment, "compute", staticmethod(compute_spy))
     monkeypatch.setattr(merge_module, "merge_by_grain", merge_spy)
     engine = engine_for_plan(plan)
 
@@ -1734,7 +1734,7 @@ def test_vectorize_mapping_emits_multiple_features_with_one_call(
     assert result.datasets["telemetry"].select("reading_plus_one", "reading_times_two").rows() == [
         (4, 6)
     ]
-    assert staged_function_ids == ["load"]
+    assert computed_function_ids == ["load"]
     assert merge_calls == 1
     assert set(result.calculated_outputs) == {
         ("telemetry", "reading_plus_one"),

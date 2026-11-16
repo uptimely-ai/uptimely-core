@@ -163,19 +163,19 @@ class InvocationExecutor:
         """Produce and retain a fragment for its scheduled merge invocation."""
         dataset_id = self._profile_id(invocation)
         dataset = self.state.datasets.get(dataset_id)
-        fragment = fragment_module.Fragment.stage(
+        fragment = fragment_module.Fragment.compute(
             self.backend,
             invocation,
             functools.partial(self._invoke, invocation),
             validate=self.validate,
             comparison_frame=dataset.dataframe if dataset is not None else None,
         )
-        self.state.staged_fragments[invocation.id] = fragment
+        self.state.computed_fragments[invocation.id] = fragment
 
     def _execute_merge(self, invocation: plan_module.Invocation) -> None:
         """Invoke a merge binding and publish its complete target frame on success."""
         dataset_id = self._profile_id(invocation)
-        fragment_id, fragment = self.state.staged_fragment_for(invocation)
+        fragment_id, fragment = self.state.computed_fragment_for(invocation)
         current = self.state.datasets.get(dataset_id)
         dataset = (
             current
@@ -191,7 +191,7 @@ class InvocationExecutor:
             )
         )
         logger.debug("Merging into profile %s", dataset_id)
-        arguments = self.bindings.resolve_args(invocation, staged_fragment=fragment.dataframe)
+        arguments = self.bindings.resolve_args(invocation, computed_fragment=fragment.dataframe)
         if invocation.entrypoint == "uptimely.library.merge.polars:merge_by_grain":
             arguments["key_columns"] = fragment.keys
         result = merge_module.Merge(dataset, fragment).execute(
@@ -207,7 +207,7 @@ class InvocationExecutor:
         dataset.dataframe = result
         dataset.fragments[invocation.operator_id] = fragment
         self.state.datasets[dataset_id] = dataset
-        del self.state.staged_fragments[fragment_id]
+        del self.state.computed_fragments[fragment_id]
 
     def _execute_target_transform(self, invocation: plan_module.Invocation) -> None:
         """Publish target dataframe outputs without fragment assembly."""

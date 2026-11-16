@@ -89,7 +89,7 @@ def test_read_retains_dimension_identifiers_without_feature_outputs(validate: bo
         {"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0], "extra": [1, 2]}
     )
 
-    fragment = fragment_module.Fragment.stage(
+    fragment = fragment_module.Fragment.compute(
         backend_module.PolarsBackend(), invocation, lambda: frame, validate=validate
     )
 
@@ -107,7 +107,7 @@ def test_read_validates_carried_identifier_types() -> None:
     ).__replace__(fragment_keys=["series"])
 
     with pytest.raises(ValueError, match="Output column series.*expected string"):
-        fragment_module.Fragment.stage(
+        fragment_module.Fragment.compute(
             backend_module.PolarsBackend(),
             invocation,
             lambda: pl.LazyFrame({"key": ["p1"], "series": [1], "value": [90.0]}),
@@ -123,7 +123,7 @@ def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
     )
     frame = pl.LazyFrame({"series": ["s1", "s2"], "value": [90.0, 80.0], "extra": [1, 2]})
 
-    fragment = fragment_module.Fragment.stage(
+    fragment = fragment_module.Fragment.compute(
         backend_module.PolarsBackend(), invocation, lambda: frame, validate=validate
     )
 
@@ -137,7 +137,7 @@ def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
     invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
         fragment_keys=["plant", "series"]
     )
-    fragment = fragment_module.Fragment.stage(
+    fragment = fragment_module.Fragment.compute(
         backend_module.PolarsBackend(),
         invocation,
         lambda: pl.LazyFrame({"series": ["s1"], "value": [90.0]}),
@@ -153,7 +153,7 @@ def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() 
     )
 
     with pytest.raises(ValueError, match="duplicate identifiers"):
-        fragment_module.Fragment.stage(
+        fragment_module.Fragment.compute(
             backend_module.PolarsBackend(),
             invocation,
             lambda: pl.LazyFrame({"series": ["s1", "s1"], "value": [90.0, 80.0]}),
@@ -167,7 +167,7 @@ def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
     )
     frame = pl.LazyFrame({"key": ["p1", "p2"], "value": [90.0, 80.0]})
 
-    fragment = fragment_module.Fragment.stage(
+    fragment = fragment_module.Fragment.compute(
         backend_module.PolarsBackend(), invocation, lambda: frame, validate=True
     )
 
@@ -182,14 +182,14 @@ def test_full_grain_fragment_retains_other_resolution_keys_without_changing_uniq
     frame = pl.LazyFrame({"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0]})
     backend = backend_module.PolarsBackend()
 
-    fragment = fragment_module.Fragment.stage(backend, invocation, lambda: frame, validate=True)
+    fragment = fragment_module.Fragment.compute(backend, invocation, lambda: frame, validate=True)
 
     assert fragment.identifiers == ("key",)
     assert (
         fragment.dataframe.collect().select(frame.collect_schema().names()).equals(frame.collect())
     )
     with pytest.raises(ValueError, match="duplicate identifiers"):
-        fragment_module.Fragment.stage(
+        fragment_module.Fragment.compute(
             backend,
             invocation,
             lambda: frame.with_columns(pl.lit("p1").alias("key")),

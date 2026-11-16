@@ -127,29 +127,31 @@ def test_runtime_bindings_reject_unavailable_dataframe_reference() -> None:
         bindings.resolve_value("missing", "dataframe")
 
 
-def test_runtime_bindings_resolve_staged_fragment_argument() -> None:
-    staged = pl.DataFrame({"asset_id": ["A"], "reading": [2]})
+def test_runtime_bindings_resolve_computed_fragment_argument() -> None:
+    computed = pl.DataFrame({"asset_id": ["A"], "reading": [2]})
     invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"fragment": "$operators.@.fragment"},
         argument_types={"fragment": "dataframe"},
     )
 
-    assert _bindings().resolve_args(invocation, staged_fragment=staged) == {"fragment": staged}
+    assert _bindings().resolve_args(invocation, computed_fragment=computed) == {
+        "fragment": computed
+    }
 
 
-def test_runtime_bindings_reject_staged_fragment_without_merge_context() -> None:
+def test_runtime_bindings_reject_computed_fragment_without_merge_context() -> None:
     invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"fragment": "$operators.@.fragment"},
         argument_types={"fragment": "dataframe"},
     )
 
-    with pytest.raises(ValueError, match="Staged fragment is unavailable"):
+    with pytest.raises(ValueError, match="Computed fragment is unavailable"):
         _bindings().resolve_args(invocation)
 
 
-def test_runtime_bindings_reject_staged_fragment_with_incompatible_type() -> None:
+def test_runtime_bindings_reject_computed_fragment_with_incompatible_type() -> None:
     invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"fragment": "$operators.@.fragment"},
@@ -157,7 +159,7 @@ def test_runtime_bindings_reject_staged_fragment_with_incompatible_type() -> Non
     )
 
     with pytest.raises(ValueError, match="Merge fragment argument must have dataframe type"):
-        _bindings().resolve_args(invocation, staged_fragment=pl.DataFrame())
+        _bindings().resolve_args(invocation, computed_fragment=pl.DataFrame())
 
 
 def test_parameter_config_accepts_only_flat_scalar_values() -> None:

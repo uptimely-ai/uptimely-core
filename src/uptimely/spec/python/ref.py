@@ -50,7 +50,7 @@ def dataset(name: str | None = None) -> references.Reference:
 
 
 def fragment() -> references.Reference:
-    """Select the current operator's staged fragment dataframe."""
+    """Select the current operator's computed fragment dataframe."""
     return references.Reference(
         kind=arg_types.DATAFRAME,
         value=f"{selectors.OPERATOR_PREFIX}{selectors.CURRENT_ID}.fragment",

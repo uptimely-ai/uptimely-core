@@ -137,15 +137,15 @@ def validate_merge_dataset(spec: spec_model.Spec) -> None:
 
 
 def validate_merge_fragment(spec: spec_model.Spec) -> None:
-    """Require merge bindings to use their operator's staged fragment."""
-    logger.debug("Check merge bindings reference their staged fragment")
+    """Require merge bindings to use their operator's computed fragment."""
+    logger.debug("Check merge bindings reference their computed fragment")
     for key, operator in spec.operator_items:
         if operator.merge is None:
             continue
         fragment = operator.merge.args.get("fragment")
         if fragment is None or not fragment.is_current_fragment:
             raise errors.SpecError(
-                "Merge fragment must reference this operator's staged fragment",
+                "Merge fragment must reference this operator's computed fragment",
                 code="invalid_merge_binding",
                 path=(*spec.declaration_paths[key], "merge", "args", "fragment"),
             )
