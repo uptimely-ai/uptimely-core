@@ -10,6 +10,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Detailed Python API reference pages include an on-page table of contents.
 - Python operators can run opaque external functions with logical dependencies.
 - Binding dataframe contracts are available in the Spec vocabulary.
 - Explorer function entries infer frame operations from dataframe input and

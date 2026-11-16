@@ -1,3 +1,8 @@
+---
+hide:
+  - toc
+---
+
 # Spec models
 
 `uptimely.spec.model` defines the document created from Python declarations or

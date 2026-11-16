@@ -1,3 +1,8 @@
+---
+hide:
+  - toc
+---
+
 # Python API reference
 
 Find Python interfaces for authoring, building, and running analytics. The
