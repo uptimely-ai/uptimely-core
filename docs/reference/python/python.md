@@ -1,4 +1,4 @@
-# Spec declarations
+# Python authoring
 
 ## API
 
@@ -11,4 +11,4 @@
 | [Operators and bindings](declarations/operators.md) | `Operator`, `Bind` |
 | [Functions](declarations/functions.md) | `function` |
 | [References](declarations/references.md) | `up.ref` helpers |
-| [Row context](declarations/row-context.md) | `RowContextBinding`, `time`, `steps`, `rows`, `current`, `all_rows` |
+| [Row-context bindings](declarations/row-context.md) | `RowContextBinding`, `time`, `steps`, `rows`, `current`, `all_rows` |

@@ -122,7 +122,7 @@ nav:
       - Configuration: reference/configuration.md
       - Python API:
           - Overview: reference/python/index.md
-          - Spec declarations:
+          - Python authoring:
               - Overview: reference/python/python.md
               - Spec: reference/python/declarations/spec.md
               - Profiles: reference/python/declarations/profiles.md
@@ -131,7 +131,7 @@ nav:
               - Operators and bindings: reference/python/declarations/operators.md
               - Functions: reference/python/declarations/functions.md
               - References: reference/python/declarations/references.md
-              - Row context: reference/python/declarations/row-context.md
+              - Row-context bindings: reference/python/declarations/row-context.md
           - Spec documents:
               - Overview: reference/python/spec.md
               - Models overview: reference/python/spec/model.md
@@ -147,27 +147,28 @@ nav:
           - Feature graphs:
               - Graphs: reference/python/feature-graph.md
               - Nodes: reference/python/feature-graph-nodes.md
-          - Row context: reference/python/row-context.md
+          - Row-context utilities: reference/python/row-context.md
           - Application:
               - Application API: reference/python/application.md
               - Configuration: reference/python/application-config.md
-          - Compiler and plans:
-              - Compiler: reference/python/compiler.md
-              - Plan models: reference/python/plans/models.md
-              - Plan serialization: reference/python/plans/serialization.md
+          - Builds and bundles: reference/python/build.md
+          - Compiler: reference/python/compiler.md
+          - Execution plans:
+              - Models: reference/python/plans/models.md
+              - Serialization: reference/python/plans/serialization.md
           - Execution engine:
               - Engine and configuration: reference/python/engine.md
               - Results: reference/python/engine/results.md
-              - Saved runs: reference/python/engine/runs.md
               - Dataframes and merge functions: reference/python/engine-dataframes.md
               - Backends: reference/python/engine/backends.md
+          - Saved runs: reference/python/engine/runs.md
           - Explorer: reference/python/explorer.md
           - Python entrypoints:
               - Entrypoints and functions: reference/python/entrypoint.md
               - Signatures and annotations: reference/python/entrypoints/signatures.md
               - Package provenance: reference/python/entrypoints/provenance.md
           - Storage: reference/python/storage.md
-          - Shared vocabulary:
+          - Spec vocabulary:
               - Operator bindings: reference/python/spec-vocabulary.md
               - Argument types: reference/python/vocabulary/arguments.md
               - Reference selectors: reference/python/vocabulary/selectors.md
