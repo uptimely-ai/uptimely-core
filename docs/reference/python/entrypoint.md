@@ -23,7 +23,3 @@ without importing the function module.
         - Entrypoint
         - Function
         - Module
-        - Signature
-        - TypeAnnotation
-        - PackageProvenance
-        - SourceOrigin
