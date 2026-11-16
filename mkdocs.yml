@@ -66,6 +66,9 @@ extra_javascript:
 
 extra_css:
   - assets/stylesheets/style.css
+  - assets/stylesheets/navigation.css
+  - assets/stylesheets/components.css
+  - assets/stylesheets/api-reference.css
   - assets/stylesheets/infographic.css
 
 exclude_docs: |
