@@ -115,7 +115,8 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
   assert.match(signatureOverview, /data-category="read"[^]*?icon--read h-4 w-4 shrink-0" data-lucide="file-input"[^]*?>read/);
   assert.match(signatureOverview, /data-category="read" data-count="1"/);
   assert.match(signatureOverview, /data-category="write" data-count="1"/);
-  assert.match(signatureOverview, /data-category="merge" data-count="1"/);
+  assert.match(signatureOverview, /data-category="combine" data-count="1"[^]*?icon--combine h-4 w-4 shrink-0" data-lucide="git-merge"[^]*?>combine/);
+  assert.match(signatureContent, /Data signature: combine, 2 dataframe inputs and 1 dataframe output\./);
   assert.match(signatureOverview, /data-category="workflow" data-count="1"/);
   assert.match(signatureOverview, /class="catalog-charts lg:grid-cols-2"/);
   const returnTypeChart = functionOverview.slice(functionOverview.indexOf("Functions by return type"));

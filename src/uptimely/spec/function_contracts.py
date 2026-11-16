@@ -10,14 +10,14 @@ import typing
 type ReturnRole = typing.Literal["dataframe", "none", "any"]
 RETURN_ROLES: typing.Final = frozenset({"dataframe", "none", "any"})
 type FrameSignature = tuple[int | None, int | None]
-type FrameOperation = typing.Literal["read", "write", "transform", "merge", "workflow", "unknown"]
+type FrameOperation = typing.Literal["read", "write", "transform", "combine", "workflow", "unknown"]
 FRAME_SIGNATURE_TO_OPERATION: typing.Final[typing.Mapping[FrameSignature, FrameOperation]] = (
     types.MappingProxyType(
         {
             (0, 1): "read",
             (1, 0): "write",
             (1, 1): "transform",
-            (2, 1): "merge",
+            (2, 1): "combine",
             (None, None): "workflow",
         }
     )

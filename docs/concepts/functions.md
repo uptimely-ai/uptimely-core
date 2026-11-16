@@ -5,17 +5,17 @@
 A **function** is reusable code with typed arguments and a declared return
 contract: `dataframe`, `none`, or `any` for an ignored result.
 
-Dataframe counts describe the function boundary, not logical features or
-internal I/O. Compute accepts zero or one dataframe, merge exactly two.
+Dataframe counts describe the function boundary, independently of operator
+bindings, logical features, or internal I/O.
 Explorer derives the labels below from these counts.
 
-| Dataframes in → out | Explorer label | Binding |
-| --- | --- | --- |
-| 0 → 1 | `read` | `compute` |
-| 1 → 1 | `transform` | `compute` |
-| 1 → 0 | `write` | `compute` |
-| 2 → 1 | `merge` | `merge` |
-| Ignored result | `workflow` | `compute` |
+| Dataframes in → out | Explorer label |
+| --- | --- |
+| 0 → 1 | `read` |
+| 1 → 1 | `transform` |
+| 1 → 0 | `write` |
+| 2 → 1 | `combine` |
+| Ignored result | `workflow` |
 
 Dataframe arguments must be top-level. An `unknown` label or ignored result
 does not relax the dataframe limits.
@@ -42,8 +42,8 @@ does not relax the dataframe limits.
       <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot cv-slot-empty">unknown input</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot cv-slot-empty">unknown output</span></div></div>
       <p>The ignored-result contract does not describe internal dataframe use.</p>
     </div>
-    <div class="cv-contract cv-contract-merge">
-      <span class="cv-tag">MERGE 2&#8594;1</span>
+    <div class="cv-contract cv-contract-combine">
+      <span class="cv-tag">COMBINE 2&#8594;1</span>
       <div class="cv-contract-flow"><div class="cv-slots"><span class="cv-slot">dataset</span><span class="cv-slot">fragment</span></div><b aria-hidden="true">&#8594;</b><div class="cv-fn">function</div><b aria-hidden="true">&#8594;</b><div class="cv-slots"><span class="cv-slot">dataframe</span></div></div>
       <p>Combines the current dataset with a computed fragment.</p>
     </div>
@@ -183,18 +183,19 @@ Logical workflow outputs establish dependencies, not dataframe columns.
   </div>
 </div>
 
-### Merge 2→1
+### Combine 2→1
 
 <p class="cv-function-subtitle">Combine the current dataset with a computed fragment</p>
 
-Merge combines the current dataset and a computed fragment, returning the
-complete target. Feature consumers wait for it to succeed.
+The `combine` signature describes two dataframe inputs and one dataframe output.
+A `merge` binding uses it to combine the current dataset and a computed fragment,
+returning the complete target. Feature consumers wait for it to succeed.
 
 <div class="concepts-visual">
   <div class="cv-operation">
     <div class="cv-transform">
       <div><span class="cv-tag">DATASET + FRAGMENT / two inputs</span><table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td></tr></tbody></table><table class="cv-table cv-stacked"><thead><tr><th class="cv-key">time</th><th class="cv-amber">ratio</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-amber">0.75</td></tr><tr><td class="cv-key">09:01</td><td class="cv-amber">1.00</td></tr></tbody></table></div>
-      <div class="cv-arrow"><span>merge</span><b aria-hidden="true">&#8594;</b></div>
+      <div class="cv-arrow"><span>combine</span><b aria-hidden="true">&#8594;</b></div>
       <div><span class="cv-tag">DATASET / one output</span><table class="cv-table"><thead><tr><th class="cv-key">time</th><th class="cv-teal">pressure</th><th class="cv-amber">ratio</th></tr></thead><tbody><tr><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-amber">0.75</td></tr><tr><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-amber">1.00</td></tr></tbody></table></div>
     </div>
     <p class="cv-takeaway"><strong>Merge bindings take exactly two dataframes and return one.</strong> The builtin merge aligns the fragment to the dataset by grain.</p>
