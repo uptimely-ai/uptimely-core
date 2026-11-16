@@ -22,10 +22,7 @@ plan = compiler.Compiler().compile(document)
 
 ## Validate a document
 
-Spec loading and Python conversion validate declarations by default. To run
-validation directly, call `validate_spec(document)`. Passing `validate=False`
-to `load_spec()` or `from_python()` defers these checks; document shape and
-field types are still checked.
+To run validation directly, call `validate_spec(document)`.
 
 ```python
 from uptimely.spec.validation import validate_spec

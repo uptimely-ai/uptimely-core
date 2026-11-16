@@ -6,6 +6,9 @@
 `preview_frames` holds collected samples; `preview_failures` reports previews
 that could not be made.
 
+A successful invocation is marked succeeded, a failed invocation is marked
+failed, and work that did not run after a failure is marked skipped.
+
 ::: uptimely.engine.runtime.result
     options:
       heading_level: 2

@@ -15,7 +15,7 @@ execution_plan = Compiler().compile(
 plan_io.export_json(execution_plan, "execution_plan.json")
 ```
 
-Compilation validates the Spec and checks that referenced Python functions can
-be called with the declared arguments. Rebuild the project after changing the
-Spec. Plans saved by older Uptimely versions are not supported; rebuild them
-from the Spec.
+See [Compilation validation](../../concepts/dependencies.md#validation)
+for declaration and implementation checks, and
+[Execution plan versioning](../../reference/formats/execution-plan.md#versioning)
+for compatibility and rebuild requirements.

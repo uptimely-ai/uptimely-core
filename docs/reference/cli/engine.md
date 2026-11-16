@@ -23,14 +23,10 @@ directory is used.
 | `--log-level LEVEL` | — | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
 | `--preview [ROWS]` | `engine.preview_rows` | No console preview by default<br>Bare `--preview` uses `engine.preview_rows` (default `5`) | Set the saved preview row limit and log those rows from each final profile after successful execution at info level. Without this option, saved previews use `engine.preview_rows`. |
 
-Previews show all columns and omit the Polars shape line. They are logged after
-the completion summary and processed-profile summary, before any debug details.
-Levels above `info` hide previews, the completion summary, and processed-profile
-details. Lazy frames are limited before
-collection, but their upstream operations may still require substantial work or
-repeat computation. Execution timing excludes preview collection, artifact
-publication, and display. Console display reuses the saved sample rather than
-executing the lazy query again.
+Console display reuses the saved sample rather than executing the lazy query again.
+See [Run artifacts](../formats/run.md#latest-run-artifacts) for preview collection,
+query costs, and timing, and [Preview logging](../../guides/logging.md#preview-logging)
+for console output behavior.
 
 See [Execution options](../../guides/build-and-run.md#execution-options)
 for preview, validation, and build-before-run examples, and

@@ -3,8 +3,22 @@
 ## Function contracts
 
 A **function** is reusable code with typed arguments and a declared return
-contract: `dataframe`, `none`, or `any` for an ignored result. Explorer derives
-the labels below from dataframe counts, independently of logical features.
+contract: `dataframe`, `none`, or `any` for an ignored result.
+
+Dataframe counts describe the function boundary, not logical features or
+internal I/O. Compute accepts zero or one dataframe, merge exactly two.
+Explorer derives the labels below from these counts.
+
+| Dataframes in → out | Explorer label | Binding |
+| --- | --- | --- |
+| 0 → 1 | `read` | `compute` |
+| 1 → 1 | `transform` | `compute` |
+| 1 → 0 | `write` | `compute` |
+| 2 → 1 | `merge` | `merge` |
+| Ignored result | `workflow` | `compute` |
+
+Dataframe arguments must be top-level. An `unknown` label or ignored result
+does not relax the dataframe limits.
 
 <div class="concepts-visual">
   <div class="cv-contracts" role="group" aria-label="Function contracts by dataframe inputs and outputs">

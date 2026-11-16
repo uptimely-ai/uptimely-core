@@ -72,5 +72,12 @@ Structured logs use the invocation IDs from the saved plan. Newly compiled
 plans use [compact invocation IDs](../reference/formats/execution-plan.md#invocations).
 Rebuild the project to adopt them.
 
+## Preview logging
+
+Previews show all columns and omit the Polars shape line. They are logged after
+the completion summary and processed-profile summary, before any debug details.
+Levels above `info` hide previews, the completion summary, and processed-profile
+details.
+
 See the [`uptimely build`](../reference/cli/project.md) and
 [`uptimely run`](../reference/cli/engine.md) references for command options.

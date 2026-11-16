@@ -11,11 +11,9 @@ app.build()
 result = app.run()
 ```
 
-`run()` executes the saved build without rebuilding it and holds a reader lock
-for the duration of execution. It returns an execution result with any invocation
-failures in `result.failures`. Pass `validate=True` to check runtime contracts,
-or `operator=(profile_id, operator_id)` to run a selected operator and its
-prerequisites.
+For execution options and saved-run access, see [Execute in Python](execution.md).
+The [Execution results reference](../../reference/python/engine/results.md)
+describes the returned fields and failures.
 
 Use `load_build_bundle()` to load a bundle. To keep it protected from changes
 while you use it, open it with `read_build_bundle()`:
@@ -25,22 +23,14 @@ with app.read_build_bundle() as bundle:
     result = app.create_engine(bundle).run()
 ```
 
-`Uptimely` loads and validates `uptimely.toml` when it is constructed. Pass
-`config="prod"` to recursively override its values with `config/prod.toml`.
-Alternatively, pass `config_path` to load a different TOML file on its own.
-Explicit relative paths are resolved from the current working directory. If
-the default file is absent, configuration uses defaults. An explicitly
-requested config or file must exist. Construct a new `Uptimely` to pick up
-changes to the files.
-
-The `[application]` section can set `python_spec`, `json_spec`, and `src_path` as
-defaults for `build()` and `run()`. The `[engine]` section sets `preview_rows`
-for `run()`. Explicit method arguments override those settings. Configured JSON
-spec paths resolve relative to the project root. If no spec source is
-configured, Uptimely discovers the standard `spec/spec.py` or `spec/spec.json`
-source. The Python entrypoint attribute defaults to `python_spec`.
+See [Configure a project](../configuration.md#selecting-a-configuration)
+for named configs, explicit files, and configuration lifetime.
+The [configuration reference](../../reference/configuration.md#application-settings)
+describes project defaults, and
+[Build a project](../build.md#specification-source-discovery) covers source discovery.
 
 `create_engine()` passes the project's engine settings, paths, parameters, and
 run defaults to the Engine. It rejects bundles from a different project.
 
-For lower-level build and bundle operations, see the functions listed below.
+See [Builds and bundles](../../reference/python/build.md) for lower-level operations
+and the [Application API](../../reference/python/application.md) for method details.

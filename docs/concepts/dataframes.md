@@ -26,6 +26,10 @@ lower-grain values to matching rows. A custom merge function can define
 different assembly behavior. Feature consumers wait for the merge to succeed.
 Omitting a merge never selects the built-in merge implicitly.
 
+Foreign feature inputs alone do not require a merge.
+Merge results must still be dataframes with the complete expected target schema,
+and overlapping feature columns are rejected.
+
 ### Publication
 
 Publish operations use compute with input dependencies and no output features.
