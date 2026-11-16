@@ -1,4 +1,4 @@
-# Compiler and plans
+# Compile and serialize a plan {#compiler-and-plans}
 
 The compiler turns a loaded Spec into an execution plan. The engine runs that
 plan. Use [`Uptimely`](../../reference/python/application.md) to build the complete project bundle.

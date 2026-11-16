@@ -3,7 +3,7 @@ hide:
   - toc
 ---
 
-# Spec models
+# Spec document models {#spec-models}
 
 `uptimely.spec.model` defines the document created from Python declarations or
 loaded from JSON. Use [`uptimely.spec`](../spec.md) to load, convert, validate,

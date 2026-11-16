@@ -1,4 +1,4 @@
-# Folder structure
+# Project structure {#folder-structure}
 
 An Uptimely Core project brings together data, Python functions, a specification,
 and runtime configuration. The layout below keeps these easy to find and

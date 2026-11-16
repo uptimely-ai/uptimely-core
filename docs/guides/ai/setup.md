@@ -1,4 +1,4 @@
-# MCP API
+# Set up MCP {#mcp-api}
 
 Connect Uptimely to an MCP-compatible AI application to explore your analytics
 project and run calculations. The application provides the chat and model.

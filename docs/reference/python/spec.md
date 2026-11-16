@@ -3,7 +3,7 @@ hide:
   - toc
 ---
 
-# Spec
+# Spec documents {#spec}
 
 `uptimely.spec` loads, converts, validates, and writes Spec documents. The
 compiler turns a Spec into an execution plan.
