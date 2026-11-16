@@ -4,6 +4,7 @@
   --docs-border: #cbd5e1;
   --docs-surface: #fff;
   --docs-surface-hover: #f1f5f9;
+  font-size: .75rem;
 }
 
 [data-md-color-scheme="default"] {
