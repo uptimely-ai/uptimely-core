@@ -126,8 +126,15 @@ nav:
           - AI agents: guides/ai/analytics.md
   - Reference:
       - Configuration: reference/configuration.md
+      - MCP tools: reference/mcp/tools.md
       - Python API:
           - Overview: reference/python/index.md
+          - Row-context utilities: reference/python/row-context.md
+          - Builds and bundles: reference/python/build.md
+          - Compiler: reference/python/compiler.md
+          - Saved runs: reference/python/engine/runs.md
+          - Explorer: reference/python/explorer.md
+          - Storage: reference/python/storage.md
           - Python authoring:
               - Overview: reference/python/python.md
               - Spec: reference/python/declarations/spec.md
@@ -153,12 +160,9 @@ nav:
           - Feature graphs:
               - Graphs: reference/python/feature-graph.md
               - Nodes: reference/python/feature-graph-nodes.md
-          - Row-context utilities: reference/python/row-context.md
           - Application:
               - Application API: reference/python/application.md
               - Configuration: reference/python/application-config.md
-          - Builds and bundles: reference/python/build.md
-          - Compiler: reference/python/compiler.md
           - Execution plans:
               - Models: reference/python/plans/models.md
               - Serialization: reference/python/plans/serialization.md
@@ -167,13 +171,10 @@ nav:
               - Results: reference/python/engine/results.md
               - Dataframes and merge functions: reference/python/engine-dataframes.md
               - Backends: reference/python/engine/backends.md
-          - Saved runs: reference/python/engine/runs.md
-          - Explorer: reference/python/explorer.md
           - Python entrypoints:
               - Entrypoints and functions: reference/python/entrypoint.md
               - Signatures and annotations: reference/python/entrypoints/signatures.md
               - Package provenance: reference/python/entrypoints/provenance.md
-          - Storage: reference/python/storage.md
           - Spec vocabulary:
               - Operator bindings: reference/python/spec-vocabulary.md
               - Argument types: reference/python/vocabulary/arguments.md
@@ -186,9 +187,10 @@ nav:
           - uptimely explore: reference/cli/explorer.md
           - uptimely export: reference/cli/export.md
           - uptimely feature-graph: reference/cli/spec.md
-      - MCP tools: reference/mcp/tools.md
       - File formats:
           - Build bundle: reference/formats/build.md
+          - Execution plan JSON: reference/formats/execution-plan.md
+          - Run artifacts: reference/formats/run.md
           - Spec JSON:
               - Overview and root fields: reference/formats/spec/index.md
               - Dimensions and resolutions: reference/formats/spec/dimensions.md
@@ -196,15 +198,13 @@ nav:
               - Functions and arguments: reference/formats/spec/functions.md
               - Operators and bindings: reference/formats/spec/operators.md
               - Selectors and validation: reference/formats/spec/selectors.md
-          - Execution plan JSON: reference/formats/execution-plan.md
-          - Run artifacts: reference/formats/run.md
   - Project:
       - Background and motivation: project/background.md
       - Data science work: project/analytical-systems.md
+      - Research: project/research.md
       - Comparisons:
           - SQL: project/comparisons/sql.md
           - Data platforms: project/comparisons/platforms.md
-      - Research: project/research.md
       - Roadmap:
           - Development roadmap: roadmap/index.md
           - Backlog: roadmap/backlog.md
