@@ -82,31 +82,43 @@ nav:
       - Quick start: index.md
       - Tutorial: getting-started/tutorial.md
       - Explorer demo: getting-started/explorer-demo.md
-      - Architecture: architecture/index.md
-      - Folder structure: architecture/folder-structure.md
+  - Concepts:
+      - Overview: architecture/index.md
+      - Data modeling: data-science/data-modeling.md
+      - Architecture:
+          - Application: architecture/application.md
+          - Compiler: architecture/compiler.md
+          - Engine: architecture/engine.md
+          - Explorer: architecture/explorer.md
+  - Guides:
+      - Project structure: architecture/folder-structure.md
       - Project template: getting-started/project-template.md
-      - Background: background.md
-  - Components:
-      - Uptimely config: architecture/config.md
-      - Application: architecture/application.md
-      - Spec document: architecture/spec.md
-      - Compiler: architecture/compiler.md
-      - Execution plan: architecture/execution-plan.md
-      - Engine: architecture/engine.md
-      - Explorer: architecture/explorer.md
-      - AI agents: architecture/ai.md
-  - Data science:
-      - Uptimely practices: data-science/uptimely-practices.md
-      - Analytical functions: data-science/analytical-functions.md
-      - Data Modeling: data-science/data-modeling.md
-      - Comparison to SQL: data-science/comparison-to-sql.md
-      - Platform comparison: data-science/platform-comparison.md
-      - Data science work: data-science/way-of-work.md
-      - Research: data-science/research.md
-  - Roadmap:
-      - Development roadmap: roadmap/index.md
-      - Backlog: roadmap/backlog.md
+      - Data science practices:
+          - Uptimely practices: data-science/uptimely-practices.md
+          - Analytical functions: data-science/analytical-functions.md
+      - AI and MCP:
+          - Set up MCP: reference/mcp/index.md
+          - AI agents: architecture/ai.md
   - Reference:
+      - Configuration: architecture/config.md
+      - Python API:
+          - Overview: reference/python/index.md
+          - Spec declarations: reference/python/python.md
+          - Spec documents:
+              - Overview: reference/python/spec.md
+              - Document models: reference/python/spec/model.md
+              - Loading and conversion: reference/python/spec/api.md
+              - Serialization: reference/python/spec/serialization.md
+              - Validation: reference/python/spec/validation.md
+          - Feature graphs: reference/python/feature-graph.md
+          - Row context: reference/python/row-context.md
+          - Application: reference/python/application.md
+          - Compiler and plans: reference/python/compiler.md
+          - Execution engine: reference/python/engine.md
+          - Explorer: reference/python/explorer.md
+          - Python entrypoints: reference/python/entrypoint.md
+          - Storage: reference/python/storage.md
+          - Shared vocabulary: reference/python/spec-vocabulary.md
       - CLI:
           - Overview: reference/cli/index.md
           - uptimely example: reference/cli/examples.md
@@ -115,24 +127,17 @@ nav:
           - uptimely explore: reference/cli/explorer.md
           - uptimely export: reference/cli/export.md
           - uptimely feature-graph: reference/cli/spec.md
-      - MCP:
-          - Setup: reference/mcp/index.md
-          - Tool reference: reference/mcp/tools.md
-      - Python:
-          - Overview: reference/python/index.md
-          - App: reference/python/application.md
-          - Spec:
-              - Overview: reference/python/spec.md
-              - Python authoring: reference/python/python.md
-              - Operations: reference/python/spec/api.md
-              - Document models: reference/python/spec/model.md
-              - Serialization: reference/python/spec/serialization.md
-              - Validation: reference/python/spec/validation.md
-              - Feature graphs: reference/python/feature-graph.md
-              - Row context: reference/python/row-context.md
-              - Shared vocabulary: reference/python/spec-vocabulary.md
-          - Compiler and plans: reference/python/compiler.md
-          - Execution engine: reference/python/engine.md
-          - Explorer: reference/python/explorer.md
-          - Python entrypoints: reference/python/entrypoint.md
-          - Storage: reference/python/storage.md
+      - MCP tools: reference/mcp/tools.md
+      - File formats:
+          - Spec JSON: architecture/spec.md
+          - Execution plan JSON: architecture/execution-plan.md
+  - Project:
+      - Background and motivation: background.md
+      - Data science work: data-science/way-of-work.md
+      - Comparisons:
+          - SQL: data-science/comparison-to-sql.md
+          - Data platforms: data-science/platform-comparison.md
+      - Research: data-science/research.md
+      - Roadmap:
+          - Development roadmap: roadmap/index.md
+          - Backlog: roadmap/backlog.md
