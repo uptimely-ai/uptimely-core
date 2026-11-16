@@ -1,4 +1,4 @@
-# Row context
+# Row-context utilities
 
 `RowContext` describes which nearby rows a calculation needs. Use it when a
 function depends on earlier, later, or all rows in a profile. Python helpers

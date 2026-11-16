@@ -1,6 +1,4 @@
-# Compiler and plans
-
-## Compiler
+# Compiler
 
 ::: uptimely.compiler.compiler
     options:

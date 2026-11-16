@@ -1,4 +1,4 @@
-# Row context
+# Row-context bindings
 
 ::: uptimely.spec.python.row_context
     options:
