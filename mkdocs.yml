@@ -80,27 +80,46 @@ validation:
 nav:
   - Getting started:
       - Quick start: index.md
-      - Tutorial: getting-started/tutorial.md
+      - Example project: getting-started/tutorial.md
       - Explorer demo: getting-started/explorer-demo.md
   - Concepts:
-      - Overview: architecture/index.md
-      - Data modeling: data-science/data-modeling.md
+      - Grain: concepts/grain.md
+      - Profile: concepts/profiles.md
+      - Function: concepts/functions.md
+      - Operator: concepts/operators.md
+      - Dataset: concepts/dataframes.md
+      - Execution plan: concepts/dependencies.md
+      - Grain relationships: concepts/grain-relationships.md
+      - Data modeling: concepts/data-modeling.md
       - Architecture:
+          - Overview: architecture/index.md
           - Application: architecture/application.md
           - Compiler: architecture/compiler.md
           - Engine: architecture/engine.md
           - Explorer: architecture/explorer.md
   - Guides:
-      - Project structure: architecture/folder-structure.md
-      - Project template: getting-started/project-template.md
-      - Data science practices:
-          - Uptimely practices: data-science/uptimely-practices.md
-          - Analytical functions: data-science/analytical-functions.md
+      - Project setup:
+          - Project structure: guides/project-structure.md
+          - Project template: guides/project-template.md
+          - Configure a project: guides/configuration.md
+      - Python authoring: guides/python/authoring.md
+      - Build and run:
+          - CLI workflow: guides/build-and-run.md
+          - Build a project: guides/build.md
+          - Python application: guides/python/application.md
+          - Compile in Python: guides/python/compilation.md
+          - Execute in Python: guides/python/execution.md
+      - Validate execution: guides/runtime-validation.md
+      - Inspect results in Explorer: guides/explorer.md
+      - Data science:
+          - Organize calculations by profile: guides/data-science/modeling.md
+          - Uptimely practices: guides/data-science/practices.md
+          - Analytical functions: guides/data-science/analytical-functions.md
       - AI and MCP:
-          - Set up MCP: reference/mcp/index.md
-          - AI agents: architecture/ai.md
+          - Set up MCP: guides/ai/setup.md
+          - AI agents: guides/ai/analytics.md
   - Reference:
-      - Configuration: architecture/config.md
+      - Configuration: reference/configuration.md
       - Python API:
           - Overview: reference/python/index.md
           - Spec declarations: reference/python/python.md
@@ -115,6 +134,7 @@ nav:
           - Application: reference/python/application.md
           - Compiler and plans: reference/python/compiler.md
           - Execution engine: reference/python/engine.md
+          - Dataframes and backends: reference/python/engine-dataframes.md
           - Explorer: reference/python/explorer.md
           - Python entrypoints: reference/python/entrypoint.md
           - Storage: reference/python/storage.md
@@ -129,15 +149,23 @@ nav:
           - uptimely feature-graph: reference/cli/spec.md
       - MCP tools: reference/mcp/tools.md
       - File formats:
-          - Spec JSON: architecture/spec.md
-          - Execution plan JSON: architecture/execution-plan.md
+          - Build bundle: reference/formats/build.md
+          - Spec JSON:
+              - Overview and root fields: reference/formats/spec/index.md
+              - Dimensions and resolutions: reference/formats/spec/dimensions.md
+              - Profiles and features: reference/formats/spec/profiles.md
+              - Functions and arguments: reference/formats/spec/functions.md
+              - Operators and bindings: reference/formats/spec/operators.md
+              - Selectors and validation: reference/formats/spec/selectors.md
+          - Execution plan JSON: reference/formats/execution-plan.md
+          - Run artifacts: reference/formats/run.md
   - Project:
-      - Background and motivation: background.md
-      - Data science work: data-science/way-of-work.md
+      - Background and motivation: project/background.md
+      - Data science work: project/analytical-systems.md
       - Comparisons:
-          - SQL: data-science/comparison-to-sql.md
-          - Data platforms: data-science/platform-comparison.md
-      - Research: data-science/research.md
+          - SQL: project/comparisons/sql.md
+          - Data platforms: project/comparisons/platforms.md
+      - Research: project/research.md
       - Roadmap:
           - Development roadmap: roadmap/index.md
           - Backlog: roadmap/backlog.md

@@ -25,17 +25,3 @@ at `GET /api/explorer/export`.
 | `PROJECT_ROOT` | — | Current working directory | Project root containing the Explorer snapshot. |
 | `--project-root PATH` | — | Current working directory | Explicit form of the project directory argument. |
 | `--output PATH` |  |  | Output directory or `.zip` archive. Matching files in an existing output directory are replaced. |
-
-## Example
-
-```console
-uptimely build example
-uptimely run example --preview 10 --log-level debug
-uptimely export example --output docs/example
-uptimely export example --output cooling-pump-analytics-explorer.zip
-```
-
-Export includes the complete saved log and bounded previews. These artifacts may
-contain sensitive data. Review them before publishing, and re-export after
-running the project to update the hosted results. Invalid or incomplete saved
-run artifacts cause export to fail rather than silently omit results.

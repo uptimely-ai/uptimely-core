@@ -2,7 +2,7 @@
 
 `RowContext` describes which nearby rows a calculation needs. Use it when a
 function depends on earlier, later, or all rows in a profile. Python helpers
-for declaring these needs are listed in [Python authoring](python.md).
+for declaring these needs are listed in [Python authoring](../../guides/python/authoring.md).
 
 <div class="api-reference" markdown="1">
 

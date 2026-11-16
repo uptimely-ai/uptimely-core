@@ -1,4 +1,4 @@
-## Project template
+# Project template
 
 Fetch the full project template from the latest stable release.
 Its setup script uses curl to install uv if needed and syncs the dependencies.

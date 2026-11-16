@@ -125,7 +125,7 @@ python -m uptimely.mcp.server --help
 Use `poetry run` before this command in a Poetry environment. The command
 shows startup options, it does not open a chat.
 
-See the [tool reference](tools.md) for arguments and descriptions of every MCP tool.
+See the [tool reference](../../reference/mcp/tools.md) for arguments and descriptions of every MCP tool.
 
 ## Troubleshooting and limits
 
@@ -152,5 +152,5 @@ data. Standard output is reserved for MCP messages, so analytical functions
 must not print there. Your AI application may send tool results to its model
 provider.
 
-See the [MCP architecture overview](../../architecture/ai.md) and
+See the [MCP architecture overview](analytics.md) and
 [Engine reference](../../architecture/engine.md) for execution behavior.
