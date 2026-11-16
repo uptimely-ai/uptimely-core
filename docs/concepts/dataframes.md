@@ -6,7 +6,7 @@ A runtime Dataset is the Engine's accumulated dataframe for a profile defined in
 provides datasets to functions and updates them with produced results.
 
 Without a merge, a returned dataframe becomes the complete target. With a
-merge, it is staged as a fragment. Current-target updates preserve existing
+merge, it is computed as a fragment. Current-target updates preserve existing
 rows, keys, values, and order.
 
 In the picture below, direct updates are yellow and fragment-producing calls
@@ -17,7 +17,7 @@ are gray, except for the write invocation.
 ### Fragment and merge
 
 A fragment is the partial dataframe produced by some data-producing compute
-invocations. The Engine stages it without immediately changing the accumulated
+invocations. The Engine computes it without immediately changing the accumulated
 Dataset. A separate merge invocation combines the fragment with the Dataset and
 publishes the resulting complete dataframe. The built-in merge uses declared
 dimension identifiers to align rows rather than relying on row position.

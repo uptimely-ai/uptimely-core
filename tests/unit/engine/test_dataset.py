@@ -126,7 +126,7 @@ def test_fragment_preserves_raw_data_until_validation_and_projects_declared_outp
 
 @pytest.mark.parametrize("lazy", [False, True])
 @pytest.mark.parametrize("validate", [False, True])
-def test_fragment_stage_loads_once_and_returns_merge_ready_data(
+def test_fragment_compute_loads_once_and_returns_merge_ready_data(
     monkeypatch: pytest.MonkeyPatch, lazy: bool, validate: bool
 ) -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
@@ -167,27 +167,27 @@ def test_fragment_stage_loads_once_and_returns_merge_ready_data(
         "validate_invocation_result",
         check_raw,
     )
-    staged = fragment_module.Fragment.stage(backend, invocation, load, validate=validate)
+    computed = fragment_module.Fragment.compute(backend, invocation, load, validate=validate)
 
     assert events == ["load", "validate"]
-    assert staged.identifiers == ("asset_id",)
-    assert staged.invocation is invocation
-    assert backend.column_names(staged.dataframe) == ["asset_id", "reading"]
+    assert computed.identifiers == ("asset_id",)
+    assert computed.invocation is invocation
+    assert backend.column_names(computed.dataframe) == ["asset_id", "reading"]
     assert backend.column_names(raw) == ["asset_id", "reading", "extra"]
     main = dataset_module.Dataset(backend, invocation.target_identifiers)
-    assert main.merge(staged) is staged
+    assert main.merge(computed) is computed
     result = main.dataframe.collect() if lazy else main.dataframe
     assert result.to_dicts() == [{"asset_id": "A", "reading": 2}]
 
 
-def test_fragment_stage_propagates_loader_failure() -> None:
+def test_fragment_compute_propagates_loader_failure() -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
 
     def load() -> object:
         raise RuntimeError("source unavailable")
 
     with pytest.raises(RuntimeError, match="source unavailable"):
-        fragment_module.Fragment.stage(
+        fragment_module.Fragment.compute(
             backend_module.PolarsBackend(),
             plan.invocations[0],
             load,
@@ -202,13 +202,13 @@ def test_fragment_stage_propagates_loader_failure() -> None:
         (pl.DataFrame({"asset_id": ["A"]}), "missing output columns: reading"),
     ],
 )
-def test_fragment_stage_checks_structure_when_validation_is_disabled(
+def test_fragment_compute_checks_structure_when_validation_is_disabled(
     dataframe: object, message: str
 ) -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
 
     with pytest.raises(ValueError, match=message):
-        fragment_module.Fragment.stage(
+        fragment_module.Fragment.compute(
             backend_module.PolarsBackend(),
             plan.invocations[0],
             lambda: dataframe,
@@ -216,41 +216,41 @@ def test_fragment_stage_checks_structure_when_validation_is_disabled(
 
 
 @pytest.mark.parametrize("result", ["none", "target"])
-def test_fragment_stage_rejects_non_fragment_invocations_without_loading(
+def test_fragment_compute_rejects_non_fragment_invocations_without_loading(
     result: str,
 ) -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     invocation = copy.replace(plan.invocations[0], result=result)
 
     def load() -> object:
-        pytest.fail("A non-dataframe invocation must not be loaded during staging")
+        pytest.fail("A non-dataframe invocation must not be loaded during fragment computation")
 
     with pytest.raises(ValueError, match="must declare a fragment-producing compute result"):
-        fragment_module.Fragment.stage(
+        fragment_module.Fragment.compute(
             backend_module.PolarsBackend(),
             invocation,
             load,
         )
 
 
-def test_fragment_stage_does_not_collect_lazy_result_without_validation(
+def test_fragment_compute_does_not_collect_lazy_result_without_validation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     raw = pl.LazyFrame({"asset_id": ["A"], "reading": [2], "extra": [3]})
 
     def unexpected_collect(*args: object, **kwargs: object) -> object:
-        pytest.fail("Normal staging must preserve lazy execution")
+        pytest.fail("Fragment computation must preserve lazy execution")
 
     monkeypatch.setattr(pl.LazyFrame, "collect", unexpected_collect)
-    staged = fragment_module.Fragment.stage(
+    computed = fragment_module.Fragment.compute(
         backend_module.PolarsBackend(),
         plan.invocations[0],
         lambda: raw,
     )
 
-    assert isinstance(staged.dataframe, pl.LazyFrame)
-    assert staged.dataframe.collect_schema().names() == ["asset_id", "reading"]
+    assert isinstance(computed.dataframe, pl.LazyFrame)
+    assert computed.dataframe.collect_schema().names() == ["asset_id", "reading"]
 
 
 def test_dataset_requires_only_physical_identifiers() -> None:
@@ -340,7 +340,7 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
         fragment_keys=["group"],
     )
     frame = pl.LazyFrame({"group": ["A"], "new": [1]})
-    fragment = fragment_module.Fragment.stage(
+    fragment = fragment_module.Fragment.compute(
         backend_module.PolarsBackend(),
         invocation,
         lambda: frame,

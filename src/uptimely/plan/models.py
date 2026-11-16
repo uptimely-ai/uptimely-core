@@ -268,7 +268,7 @@ class ExecutionPlan(_PlanModel):
         return self
 
     def _validate_invocation_roles(self, invocations_by_id: dict[str, Invocation]) -> None:
-        """Require every staged fragment to be consumed by one merge invocation."""
+        """Require every computed fragment to be consumed by one merge invocation."""
         merge_dependencies: dict[str, list[str]] = {}
         for invocation in self.invocations:
             if invocation.role != "merge":

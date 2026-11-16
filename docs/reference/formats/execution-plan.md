@@ -55,7 +55,7 @@ planned function call. Its portable fields are:
 | --- | --- |
 | `id` | Unique opaque identifier for this invocation. Consumers should not parse its spelling. |
 | `role` | Binding role: `compute` for the main function call or `merge` for a separate fragment merge. |
-| `result` | How the function result is handled: `none`, complete `target`, or staged `fragment`. |
+| `result` | How the function result is handled: `none`, complete `target`, or computed `fragment` awaiting a merge. |
 | `produces_features` | Whether this invocation publishes its outputs as feature dependencies. |
 | `is_sink` | Whether this invocation performs a configured publication or write. |
 | `is_workflow` | Whether this invocation runs an opaque workflow with logical feature dependencies rather than dataframe inputs or outputs. |

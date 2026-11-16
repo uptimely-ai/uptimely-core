@@ -12,28 +12,31 @@ class RuntimeState:
     """Materialized profile datasets, retained fragments, and outputs for one run."""
 
     datasets: dict[str, dataset_module.Dataset] = dataclasses.field(default_factory=dict)
-    staged_fragments: dict[str, fragment_module.Fragment] = dataclasses.field(default_factory=dict)
+    computed_fragments: dict[str, fragment_module.Fragment] = dataclasses.field(
+        default_factory=dict
+    )
     calculated_outputs: dict[tuple[str, str], object] = dataclasses.field(default_factory=dict)
 
-    def staged_fragment_for(
+    def computed_fragment_for(
         self, invocation: plan_module.Invocation
     ) -> tuple[str, fragment_module.Fragment]:
-        """Find the single staged fragment dependency of a merge invocation.
+        """Find the single computed fragment dependency of a merge invocation.
 
         Raises:
-            ValueError: The invocation does not depend on exactly one staged fragment.
+            ValueError: The invocation does not depend on exactly one computed fragment.
         """
         dependencies = [
             dependency_id
             for dependency_id in invocation.dependency_ids
-            if dependency_id in self.staged_fragments
+            if dependency_id in self.computed_fragments
         ]
         if len(dependencies) != 1:
             raise ValueError(
-                f"Merge invocation {invocation.id} requires exactly one staged fragment dependency"
+                f"Merge invocation {invocation.id} requires exactly one "
+                "computed fragment dependency"
             )
         dependency_id = dependencies[0]
-        return dependency_id, self.staged_fragments[dependency_id]
+        return dependency_id, self.computed_fragments[dependency_id]
 
     def resolve_dataset_or_fragment_dataframe(self, identifier: str) -> object | None:
         """Resolve a materialized dataset ID or fragment mapping ID to its dataframe.

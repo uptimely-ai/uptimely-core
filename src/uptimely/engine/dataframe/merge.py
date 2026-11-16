@@ -17,7 +17,7 @@ logger = logging.getLogger(__name__)
 
 
 class Merge:
-    """Own assembly checks and execution for a target dataset and staged fragment."""
+    """Own assembly checks and execution for a target dataset and computed fragment."""
 
     def __init__(self, dataset: dataset_module.Dataset, fragment: fragment_module.Fragment) -> None:
         """Create an assembly operation without changing the target dataset."""

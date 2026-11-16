@@ -27,6 +27,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Fragment computation uses `Fragment.compute()` instead of `Fragment.stage()`.
+  Runtime state and binding APIs use `computed_fragment` terminology. Execution-plan
+  stages and the serialized plan format are unchanged.
 - Documentation clarifies guide and reference titles.
 - Shared explanations of function contracts, configuration, validation, and
   run previews link to their owning documentation instead of repeating details.

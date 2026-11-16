@@ -130,7 +130,7 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
 
     @property
     def is_current_fragment(self) -> bool:
-        """Whether this value selects the current operator's staged fragment."""
+        """Whether this value selects the current operator's computed fragment."""
         return self.root == f"{selectors.OPERATOR_PREFIX}{selectors.CURRENT_ID}.fragment"
 
     @property

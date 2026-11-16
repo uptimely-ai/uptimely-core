@@ -30,7 +30,7 @@ class Fragment:
     """Data contributed to a dataset, with its own identifiers and relations.
 
     A fragment may come from a source, another dataset, or a calculation at the
-    target grain. Staging loads, validates, and projects its dataframe before merging.
+    target grain. Computing loads, validates, and projects its dataframe before merging.
     Identifiers define uniqueness; keys also include carried relations.
     Invocation metadata is retained only as provenance.
     """
@@ -57,7 +57,7 @@ class Fragment:
         return (*self.identifiers, *self.relations)
 
     @classmethod
-    def stage(
+    def compute(
         cls,
         backend: backend_module.DataFrameBackend,
         invocation: plan_module.Invocation,
@@ -66,11 +66,11 @@ class Fragment:
         validate: bool = False,
         comparison_frame: object | None = None,
     ) -> Fragment:
-        """Load an invocation result and prepare a fragment for physical assembly.
+        """Execute an invocation and return a fragment ready for physical assembly.
 
         Args:
             backend: Dataframe operations used to inspect and project the result.
-            invocation: Data-producing invocation to stage.
+            invocation: Data-producing invocation to compute.
             load: Callable that resolves arguments and executes the invocation.
             validate: Whether to check the raw result before projection.
             comparison_frame: Current accumulated data for preservation checks.

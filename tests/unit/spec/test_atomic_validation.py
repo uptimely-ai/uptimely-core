@@ -297,7 +297,7 @@ def test_merge_fragment_is_validated_independently(document: spec.Spec) -> None:
     operator = _add_merge_binding(document)
     operator.merge.args["fragment"] = spec.model.BindingArgument("$operators.other.fragment")
 
-    with pytest.raises(errors.SpecError, match="staged fragment") as error:
+    with pytest.raises(errors.SpecError, match="computed fragment") as error:
         bindings.validate_merge_fragment(document)
 
     assert error.value.code == "invalid_merge_binding"

@@ -30,14 +30,14 @@ class RuntimeBindings:
         self,
         invocation: plan_module.Invocation,
         *,
-        staged_fragment: object | None = None,
+        computed_fragment: object | None = None,
     ) -> dict[str, object]:
         """Bind compiled argument values to runtime values using declared argument types."""
         return {
             name: self.resolve_value(
                 value,
                 invocation.argument_types.get(name),
-                staged_fragment=staged_fragment,
+                computed_fragment=computed_fragment,
             )
             for name, value in invocation.arguments.items()
         }
@@ -47,7 +47,7 @@ class RuntimeBindings:
         value: object,
         argument_type: str | None = None,
         *,
-        staged_fragment: object | None = None,
+        computed_fragment: object | None = None,
     ) -> object:
         """Recursively resolve one typed plan binding value."""
         if hasattr(value, "model_dump"):
@@ -55,9 +55,9 @@ class RuntimeBindings:
         if value == f"{selectors.OPERATOR_PREFIX}{selectors.CURRENT_ID}.fragment":
             if argument_type != arg_types.DATAFRAME:
                 raise ValueError("Merge fragment argument must have dataframe type")
-            if staged_fragment is None:
-                raise ValueError("Staged fragment is unavailable")
-            return staged_fragment
+            if computed_fragment is None:
+                raise ValueError("Computed fragment is unavailable")
+            return computed_fragment
         if arg_types.is_dataframe(argument_type or "") and isinstance(value, str):
             frame = self.state.resolve_dataset_or_fragment_dataframe(value)
             if frame is None:
@@ -83,7 +83,7 @@ class RuntimeBindings:
                 arg_types.array_item_type(argument_type) if argument_type is not None else None
             )
             return [
-                self.resolve_value(item, element_type, staged_fragment=staged_fragment)
+                self.resolve_value(item, element_type, computed_fragment=computed_fragment)
                 for item in value
             ]
         if isinstance(value, dict):
@@ -91,7 +91,7 @@ class RuntimeBindings:
                 arg_types.object_value_type(argument_type) if argument_type is not None else None
             )
             return {
-                name: self.resolve_value(item, value_type, staged_fragment=staged_fragment)
+                name: self.resolve_value(item, value_type, computed_fragment=computed_fragment)
                 for name, item in value.items()
             }
         return value
