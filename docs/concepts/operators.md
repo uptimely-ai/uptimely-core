@@ -5,9 +5,8 @@
 <p class="cv-function-subtitle">Connect feature dependencies and outputs to a function binding</p>
 
 Every operator has one `compute` binding and optionally a `merge` binding.
-Compute accepts zero or one dataframe. Its dataframe result is the complete
-target without a merge, or a fragment with a merge. Foreign feature inputs
-alone do not require a merge. Publish operators declare inputs and no outputs.
+See [Datasets and fragments](dataframes.md) for result handling and publication,
+and [Function contracts](functions.md#function-contracts) for dataframe limits.
 
 In this example, the operator declares its features and binds `divide` to the
 current dataframe and feature identifiers.

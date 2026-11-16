@@ -112,34 +112,23 @@ loading data during authoring. `up.ref.feature("name")` passes a feature's
 identifier and declares an input dependency. Append `.id` to pass the identifier
 without adding an input dependency, such as for an output column name. Use
 `up.ref.paths("name")` for a file or directory configured in the project's
-`paths` map. The Engine resolves relative paths against the project root before
-invoking the function. Use `up.ref.params("name")` for a scalar configured in
-`params`, which is passed unchanged.
+`paths` map. Use `up.ref.params("name")` for a scalar configured in `params`.
+See [Paths and parameters](../../reference/configuration.md#paths-and-parameters)
+for runtime resolution rules.
 
 ### Dataframe signatures
 
-Dataframe counts describe the function boundary, not logical features or
-internal I/O. Compute accepts zero or one dataframe, merge exactly two.
+See [Function contracts](../../concepts/functions.md#function-contracts)
+for dataframe counts, limits, and Explorer labels.
 
-| Dataframes in → out | Explorer label | Binding |
-| --- | --- | --- |
-| 0 → 1 | `read` | `compute` |
-| 1 → 1 | `transform` | `compute` |
-| 1 → 0 | `write` | `compute` |
-| 2 → 1 | `merge` | `merge` |
-| Ignored result | `workflow` | `compute` |
-
-Return contracts are `dataframe`, `none`, or `any` for an ignored result.
-Unambiguous annotations infer the first two. Otherwise, declare
+Unambiguous annotations infer `dataframe` or `none`. Otherwise, declare
 `returns` through `@up.function(...)` or `up.ref.function(...)`.
-Dataframe arguments must be top-level. An `unknown` label or ignored result
-does not relax the dataframe limits.
 
 ### When to use merge
 
-With `merge`, compute returns a fragment. Without it, a returned dataframe
-becomes the complete target. Foreign feature dependencies alone do not require
-a merge. Use the default merge explicitly:
+See [Fragment and merge](../../concepts/dataframes.md#fragment-and-merge)
+for when a merge is needed and how results are accumulated.
+Use the default merge explicitly:
 
 ```python
 up.Operator(
@@ -152,16 +141,15 @@ up.Operator(
 )
 ```
 
-The default aligns grain keys. A custom `up.Bind(...)` uses
+A custom `up.Bind(...)` uses
 `dataset=up.ref.dataset()` and `fragment=up.ref.fragment()` and returns the
 complete target. Its dataset argument must allow `None` for initialization.
-See [runtime behavior](../../concepts/dataframes.md#fragment-and-merge).
 
 ### Publication and opaque workflows
 
-Publish operations declare inputs and no outputs. A non-dataframe function
-with no dataframe input is an opaque workflow. Its result is ignored, and any
-logical outputs establish dependencies without creating dataframe columns.
+See [Publication](../../concepts/dataframes.md#publication) for output writers
+and logical workflow outputs, and
+[Function contracts](../../concepts/functions.md#function-contracts) for ignored results.
 
 ### Seeds and execution order
 

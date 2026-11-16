@@ -81,11 +81,7 @@ warning, but does not prevent the Spec from loading. Spec validation does not
 import implementations or inspect calculated data. Parameter and path
 references are resolved from project configuration during execution.
 
-Compilation checks whether the declared workflow can be run for the selected
-profiles. During execution, the engine always checks dataframe types and
-required columns. When run validation is enabled with `uptimely run --validate`
-or `Engine.run(validate=True)`, it also checks input-feature availability, key
-uniqueness, preservation rules, and declared column types.
-
-The built-in engine currently accepts Polars `DataFrame` and `LazyFrame`
-values only. It does not accept other dataframe types or custom adapters.
+For compilation checks, see [Dependencies and execution](../../../concepts/dependencies.md#validation).
+For runtime contract checks, see [Validate execution](../../../guides/runtime-validation.md).
+Supported dataframe types are described in the
+[Engine architecture](../../../architecture/engine.md#dataframe-backend).

@@ -27,6 +27,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Shared explanations of function contracts, configuration, validation, and
+  run previews link to their owning documentation instead of repeating details.
 - Python workflow examples and detailed CLI logging instructions are grouped
   under Guides, with links from the interface reference pages.
 - Explorer profile details no longer show the operator binding contracts

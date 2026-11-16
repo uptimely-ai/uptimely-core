@@ -2,27 +2,10 @@
 
 ## Results and previews
 
-The Engine returns final profile dataframes, calculated feature outputs,
-per-invocation statuses and durations, failures, and the plan version. A
-successful invocation is marked succeeded, a failed invocation is marked
-failed, and work that did not run after a failure is marked skipped.
-
-Each run replaces the latest diagnostic snapshot in `artifacts/run/`.
-It includes run metadata, logs, and a bounded preview for each available
-profile. The default preview is five rows. Previews are collected after
-execution, including from lazy frames, and do not replace the dataframes
-returned by the Engine. Preview failures are reported separately and do not
-change the invocation status. Preview collection is outside the reported
-execution duration.
-
-Use the CLI `--preview` option to also display these samples after a successful
-run. The saved previews are produced even when console display is not
-requested.
-
-The generated run directory is a latest-run snapshot, not an output store or
-run history. Use a project's data output location for results intended to be
-retained. Review logs and previews before sharing because they may contain
-project data.
+See [Execution results](../python/engine/results.md) for the Engine's returned
+dataframes and per-invocation results, and
+[Execution options](../../guides/build-and-run.md#execution-options)
+for displaying saved samples from the CLI.
 
 ## Latest-run artifacts
 
@@ -40,7 +23,12 @@ replace the previous run.
 
 Previews are collected automatically, including for lazy frames, even without
 `--preview`. Lazy queries are limited before collection, but this may still
-perform expensive upstream work. Exact full-profile row counts are recorded
+perform expensive upstream work or repeat computation.
+The preview size comes from
+[`engine.preview_rows`](../configuration.md#engine-settings) or the CLI `--preview` override.
+Previews do not replace the dataframes returned by the Engine.
+Execution timing excludes preview collection, artifact publication, and display.
+Exact full-profile row counts are recorded
 only for eager frames. Lazy counts are `null`. Preview failures are recorded
 separately and do not change the execution status. When console previews are
 requested, an unavailable preview is also reported as a CLI error.

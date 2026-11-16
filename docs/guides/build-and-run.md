@@ -33,17 +33,16 @@ uptimely run --preview
 uptimely run --preview 10
 ```
 
-Use `uptimely build` to change the execution plan or feature scope. By default,
-Engine executes the saved build without compiling or rebuilding it.
-`--build` rebuilds from the project's discovered spec source before execution.
-The CLI always checks saved-build integrity, configuration, and backend
-compatibility. Per-step runtime validation is opt-in:
+Enable per-step runtime checks with `--validate`, or use `--build` to publish
+a fresh build before running:
 
 ```console
 uptimely run example --validate
 uptimely run example --validate --log-level debug
 uptimely run example --build
 ```
+
+See [Validate execution](runtime-validation.md) for optional and always-on checks.
 
 If the project uses a non-default source directory, pass the same `--src-path`
 to both the build and each run that imports its local modules.

@@ -2,24 +2,19 @@
 
 ## Application settings
 
-The `[application]` section stores defaults for building and running the project:
-
-```toml
-[application]
-python_spec = "spec.spec:python_spec"
-src_path = "src"
-```
+The `[application]` section stores defaults for building and running the project.
 
 Set either `python_spec` or `json_spec` to select a specification source, not
 both. `python_spec` uses the `MODULE:ATTRIBUTE` entrypoint format. `json_spec`
-is a path relative to the project root unless it is absolute. If neither is
-set, Uptimely discovers `spec/spec.py` with the `python_spec` attribute or
-`spec/spec.json`. Discovery fails if both files exist.
+is a path relative to the project root unless it is absolute.
+See [Specification source discovery](../guides/build.md#specification-source-discovery)
+for automatic selection and ambiguous-source errors.
 
 `src_path` is a project-relative or absolute Python source directory. If
 omitted, Uptimely uses `src`. CLI values for spec source and source path
 override the corresponding settings. A CLI spec source overrides both
 configured source fields.
+Explicit Python method arguments also override the corresponding project settings.
 
 | Setting | Purpose | Default |
 | --- | --- | --- |
@@ -29,10 +24,6 @@ configured source fields.
 
 Feature selection, runtime validation, build-before-run, and log level remain
 command-specific options rather than project settings.
-
-The `[engine]` section includes `preview_rows`, the default maximum number of
-rows stored in the run preview. It defaults to `5`. The `--preview ROWS` CLI
-option overrides it, while bare `--preview` uses the configured value.
 
 The project root is not configured in `uptimely.toml`. The CLI's positional
 project directory or `--project-root` selects it. If neither is given, Uptimely
@@ -75,15 +66,18 @@ threshold = 10
 
 ### Paths and parameters
 
+Paths referenced by `$paths.<name>` must have an entry.
 Relative paths resolve against the project root. Absolute paths are preserved.
 Parameter values pass through to functions unchanged. Missing values for
 required parameters fail when the corresponding function is invoked.
 
 ## Engine settings
 
-The `engine` section contains runtime settings. `preview_rows` controls the
-default saved run preview size. Backend settings are nested under
-`engine.backend`:
+The `[engine]` section includes `preview_rows`, the default maximum number of
+rows stored in the run preview. It defaults to `5`. The `--preview ROWS` CLI
+option overrides it, while bare `--preview` uses the configured value.
+
+Backend settings are nested under `engine.backend`:
 
 | Setting | Purpose |
 | --- | --- |
