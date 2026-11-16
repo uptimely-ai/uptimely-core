@@ -27,8 +27,7 @@ contract. See [Python authoring](../../guides/python/authoring.md) for declarati
 
 ## Working with spec
 
-Load or convert a Spec with [api](spec/api.md), then pass it to the
-[compiler](compiler.md) to make an execution plan. The module-level helpers
-are also available as `uptimely.spec.load_spec` and `uptimely.spec.from_python`.
+See [Work with Spec documents](../../guides/python/spec-documents.md)
+for loading, compilation, and validation examples.
 
 </div>

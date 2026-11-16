@@ -2,7 +2,7 @@
 
 `RowContext` describes which nearby rows a calculation needs. Use it when a
 function depends on earlier, later, or all rows in a profile. Python helpers
-for declaring these needs are listed in [Python authoring](../../guides/python/authoring.md).
+for declaring these needs are listed in [Python authoring](../../guides/python/authoring.md#row-context).
 
 <div class="api-reference" markdown="1">
 
@@ -10,33 +10,6 @@ for declaring these needs are listed in [Python authoring](../../guides/python/a
 
 Import `RowContext`, `ContextExtent`, and `UNBOUNDED` from
 `uptimely.spec.row_context`.
-
-Use a bare integer as row-count shorthand, and reference a declared direction
-from the operator's binding arguments when the function also needs that value:
-
-```python
-import polars as pl
-import uptimely as up
-from uptimely.spec.row_context import RowContext
-
-
-def rolling_mean(dataset: pl.DataFrame, value: str, output: str, before: int) -> pl.DataFrame:
-    return dataset.with_columns(pl.col(value).rolling_mean(window_size=before + 1).alias(output))
-
-
-up.Operator(
-    id="rolling_mean",
-    outputs=[up.Feature(id="mean")],
-    row_context=RowContext(before=1),
-    compute=up.Bind(
-        rolling_mean,
-        dataset=up.ref.dataset(),
-        value=up.ref.feature("value"),
-        output=up.ref.feature("mean").id,
-        before=up.ref.row_context("before"),
-    ),
-)
-```
 
 `ref.row_context("before")` and `ref.row_context("after")` pass the requested
 extent to the function. `ref.row_context("dimension")` passes the dimension ID.

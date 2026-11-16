@@ -1,18 +1,10 @@
 # Saved runs
 
-Use `RunStore` to read the latest run without running the project:
-
-```python
-import pathlib
-from uptimely import run
-
-store = run.RunStore(pathlib.Path("example"))
-manifest = store.read_manifest()
-sample = store.read_preview("pump_profile", run_id=manifest.run_id)
-```
-
 The optional `run_id` checks that the saved run has not changed since it was
 read. Run storage keeps only the latest run, not run history.
+
+For a reading example, see
+[Read a saved run](../../../guides/python/execution.md#read-a-saved-run).
 
 ::: uptimely.run.store
     options:

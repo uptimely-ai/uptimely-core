@@ -27,6 +27,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Python workflow examples and detailed CLI logging instructions are grouped
+  under Guides, with links from the interface reference pages.
 - Explorer profile details no longer show the operator binding contracts
   reference table.
 - Operator boxes no longer display a grain-relationship badge. Merge tooltips

@@ -40,22 +40,8 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 
 ### Build logging
 
-By default, a successful build logs `Build files created to {path}`.
-Warnings and errors remain visible. Use `--log-level debug` for a summary table
-printed after the build debug trace and before the final success message,
-grouped into:
-
-- **Build:** duration in seconds, output folder, and feature scope.
-- **Spec:** source identifier and numbers of functions, profiles, and features.
-- **Plan:** numbers of execution stages and invocations.
-
-Build logs stream as the build runs. Failed builds do not print a success summary.
-
-Duration covers building, validating, and publishing the bundle, not workflow
-execution. Spec counts cover the complete specification, including for scoped
-builds. Features are counted per profile, excluding dimensions. Plan counts
-describe the compiled feature scope. The source identifier is the original JSON
-path or Python module entrypoint, not the generated spec export.
+See [Build logging](../../guides/logging.md#build-logging)
+for progress messages and debug summaries.
 
 ### Build behavior
 
