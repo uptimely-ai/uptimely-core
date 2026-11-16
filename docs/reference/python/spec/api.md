@@ -3,19 +3,8 @@
 `uptimely.spec.api` provides functions to load a Spec or convert Python
 declarations.
 
-Loading and conversion validate the Spec by default. Compile it when you need
-an execution plan.
-
-Pass `validate=False` to `load_spec()` or `from_python()` to defer declaration
-checks. Document structure and Python declaration checks still run. Do this
-only when you will validate or compile the Spec before using it.
-
-```python
-from uptimely import compiler, spec
-
-document = spec.load_spec("spec.json", validate=False)
-plan = compiler.Compiler().compile(document)
-```
+For loading and compilation examples, see
+[Work with Spec documents](../../../guides/python/spec-documents.md#loading-and-conversion).
 
 <div class="api-reference" markdown="1">
 

@@ -109,6 +109,7 @@ nav:
           - Project template: guides/project-template.md
           - Configure a project: guides/configuration.md
       - Python authoring: guides/python/authoring.md
+      - Work with Spec documents: guides/python/spec-documents.md
       - Build and run:
           - CLI workflow: guides/build-and-run.md
           - Build a project: guides/build.md
@@ -116,6 +117,7 @@ nav:
           - Compile in Python: guides/python/compilation.md
           - Execute in Python: guides/python/execution.md
       - Validate execution: guides/runtime-validation.md
+      - Inspect logs and diagnose failures: guides/logging.md
       - Inspect results in Explorer: guides/explorer.md
       - Data science:
           - Organize calculations by profile: guides/data-science/modeling.md
