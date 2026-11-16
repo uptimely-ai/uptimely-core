@@ -21,32 +21,13 @@ These views refer to the document's declarations. Treat the document and its
 views as read-only after loading or compiling it. If you edit a model, call
 `document.rebuild()` and validate or compile the returned document.
 
-::: uptimely.spec.model.spec
-    options:
-      heading_level: 2
-      show_root_heading: false
-      members: [Spec]
+## API
 
-::: uptimely.spec.model.dimension
-    options:
-      heading_level: 2
-      show_root_heading: false
-      members: [Dimension, Resolution]
-
-::: uptimely.spec.model.profile
-    options:
-      heading_level: 2
-      show_root_heading: false
-      members: [Profile, Feature, Operator, Interface, Order]
-
-::: uptimely.spec.model.binding
-    options:
-      heading_level: 2
-      show_root_heading: false
-      members: [Binding]
-
-::: uptimely.spec.model.functions
-    options:
-      heading_level: 2
-      show_root_heading: false
-      members: [Argument, FunctionTemplate]
+| Reference | Models |
+| --- | --- |
+| [Spec](models/spec.md) | `Spec` |
+| [Dimensions and resolutions](models/dimensions.md) | `Dimension`, `Resolution` |
+| [Profiles and features](models/profiles.md) | `Profile`, `Feature` |
+| [Operators and interfaces](models/operators.md) | `Operator`, `Interface`, `Order` |
+| [Bindings](models/bindings.md) | `Binding` |
+| [Functions and arguments](models/functions.md) | `Argument`, `FunctionTemplate` |

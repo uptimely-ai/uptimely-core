@@ -12,9 +12,3 @@ the Spec has already been validated and has not changed.
       heading_level: 2
       show_root_heading: false
       members: [FeatureGraphBase, FeatureGraph, FeatureSubGraph, FeatureGraphNodeMeta]
-
-::: uptimely.spec.feature_graph.models
-    options:
-      heading_level: 2
-      show_root_heading: false
-      members: [FeatureNode, OperatorNode]

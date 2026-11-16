@@ -122,23 +122,55 @@ nav:
       - Configuration: reference/configuration.md
       - Python API:
           - Overview: reference/python/index.md
-          - Spec declarations: reference/python/python.md
+          - Spec declarations:
+              - Overview: reference/python/python.md
+              - Spec: reference/python/declarations/spec.md
+              - Profiles: reference/python/declarations/profiles.md
+              - Dimensions and resolutions: reference/python/declarations/dimensions.md
+              - Features: reference/python/declarations/features.md
+              - Operators and bindings: reference/python/declarations/operators.md
+              - Functions: reference/python/declarations/functions.md
+              - References: reference/python/declarations/references.md
+              - Row context: reference/python/declarations/row-context.md
           - Spec documents:
               - Overview: reference/python/spec.md
-              - Document models: reference/python/spec/model.md
+              - Models overview: reference/python/spec/model.md
+              - Spec model: reference/python/spec/models/spec.md
+              - Dimensions and resolutions: reference/python/spec/models/dimensions.md
+              - Profiles and features: reference/python/spec/models/profiles.md
+              - Operators and interfaces: reference/python/spec/models/operators.md
+              - Bindings: reference/python/spec/models/bindings.md
+              - Functions and arguments: reference/python/spec/models/functions.md
               - Loading and conversion: reference/python/spec/api.md
               - Serialization: reference/python/spec/serialization.md
               - Validation: reference/python/spec/validation.md
-          - Feature graphs: reference/python/feature-graph.md
+          - Feature graphs:
+              - Graphs: reference/python/feature-graph.md
+              - Nodes: reference/python/feature-graph-nodes.md
           - Row context: reference/python/row-context.md
-          - Application: reference/python/application.md
-          - Compiler and plans: reference/python/compiler.md
-          - Execution engine: reference/python/engine.md
-          - Dataframes and backends: reference/python/engine-dataframes.md
+          - Application:
+              - Application API: reference/python/application.md
+              - Configuration: reference/python/application-config.md
+          - Compiler and plans:
+              - Compiler: reference/python/compiler.md
+              - Plan models: reference/python/plans/models.md
+              - Plan serialization: reference/python/plans/serialization.md
+          - Execution engine:
+              - Engine and configuration: reference/python/engine.md
+              - Results: reference/python/engine/results.md
+              - Saved runs: reference/python/engine/runs.md
+              - Dataframes and merge functions: reference/python/engine-dataframes.md
+              - Backends: reference/python/engine/backends.md
           - Explorer: reference/python/explorer.md
-          - Python entrypoints: reference/python/entrypoint.md
+          - Python entrypoints:
+              - Entrypoints and functions: reference/python/entrypoint.md
+              - Signatures and annotations: reference/python/entrypoints/signatures.md
+              - Package provenance: reference/python/entrypoints/provenance.md
           - Storage: reference/python/storage.md
-          - Shared vocabulary: reference/python/spec-vocabulary.md
+          - Shared vocabulary:
+              - Operator bindings: reference/python/spec-vocabulary.md
+              - Argument types: reference/python/vocabulary/arguments.md
+              - Reference selectors: reference/python/vocabulary/selectors.md
       - CLI:
           - Overview: reference/cli/index.md
           - uptimely example: reference/cli/examples.md

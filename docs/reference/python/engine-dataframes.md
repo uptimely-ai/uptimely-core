@@ -1,4 +1,4 @@
-# Dataframes and backends
+# Dataframes and merge functions
 
 ## Dataframes and merge functions
 
@@ -30,14 +30,3 @@ function when the built-in behavior does not fit.
       heading_level: 2
       show_root_heading: false
       members: [merge_by_grain]
-
-## Dataframe backends
-
-The engine includes a Polars backend and supports eager and lazy dataframes.
-Implement `DataFrameBackend` to provide another backend.
-
-::: uptimely.engine.dataframe.backend
-    options:
-      heading_level: 2
-      show_root_heading: false
-      members: [DataFrameBackend, PolarsBackend]
