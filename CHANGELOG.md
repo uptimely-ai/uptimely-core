@@ -43,7 +43,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 - The Functions by return type chart spans the full overview width.
 - Explorer function icons reflect dataframe signatures, and operator icons
   reflect grain relationships instead of function-return or binding-role icons.
-  Function signature groups are named read, transform, merge, write, and workflow,
+  Function signature groups are named read, transform, combine, write, and workflow,
   each with its own icon. Function details show the category and a dataframe
   input/output graphic.
 - Portable execution plans use format version 14 and no longer contain inferred

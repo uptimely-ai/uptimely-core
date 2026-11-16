@@ -43,7 +43,7 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert {
         function["frame_operation"]
         for function in data["catalogs"]["configuration"]["functions"].values()
-    } >= {"read", "write", "transform", "merge", "workflow"}
+    } >= {"read", "write", "transform", "combine", "workflow"}
     assert all(
         operator["execution_form"]
         == bundle.spec_definition.operators_by_key[(profile_id, operator_id)].execution_form

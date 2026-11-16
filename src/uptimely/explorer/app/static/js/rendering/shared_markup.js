@@ -12,7 +12,7 @@ export const ICONS = {
   "return-arrow": "arrow-right", errors: "triangle-alert",
   intermediate: "workflow", dependencies: "git-branch",
   invocations: "square-function", "feature-lineage": "diagram-flow-horizontal", "invocation-lineage": "layout-arrow-right",
-  read: "file-input", transform: "replace", workflow: "git-branch", merge: "git-merge", expand: "expand", collapse: "combine",
+  read: "file-input", transform: "replace", workflow: "git-branch", combine: "git-merge", merge: "git-merge", expand: "expand", collapse: "combine",
   same: "table-properties", emerge: "square-sparkles", vanish: "minimize",
   unrelated: "shuffle", not_applicable: "circle-help",
   external: "arrow-up-right", write: "file-output",
@@ -35,7 +35,7 @@ function dataframeSignatureKind(functionDefinition) {
   const signature = dataframeSignature(functionDefinition);
   if (signature === "workflow" || signature === "unknown") return signature;
   const [inputs, outputs] = signature.split("->").map(Number);
-  if (outputs === 1) return inputs === 0 ? "read" : inputs === 1 ? "transform" : "merge";
+  if (outputs === 1) return inputs === 0 ? "read" : inputs === 1 ? "transform" : "combine";
   return inputs > 0 ? "write" : "unknown";
 }
 
@@ -43,7 +43,7 @@ const DATAFRAME_SIGNATURE_ICONS = {
   read: "read",
   write: "write",
   transform: "transform",
-  merge: "merge",
+  combine: "combine",
   workflow: "workflow",
 };
 

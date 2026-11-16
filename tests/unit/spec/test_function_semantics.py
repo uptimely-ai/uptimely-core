@@ -145,7 +145,7 @@ def test_bound_argument_types_are_inferred_and_nullable_dataframe_is_preserved()
         (0, "dataframe", (0, 1), "read"),
         (1, "none", (1, 0), "write"),
         (1, "dataframe", (1, 1), "transform"),
-        (2, "dataframe", (2, 1), "merge"),
+        (2, "dataframe", (2, 1), "combine"),
         (0, "any", (None, None), "workflow"),
         (0, "none", (0, 0), "unknown"),
         (2, "none", (2, 0), "unknown"),
