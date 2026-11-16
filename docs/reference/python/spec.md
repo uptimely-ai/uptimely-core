@@ -1,3 +1,8 @@
+---
+hide:
+  - toc
+---
+
 # Spec
 
 `uptimely.spec` loads, converts, validates, and writes Spec documents. The
