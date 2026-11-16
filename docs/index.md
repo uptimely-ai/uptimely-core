@@ -34,7 +34,7 @@ More business benefits at [uptimely.ai/core/](https://uptimely.ai/core/).
 * [The full documentation site](https://uptimely-ai.github.io/uptimely-core/)
 * [Python API reference](https://uptimely-ai.github.io/uptimely-core/reference/python/)
 * [CLI API reference](https://uptimely-ai.github.io/uptimely-core/reference/cli/)
-* [MCP API and AI chat setup](https://uptimely-ai.github.io/uptimely-core/reference/mcp/)
+* [MCP API and AI chat setup](https://uptimely-ai.github.io/uptimely-core/guides/ai/setup/)
 
 ## Install
 
@@ -108,7 +108,7 @@ uptimely explore
 
 ## Next steps
 
-The [getting started tutorial](https://uptimely-ai.github.io/uptimely-core/getting-started/tutorial/) provides more information about launching an Uptimely project.
+The [example project](https://uptimely-ai.github.io/uptimely-core/getting-started/tutorial/) provides more information about launching an Uptimely project.
 
 Open the project in a code editor, modify the code, run it again and explore the new results.
 

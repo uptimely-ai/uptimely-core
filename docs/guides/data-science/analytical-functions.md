@@ -4,8 +4,8 @@ Uptimely validates analytical function boundaries: argument and return
 interfaces, dataframe schemas, feature dependencies, and merge relationships.
 Developers remain responsible for the calculations inside those boundaries.
 
-See [Python authoring](../reference/python/python.md#dataframe-signatures) for
-dataframe signatures and [merge usage](../reference/python/python.md#when-to-use-merge)
+See [Python authoring](../python/authoring.md#dataframe-signatures) for
+dataframe signatures and [merge usage](../python/authoring.md#when-to-use-merge)
 for fragment integration.
 
 ## Avoid loops

@@ -15,38 +15,6 @@ remaining invocations are marked skipped, and the result includes the failure.
 Configured read and write functions are ordinary function calls and may have
 external side effects.
 
-## Datasets and fragments
-
-A runtime Dataset is the Engine's accumulated dataframe for a profile defined in spec. As invocations run, the Engine
-provides datasets to functions and updates them with produced results.
-
-Without a merge, a returned dataframe becomes the complete target. With a
-merge, it is staged as a fragment. Current-target updates preserve existing
-rows, keys, values, and order.
-
-In the picture below, direct updates are yellow and fragment-producing calls
-are gray, except for the write invocation.
-
-![Engine dataset accumulation across function invocations](../assets/img/engine-dataset-accumulation.png)
-
-### Fragment and merge
-
-A fragment is the partial dataframe produced by some data-producing compute
-invocations. The Engine stages it without immediately changing the accumulated
-Dataset. A separate merge invocation combines the fragment with the Dataset and
-publishes the resulting complete dataframe. The built-in merge uses declared
-dimension identifiers to align rows rather than relying on row position.
-Depending on the fragment grain, it can combine full-grain data or add
-lower-grain values to matching rows. A custom merge function can define
-different assembly behavior. Feature consumers wait for the merge to succeed.
-Omitting a merge never selects the built-in merge implicitly.
-
-### Publication
-
-Publish operations use compute with input dependencies and no output features.
-Opaque workflows may read and write internally, but their results are not added
-to profile dataframes. Logical workflow outputs establish dependencies only.
-
 ## Dataframe backend
 
 The plan declares the backend it requires, and the Engine checks compatibility
@@ -59,52 +27,11 @@ libraries and custom adapters are not supported.
 Uptimely supplies the Engine with runtime configuration separately from the
 Spec. A directly constructed Engine uses explicit settings and does not read
 configuration files. For the configuration file format, backend options, paths, and parameters, see
-[Uptimely config](config.md).
-
-## Runtime validation
-
-Runtime contract validation is opt-in. Enable it with `uptimely run --validate`
-or `Engine.run(validate=True)` to check declared inputs and
-dataframe contracts as each invocation executes. Checks include required
-features, declared types, key uniqueness, and preservation of existing rows,
-keys, values, and order where the invocation contract requires it.
-
-Some checks on lazy frames must evaluate queries and may repeat upstream work,
-so validation can add substantial runtime. It checks declared contracts, not
-whether analytical results are correct.
-
-Some structural checks always apply, even when runtime validation is disabled.
-For example, results must have the required dataframe structure, declared
-outputs, and expected merge schema. Configuration, saved-build integrity, and
-backend compatibility are also always checked.
-
-## Results and previews
-
-The Engine returns final profile dataframes, calculated feature outputs,
-per-invocation statuses and durations, failures, and the plan version. A
-successful invocation is marked succeeded, a failed invocation is marked
-failed, and work that did not run after a failure is marked skipped.
-
-Each run replaces the latest diagnostic snapshot in `artifacts/run/`.
-It includes run metadata, logs, and a bounded preview for each available
-profile. The default preview is five rows. Previews are collected after
-execution, including from lazy frames, and do not replace the dataframes
-returned by the Engine. Preview failures are reported separately and do not
-change the invocation status. Preview collection is outside the reported
-execution duration.
-
-Use the CLI `--preview` option to also display these samples after a successful
-run. The saved previews are produced even when console display is not
-requested.
-
-The generated run directory is a latest-run snapshot, not an output store or
-run history. Use a project's data output location for results intended to be
-retained. Review logs and previews before sharing because they may contain
-project data.
+[Uptimely config](../reference/configuration.md).
 
 ## Learn more
 
-See the [Compiler](compiler.md) and [Execution plan](execution-plan.md)
+See the [Compiler](compiler.md) and [Execution plan](../reference/formats/execution-plan.md)
 references, the [`uptimely run` CLI reference](../reference/cli/engine.md) for run
 options and artifacts, and the [Python Engine API](../reference/python/engine.md)
 for programmatic execution and result access.

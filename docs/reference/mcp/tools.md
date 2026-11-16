@@ -2,7 +2,7 @@
 
 The signatures below use Python notation to describe MCP tool arguments.
 The AI client calls these tools, not ordinary Python function imports.
-All tools return JSON text. See [MCP setup and usage](index.md) for connecting
+All tools return JSON text. See [MCP setup and usage](../../guides/ai/setup.md) for connecting
 a client and example questions.
 
 ## Explore the model

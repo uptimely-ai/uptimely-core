@@ -18,3 +18,15 @@ Engine runs a bundle separately.
 Use the [Python App API](../reference/python/application.md) for API details and
 the [`uptimely build` CLI reference](../reference/cli/project.md) for build
 options.
+
+### Publication and locking
+
+The spec, plan, and manifest are generated in a sibling staging directory,
+validated, then published in place of the previous bundle. The Explorer
+snapshot is serialized before publication and atomically replaces the previous
+snapshot only after the build succeeds. A snapshot publication error is reported
+explicitly and leaves the previous snapshot intact. Builders coordinate through
+a project lock. A build fails rather than publishing while another builder or
+cooperating consumer holds the bundle lock. Bundle publication uses rollback if
+replacing the directory fails. It does not claim a filesystem-wide atomic
+directory swap.

@@ -6,7 +6,7 @@ It is created from the repository's [data-center cooling pump example](https://g
 
 The Explorer is a static frontend backed by the project's generated snapshot.
 For the full local setup and workflow, follow the
-[cooling-pump example tutorial](tutorial.md). To build and export a local
+[cooling-pump example project](tutorial.md). To build and export a local
 Explorer snapshot from the repository root, install uv as described in the
 [quick start](../index.md#install) and run:
 
