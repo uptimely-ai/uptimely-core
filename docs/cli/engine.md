@@ -25,8 +25,8 @@ directory is used.
 
 Console display reuses the saved sample rather than executing the lazy query again.
 See [Run artifacts](../artifacts/run.md#latest-run-artifacts) for preview collection,
-query costs, and timing, and [Preview logging](../guides/logging.md#preview-logging)
-for console output behavior.
+query costs, and timing, and [Preview run results](../guides/preview.md) for
+console output behavior.
 
 See [Execution options](../guides/build-and-run.md#execution-options)
 for preview, validation, and build-before-run examples, and

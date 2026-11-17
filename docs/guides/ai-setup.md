@@ -1,5 +1,9 @@
 # Set up MCP {#mcp-api}
 
+!!! note
+
+    Contents of this page requires further validation.
+
 Connect Uptimely to an MCP-compatible AI application to explore your analytics
 project and run calculations. The application provides the chat and model.
 The Uptimely server does not need a model API key.

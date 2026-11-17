@@ -2,31 +2,39 @@
 
 ## Console logging
 
-CLI logs use `LEVEL | MESSAGE` columns, with an 8-character-wide level field.
-Package and module names are omitted from console output. Internal logger names
-remain unchanged. Leading blank lines are removed from messages, while intentional
-multiline content such as trees, tables, previews, and tracebacks remains
-intact. Long single-line terminal messages wrap to the terminal width, with
-continuation lines aligned under the message column. Redirected output remains
-unwrapped. `NO_COLOR` disables coloring without disabling terminal wrapping.
-Build, compiler, spec-validation, and execution traces use flat messages
-rather than section headers and indented bullets. Execution-stage invocation
-messages are also unindented.
-Spec operator-reference checks identify the operator, its target profile, and
-the referenced resource. Dimension-parent and profile-grain checks identify the
-dimension, resolution, or profile being checked.
-Dataframe checks name the producing operator, function, invocation, and profile
-for fragments, or the accumulated profile or merge result for datasets. Column
-checks include the expected column names and declared types.
-Vectorize-result checks also identify the invocation and list the output,
-existing, or allowed columns relevant to each check.
+CLI messages use `LEVEL | MESSAGE` columns. The level field is 8 characters
+wide. Package and module names are hidden in console output, but the internal
+logger names are unchanged.
+
+### Diagnostic messages
+
+Build, compiler, spec-validation, and execution traces use flat messages rather
+than section headers and indented bullets. Execution-stage invocation messages
+are also unindented.
+
+Validation messages identify the relevant declarations and data:
+
+- **Spec checks**
+  - Operator references: operator, target profile, and resource.
+  - Dimension parents and profile grains: dimension, resolution, or profile.
+- **Dataframe checks**
+  - Fragments: producing operator, function, invocation, and profile.
+  - Datasets: accumulated profile or merge result.
+  - Columns: expected names and declared types.
+- **Vectorize results:** invocation and relevant output, existing, or allowed
+  columns.
+
 Tables, feature trees, and dataframe previews retain their structured layouts.
-Semantic spec validation logs `Start spec validation` at info level before
-checking the spec and `Spec validated` only after successful validation.
-Command failures use `ERROR    | MESSAGE` on stderr with exit code 1.
-Argument-parser errors use the same error prefix. Commands supporting
-`--log-level debug` also show the full chained exception traceback, including
-source filenames and line numbers. Other log levels retain concise errors.
+Semantic Spec validation logs `Start spec validation` at info level before
+checking the Spec. It logs `Spec validated` only after validation succeeds.
+
+### Errors
+
+Command failures are written to stderr with the `ERROR    | MESSAGE` prefix
+and exit code 1. Argument-parser errors use the same prefix. Commands that
+support `--log-level debug` also show the full chained exception traceback,
+including source filenames and line numbers. Other log levels show concise
+errors.
 
 ## Build logging
 
@@ -71,13 +79,6 @@ identify the operator, function, binding role, and result handling.
 Structured logs use the invocation IDs from the saved plan. Newly compiled
 plans use [compact invocation IDs](../artifacts/execution-plan.md#invocations).
 Rebuild the project to adopt them.
-
-## Preview logging
-
-Previews show all columns and omit the Polars shape line. They are logged after
-the completion summary and processed-profile summary, before any debug details.
-Levels above `info` hide previews, the completion summary, and processed-profile
-details.
 
 See the [`uptimely build`](../cli/project.md) and
 [`uptimely run`](../cli/engine.md) references for command options.
