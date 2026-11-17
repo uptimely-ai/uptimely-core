@@ -32,9 +32,9 @@ More business benefits at [uptimely.ai/core/](https://uptimely.ai/core/).
 ## Documentation
 
 * [The full documentation site](https://uptimely-ai.github.io/uptimely-core/)
-* [Python API reference](https://uptimely-ai.github.io/uptimely-core/reference/python/)
-* [CLI API reference](https://uptimely-ai.github.io/uptimely-core/reference/cli/)
-* [MCP API and AI chat setup](https://uptimely-ai.github.io/uptimely-core/guides/ai/setup/)
+* [Python API reference](https://uptimely-ai.github.io/uptimely-core/python/)
+* [CLI API reference](https://uptimely-ai.github.io/uptimely-core/cli/)
+* [MCP API and AI chat setup](https://uptimely-ai.github.io/uptimely-core/guides/ai-setup/)
 
 ## Install
 
@@ -108,7 +108,7 @@ Explore resources and results in the local web app:
 uptimely explore
 ```
 
-Read more about [example project](https://uptimely-ai.github.io/uptimely-core/getting-started/tutorial/) from the docs.
+Read more about [example project](https://uptimely-ai.github.io/uptimely-core/intro/example-project/) from the docs.
 
 Open the project in a code editor, modify the code, build and run it again and explore the new results.
 

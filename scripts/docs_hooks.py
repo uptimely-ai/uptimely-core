@@ -14,7 +14,7 @@ def on_page_content(html: str, *, page: pages.Page, **kwargs: object) -> str:
     Returns:
         The unchanged page content.
     """
-    if not page.file.src_uri.startswith("reference/python/"):
+    if not page.file.src_uri.startswith("python/"):
         hidden = page.meta.setdefault("hide", [])
         if "toc" not in hidden:
             hidden.append("toc")

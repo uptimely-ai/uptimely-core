@@ -32,9 +32,9 @@ uptimely export example --output docs/example
     exports may differ from the locally served website as those capabilities
     evolve.
 
-See [`uptimely explore`](../reference/cli/explorer.md) for serving and
-[`uptimely export`](../reference/cli/export.md) for static exports, and the
-[Explorer API reference](../reference/python/explorer.md) for presentation data.
+See [`uptimely explore`](../cli/explorer.md) for serving and
+[`uptimely export`](../cli/export.md) for static exports, and the
+[Explorer API reference](../python/explorer.md) for presentation data.
 
 ## Example
 
