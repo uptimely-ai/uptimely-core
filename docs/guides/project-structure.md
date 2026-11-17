@@ -56,7 +56,7 @@ related declarations while keeping a `profile.py` entrypoint.
 | `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
 | `artifacts/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
-| `uptimely.toml` | Project defaults and runtime settings under `project`, `engine`, `paths`, and `params`. See [Uptimely config](../reference/configuration.md). |
+| `uptimely.toml` | Project defaults and runtime settings under `application`, `engine`, `paths`, and `params`. See [Configure a project](configuration.md). |
 
 ## Files
 

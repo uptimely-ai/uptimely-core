@@ -132,13 +132,14 @@ nav:
           - Organize profiles: guides/organize-profiles.md
           - Uptimely practices: guides/uptimely-practices.md
           - Analytical functions: guides/analytical-functions.md
+          - SQL: project/comparisons-sql.md
           - Corporates: guides/corporates.md
       - AI:
           - Set up MCP: guides/ai-setup.md
           - AI agents: guides/ai-analytics.md
   - Reference:
-      - Configuration: reference/configuration.md
-      - MCP tools: ai/tools.md
+      - MCP tools:
+          - MCP tools: ai/tools.md
       - Python API:
           - Overview: python/index.md
           - Row-context utilities: python/row-context.md
@@ -200,23 +201,20 @@ nav:
           - uptimely export: cli/export.md
           - uptimely feature-graph: cli/spec.md
       - File formats:
+          - Configuration: artifacts/configuration.md
           - Build bundle: artifacts/build.md
           - Execution plan JSON: artifacts/execution-plan.md
           - Run artifacts: artifacts/run.md
           - Spec JSON:
-              - Overview and root fields: artifacts/spec-index.md
-              - Dimensions and resolutions: artifacts/spec-dimensions.md
-              - Profiles and features: artifacts/spec-profiles.md
-              - Functions and arguments: artifacts/spec-functions.md
-              - Operators and bindings: artifacts/spec-operators.md
-              - Selectors and validation: artifacts/spec-selectors.md
+              - Overview: artifacts/spec-index.md
+              - Dimensions: artifacts/spec-dimensions.md
+              - Profiles: artifacts/spec-profiles.md
+              - Functions: artifacts/spec-functions.md
+              - Operators: artifacts/spec-operators.md
+              - Selectors: artifacts/spec-selectors.md
   - Project:
-      - Background and motivation: project/background.md
-      - Data science work: project/analytical-systems.md
+      - Background: project/background.md
       - Research: project/research.md
-      - Comparisons:
-          - SQL: project/comparisons-sql.md
-          - Data platforms: project/comparisons-platforms.md
-      - Roadmap:
-          - Development roadmap: project/index.md
-          - Backlog: project/backlog.md
+      - Comparisons: project/comparisons-platforms.md
+      - Roadmap: project/index.md
+      - Backlog: project/backlog.md

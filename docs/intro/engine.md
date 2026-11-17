@@ -26,8 +26,8 @@ libraries and custom adapters are not supported.
 
 Uptimely supplies the Engine with runtime configuration separately from the
 Spec. A directly constructed Engine uses explicit settings and does not read
-configuration files. For the configuration file format, backend options, paths, and parameters, see
-[Uptimely config](../reference/configuration.md).
+configuration files. For backend options, paths, and parameters, see
+[Configure a project](../guides/configuration.md).
 
 ## Learn more
 

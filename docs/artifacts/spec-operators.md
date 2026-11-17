@@ -1,4 +1,4 @@
-# Spec: Operators
+# Spec operators and bindings
 
 ## Operator
 
