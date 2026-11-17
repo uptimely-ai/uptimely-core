@@ -217,4 +217,21 @@ nav:
       - Research: project/research.md
       - Comparisons: project/comparisons-platforms.md
       - Roadmap: project/index.md
-      - Backlog: project/backlog.md
+      - Backlog:
+          - Planned releases: project/backlog.md
+          - Release 1 - Explorer navigation: project/release-01-explorer.md
+          - Release 2 - Data foundations: project/release-02-data-foundations.md
+          - Release 3 - Dataframe support: project/release-03-dataframe-support.md
+          - Release 4 - Specification authoring: project/release-04-specification-authoring.md
+          - Release 5 - Freshness scheduling: project/release-05-freshness-scheduling.md
+          - Release 6 - Signal processing: project/release-06-signal-processing.md
+          - Release 7 - Reproducible builds: project/release-07-reproducible-builds.md
+          - Release 8 - Runtime bundles: project/release-08-runtime-bundles.md
+          - Release 9 - Launchers and deployment: project/release-09-launchers-deployment.md
+          - Release 10 - Segmented execution: project/release-10-segmented-execution.md
+          - Release 11 - Executable scopes: project/release-11-executable-scopes.md
+          - Release 12 - Domain templates: project/release-12-domain-templates.md
+          - Release 13 - Streaming engine: project/release-13-streaming-engine.md
+          - Release 14 - Live demo and MCP: project/release-14-live-demo-mcp.md
+          - Release 15 - Explorer packages: project/release-15-explorer-packages.md
+          - Release 16 - Automated testing: project/release-16-automated-testing.md
