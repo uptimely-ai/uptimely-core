@@ -16,7 +16,7 @@ Follow the release procedure in
    Ask if the target is ambiguous.
 2. Inspect the current version, release tags, commits since the latest release,
    changelog entries, and relevant roadmap items. Use commit history to find
-   user-visible changes that are missing from the changelog; do not duplicate
+   user-visible changes. Add missing change, update and remove existing changelog items as needed. Do not duplicate.
    already documented entries.
 3. For a stable release, set the version in `[project]` in `pyproject.toml`,
    move the existing Unreleased entries under `## [<version>] - YYYY-MM-DD`, and
