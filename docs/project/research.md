@@ -1,5 +1,7 @@
 # Data science research
 
+Research to related to business problems that Uptimely Core aims to solve.
+
 ## Deep learning projects unit tests
 
 The paper: https://arxiv.org/abs/2402.16546

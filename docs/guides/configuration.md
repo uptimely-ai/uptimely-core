@@ -1,6 +1,6 @@
 # Configure a project
 
-## Selecting a configuration
+## Select a configuration
 
 ### Named configs
 
@@ -26,35 +26,81 @@ including for builds. Construct a new Uptimely instance to read file changes.
 CLI runs construct a fresh instance, while the MCP server retains its
 configuration until it is restarted.
 
-## Runtime values
+## Configuration values
 
-The `engine` section is validated as `EngineConfig` and contains backend
-settings:
+Configuration files use TOML. The supported tables, settings, and value
+constraints are listed in the
+[configuration file format reference](../artifacts/configuration.md).
+The [example project's `uptimely.toml`](https://github.com/uptimely-ai/uptimely-core/blob/main/example/uptimely.toml)
+shows a complete project configuration.
 
-```json
-{
-  "backend": {}
-}
+```toml
+[application]
+python_spec = "spec.spec:python_spec"
+src_path = "src"
+
+[engine]
+preview_rows = 5
+
+[engine.backend]
+type = "python_venv"
+dataframe = "polars"
+evaluation = "eager"
+
+[paths]
+input = "data/input/source.csv"
+output = "data/output/results.csv"
+
+[params]
+threshold = 10
 ```
+
+### Application settings
+
+Set either `application.python_spec` or `application.json_spec` to select a
+specification source, not both. `python_spec` uses the `MODULE:ATTRIBUTE`
+entrypoint format. `json_spec` is a path relative to the project root unless it
+is absolute. See [Specification source discovery](build.md#specification-source-discovery)
+for automatic selection and ambiguous-source errors.
+
+`application.src_path` is a Python source directory, relative to the project
+root unless absolute. If omitted, it defaults to `src`. CLI values for the
+specification source and source path override the corresponding settings. A
+CLI specification source overrides both configured source fields. Explicit
+Python method arguments also override the corresponding project settings.
+
+The project root is not configured in `uptimely.toml`. The CLI's positional
+project directory or `--project-root` selects it. If neither is given,
+Uptimely uses the current working directory. The root is needed to locate the
+configuration file in the first place.
+
+Feature selection, runtime validation, build-before-run, and log level remain
+command-specific options rather than project settings.
+
+### Runtime values
 
 Put file and directory locations in `paths`, and scalar runtime values in
-`params`:
+`params`. Specs reference them as `$paths.<name>` and `$params.<name>`.
+Configured paths must have an entry. Relative paths resolve against the
+project root. Absolute paths are preserved. Parameter values pass through to
+functions unchanged. Missing values for required parameters fail when the
+corresponding function is invoked.
 
-```json
-{
-  "engine": {"backend": {}},
-  "paths": {
-    "source_path": "data/input.parquet"
-  },
-  "params": {
-    "env": "dev"
-  }
-}
-```
+Use parameters for values such as optional filters, not file locations.
 
-Use parameters for values such as optional filters, not file locations. The example
-`env` parameter is not referenced by the Spec and can be overridden by a named
-config.
+### Engine settings
 
-See the [configuration reference](../reference/configuration.md#configuration-sections)
-for a complete TOML file, accepted settings, and runtime resolution rules.
+The `[engine]` section includes `preview_rows`, the default maximum number of
+rows stored in the run preview. It defaults to `5`. The `--preview ROWS` CLI
+option overrides it, while bare `--preview` uses the configured value.
+
+Backend settings live under `[engine.backend]`. `type` names the configured
+engine environment, and `definition` optionally supplies its engine-specific
+configuration. `dataframe` selects the dataframe backend. The built-in Engine
+supports `polars`. `evaluation` and `batch_size` are reserved settings and do
+not currently change evaluation or data access behavior.
+
+The backend must be compatible with the saved execution plan. An incompatible
+configuration causes execution to fail rather than changing how the plan is
+interpreted. Backend compatibility and configuration checks run regardless
+of runtime validation mode.

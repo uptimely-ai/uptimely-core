@@ -1,4 +1,4 @@
-# Spec: Selectors
+# Spec selectors and validation
 
 ## Selectors
 

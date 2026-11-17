@@ -1,6 +1,8 @@
-# Spec: Profiles
+# Spec profiles
 
 ## Profiles
+
+### Profile identity and fields
 
 A profile describes observations, their dimensions, features, operators, and
 optional metadata. Each profile is identified by its globally unique object key. Do not include an
@@ -23,12 +25,16 @@ keys.
 
 Selectors not accepted as values.
 
+### Seed operator
+
 When set, `seed` refers to an operator in the profile's assembly. The operator
 returns a complete dataframe with the target grain keys, does not have a merge,
 and does not consume the target profile's dataframe. It can read a source or
 derive the dataset from another profile using a non-nullable dataframe input.
 Other fragments merge after the seed.
 Profiles without a seed retain the existing accumulation behavior.
+
+### Grain
 
 Each grain reference contains a bare `dimension` identifier and a `resolution`
 identifier from that dimension. Together they identify the resolution. A
@@ -37,6 +43,8 @@ dataframe keys must be distinct. Different
 dimensions remain independent axes, so a profile may select separate sales
 time and measurement time dimensions. The dimension registry describes what
 is available. A profile's grain declares what that profile actually selects.
+
+### Relations
 
 `relations` uses the same dimension and resolution references as `grain`. It
 may include several resolutions from one dimension or resolutions from other
@@ -47,6 +55,8 @@ columns, the engine keeps them when assembling the result. Declaring a relation
 does not calculate or load its values. Explorer labels grain resolutions
 **ID** and related-profile columns **Relation**, not features. In this page,
 `keys` means both identifiers and relations.
+
+### JSON representation
 
 In JSON, `grain`, `relations`, and `order` use dimension and resolution IDs
 directly:
@@ -121,6 +131,8 @@ preceding and following observations.
 
 ## Features
 
+### Feature metadata
+
 A feature is a column describing a profile's observations, whether read from a
 source or calculated. The profile's `features` object is keyed by feature ID,
 with each entry defining metadata for one column. `name` is an optional
@@ -142,6 +154,8 @@ to title case:
 }
 ```
 
+### Feature fields
+
 | Field | JSON type | Required | Default | Meaning |
 | --- | --- | --- | --- | --- |
 | `name` | string or null | No | Generated from the feature identifier | Human-readable display name. |
@@ -150,6 +164,8 @@ to title case:
 | `unit` | string or null | No | `null` | Unit of measurement for the feature. |
 
 Selectors not accepted as values.
+
+### Runtime type validation
 
 When runtime validation is enabled, the built-in engine checks feature columns
 against these types:
@@ -169,9 +185,13 @@ against these types:
 Declare feature types explicitly: a dataframe's general type does not
 describe the types of its individual columns.
 
+### Feature ownership and producers
+
 A non-dimension feature may belong to only one profile and may have at most one
 producing operator. Dimension columns can belong to more than one profile. A
 declared feature with no producer causes a warning, not an error.
+
+### Dataframe expectations
 
 Feature and dimension registries describe the columns expected in returned
 dataframes. Runtime type checks and dataframe merge behavior are described in

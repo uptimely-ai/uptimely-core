@@ -1,4 +1,4 @@
-# Spec: Functions
+# Spec functions and arguments
 
 ## Functions
 

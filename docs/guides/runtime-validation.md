@@ -30,6 +30,5 @@ for execution order and failure handling.
 ## Runtime validation and configuration
 
 Validation is a run option, not a project setting.
-See [Configure a project](configuration.md#runtime-values) for runtime values
-and the [configuration reference](../reference/configuration.md)
-for paths, parameters, and backend settings.
+See [Configure a project](configuration.md#runtime-values) for runtime values,
+paths, parameters, and backend settings.

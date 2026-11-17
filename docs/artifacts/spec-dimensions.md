@@ -1,4 +1,4 @@
-# Spec: Dimensions
+# Spec dimensions and resolutions
 
 ## Dimensions
 

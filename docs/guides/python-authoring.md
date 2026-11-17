@@ -38,8 +38,8 @@ without adding an input dependency, such as for an output column name.
 
 Use `ref.paths("name")` for a file or directory configured in the project's
 `paths` map. Use `ref.params("name")` for a scalar configured in `params`.
-See [Paths and parameters](../reference/configuration.md#paths-and-parameters)
-for runtime resolution rules.
+See [Runtime values](configuration.md#runtime-values) for runtime resolution
+rules.
 
 ### When to use merge
 
