@@ -8,7 +8,7 @@ After editing a document, call `document.rebuild()` before validating or
 compiling it so the checks use fresh declarations.
 
 For validation examples, see
-[Work with Spec documents](../guides/python-spec-documents.md#validate-a-document).
+[Work with Spec documents](../guides/python-spec-document.md#validate-a-document).
 
 ::: uptimely.spec.validation.spec
     options:

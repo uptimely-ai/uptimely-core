@@ -28,6 +28,6 @@ See [Run artifacts](../artifacts/run.md#latest-run-artifacts) for preview collec
 query costs, and timing, and [Preview run results](../guides/preview.md) for
 console output behavior.
 
-See [Execution options](../guides/build-and-run.md#execution-options)
-for preview, validation, and build-before-run examples, and
+See [Build a project](../guides/build.md), [Preview run results](../guides/preview.md),
+and [Validate at runtime](../guides/runtime-validation.md) for related workflows, and
 [Execution logging](../guides/logging.md#execution-logging) for log details.

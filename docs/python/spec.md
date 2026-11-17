@@ -27,7 +27,7 @@ contract. See [Python authoring](../guides/python-authoring.md) for declarations
 
 ## Working with spec
 
-See [Work with Spec documents](../guides/python-spec-documents.md)
+See [Work with Spec documents](../guides/python-spec-document.md)
 for loading, compilation, and validation examples.
 
 </div>
