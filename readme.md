@@ -2,11 +2,11 @@
 
 Uptimely Core is an open source framework for managing interdependent data science calculations.
 
-The ambition is to free data science teams from building internal tools to define, debug, validate and deploy their work, so they can focus on advanced analytics, mathematics, and modeling.
+The goal is to free data science teams to focus on advanced analytics, mathematics, and modeling. Teams define their analytics in pure Python, while Uptimely Core minimizes the effort required for project setup, dependency modeling, debugging, testing, and validation.
 
-The framework lets teams to build their analytics with pure Python functions. It is specialized to manage analytical pipelines whose calculations depend on one another either by calculated features or dimensional hierarchy.
+Uptimely Core helps teams manage complex networks of analytical calculations, features, and dimensional hierarchies. Just as importantly, it makes dependencies on people, processes, and decisions easier to understand and manage.
 
-Uptimely takes best practices from data modeling to organize data science into **profiles**: Analytical declarations on different grains. The profiles makes their meta data available to computational **operators** declaring feature dependencies and function bindings.
+Uptimely applies data-modeling best practices to organize data science into profiles. Each profile defines its dimensional grain, row scope, and set of features. Computational operators use profile metadata to define feature dependencies and bind functions, which are then used to materialize the resulting dataset.
 
 Author the data science workflow in Python. Build and run from command line. Explore from web browser.
 
