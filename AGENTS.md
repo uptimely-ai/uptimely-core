@@ -56,7 +56,7 @@ Before making project-wide changes, consult the relevant guides:
 - Docs architecture section should not have code examples
 - Do not use semicolons ;
 - Do not use word canonical
-- Update docs referencea after code changes
+- Update docs references after code changes
 
 ## Tests
 - Keep UI testing simple and small, it can be validated by user experience
