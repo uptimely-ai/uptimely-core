@@ -3,7 +3,8 @@ site_description: Declarative analytics for industrial use cases
 site_url: https://uptimely-ai.github.io/uptimely-core/
 repo_url: https://github.com/uptimely-ai/uptimely-core
 edit_uri: edit/main/docs/
-watch: [src/uptimely]
+watch:
+  - src/uptimely
 hooks:
   - scripts/docs_hooks.py
 
@@ -29,7 +30,8 @@ plugins:
   - mkdocstrings:
       handlers:
         python:
-          paths: [src]
+          paths:
+            - src
           options:
             docstring_style: google
             show_init: false
@@ -86,40 +88,48 @@ validation:
 nav:
   - Getting started:
       - Quick start: index.md
-      - Example project: getting-started/tutorial.md
+      - Example project: getting-started/example-project.md
       - Explorer demo: getting-started/explorer-demo.md
   - Concepts:
-      - Grain: concepts/grain.md
-      - Profile: concepts/profiles.md
-      - Function: concepts/functions.md
-      - Operator: concepts/operators.md
-      - Dataset: concepts/dataframes.md
-      - Execution plan: concepts/dependencies.md
-      - Grain relationships: concepts/grain-relationships.md
-      - Data modeling: concepts/data-modeling.md
-      - Architecture:
-          - Overview: architecture/index.md
+      - Logical layer:
+        - Spec: concepts/spec.md
+        - Grain: concepts/grain.md
+        - Profile: concepts/profiles.md
+        - Grain relationships: concepts/grain-relationships.md
+      - Bridge layer:
+        - Bind resolution: concepts/bind.md
+        - Compiler: concepts/compiler.md
+      - Physical layer:
+        - Function: concepts/functions.md
+        - Dataset: concepts/dataframes.md
+      - Application:
           - Application: architecture/application.md
-          - Compiler: architecture/compiler.md
+          - Build: concepts/build.md
           - Engine: architecture/engine.md
+      - Semantics:
           - Explorer: architecture/explorer.md
   - Guides:
       - Project setup:
           - Project structure: guides/project-structure.md
           - Project template: guides/project-template.md
+          - Python application: guides/python/application.md
           - Configure a project: guides/configuration.md
-      - Python authoring: guides/python/authoring.md
-      - Work with Spec documents: guides/python/spec-documents.md
-      - Build and run:
+      - Specification:
+          - Python authoring: guides/python/authoring.md
+          - Work with Spec documents: guides/python/spec-documents.md
+      - Build:
           - CLI workflow: guides/build-and-run.md
           - Build a project: guides/build.md
-          - Python application: guides/python/application.md
           - Compile in Python: guides/python/compilation.md
+      - Run:
           - Execute in Python: guides/python/execution.md
-      - Validate execution: guides/runtime-validation.md
-      - Inspect logs and diagnose failures: guides/logging.md
-      - Inspect results in Explorer: guides/explorer.md
+          - Validate execution: guides/runtime-validation.md
+          - Inspect logs and diagnose failures: guides/logging.md
+      - Semantics:
+          - Inspect results in Explorer: guides/explorer.md
+      - Organizational dependencies: guides/organizational-dependencies.md
       - Data science:
+          - Data modeling: guides/data-science/data-modeling.md
           - Organize calculations by profile: guides/data-science/modeling.md
           - Uptimely practices: guides/data-science/practices.md
           - Analytical functions: guides/data-science/analytical-functions.md

@@ -1,37 +1,54 @@
 # Datasets and fragments
 
-## Datasets and fragments
+Each logical profile is associated with a physical dataset to which functions accumulate columns based on logical operator declarations.
 
-A runtime Dataset is the Engine's accumulated dataframe for a profile defined in spec. As invocations run, the Engine
-provides datasets to functions and updates them with produced results.
+## Dataset accumulation
 
-Without a merge, a returned dataframe becomes the complete target. With a
-merge, it is computed as a fragment. Current-target updates preserve existing
-rows, keys, values, and order.
+Here is an example datasets could accumulate columns by each function call.
 
-In the picture below, direct updates are yellow and fragment-producing calls
+Operator A loads the seed dataset with only the dimension columns. However, it could already load features as well.
+
+The following operators B, C and D produce new columns to achive to calculate the ratio eventually.
+
+
+
+<div class="concepts-visual">
+  <div class="cv-profile">
+
+    <div class="cv-table-scroll">
+      <table class="cv-table cv-model-table">
+        <thead>
+          <tr class="cv-bands"><th colspan="2" class="cv-key">DIMENSIONS / operator A</th><th colspan="2" class="cv-teal">TELEMETRY / operator B</th><th class="cv-violet">REFERENCE / operator C</th><th class="cv-amber">CALCULATED / operator D</th></tr>
+          <tr><th class="cv-key">cooling pump</th><th class="cv-key">timestamp</th><th class="cv-teal">differential pressure</th><th class="cv-teal">flow</th><th class="cv-violet">reference</th><th class="cv-amber">pressure ratio</th></tr>
+        </thead>
+        <tbody>
+          <tr><td class="cv-key">P-01</td><td class="cv-key">09:00</td><td class="cv-teal">6</td><td class="cv-teal">12</td><td class="cv-violet">8</td><td class="cv-amber">0.75</td></tr>
+          <tr><td class="cv-key">P-01</td><td class="cv-key">09:01</td><td class="cv-teal">8</td><td class="cv-teal">14</td><td class="cv-violet">8</td><td class="cv-amber">1.00</td></tr>
+          <tr><td class="cv-key">P-01</td><td class="cv-key">09:02</td><td class="cv-teal">4</td><td class="cv-teal">10</td><td class="cv-violet">8</td><td class="cv-amber">0.50</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+
+The combined profile dataframe is fundamentally a calculated view, not a requirement to store all intermediate columns in one physical table.
+
+## Fragments and Datasets
+
+A dataset is directly associated to a profile.
+
+When dataset requires data from other profile, the operation happens in two step. First there is a compute operation that prepares the dataframe, but is still disconncted from the target dataset.
+
+In the seconds step the fragment is merged to the dataset.
+
+## Dataset lineage
+
+In the picture below, direct dataset computations are yellow and fragment-producing calls
 are gray, except for the write invocation.
 
 ![Engine dataset accumulation across function invocations](../assets/img/engine-dataset-accumulation.png)
 
-### Fragment and merge
+### Materialization
 
-A fragment is the partial dataframe produced by some data-producing compute
-invocations. The Engine computes it without immediately changing the accumulated
-Dataset. A separate merge invocation combines the fragment with the Dataset and
-publishes the resulting complete dataframe. The built-in merge uses declared
-dimension identifiers to align rows rather than relying on row position.
-Depending on the fragment grain, it can combine full-grain data or add
-lower-grain values to matching rows. A custom merge function can define
-different assembly behavior. Feature consumers wait for the merge to succeed.
-Omitting a merge never selects the built-in merge implicitly.
-
-Foreign feature inputs alone do not require a merge.
-Merge results must still be dataframes with the complete expected target schema,
-and overlapping feature columns are rejected.
-
-### Publication
-
-Publish operations use compute with input dependencies and no output features.
-Opaque workflows may read and write internally, but their results are not added
-to profile dataframes. Logical workflow outputs establish dependencies only.
+Operators with input features but and no output features can materialize the results to files, database or simply log the results.

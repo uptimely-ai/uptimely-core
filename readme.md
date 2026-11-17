@@ -100,17 +100,17 @@ Run the data science pipeline using the build.
 uptimely run
 ```
 
+## Explore the project
+
 Explore resources and results in the local web app:
 
 ```sh
 uptimely explore
 ```
 
-## Next steps
+Read more about [example project](https://uptimely-ai.github.io/uptimely-core/getting-started/tutorial/) from the docs.
 
-The [example project](https://uptimely-ai.github.io/uptimely-core/getting-started/tutorial/) provides more information about launching an Uptimely project.
-
-Open the project in a code editor, modify the code, run it again and explore the new results.
+Open the project in a code editor, modify the code, build and run it again and explore the new results.
 
 ## Python API
 

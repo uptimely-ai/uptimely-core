@@ -1,32 +1,70 @@
 # Application {#app}
 
-`Uptimely` is the public-facing API for working with an analytics project. It
-binds operations to a project root and provides methods to build, load, or run the
-active build bundle. At construction, it loads and validates project
-configuration and keeps it for its lifetime. It creates Engines with the
-relevant settings, paths, and parameters. The command-line project build and
-run use the same project workflow. Its run operation holds the build reader lock
-throughout execution and does not rebuild the project.
+Uptimely application is the top level components that manages the project state.
 
-Internally, `ProjectBuilder` coordinates source discovery and loading,
-compilation, artifact generation, validation, and publication. A successful
-build produces a `BuildBundle` containing the Spec and portable execution plan.
-`BundleStore` reads and validates active or staged bundles. These project
-services prepare and manage artifacts; they do not execute the analytics. The
-Engine runs a bundle separately.
+In practice when your run commands such as `uptimely build` and `uptimely run`, the application loads required configs, specification, code modules and is aware of the project paths.
 
-Use the [Python App API](../reference/python/application.md) for API details and
-the [`uptimely build` CLI reference](../reference/cli/project.md) for build
-options.
+## Config
 
-### Publication and locking
+The main application configuration is stored in `uptimely.toml`.
 
-The spec, plan, and manifest are generated in a sibling staging directory,
-validated, then published in place of the previous bundle. The Explorer
-snapshot is serialized before publication and atomically replaces the previous
-snapshot only after the build succeeds. A snapshot publication error is reported
-explicitly and leaves the previous snapshot intact. Builders coordinate through
-a project lock. A build fails rather than publishing while another builder or
-cooperating consumer holds the bundle lock. Bundle publication uses rollback if
-replacing the directory fails. It does not claim a filesystem-wide atomic
-directory swap.
+The main settings can be overriden by custom config files. Typical setup is to have `development`, `qa` and `production` configs separately. But configs can also override settings for focused debugging.
+
+Finally, some settings can be overriden by cli arguments or python class attributes.
+
+Read details and example from guides section.
+
+## Workflow
+
+Application is responsible to prepare the state for build and engine.
+
+Configuration makes application aware of where to read the requires resources and where write the results.
+
+<div class="concepts-visual architecture-visual">
+  <div class="av-journey">
+    <section class="av-phase" aria-labelledby="av-build">
+      <h3 id="av-build">Build</h3>
+      <div class="av-flow">
+        <div class="av-node av-definition">
+          <span class="av-node-label">SOURCE</span>
+          <strong>Spec</strong>
+          <span>Python definition or JSON document</span>
+        </div>
+        <div class="av-connector" aria-hidden="true">&#8594;</div>
+        <div class="av-node av-operator">
+          <span class="av-node-label">PROJECT BUILDER</span>
+          <strong>Load and compile</strong>
+          <span>Compiler validates the Spec and resolves an execution plan</span>
+        </div>
+        <div class="av-connector" aria-hidden="true">&#8594;</div>
+        <div class="av-node av-definition">
+          <span class="av-node-label">OUTPUTS</span>
+          <strong>Build bundle</strong>
+          <span>Bundle contains the Spec, plan, and manifest</span>
+        </div>
+      </div>
+    </section>
+    <section class="av-phase" aria-labelledby="av-run">
+      <h3 id="av-run">Execute</h3>
+      <div class="av-flow">
+        <div class="av-node av-definition">
+          <span class="av-node-label">INPUTS</span>
+          <strong>Build bundle and runtime configuration</strong>
+          <span>Configuration supplies paths, parameters, and backend settings</span>
+        </div>
+        <div class="av-connector" aria-hidden="true">&#8594;</div>
+        <div class="av-node av-operator">
+          <span class="av-node-label">ENGINE</span>
+          <strong>Execute invocations</strong>
+          <span>Calls importable functions in dependency order</span>
+        </div>
+        <div class="av-connector" aria-hidden="true">&#8594;</div>
+        <div class="av-node av-result">
+          <span class="av-node-label">OUTPUTS</span>
+          <strong>Execution result and run snapshot</strong>
+          <span>Dataframes, statuses, logs, and previews</span>
+        </div>
+      </div>
+    </section>
+  </div>
+</div>

@@ -98,7 +98,7 @@ declared.
 
 ```json
 {
-  "name": "Data-center cooling pump analytics",
+  "name": "Data center cooling pump analytics",
   "spec_version": 9,
   "source": {"name": "manual", "generated": false},
   "dimensions": {

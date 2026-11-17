@@ -1,21 +1,31 @@
 # Dimensions, resolutions and grain
 
+## Dimension
+
+A **dimension** describes an observation axis, such as a machine or time.
+
+## Resolution
+
+Dimensions consist of one or more resolutions. If there are more than one resolutions, the form a hierarchy. For example timestamp -> hour -> day.
+
+The resolutions are used as identifiers in Uptimely framework.
+
 ## Grain
 
-<p class="cv-function-subtitle">Available observation keys and their levels</p>
+Grain is a combination of resolutions that are describe an entity (profile in Uptimely terms). Grain can only contain one resolution per dimension.
 
-A **dimension** describes an observation axis, such as a machine or time. Its
-**resolutions** declare the available keys and form a hierarchy. Each resolution
-can name a coarser parent, so the root is the coarsest level and its children are
-finer. A profile's grain selects one resolution per dimension.
+Resolutions that define granularity are each called identifiers. Resolutions that point to other profile are known as relations. Together identifiers and relations are called keys.
 
-P-01 is one key of the `machine` resolution. Differential pressure and flow
-are measured cooling-pump features, not dimensions.
+## Visualization of grain, dimension and resolution
+
+Below is visualization of grain with machine and time dimension. This combination could be described simply as "machine telemetry".
+
+There could be other grain using machine series and day resolution. That could be described as "machine series daily summary".
 
 <div class="concepts-visual">
   <div class="cv-grain-hierarchies">
     <section class="cv-grain-dimension" aria-label="Cooling pump dimension">
-      <span class="cv-tag">DIMENSION / machine_dimension</span>
+      <span class="cv-tag">Machine dimension</span>
       <ul class="cv-res-tree" aria-label="Resolution hierarchy">
         <li>
           <div class="cv-res-card"><strong>machine_category</strong><span>machine_category_id</span></div>
@@ -31,7 +41,7 @@ are measured cooling-pump features, not dimensions.
       </ul>
     </section>
     <section class="cv-grain-dimension" aria-label="Time dimension">
-      <span class="cv-tag">DIMENSION / machine_timestamp</span>
+      <span class="cv-tag">Time dimension</span>
       <ul class="cv-res-tree" aria-label="Resolution hierarchy">
         <li>
           <div class="cv-res-card"><strong>day</strong><span>day</span></div>
