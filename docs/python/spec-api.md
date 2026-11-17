@@ -4,7 +4,7 @@
 declarations.
 
 For loading and compilation examples, see
-[Work with Spec documents](../guides/python-spec-documents.md#loading-and-conversion).
+[Work with Spec documents](../guides/python-spec-document.md#loading-and-conversion).
 
 <div class="api-reference" markdown="1">
 
