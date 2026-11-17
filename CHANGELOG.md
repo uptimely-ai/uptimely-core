@@ -8,6 +8,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-11-17
+
 ### Added
 
 - Detailed Python API reference pages include an on-page table of contents.
@@ -76,6 +78,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Fixed
 
+- Explorer lineage context menus scroll vertically when their content exceeds
+  the available space.
 - Explorer names missing source and target profile relationships `emerge` and
   `vanish`.
 - The example's external workflow publishes its ratio without declaring it as
