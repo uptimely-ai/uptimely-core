@@ -8,6 +8,16 @@ See [Python authoring](python-authoring.md#dataframe-signatures) for
 dataframe signatures and [merge usage](python-authoring.md#when-to-use-merge)
 for fragment integration.
 
+## Do not hack the validations
+
+Like any framework, also Uptimely Core has backdoors to do very dumb code.
+
+For example, the framework cab validate if you pass only 0-2 dataframes into function, and that exactly one comes out.
+
+So you can always push 1 GB of data into one dataframe cell, call 73 urls, communicate with database and return something silly in another 1 GB cell in the dataframe.
+
+That's why the best practices are still important to be aware of.
+
 ## Avoid loops
 
 Prefer dataframe expressions over Python loops such as:
@@ -54,6 +64,7 @@ Smaller windows also reduces row context for stateful calculations. Estimate mem
 active entities, including late data and engine overhead, and verify it under load.
 
 ## Keep analytical calculations pure
+
 
 Compute declared outputs from declared inputs without I/O, logging, or mutation
 of input data or shared state. Keep source and sink communication separate.

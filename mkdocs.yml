@@ -111,29 +111,29 @@ nav:
   - Guides:
       - Project setup:
           - Project structure: guides/project-structure.md
+          - Multiple projects: guides/multiple-projects.md
           - Project template: guides/project-template.md
-          - Python application: guides/python-application.md
           - Configure a project: guides/configuration.md
-      - Specification:
+      - Spec:
           - Python authoring: guides/python-authoring.md
-          - Work with Spec documents: guides/python-spec-documents.md
+          - Python examples: guides/python-spec-document.md
       - Build:
-          - CLI workflow: guides/build-and-run.md
           - Build a project: guides/build.md
           - Compile in Python: guides/python-compilation.md
       - Run:
           - Execute in Python: guides/python-execution.md
           - Validate execution: guides/runtime-validation.md
-          - Inspect logs and diagnose failures: guides/logging.md
-      - Semantics:
-          - Inspect results in Explorer: guides/explorer.md
-      - Organizational dependencies: guides/organizational-dependencies.md
+          - Preview results: guides/preview.md
+          - Diagnostics: guides/logging.md
+      - Explore:
+          - Browse explorer: guides/explorer.md
       - Data science:
           - Data modeling: guides/data-science-data-modeling.md
-          - Organize calculations by profile: guides/data-science-modeling.md
-          - Uptimely practices: guides/data-science-practices.md
-          - Analytical functions: guides/data-science-analytical-functions.md
-      - AI and MCP:
+          - Organize profiles: guides/organize-profiles.md
+          - Uptimely practices: guides/uptimely-practices.md
+          - Analytical functions: guides/analytical-functions.md
+          - Corporates: guides/corporates.md
+      - AI:
           - Set up MCP: guides/ai-setup.md
           - AI agents: guides/ai-analytics.md
   - Reference:

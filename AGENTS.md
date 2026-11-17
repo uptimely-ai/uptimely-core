@@ -58,6 +58,12 @@ Before making project-wide changes, consult the relevant guides:
 - Do not use word canonical
 - Update docs references after code changes
 
+# Python examples in docs
+
+- Use # script comment to demonstrate if the script can run standalone
+- Test run # script annotated scripts when updating documentation pages
+- Use # example comment to indicate that code is demonstration and does not execute succesfully as such
+
 ## Tests
 - Keep UI testing simple and small, it can be validated by user experience
 - Do not add tests to ensure old behavior is gone

@@ -1,4 +1,4 @@
-# Work with Spec documents
+# Spec Python examples
 
 Load or convert a Spec with [api](../python/spec-api.md), then pass it to the
 [compiler](../python/compiler.md) to make an execution plan. The module-level helpers
@@ -14,21 +14,24 @@ checks. Document structure and Python declaration checks still run. Do this
 only when you will validate or compile the Spec before using it.
 
 ```python
-from uptimely import compiler, spec
+# example
 
-document = spec.load_spec("spec.json", validate=False)
-plan = compiler.Compiler().compile(document)
+from uptimely import spec
+
+document = spec.load_spec("spec.json")
 ```
 
 ## Validate a document
 
-To run validation directly, call `validate_spec(document)`.
+To run validation directly, defer validation while loading, then call
+`validate_spec(document)`.
 
 ```python
+# example
+
+from uptimely import spec
 from uptimely.spec.validation import validate_spec
 
+document = spec.load_spec("spec.json", validate=False)
 validate_spec(document)
 ```
-
-See the [Spec operations](../python/spec-api.md) and
-[validation reference](../python/spec-validation.md) for interface details.

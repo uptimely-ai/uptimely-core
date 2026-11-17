@@ -79,7 +79,7 @@ operator = up.Operator(
 )
 ```
 
-Both approaches calculate the same values. The loop gives each operator a
+Both approaches materialize the same values. The loop gives each operator a
 separate input-output relationship. With one operator, lineage associates its
 outputs with the full set of inputs, so downstream features can appear
 dependent on all 100 signals.

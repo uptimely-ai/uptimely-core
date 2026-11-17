@@ -1,5 +1,9 @@
 # AI agents and MCP
 
+!!! note
+
+    Contents of this page requires further validation.
+
 The MCP server lets an AI assistant work with an Uptimely analytics project.
 An assistant can explain calculations, run a selected calculation with the
 work it depends on, and inspect the latest execution's warnings and failures.
