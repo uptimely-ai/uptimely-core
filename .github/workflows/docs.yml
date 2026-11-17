@@ -19,8 +19,8 @@ jobs:
         uses: actions/checkout@v5
       - name: Check documentation copies match
         run: |
-          diff -u readme.md docs/index.md
-          diff -u example/README.md docs/getting-started/tutorial.md
+          diff -u readme.md docs/intro/index.md
+          diff -u example/README.md docs/intro/example-project.md
       - run: pipx install poetry
       - name: Set up Python
         uses: actions/setup-python@v6
