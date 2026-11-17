@@ -51,7 +51,7 @@ The advantage of long format is consistent schema and dense data population. Wid
 
 ## Uptimely profile describes analytical calculation model
 
-Data such as data-center cooling-pump telemetry can have several
+Data such as data center cooling-pump telemetry can have several
 analytical views. This is what Uptimely **profiles** are for: An analytical model whose dataset is has in specific grain.
 
 What often might be a fact table in dimensionaly modeled data warehouse, would be multiple profile datasets in Uptimely's model. You can think it as a subset or a view of a physical fact table.

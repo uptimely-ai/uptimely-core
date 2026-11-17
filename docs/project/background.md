@@ -6,7 +6,7 @@ Uptimely Core aims to reduce the specification and development process for massi
 
 The following story is imagined. However, it is inspired and compiled by discussions from developers and business managers across the industry. The example is not exceptional, and those ~60 steps could be easily multiplied in many occassions.
 
-An analyst at a data-center operator is asked to add a calculation to monitor
+An analyst at a data center operator is asked to add a calculation to monitor
 cooling-water delivery to a server room.
 
 Let's say the required calculation is simply picking lower value among two measurements in the process telemetry data:
@@ -49,7 +49,7 @@ The workflow for data scientist might look something like this:
 28. Results are not visible, not sure why
 29. Check that we have data for the server room
 30. Find the server-room ID by a complex SQL query
-31. Read the wiki about how to add a server room to the data-center inventory
+31. Read the wiki about how to add a server room to the data center inventory
 32. The page was updated 3 years ago, the process does not work
 33. Try various things and make it work
 34. You verify from the project manager by email when the results are needed

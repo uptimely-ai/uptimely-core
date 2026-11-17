@@ -37,7 +37,7 @@ output. No web port or separate background server is needed.
 ### VS Code in this repository
 
 The checked-in [`.vscode/mcp.json`](https://github.com/uptimely-ai/uptimely-core/blob/main/.vscode/mcp.json)
-launches the data-center cooling pump example through Poetry.
+launches the data center cooling pump example through Poetry.
 
 1. Open the repository in VS Code, inside the Dev Container if you use one.
 2. Run **MCP: List Servers** from the Command Palette.
@@ -81,7 +81,7 @@ Use your interpreter and project paths. VS Code uses a `servers` root field
 instead of `mcpServers`.
 
 Set the client's working directory to the directory containing `example`
-for the repository's data-center cooling pump example. `--project-root` does not change the working directory.
+for the repository's data center cooling pump example. `--project-root` does not change the working directory.
 If the client cannot set it, use absolute data paths in the project's
 `uptimely.toml`.
 

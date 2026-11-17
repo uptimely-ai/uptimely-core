@@ -1,6 +1,6 @@
 # Example project for Data center cooling pumps
 
-This project uses synthetic telemetry for six cooling-system pumps across two
+The Uptimely Core [example project](https://github.com/uptimely-ai/uptimely-core/tree/main/example) uses synthetic telemetry for six cooling-system pumps across two
 data centers and four server rooms. It demonstrates asset hierarchies,
 time-based telemetry, and externally calculated measurements in an Uptimely
 Core workflow.

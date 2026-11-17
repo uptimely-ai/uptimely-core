@@ -2,7 +2,7 @@
 
 ## Organizing calculations by profile
 
-A data-center operator might want to detect overheating for different kinds of cooling equipment.
+A data center operator might want to detect overheating for different kinds of cooling equipment.
 
 For example, `Energy` for one machine Category might be a directly available
 measurement, while another Category's value requires basic calculation, and a third one more specialized neural network.

@@ -71,7 +71,7 @@ class CoolingPump(up.Profile):
 
 specification = up.Spec(
     profiles=[CoolingPumpTelemetry, CoolingPump],
-    name="Data-center cooling pump analytics",
+    name="Data center cooling pump analytics",
 )
 ```
 

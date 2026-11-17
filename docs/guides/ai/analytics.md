@@ -48,7 +48,7 @@ The tools support three main kinds of question:
 - **Review execution:** "Which warnings were logged in the last engine run?"
   or "Which calculation failed?"
 
-Results include a limited sample of rows with identifiers such as data-center,
+Results include a limited sample of rows with identifiers such as data center,
 server-room, and pump IDs, plus timestamps. Sampling limits response size, not
 the amount of data used by the calculation. Functions must return data through their operator to expose
 analytical rows. Results written only inside a function are not automatically
