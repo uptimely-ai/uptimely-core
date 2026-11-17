@@ -87,136 +87,136 @@ validation:
 
 nav:
   - Getting started:
-      - Quick start: index.md
-      - Example project: getting-started/example-project.md
-      - Explorer demo: getting-started/explorer-demo.md
+      - Quick start: intro/index.md
+      - Example project: intro/example-project.md
+      - Explorer demo: intro/explorer-demo.md
   - Concepts:
       - Logical layer:
-        - Spec: concepts/spec.md
-        - Grain: concepts/grain.md
-        - Profile: concepts/profiles.md
-        - Grain relationships: concepts/grain-relationships.md
+        - Spec: intro/spec.md
+        - Grain: intro/grain.md
+        - Profile: intro/profiles.md
+        - Grain relationships: intro/grain-relationships.md
       - Bridge layer:
-        - Bind resolution: concepts/bind.md
-        - Compiler: concepts/compiler.md
+        - Bind resolution: intro/bind.md
+        - Compiler: intro/compiler.md
       - Physical layer:
-        - Function: concepts/functions.md
-        - Dataset: concepts/dataframes.md
+        - Function: intro/functions.md
+        - Dataset: intro/dataframes.md
       - Application:
-          - Application: architecture/application.md
-          - Build: concepts/build.md
-          - Engine: architecture/engine.md
+          - Application: intro/application.md
+          - Build: intro/build.md
+          - Engine: intro/engine.md
       - Semantics:
-          - Explorer: architecture/explorer.md
+          - Explorer: intro/explorer.md
   - Guides:
       - Project setup:
           - Project structure: guides/project-structure.md
           - Project template: guides/project-template.md
-          - Python application: guides/python/application.md
+          - Python application: guides/python-application.md
           - Configure a project: guides/configuration.md
       - Specification:
-          - Python authoring: guides/python/authoring.md
-          - Work with Spec documents: guides/python/spec-documents.md
+          - Python authoring: guides/python-authoring.md
+          - Work with Spec documents: guides/python-spec-documents.md
       - Build:
           - CLI workflow: guides/build-and-run.md
           - Build a project: guides/build.md
-          - Compile in Python: guides/python/compilation.md
+          - Compile in Python: guides/python-compilation.md
       - Run:
-          - Execute in Python: guides/python/execution.md
+          - Execute in Python: guides/python-execution.md
           - Validate execution: guides/runtime-validation.md
           - Inspect logs and diagnose failures: guides/logging.md
       - Semantics:
           - Inspect results in Explorer: guides/explorer.md
       - Organizational dependencies: guides/organizational-dependencies.md
       - Data science:
-          - Data modeling: guides/data-science/data-modeling.md
-          - Organize calculations by profile: guides/data-science/modeling.md
-          - Uptimely practices: guides/data-science/practices.md
-          - Analytical functions: guides/data-science/analytical-functions.md
+          - Data modeling: guides/data-science-data-modeling.md
+          - Organize calculations by profile: guides/data-science-modeling.md
+          - Uptimely practices: guides/data-science-practices.md
+          - Analytical functions: guides/data-science-analytical-functions.md
       - AI and MCP:
-          - Set up MCP: guides/ai/setup.md
-          - AI agents: guides/ai/analytics.md
+          - Set up MCP: guides/ai-setup.md
+          - AI agents: guides/ai-analytics.md
   - Reference:
       - Configuration: reference/configuration.md
-      - MCP tools: reference/mcp/tools.md
+      - MCP tools: ai/tools.md
       - Python API:
-          - Overview: reference/python/index.md
-          - Row-context utilities: reference/python/row-context.md
-          - Builds and bundles: reference/python/build.md
-          - Compiler: reference/python/compiler.md
-          - Saved runs: reference/python/engine/runs.md
-          - Explorer: reference/python/explorer.md
-          - Storage: reference/python/storage.md
+          - Overview: python/index.md
+          - Row-context utilities: python/row-context.md
+          - Builds and bundles: python/build.md
+          - Compiler: python/compiler.md
+          - Saved runs: python/engine-runs.md
+          - Explorer: python/explorer.md
+          - Storage: python/storage.md
           - Python authoring:
-              - Overview: reference/python/python.md
-              - Spec: reference/python/declarations/spec.md
-              - Profiles: reference/python/declarations/profiles.md
-              - Dimensions and resolutions: reference/python/declarations/dimensions.md
-              - Features: reference/python/declarations/features.md
-              - Operators and bindings: reference/python/declarations/operators.md
-              - Functions: reference/python/declarations/functions.md
-              - References: reference/python/declarations/references.md
-              - Row-context bindings: reference/python/declarations/row-context.md
+              - Overview: python/python.md
+              - Spec: python/declarations-spec.md
+              - Profiles: python/declarations-profiles.md
+              - Dimensions and resolutions: python/declarations-dimensions.md
+              - Features: python/declarations-features.md
+              - Operators and bindings: python/declarations-operators.md
+              - Functions: python/declarations-functions.md
+              - References: python/declarations-references.md
+              - Row-context bindings: python/declarations-row-context.md
           - Spec documents:
-              - Overview: reference/python/spec.md
-              - Models overview: reference/python/spec/model.md
-              - Spec model: reference/python/spec/models/spec.md
-              - Dimensions and resolutions: reference/python/spec/models/dimensions.md
-              - Profiles and features: reference/python/spec/models/profiles.md
-              - Operators and interfaces: reference/python/spec/models/operators.md
-              - Bindings: reference/python/spec/models/bindings.md
-              - Functions and arguments: reference/python/spec/models/functions.md
-              - Loading and conversion: reference/python/spec/api.md
-              - Serialization: reference/python/spec/serialization.md
-              - Validation: reference/python/spec/validation.md
+              - Overview: python/spec.md
+              - Models overview: python/spec-model.md
+              - Spec model: python/spec-models-spec.md
+              - Dimensions and resolutions: python/spec-models-dimensions.md
+              - Profiles and features: python/spec-models-profiles.md
+              - Operators and interfaces: python/spec-models-operators.md
+              - Bindings: python/spec-models-bindings.md
+              - Functions and arguments: python/spec-models-functions.md
+              - Loading and conversion: python/spec-api.md
+              - Serialization: python/spec-serialization.md
+              - Validation: python/spec-validation.md
           - Feature graphs:
-              - Graphs: reference/python/feature-graph.md
-              - Nodes: reference/python/feature-graph-nodes.md
+              - Graphs: python/feature-graph.md
+              - Nodes: python/feature-graph-nodes.md
           - Application:
-              - Application API: reference/python/application.md
-              - Configuration: reference/python/application-config.md
+              - Application API: python/application.md
+              - Configuration: python/application-config.md
           - Execution plans:
-              - Models: reference/python/plans/models.md
-              - Serialization: reference/python/plans/serialization.md
+              - Models: python/plans-models.md
+              - Serialization: python/plans-serialization.md
           - Execution engine:
-              - Engine and configuration: reference/python/engine.md
-              - Results: reference/python/engine/results.md
-              - Dataframes and merge functions: reference/python/engine-dataframes.md
-              - Backends: reference/python/engine/backends.md
+              - Engine and configuration: python/engine.md
+              - Results: python/engine-results.md
+              - Dataframes and merge functions: python/engine-dataframes.md
+              - Backends: python/engine-backends.md
           - Python entrypoints:
-              - Entrypoints and functions: reference/python/entrypoint.md
-              - Signatures and annotations: reference/python/entrypoints/signatures.md
-              - Package provenance: reference/python/entrypoints/provenance.md
+              - Entrypoints and functions: python/entrypoint.md
+              - Signatures and annotations: python/entrypoints-signatures.md
+              - Package provenance: python/entrypoints-provenance.md
           - Spec vocabulary:
-              - Operator bindings: reference/python/spec-vocabulary.md
-              - Argument types: reference/python/vocabulary/arguments.md
-              - Reference selectors: reference/python/vocabulary/selectors.md
+              - Operator bindings: python/spec-vocabulary.md
+              - Argument types: python/vocabulary-arguments.md
+              - Reference selectors: python/vocabulary-selectors.md
       - CLI:
-          - Overview: reference/cli/index.md
-          - uptimely example: reference/cli/examples.md
-          - uptimely build: reference/cli/project.md
-          - uptimely run: reference/cli/engine.md
-          - uptimely explore: reference/cli/explorer.md
-          - uptimely export: reference/cli/export.md
-          - uptimely feature-graph: reference/cli/spec.md
+          - Overview: cli/index.md
+          - uptimely example: cli/examples.md
+          - uptimely build: cli/project.md
+          - uptimely run: cli/engine.md
+          - uptimely explore: cli/explorer.md
+          - uptimely export: cli/export.md
+          - uptimely feature-graph: cli/spec.md
       - File formats:
-          - Build bundle: reference/formats/build.md
-          - Execution plan JSON: reference/formats/execution-plan.md
-          - Run artifacts: reference/formats/run.md
+          - Build bundle: artifacts/build.md
+          - Execution plan JSON: artifacts/execution-plan.md
+          - Run artifacts: artifacts/run.md
           - Spec JSON:
-              - Overview and root fields: reference/formats/spec/index.md
-              - Dimensions and resolutions: reference/formats/spec/dimensions.md
-              - Profiles and features: reference/formats/spec/profiles.md
-              - Functions and arguments: reference/formats/spec/functions.md
-              - Operators and bindings: reference/formats/spec/operators.md
-              - Selectors and validation: reference/formats/spec/selectors.md
+              - Overview and root fields: artifacts/spec-index.md
+              - Dimensions and resolutions: artifacts/spec-dimensions.md
+              - Profiles and features: artifacts/spec-profiles.md
+              - Functions and arguments: artifacts/spec-functions.md
+              - Operators and bindings: artifacts/spec-operators.md
+              - Selectors and validation: artifacts/spec-selectors.md
   - Project:
       - Background and motivation: project/background.md
       - Data science work: project/analytical-systems.md
       - Research: project/research.md
       - Comparisons:
-          - SQL: project/comparisons/sql.md
-          - Data platforms: project/comparisons/platforms.md
+          - SQL: project/comparisons-sql.md
+          - Data platforms: project/comparisons-platforms.md
       - Roadmap:
-          - Development roadmap: roadmap/index.md
-          - Backlog: roadmap/backlog.md
+          - Development roadmap: project/index.md
+          - Backlog: project/backlog.md

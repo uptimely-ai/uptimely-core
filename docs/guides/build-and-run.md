@@ -20,7 +20,7 @@ The command defaults and options are documented on each command page. Project
 build consumers use the active bundle under `artifacts/build/`. Rebuild it
 with `uptimely build` to change the saved plan or feature scope. The
 `uptimely-mcp` server is a separate optional command. See
-[MCP API](ai/setup.md) for installation and client setup.
+[MCP API](ai-setup.md) for installation and client setup.
 
 ## Execution options
 
