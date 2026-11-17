@@ -152,13 +152,13 @@ nav:
               - Overview: python/python.md
               - Spec: python/declarations-spec.md
               - Profiles: python/declarations-profiles.md
-              - Dimensions and resolutions: python/declarations-dimensions.md
+              - Dimensions: python/declarations-dimensions.md
               - Features: python/declarations-features.md
-              - Operators and bindings: python/declarations-operators.md
+              - Operators: python/declarations-operators.md
               - Functions: python/declarations-functions.md
               - References: python/declarations-references.md
               - Row-context bindings: python/declarations-row-context.md
-          - Spec documents:
+          - Spec document:
               - Overview: python/spec.md
               - Models overview: python/spec-model.md
               - Spec model: python/spec-models-spec.md
