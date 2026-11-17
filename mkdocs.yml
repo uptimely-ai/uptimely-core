@@ -133,7 +133,9 @@ nav:
           - Uptimely practices: guides/uptimely-practices.md
           - Analytical functions: guides/analytical-functions.md
           - SQL: project/comparisons-sql.md
-          - Corporates: guides/corporates.md
+      - Enterprise:
+          - Responsibilities: guides/responsibilities.md
+          - Migrations: guides/platform-migration.md
       - AI:
           - Set up MCP: guides/ai-setup.md
           - AI agents: guides/ai-analytics.md
