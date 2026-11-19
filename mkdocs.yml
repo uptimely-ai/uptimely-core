@@ -91,21 +91,20 @@ nav:
       - Example project: intro/example-project.md
       - Explorer demo: intro/explorer-demo.md
   - Concepts:
-      - Logical layer:
+      - Spec:
         - Spec: concepts/spec.md
         - Grain: concepts/grain.md
         - Profile: concepts/profiles.md
         - Grain relationships: concepts/grain-relationships.md
-      - Bridge layer:
-        - Bind resolution: concepts/bind.md
+      - Build:
         - Compiler: concepts/compiler.md
-      - Physical layer:
+        - Build: concepts/build.md
+      - Execution:
         - Function: concepts/functions.md
         - Dataset: concepts/dataframes.md
+        - Engine: concepts/engine.md
       - Application:
-          - Application: concepts/application.md
-          - Build: concepts/build.md
-          - Engine: concepts/engine.md
+          - Overview: concepts/application.md
       - Semantics:
           - Explorer: concepts/explorer.md
   - Guides:

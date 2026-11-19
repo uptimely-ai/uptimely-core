@@ -4,11 +4,14 @@ Compiler is the bridge between logical definitions and physical execution.
 
 ## Operators to invocations
 
-Compiler convert operators to function invocations.
+Compiler converts logical operators to physical function invocations. Binding
+connects each operator to a function and its associated arguments.
 
 ## Resolving binding variables
 
-It resolves and validates the reference variable values and binds those to the invocations.
+The compiler resolves object references to the actual values used in function
+calls. It validates those values and binds them to the corresponding
+invocations.
 
 ## Execution graph
 
