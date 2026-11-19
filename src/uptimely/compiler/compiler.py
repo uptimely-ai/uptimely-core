@@ -76,7 +76,8 @@ class Compiler:
         locations = dict.fromkeys(
             function.entrypoint for function in selected_functions.values() if function.entrypoint
         )
-        entrypoints = self._parse_entrypoints(locations)
+        logger.debug("Check syntax for %d unique entrypoints", len(locations))
+        entrypoints = {location: entrypoint.Entrypoint(location) for location in locations}
         packages = self._read_package_provenance(entrypoints)
         signatures = self._validate_signatures(selected_functions, entrypoints)
         logger.debug("Check structural argument references resolve")
@@ -116,21 +117,6 @@ class Compiler:
                 )
             selected_functions.setdefault(node.function_id, function)
         return selected_functions
-
-    @staticmethod
-    def _parse_entrypoints(
-        locations: abc.Iterable[str],
-    ) -> dict[str, entrypoint.Entrypoint]:
-        """Parse and validate the selected implementation locations."""
-        locations = list(locations)
-        logger.debug("Check syntax for %d unique entrypoints", len(locations))
-        entrypoints: dict[str, entrypoint.Entrypoint] = {}
-        for location in locations:
-            try:
-                entrypoints[location] = entrypoint.Entrypoint(location)
-            except ValueError as error:
-                raise ValueError(f"Invalid entrypoint {location!r}: {error}") from error
-        return entrypoints
 
     @staticmethod
     def _read_package_provenance(
