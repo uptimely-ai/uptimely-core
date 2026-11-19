@@ -111,11 +111,16 @@ class Function:
         """Return the cleaned docstring of this function, importing its module."""
         return inspect.getdoc(self.load())
 
+    def resolve(self) -> object:
+        """Resolve the object named by this function reference."""
+        resolved: object = self.module.load()
+        for name in self.name.split("."):
+            resolved = getattr(resolved, name)
+        return resolved
+
     def load(self) -> typing.Callable[..., typing.Any]:
         """Import the callable from its module."""
-        function: object = self.module.load()
-        for name in self.name.split("."):
-            function = getattr(function, name)
+        function = self.resolve()
         if not callable(function):
             raise TypeError(f"{self.name} in module {self.module.location} is not callable")
         return typing.cast(typing.Callable[..., typing.Any], function)
@@ -182,10 +187,7 @@ class Entrypoint:
 
     def resolve(self) -> object:
         """Resolve the object named by this entrypoint."""
-        resolved: object = self.module.load()
-        for name in self._function_name.split("."):
-            resolved = getattr(resolved, name)
-        return resolved
+        return self.function.resolve()
 
     def load(self) -> typing.Callable[..., typing.Any]:
         """Load the callable and include package provenance in resolution errors.
