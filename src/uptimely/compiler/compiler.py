@@ -11,7 +11,6 @@ from uptimely.codebase.python import entrypoint
 from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
-from uptimely.spec.validation import errors
 
 from . import graph as invocation_graph
 from . import validation
@@ -73,20 +72,13 @@ class Compiler:
         nodes = graph.invocations
 
         logger.debug("Validating %d invocations", len(nodes))
-        selected_functions, first_node_by_function = self._collect_selected_functions(
-            spec_definition, nodes
-        )
+        selected_functions = self._collect_selected_functions(spec_definition, nodes)
         locations = dict.fromkeys(
             function.entrypoint for function in selected_functions.values() if function.entrypoint
         )
         entrypoints = self._parse_entrypoints(locations)
         packages = self._read_package_provenance(entrypoints)
-        signatures = self._validate_signatures(
-            selected_functions,
-            first_node_by_function,
-            entrypoints,
-            packages,
-        )
+        signatures = self._validate_signatures(selected_functions, entrypoints)
         logger.debug("Check structural argument references resolve")
         invocations = self._create_plan_invocations(
             spec_definition,
@@ -110,15 +102,11 @@ class Compiler:
     def _collect_selected_functions(
         spec_definition: spec.Spec,
         nodes: list[invocation_graph.InvocationNode],
-    ) -> tuple[
-        dict[str, spec_model.FunctionTemplate],
-        dict[str, invocation_graph.InvocationNode],
-    ]:
+    ) -> dict[str, spec_model.FunctionTemplate]:
         """Validate entrypoints and collect each selected function once."""
         logger.debug("Check functions declare entrypoints")
         logger.debug("Selecting unique functions for implementation checks")
         selected_functions: dict[str, spec_model.FunctionTemplate] = {}
-        first_node_by_function: dict[str, invocation_graph.InvocationNode] = {}
         for node in nodes:
             function = spec_definition.functions.get(node.function_id)
             if function is None or not function.entrypoint:
@@ -127,8 +115,7 @@ class Compiler:
                     f"used by operator {node.operator_id}"
                 )
             selected_functions.setdefault(node.function_id, function)
-            first_node_by_function.setdefault(node.function_id, node)
-        return selected_functions, first_node_by_function
+        return selected_functions
 
     @staticmethod
     def _parse_entrypoints(
@@ -168,9 +155,7 @@ class Compiler:
     @staticmethod
     def _validate_signatures(
         selected_functions: dict[str, spec_model.FunctionTemplate],
-        first_node_by_function: dict[str, invocation_graph.InvocationNode],
         entrypoints: dict[str, entrypoint.Entrypoint],
-        packages: dict[str, plan_module.Package],
     ) -> dict[str, entrypoint.Signature]:
         """Read and validate each enabled function's implementation signature."""
         enabled_count = sum(function.validate_signature for function in selected_functions.values())
@@ -187,39 +172,19 @@ class Compiler:
             logger.debug("Skipping %d functions (validate_signature=false)", disabled_count)
 
         signatures: dict[str, entrypoint.Signature] = {}
+        inspected: dict[str, entrypoint.Signature] = {}
         for function_id, function in selected_functions.items():
             if not function.validate_signature:
                 continue
-            signatures[function_id] = Compiler._validate_function_signature(
-                function,
-                first_node_by_function[function_id],
-                entrypoints[function.entrypoint],
-                packages[function.entrypoint],
-            )
-        return signatures
-
-    @staticmethod
-    def _validate_function_signature(
-        function: spec_model.FunctionTemplate,
-        node: invocation_graph.InvocationNode,
-        implementation: entrypoint.Entrypoint,
-        package: plan_module.Package,
-    ) -> entrypoint.Signature:
-        """Read one implementation signature and check it against the Spec."""
-        try:
-            signature = implementation.read_signature()
+            signature = inspected.get(function.entrypoint)
+            if signature is None:
+                signature = entrypoints[function.entrypoint].read_signature()
+                inspected[function.entrypoint] = signature
             validation.validation_callable_signature(
                 validation.CallableValidationContext(function, signature)
             )
-        except errors.SpecError:
-            raise
-        except (ImportError, AttributeError, ValueError, TypeError, NameError) as error:
-            raise ValueError(
-                f"Could not read signature of function {function.id} "
-                f"used by operator {node.operator_id} from entrypoint "
-                f"{function.entrypoint}; available build package: {package}: {error}"
-            ) from error
-        return signature
+            signatures[function_id] = signature
+        return signatures
 
     @staticmethod
     def _create_plan_invocations(

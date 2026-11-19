@@ -358,7 +358,9 @@ def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() ->
     spec_definition.functions["ratio"].validate_signature = False
     spec_definition.functions["aggregate"].entrypoint = "uptimely_test_missing_dependency:calculate"
 
-    with pytest.raises(ValueError, match="Could not read signature.*aggregate"):
+    with pytest.raises(
+        ValueError, match="Could not read signature.*uptimely_test_missing_dependency"
+    ):
         compiler.Compiler().compile(spec_definition)
 
 
