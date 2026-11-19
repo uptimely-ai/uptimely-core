@@ -9,6 +9,7 @@ from uptimely import plan as plan_module
 from uptimely.application import config as project_config
 from uptimely.application.build import models as build_models
 from uptimely.application.build import source as build_source
+from uptimely.codebase.python import codebase as codebase_module
 from uptimely.codebase.python import entrypoint as entrypoint_module
 from uptimely.run import recording
 
@@ -118,24 +119,25 @@ class Engine:
         """Execute invocations without coupling runtime state to artifact storage."""
         plan = self.plan if plan is None else plan
         state = state_module.RuntimeState()
-        entrypoints: dict[str, entrypoint_module.Entrypoint] = {}
         invocation_by_entrypoint = {
             invocation.entrypoint: invocation for invocation in plan.invocations
         }
+        packages: dict[str, entrypoint_module.PackageOrigin] = {}
         for location, invocation in invocation_by_entrypoint.items():
             package = invocation.package
-            provenance = (
-                entrypoint_module.PackageOrigin(
+            if package is not None:
+                packages[location] = entrypoint_module.PackageOrigin(
                     distribution=package.distribution,
                     version=package.version,
                 )
-                if package is not None
-                else None
-            )
-            entrypoints[location] = entrypoint_module.Entrypoint(location, package=provenance)
+        python_codebase = codebase_module.Codebase.from_locations(
+            invocation_by_entrypoint,
+            packages,
+            entrypoint_type=entrypoint_module.Entrypoint,
+        )
         invocation_executor = execution_module.InvocationExecutor(
             self.backend,
-            entrypoints,
+            python_codebase.entrypoints_index,
             self.parameters,
             state,
             paths=self.paths,
