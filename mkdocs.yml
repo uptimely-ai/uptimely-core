@@ -103,6 +103,8 @@ nav:
         - Function: concepts/functions.md
         - Dataset: concepts/dataframes.md
         - Engine: concepts/engine.md
+        - Runtime: concepts/runtime.md
+        - Orchestration: concepts/orchestration.md
       - Application:
           - Overview: concepts/application.md
       - Semantics:
@@ -126,6 +128,9 @@ nav:
           - Diagnostics: guides/logging.md
       - Explore:
           - Browse explorer: guides/explorer.md
+      - Deployment:
+          - Orchestration: guides/orchestration.md
+          - Invocation tasks: guides/orchestration-invocations.md
       - Data science:
           - Data modeling: guides/data-science-data-modeling.md
           - Organize profiles: guides/organize-profiles.md
