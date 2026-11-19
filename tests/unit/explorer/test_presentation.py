@@ -9,7 +9,7 @@ import pytest
 from support import examples as example_support
 
 from uptimely import application
-from uptimely.application.build import builder
+from uptimely.build import builder
 from uptimely.explorer import presentation
 from uptimely.spec import operator_bindings
 

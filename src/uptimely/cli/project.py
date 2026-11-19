@@ -9,7 +9,7 @@ import polars as pl
 
 from uptimely import application
 from uptimely.application import BuildBundle, BuildLockError, ProjectBuildError
-from uptimely.application.build import source as build_source
+from uptimely.build import source as build_source
 from uptimely.cli import common
 
 logger = logging.getLogger(__name__)

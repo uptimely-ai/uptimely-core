@@ -141,8 +141,8 @@ def test_modules_import_in_a_fresh_process(module: str) -> None:
     [
         ("uptimely.application", "uptimely.explorer.presentation"),
         ("uptimely.explorer.presentation", "uptimely.application"),
-        ("uptimely.application.build.builder", "uptimely.explorer.presentation"),
-        ("uptimely.explorer.presentation", "uptimely.application.build.builder"),
+        ("uptimely.build.builder", "uptimely.explorer.presentation"),
+        ("uptimely.explorer.presentation", "uptimely.build.builder"),
     ],
 )
 def test_application_and_explorer_presentation_import_in_either_order_in_a_fresh_process(

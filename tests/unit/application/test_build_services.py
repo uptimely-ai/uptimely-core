@@ -6,7 +6,7 @@ import shutil
 import pytest
 
 from uptimely import application
-from uptimely.application.build import builder, bundle
+from uptimely.build import builder, bundle
 
 
 def test_build_services_resolve_root_once(

@@ -8,7 +8,7 @@ import typing
 
 import pydantic
 
-from uptimely.application.build import models as build_models
+from uptimely.build import models as build_models
 from uptimely.engine import config
 from uptimely.engine.runtime import result
 from uptimely.plan import serialization

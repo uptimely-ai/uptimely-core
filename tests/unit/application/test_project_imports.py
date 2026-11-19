@@ -7,7 +7,7 @@ import types
 import pytest
 
 from uptimely import application, engine
-from uptimely.application.build import source as build_source
+from uptimely.build import source as build_source
 from uptimely.cli import cli
 
 

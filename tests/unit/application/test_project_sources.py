@@ -5,8 +5,8 @@ from unittest import mock
 import pytest
 
 from uptimely import application, spec
-from uptimely.application.build import builder
-from uptimely.application.build import source as build_source
+from uptimely.build import builder
+from uptimely.build import source as build_source
 from uptimely.spec import validation
 
 FIXTURE_SPEC = pathlib.Path(__file__).parents[2] / "fixtures/spec/observation_totals.json"
