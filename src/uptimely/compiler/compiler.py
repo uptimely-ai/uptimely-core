@@ -7,6 +7,7 @@ from collections import abc
 
 from uptimely import plan as plan_module
 from uptimely import spec
+from uptimely.codebase.python import codebase as codebase_module
 from uptimely.codebase.python import entrypoint
 from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
@@ -77,7 +78,10 @@ class Compiler:
             function.entrypoint for function in selected_functions.values() if function.entrypoint
         )
         logger.debug("Parse %d unique entrypoints", len(locations))
-        entrypoints = {location: entrypoint.Entrypoint(location) for location in locations}
+        python_codebase = codebase_module.Codebase.from_locations(
+            locations, entrypoint_type=entrypoint.Entrypoint
+        )
+        entrypoints = python_codebase.entrypoints_index
         packages = self._read_plan_packages(entrypoints)
         signatures = self._validate_signatures(selected_functions, entrypoints)
         logger.debug("Resolve structural argument references")
@@ -120,7 +124,7 @@ class Compiler:
 
     @staticmethod
     def _read_plan_packages(
-        entrypoints: dict[str, entrypoint.Entrypoint],
+        entrypoints: abc.Mapping[str, entrypoint.Entrypoint],
     ) -> dict[str, plan_module.Package]:
         """Read portable package provenance once per entrypoint."""
         logger.debug("Resolve package ownership for %d unique entrypoints", len(entrypoints))
@@ -141,7 +145,7 @@ class Compiler:
     @staticmethod
     def _validate_signatures(
         selected_functions: dict[str, spec_model.FunctionTemplate],
-        entrypoints: dict[str, entrypoint.Entrypoint],
+        entrypoints: abc.Mapping[str, entrypoint.Entrypoint],
     ) -> dict[str, entrypoint.Signature]:
         """Read and validate each enabled function's implementation signature."""
         enabled_count = sum(function.validate_signature for function in selected_functions.values())
