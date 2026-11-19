@@ -277,7 +277,7 @@ def test_compiler_logs_signature_validation_summary(
 ) -> None:
     caplog.set_level(logging.DEBUG, logger=compiler.__name__)
     compiler.Compiler().compile(spec.Spec())
-    assert "Check callable signatures for 0 functions" in caplog.messages
+    assert "Check callable signatures for 0 functions; skip 0 disabled functions" in caplog.messages
 
 
 @pytest.mark.parametrize("features", [None, [], ["missing"], "result"])

@@ -255,6 +255,7 @@ def test_compiler_summarizes_invocation_checks_once(
     signature_summaries = [
         message for message in caplog.messages if "Check callable signatures for " in message
     ]
+    selected_function_ids = {invocation.function_id for invocation in compiled.invocations}
     enabled_functions = {
         invocation.function_id
         for invocation in compiled.invocations
@@ -262,9 +263,11 @@ def test_compiler_summarizes_invocation_checks_once(
     }
     if level == logging.DEBUG:
         assert len(signature_summaries) == 1
+        disabled_count = len(selected_function_ids - enabled_functions)
         assert (
             signature_summaries[0]
-            == f"Check callable signatures for {len(enabled_functions)} functions"
+            == f"Check callable signatures for {len(enabled_functions)} functions; "
+            f"skip {disabled_count} disabled functions"
         )
         assert all(
             "\n" not in message and message == message.lstrip() for message in caplog.messages
