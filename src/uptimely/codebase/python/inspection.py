@@ -30,7 +30,7 @@ class CallableInspection:
         raw_signature = inspect.signature(function, follow_wrapped=True, eval_str=True)
         return cls(
             source_file=implementation.module.source_file,
-            source_origin=origin.read_source_origin(function, project_root),
+            source_origin=origin.OriginReader.read_source(function, project_root),
             raw_signature=raw_signature,
             display_signature=signatures.DisplaySignature.from_signature(raw_signature),
             docstring=inspect.getdoc(function),
