@@ -277,7 +277,9 @@ def test_compiler_logs_signature_validation_summary(
 ) -> None:
     caplog.set_level(logging.DEBUG, logger=compiler.__name__)
     compiler.Compiler().compile(spec.Spec())
-    assert "Check callable signatures for 0 functions; skip 0 disabled functions" in caplog.messages
+    assert (
+        "Validate callable signatures for 0 functions; skip 0 disabled functions" in caplog.messages
+    )
 
 
 @pytest.mark.parametrize("features", [None, [], ["missing"], "result"])
@@ -306,14 +308,14 @@ def test_compiler_logs_feature_and_graph_checks_before_failure(
     if isinstance(features, str):
         assert len(caplog.messages) == compiler_start + 1
     elif features:
-        assert caplog.messages[-1] == "Check selected output features have producers"
-        assert "Check dependency graph is acyclic and schedulable" not in caplog.messages
+        assert caplog.messages[-1] == "Select requested features and prerequisite invocations"
+        assert "Validate dependency graph ordering" not in caplog.messages
     else:
-        assert "Check dependency graph is acyclic and schedulable" in caplog.messages
-        assert "Check syntax for 0 unique entrypoints" in caplog.messages
-        assert "Check package ownership for 0 unique entrypoints" in caplog.messages
+        assert "Validate dependency graph ordering" in caplog.messages
+        assert "Parse 0 unique entrypoints" in caplog.messages
+        assert "Resolve package ownership for 0 unique entrypoints" in caplog.messages
         assert caplog.messages[-1] == (
-            "Check emitted invocation IDs, dependencies, and stage ordering"
+            "Validate invocation IDs, dependencies, and execution stages"
         )
         assert not any("Compiled plan:" in message for message in caplog.messages)
         caplog.clear()

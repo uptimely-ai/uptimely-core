@@ -87,17 +87,17 @@ def test_project_build_examples(
             < result.out.index("Check globally unique profile IDs")
             < result.out.index("Check feature selection is a collection, not a string")
         )
-        assert "Check dependency graph is acyclic and schedulable" in result.out
+        assert "Validate dependency graph ordering" in result.out
         assert "\nCompiler operator: " not in result.out
-        assert result.out.count("Check functions declare entrypoints") == 1
-        assert result.out.count("Check structural argument references resolve") == 1
-        assert result.out.count("Creating portable invocation representations") == 1
-        assert result.out.count("Check syntax for ") == 1
-        assert result.out.count("Check package ownership for ") == 1
-        assert result.out.count("Check callable signatures for ") == 1
+        assert result.out.count("Validate function entrypoint declarations") == 1
+        assert result.out.count("Resolve structural argument references") == 1
+        assert result.out.count("Create portable invocations") == 1
+        assert result.out.count("Parse ") == 1
+        assert result.out.count("Resolve package ownership for ") == 1
+        assert result.out.count("Validate callable signatures for ") == 1
         assert "\nCompiler function:" not in result.out
         assert result.out.index("Build summary\n+") > result.out.index(
-            "Check emitted invocation IDs, dependencies, and stage ordering"
+            "Validate invocation IDs, dependencies, and execution stages"
         )
         assert "Compiled plan:" not in result.out
         assert result.out.count("Check spec version is an integer") == 1
@@ -375,7 +375,7 @@ def test_project_build_debug_summary(
         ["Plan", "Number of invocations", str(len(bundle.execution_plan.invocations))],
     ]
     assert result.out.index("Build summary\n+") > result.out.index(
-        "Check emitted invocation IDs, dependencies, and stage ordering"
+        "Validate invocation IDs, dependencies, and execution stages"
     )
     assert "Compiled plan:" not in result.out
     assert result.out.index("| Plan") > result.out.index("Check spec version is an integer")

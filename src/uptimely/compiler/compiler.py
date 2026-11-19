@@ -67,7 +67,7 @@ class Compiler:
         else:
             logger.debug("Using all features")
 
-        logger.debug("Check dependency graph is acyclic and schedulable")
+        logger.debug("Validate dependency graph ordering")
         execution_stages = graph.topology()
         nodes = graph.invocations
 
@@ -76,11 +76,11 @@ class Compiler:
         locations = dict.fromkeys(
             function.entrypoint for function in selected_functions.values() if function.entrypoint
         )
-        logger.debug("Check syntax for %d unique entrypoints", len(locations))
+        logger.debug("Parse %d unique entrypoints", len(locations))
         entrypoints = {location: entrypoint.Entrypoint(location) for location in locations}
         packages = self._read_plan_packages(entrypoints)
         signatures = self._validate_signatures(selected_functions, entrypoints)
-        logger.debug("Check structural argument references resolve")
+        logger.debug("Resolve structural argument references")
         invocations = self._create_plan_invocations(
             spec_definition,
             graph,
@@ -91,7 +91,7 @@ class Compiler:
         )
         stages = [[node.node_id for node in stage] for stage in execution_stages]
 
-        logger.debug("Check emitted invocation IDs, dependencies, and stage ordering")
+        logger.debug("Validate invocation IDs, dependencies, and execution stages")
         return plan_module.ExecutionPlan(
             plan_version=plan_module.PLAN_VERSION,
             required_backend="polars",
@@ -105,8 +105,8 @@ class Compiler:
         nodes: list[invocation_graph.InvocationNode],
     ) -> dict[str, spec_model.FunctionTemplate]:
         """Validate entrypoints and collect each selected function once."""
-        logger.debug("Check functions declare entrypoints")
-        logger.debug("Selecting unique functions for implementation checks")
+        logger.debug("Validate function entrypoint declarations")
+        logger.debug("Select unique functions for implementation checks")
         selected_functions: dict[str, spec_model.FunctionTemplate] = {}
         for node in nodes:
             function = spec_definition.functions.get(node.function_id)
@@ -123,7 +123,7 @@ class Compiler:
         entrypoints: dict[str, entrypoint.Entrypoint],
     ) -> dict[str, plan_module.Package]:
         """Read portable package provenance once per entrypoint."""
-        logger.debug("Check package ownership for %d unique entrypoints", len(entrypoints))
+        logger.debug("Resolve package ownership for %d unique entrypoints", len(entrypoints))
         packages: dict[str, plan_module.Package] = {}
         for location, implementation in entrypoints.items():
             try:
@@ -149,7 +149,7 @@ class Compiler:
             not function.validate_signature for function in selected_functions.values()
         )
         logger.debug(
-            "Check callable signatures for %d functions; skip %d disabled functions",
+            "Validate callable signatures for %d functions; skip %d disabled functions",
             enabled_count,
             disabled_count,
         )
@@ -179,7 +179,7 @@ class Compiler:
         packages: dict[str, plan_module.Package],
     ) -> list[plan_module.Invocation]:
         """Convert scheduled nodes to portable invocations with resolved metadata."""
-        logger.debug("Creating portable invocation representations")
+        logger.debug("Create portable invocations")
         invocations: list[plan_module.Invocation] = []
         for node in nodes:
             function = selected_functions[node.function_id]
@@ -374,7 +374,7 @@ class Compiler:
         features: list[str],
     ) -> invocation_graph.InvocationGraph:
         """Select requested outputs, their prerequisites, and matching sinks."""
-        logger.debug("Check selected output features have producers")
+        logger.debug("Select requested features and prerequisite invocations")
         selectable_features = feature_producers.keys() - spec_definition.key_ids
         missing = sorted(set(features) - selectable_features)
         if missing:
