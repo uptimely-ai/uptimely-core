@@ -370,10 +370,12 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
             assert actual.return_type == expected.return_type
 
     function.validate_signature = True
-    with pytest.raises(
-        ValueError, match="Could not read signature.*uptimely_test_missing_dependency"
-    ):
+    with pytest.raises(ValueError) as exc_info:
         compiler.Compiler().compile(spec_definition)
+    message = str(exc_info.value)
+    assert "Could not read signature" in message
+    assert "uptimely_test_missing_dependency" in message
+    assert "available build package: distribution=None version=None" in message
 
 
 def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() -> None:
