@@ -67,7 +67,7 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         "selection": mock.Mock(return_value=selected_graph),
         "topology": mock.Mock(return_value=[[node]]),
         "entrypoint": mock.Mock(),
-        "package": mock.Mock(return_value=entrypoint.PackageProvenance(None, None)),
+        "package": mock.Mock(return_value=entrypoint.PackageOrigin(None, None)),
         "signature": mock.Mock(return_value=entrypoint.Signature(returns="float")),
         "signature_validation": mock.Mock(),
         "invocation": mock.Mock(return_value=emitted_invocation),
@@ -172,7 +172,7 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     monkeypatch.setattr(compiler.spec_validation, "validate_spec", mock.Mock())
     signature = entrypoint.Signature(returns="float")
     implementation = mock.Mock()
-    implementation.read_package.return_value = entrypoint.PackageProvenance(None, None)
+    implementation.read_package.return_value = entrypoint.PackageOrigin(None, None)
     implementation.read_signature.return_value = signature
     parse_entrypoint = mock.Mock(return_value=implementation)
     validate = mock.Mock()

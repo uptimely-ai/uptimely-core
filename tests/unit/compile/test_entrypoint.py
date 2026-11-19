@@ -23,9 +23,9 @@ pytestmark = pytest.mark.usefixtures("example_projects")
 @pytest.fixture(autouse=True)
 def isolate_package_index() -> abc.Iterator[None]:
     """Keep mocked distribution indexes separate from real environment metadata."""
-    shared_entrypoint.PackageProvenance.invalidate_cache()
+    shared_entrypoint.PackageOrigin.invalidate_cache()
     yield
-    shared_entrypoint.PackageProvenance.invalidate_cache()
+    shared_entrypoint.PackageOrigin.invalidate_cache()
 
 
 def test_source_origin_identifies_project_and_unknown_code(
@@ -564,9 +564,9 @@ def test_package_provenance_uses_installed_metadata_without_importing(
         lambda name: distribution if name == "fixture-distribution" else None,
     )
 
-    provenance = shared_entrypoint.PackageProvenance.read("fixture_package.module")
+    provenance = shared_entrypoint.PackageOrigin.read("fixture_package.module")
 
-    assert provenance == shared_entrypoint.PackageProvenance("fixture-distribution", "1.2.3")
+    assert provenance == shared_entrypoint.PackageOrigin("fixture-distribution", "1.2.3")
     assert provenance.top_level_package == "fixture_package"
     assert provenance.distribution_candidates == ("fixture-distribution",)
 
@@ -580,7 +580,7 @@ def test_package_provenance_exposes_package_without_distribution(
         lambda: {},
     )
 
-    provenance = shared_entrypoint.PackageProvenance.read("fixture_package.module")
+    provenance = shared_entrypoint.PackageOrigin.read("fixture_package.module")
 
     assert provenance.distribution is None
     assert provenance.version is None
@@ -595,7 +595,7 @@ def test_package_provenance_exposes_package_without_distribution(
 def test_package_provenance_serializes_only_portable_metadata(
     distribution: str | None, version: str | None
 ) -> None:
-    provenance = shared_entrypoint.PackageProvenance(
+    provenance = shared_entrypoint.PackageOrigin(
         distribution=distribution,
         version=version,
         top_level_package="fixture_package",
@@ -605,7 +605,7 @@ def test_package_provenance_serializes_only_portable_metadata(
     payload = provenance.to_dict()
 
     assert payload == {"distribution": distribution, "version": version}
-    assert shared_entrypoint.PackageProvenance(**payload) == provenance
+    assert shared_entrypoint.PackageOrigin(**payload) == provenance
 
 
 def test_package_provenance_rejects_ambiguous_namespaces(
@@ -618,7 +618,7 @@ def test_package_provenance_rejects_ambiguous_namespaces(
     )
 
     with pytest.raises(ValueError, match="Ambiguous installed package namespace"):
-        shared_entrypoint.PackageProvenance.read("shared_namespace.module")
+        shared_entrypoint.PackageOrigin.read("shared_namespace.module")
 
 
 def test_package_index_is_scanned_once_across_modules_and_compilations(
@@ -634,8 +634,8 @@ def test_package_index_is_scanned_once_across_modules_and_compilations(
     monkeypatch.setattr(
         shared_entrypoint.importlib.metadata, "packages_distributions", packages_distributions
     )
-    shared_entrypoint.PackageProvenance.read("first_package.module")
-    shared_entrypoint.PackageProvenance.read("second_package.module")
+    shared_entrypoint.PackageOrigin.read("first_package.module")
+    shared_entrypoint.PackageOrigin.read("second_package.module")
     compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
     compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
 
@@ -655,10 +655,10 @@ def test_package_index_refreshes_when_import_path_changes(
     monkeypatch.setattr(
         shared_entrypoint.importlib.metadata, "packages_distributions", packages_distributions
     )
-    shared_entrypoint.PackageProvenance.read("fixture_package.module")
+    shared_entrypoint.PackageOrigin.read("fixture_package.module")
     monkeypatch.syspath_prepend(str(tmp_path))
-    shared_entrypoint.PackageProvenance.read("fixture_package.module")
-    shared_entrypoint.PackageProvenance.read("fixture_package.other")
+    shared_entrypoint.PackageOrigin.read("fixture_package.module")
+    shared_entrypoint.PackageOrigin.read("fixture_package.other")
 
     assert scans == 2
 
@@ -675,14 +675,14 @@ def test_package_index_can_be_refreshed_after_installation(
         "distribution",
         lambda name: types.SimpleNamespace(metadata={"Name": name}, version="1.2.3"),
     )
-    assert shared_entrypoint.PackageProvenance.read("fixture_package").distribution is None
+    assert shared_entrypoint.PackageOrigin.read("fixture_package").distribution is None
     index["fixture_package"] = ["fixture-distribution"]
-    assert shared_entrypoint.PackageProvenance.read("fixture_package").distribution is None
+    assert shared_entrypoint.PackageOrigin.read("fixture_package").distribution is None
 
-    shared_entrypoint.PackageProvenance.invalidate_cache()
+    shared_entrypoint.PackageOrigin.invalidate_cache()
 
-    assert shared_entrypoint.PackageProvenance.read("fixture_package") == (
-        shared_entrypoint.PackageProvenance("fixture-distribution", "1.2.3")
+    assert shared_entrypoint.PackageOrigin.read("fixture_package") == (
+        shared_entrypoint.PackageOrigin("fixture-distribution", "1.2.3")
     )
 
 
@@ -737,9 +737,9 @@ def test_module_reads_package_metadata_without_importing(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     reads = 0
-    package = shared_entrypoint.PackageProvenance("fixture-package", "1.0")
+    package = shared_entrypoint.PackageOrigin("fixture-package", "1.0")
 
-    def read(module_path: str) -> shared_entrypoint.PackageProvenance:
+    def read(module_path: str) -> shared_entrypoint.PackageOrigin:
         nonlocal reads
         assert module_path == "not_imported.module"
         reads += 1
@@ -748,7 +748,7 @@ def test_module_reads_package_metadata_without_importing(
     def fail_import(self: shared_entrypoint.Module) -> types.ModuleType:
         pytest.fail("Package metadata lookup must not import the module")
 
-    monkeypatch.setattr(shared_entrypoint.PackageProvenance, "read", read)
+    monkeypatch.setattr(shared_entrypoint.PackageOrigin, "read", read)
     monkeypatch.setattr(shared_entrypoint.Module, "load", fail_import)
     module = shared_entrypoint.Module("not_imported.module")
 
@@ -788,13 +788,13 @@ def test_compiler_inspects_each_distinct_entrypoint_once(
 @pytest.mark.parametrize(
     ("package", "expected"),
     [
-        (shared_entrypoint.PackageProvenance(None, None), "unavailable"),
-        (shared_entrypoint.PackageProvenance("fixture-package", None), "fixture-package"),
-        (shared_entrypoint.PackageProvenance("fixture-package", "1.0"), "fixture-package==1.0"),
+        (shared_entrypoint.PackageOrigin(None, None), "unavailable"),
+        (shared_entrypoint.PackageOrigin("fixture-package", None), "fixture-package"),
+        (shared_entrypoint.PackageOrigin("fixture-package", "1.0"), "fixture-package==1.0"),
     ],
 )
 def test_package_provenance_display(
-    package: shared_entrypoint.PackageProvenance, expected: str
+    package: shared_entrypoint.PackageOrigin, expected: str
 ) -> None:
     assert str(package) == expected
 
@@ -802,16 +802,16 @@ def test_package_provenance_display(
 def test_entrypoint_load_does_not_inspect_packages_on_success(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    def fail_metadata(module_path: str) -> shared_entrypoint.PackageProvenance:
+    def fail_metadata(module_path: str) -> shared_entrypoint.PackageOrigin:
         pytest.fail("Successful resolution must not depend on package metadata")
 
-    monkeypatch.setattr(shared_entrypoint.PackageProvenance, "read", fail_metadata)
+    monkeypatch.setattr(shared_entrypoint.PackageOrigin, "read", fail_metadata)
 
     assert shared_entrypoint.Entrypoint("math:ceil").load()(1.2) == 2
 
 
 def test_entrypoint_keeps_its_own_saved_package_provenance() -> None:
-    package = shared_entrypoint.PackageProvenance("recorded-package", "1.0")
+    package = shared_entrypoint.PackageOrigin("recorded-package", "1.0")
     implementation = shared_entrypoint.Entrypoint("math:ceil", package=package)
     other = shared_entrypoint.Entrypoint("math:floor")
 
@@ -830,11 +830,11 @@ def test_entrypoint_keeps_its_own_saved_package_provenance() -> None:
 def test_entrypoint_resolution_preserves_original_error_when_metadata_fails(
     monkeypatch: pytest.MonkeyPatch, metadata_error: Exception
 ) -> None:
-    def fail_metadata(module_path: str) -> shared_entrypoint.PackageProvenance:
+    def fail_metadata(module_path: str) -> shared_entrypoint.PackageOrigin:
         raise metadata_error
 
-    monkeypatch.setattr(shared_entrypoint.PackageProvenance, "read", fail_metadata)
-    recorded = shared_entrypoint.PackageProvenance("recorded-package", "1.0")
+    monkeypatch.setattr(shared_entrypoint.PackageOrigin, "read", fail_metadata)
+    recorded = shared_entrypoint.PackageOrigin("recorded-package", "1.0")
     implementation = shared_entrypoint.Entrypoint("math:pi", package=recorded)
 
     with pytest.raises(ValueError, match="math:pi.*not callable") as caught:

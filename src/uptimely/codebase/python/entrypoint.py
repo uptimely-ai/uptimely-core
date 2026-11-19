@@ -22,7 +22,7 @@ def _package_distributions(
 
 
 @dataclasses.dataclass(frozen=True)
-class PackageProvenance:
+class PackageOrigin:
     """Installed distribution metadata associated with an entrypoint module."""
 
     distribution: str | None
@@ -48,7 +48,7 @@ class PackageProvenance:
         )
 
     @classmethod
-    def read(cls, module_path: str) -> PackageProvenance:
+    def read(cls, module_path: str) -> PackageOrigin:
         """Read installed distribution metadata without importing the module."""
         top_level_package = cls._top_level_package(module_path)
         distribution_candidates = cls._distribution_candidates(top_level_package)
@@ -133,13 +133,13 @@ class Module:
             and all(part.isidentifier() for part in location.split("."))
         )
 
-    def read_package(self) -> PackageProvenance:
+    def read_package(self) -> PackageOrigin:
         """Read installed package provenance without importing this module.
 
         Raises:
             ValueError: The package namespace has ambiguous distribution ownership.
         """
-        return PackageProvenance.read(self.location)
+        return PackageOrigin.read(self.location)
 
     @property
     def source_file(self) -> str:
@@ -291,7 +291,7 @@ class Function:
 class Entrypoint:
     """Parse and expose the module and function addressed by an entrypoint."""
 
-    def __init__(self, entrypoint: str, package: PackageProvenance | None = None) -> None:
+    def __init__(self, entrypoint: str, package: PackageOrigin | None = None) -> None:
         """Create an entrypoint with optional package provenance from a saved build."""
         module_path, function_name = self._split_entrypoint(entrypoint)
         self._validate_module_path(module_path)
@@ -301,7 +301,7 @@ class Entrypoint:
         self._function_name = function_name
         self.package = package
 
-    def read_package(self) -> PackageProvenance:
+    def read_package(self) -> PackageOrigin:
         """Read package provenance for this entrypoint without importing its module."""
         return self.module.read_package()
 
@@ -328,8 +328,8 @@ class Entrypoint:
         if module is None or source_file is None:
             return SourceOrigin("unknown")
         source_path = pathlib.Path(source_file).resolve()
-        top_level = PackageProvenance._top_level_package(module.__name__)
-        for name in PackageProvenance._distribution_candidates(top_level):
+        top_level = PackageOrigin._top_level_package(module.__name__)
+        for name in PackageOrigin._distribution_candidates(top_level):
             distribution = importlib.metadata.distribution(name)
             if distribution.files is not None and any(
                 pathlib.Path(file.locate()).resolve() == source_path for file in distribution.files
@@ -438,7 +438,7 @@ __all__ = [
     "Entrypoint",
     "Function",
     "Module",
-    "PackageProvenance",
+    "PackageOrigin",
     "Signature",
     "TypeAnnotation",
 ]
