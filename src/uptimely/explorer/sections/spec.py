@@ -11,7 +11,7 @@ from importlib import util
 
 import docstring_parser
 
-from uptimely import entrypoint as entrypoint_module
+from uptimely.codebase.python import entrypoint as entrypoint_module
 from uptimely.spec import model as spec_model
 from uptimely.spec import operator_bindings, selectors
 

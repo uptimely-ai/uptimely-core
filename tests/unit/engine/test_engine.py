@@ -11,9 +11,9 @@ from support import execution as execution_support
 from uptimely import application as application_module
 from uptimely import compiler as uptimely_compiler
 from uptimely import engine as uptimely_engine
-from uptimely import entrypoint as entrypoint_module
 from uptimely import plan as uptimely_plan
 from uptimely import spec
+from uptimely.codebase.python import entrypoint as entrypoint_module
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
@@ -644,7 +644,10 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
                 location,
                 package=entrypoint_module.PackageProvenance("recorded-package", "1.0"),
             )
-            for location in ("uptimely.entrypoint:PackageProvenance", "math:pi")
+            for location in (
+                "uptimely.codebase.python.entrypoint:PackageProvenance",
+                "math:pi",
+            )
         },
         engine.parameters,
         state_module.RuntimeState(),
@@ -652,7 +655,7 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
 
     invocation = copy.replace(
         engine.plan.invocations[0],
-        entrypoint="uptimely.entrypoint:PackageProvenance",
+        entrypoint="uptimely.codebase.python.entrypoint:PackageProvenance",
         arguments={"distribution": "recorded-package", "version": "1.0"},
     )
 

@@ -7,7 +7,7 @@ import logging
 
 import pytest
 
-from uptimely import entrypoint
+from uptimely.codebase.python import entrypoint
 from uptimely.compiler import validation
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors

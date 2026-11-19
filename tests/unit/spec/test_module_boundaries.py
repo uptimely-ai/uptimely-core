@@ -8,7 +8,8 @@ import pytest
 from support import examples as example_support
 
 import uptimely
-from uptimely import entrypoint, spec
+from uptimely import spec
+from uptimely.codebase.python import entrypoint
 from uptimely.compiler import compiler
 from uptimely.plan import models as execution_plan_models
 from uptimely.spec import model, serialization, validation

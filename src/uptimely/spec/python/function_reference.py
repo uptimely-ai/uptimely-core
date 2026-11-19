@@ -6,7 +6,7 @@ import dataclasses
 import inspect
 from collections import abc
 
-from uptimely import entrypoint as entrypoint_module
+from uptimely.codebase.python import entrypoint as entrypoint_module
 from uptimely.spec import function_contracts
 
 from . import functions as function_semantics

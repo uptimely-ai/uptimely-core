@@ -11,8 +11,8 @@ import pytest
 from support import examples as example_support
 
 from uptimely import application, compiler, spec
-from uptimely import entrypoint as shared_entrypoint
 from uptimely import plan as plan
+from uptimely.codebase.python import entrypoint as shared_entrypoint
 from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec.python import ref
 
@@ -687,7 +687,7 @@ def test_package_index_can_be_refreshed_after_installation(
 
 
 def test_module_source_file_for_importable_module() -> None:
-    module = shared_entrypoint.Entrypoint("uptimely.entrypoint:Entrypoint").module
+    module = shared_entrypoint.Entrypoint("uptimely.codebase.python.entrypoint:Entrypoint").module
 
     assert module.source_file == shared_entrypoint.__file__
 

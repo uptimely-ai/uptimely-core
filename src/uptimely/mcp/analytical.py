@@ -5,7 +5,8 @@ import typing
 
 import fastmcp
 
-from uptimely import application, entrypoint
+from uptimely import application
+from uptimely.codebase.python import entrypoint
 
 from . import results, serialization, state
 
