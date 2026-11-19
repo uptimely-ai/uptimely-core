@@ -8,6 +8,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- Python entrypoint APIs moved from `uptimely.entrypoint` to
+  `uptimely.codebase.python.entrypoint`.
+
 ## [0.11.0] - 2026-11-17
 
 ### Added

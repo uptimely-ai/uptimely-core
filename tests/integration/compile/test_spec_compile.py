@@ -4,8 +4,9 @@ import pathlib
 import pytest
 from support import examples as example_support
 
-from uptimely import compiler, entrypoint, spec
+from uptimely import compiler, spec
 from uptimely import plan as compiler_plan
+from uptimely.codebase.python import entrypoint
 from uptimely.compiler import validation
 from uptimely.spec import model as spec_model
 

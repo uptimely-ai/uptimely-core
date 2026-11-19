@@ -6,8 +6,8 @@ import logging
 import pathlib
 import typing
 
-from uptimely import entrypoint as entrypoint_module
 from uptimely import plan as plan_module
+from uptimely.codebase.python import entrypoint as entrypoint_module
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module

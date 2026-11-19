@@ -5,8 +5,9 @@ from unittest import mock
 
 import pytest
 
-from uptimely import entrypoint, spec
 from uptimely import plan as execution_plan
+from uptimely import spec
+from uptimely.codebase.python import entrypoint
 from uptimely.compiler import compiler, validation
 from uptimely.compiler import graph as invocation_graph
 from uptimely.spec import model as spec_model

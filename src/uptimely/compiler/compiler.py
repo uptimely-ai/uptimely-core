@@ -5,8 +5,9 @@ from __future__ import annotations
 import logging
 from collections import abc
 
-from uptimely import entrypoint, spec
 from uptimely import plan as plan_module
+from uptimely import spec
+from uptimely.codebase.python import entrypoint
 from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
