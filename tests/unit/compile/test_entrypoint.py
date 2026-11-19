@@ -13,6 +13,7 @@ from support import examples as example_support
 from uptimely import application, compiler, spec
 from uptimely import plan as plan
 from uptimely.codebase.python import entrypoint as shared_entrypoint
+from uptimely.codebase.python import origin
 from uptimely.explorer.sections import spec as spec_render
 from uptimely.spec.python import ref
 
@@ -554,12 +555,12 @@ def test_package_provenance_uses_installed_metadata_without_importing(
         version="1.2.3",
     )
     monkeypatch.setattr(
-        shared_entrypoint.importlib.metadata,
+        origin.importlib.metadata,
         "packages_distributions",
         lambda: {"fixture_package": ["fixture-distribution"]},
     )
     monkeypatch.setattr(
-        shared_entrypoint.importlib.metadata,
+        origin.importlib.metadata,
         "distribution",
         lambda name: distribution if name == "fixture-distribution" else None,
     )
@@ -575,7 +576,7 @@ def test_package_provenance_exposes_package_without_distribution(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        shared_entrypoint.importlib.metadata,
+        origin.importlib.metadata,
         "packages_distributions",
         lambda: {},
     )
@@ -612,7 +613,7 @@ def test_package_provenance_rejects_ambiguous_namespaces(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     monkeypatch.setattr(
-        shared_entrypoint.importlib.metadata,
+        origin.importlib.metadata,
         "packages_distributions",
         lambda: {"shared_namespace": ["package-a", "package-b"]},
     )
@@ -631,9 +632,7 @@ def test_package_index_is_scanned_once_across_modules_and_compilations(
         scans += 1
         return {}
 
-    monkeypatch.setattr(
-        shared_entrypoint.importlib.metadata, "packages_distributions", packages_distributions
-    )
+    monkeypatch.setattr(origin.importlib.metadata, "packages_distributions", packages_distributions)
     shared_entrypoint.PackageOrigin.read("first_package.module")
     shared_entrypoint.PackageOrigin.read("second_package.module")
     compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
@@ -652,9 +651,7 @@ def test_package_index_refreshes_when_import_path_changes(
         scans += 1
         return {}
 
-    monkeypatch.setattr(
-        shared_entrypoint.importlib.metadata, "packages_distributions", packages_distributions
-    )
+    monkeypatch.setattr(origin.importlib.metadata, "packages_distributions", packages_distributions)
     shared_entrypoint.PackageOrigin.read("fixture_package.module")
     monkeypatch.syspath_prepend(str(tmp_path))
     shared_entrypoint.PackageOrigin.read("fixture_package.module")
@@ -667,11 +664,9 @@ def test_package_index_can_be_refreshed_after_installation(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     index: dict[str, list[str]] = {}
+    monkeypatch.setattr(origin.importlib.metadata, "packages_distributions", lambda: dict(index))
     monkeypatch.setattr(
-        shared_entrypoint.importlib.metadata, "packages_distributions", lambda: dict(index)
-    )
-    monkeypatch.setattr(
-        shared_entrypoint.importlib.metadata,
+        origin.importlib.metadata,
         "distribution",
         lambda name: types.SimpleNamespace(metadata={"Name": name}, version="1.2.3"),
     )
@@ -824,7 +819,7 @@ def test_entrypoint_keeps_its_own_saved_package_provenance() -> None:
     "metadata_error",
     [
         ValueError("Ambiguous installed package namespace: package-a, package-b"),
-        shared_entrypoint.importlib.metadata.PackageNotFoundError("missing-package"),
+        origin.importlib.metadata.PackageNotFoundError("missing-package"),
     ],
 )
 def test_entrypoint_resolution_preserves_original_error_when_metadata_fails(
