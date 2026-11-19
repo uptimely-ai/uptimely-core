@@ -15,18 +15,23 @@ class CallableInspection:
 
     source_file: str
     source_origin: origin.SourceOrigin
-    signature: signatures.Signature
+    raw_signature: inspect.Signature
+    display_signature: signatures.Signature
     docstring: str | None
 
     @classmethod
     def read(
-        cls, implementation: address.Entrypoint, project_root: pathlib.Path | None
+        cls,
+        implementation: address.Entrypoint,
+        project_root: pathlib.Path | None,
     ) -> CallableInspection:
         """Inspect an entrypoint's source, origin, signature, and documentation."""
         function = implementation.function.load()
+        raw_signature = inspect.signature(function, follow_wrapped=True, eval_str=True)
         return cls(
             source_file=implementation.module.source_file,
             source_origin=origin.read_source_origin(function, project_root),
-            signature=signatures.Signature.from_callable(function),
+            raw_signature=raw_signature,
+            display_signature=signatures.Signature.from_signature(raw_signature),
             docstring=inspect.getdoc(function),
         )

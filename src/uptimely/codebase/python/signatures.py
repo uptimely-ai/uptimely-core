@@ -72,6 +72,11 @@ class Signature:
     def from_callable(cls, function: typing.Callable[..., typing.Any]) -> Signature:
         """Read the annotated argument and return types of a loaded callable."""
         signature = inspect.signature(function, follow_wrapped=True, eval_str=True)
+        return cls.from_signature(signature)
+
+    @classmethod
+    def from_signature(cls, signature: inspect.Signature) -> Signature:
+        """Create display metadata from an inspected Python signature."""
         return cls(
             args={
                 name: TypeAnnotation.name(parameter.annotation)
