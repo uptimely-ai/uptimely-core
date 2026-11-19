@@ -78,7 +78,7 @@ class Compiler:
         )
         logger.debug("Check syntax for %d unique entrypoints", len(locations))
         entrypoints = {location: entrypoint.Entrypoint(location) for location in locations}
-        packages = self._read_package_provenance(entrypoints)
+        packages = self._read_plan_packages(entrypoints)
         signatures = self._validate_signatures(selected_functions, entrypoints)
         logger.debug("Check structural argument references resolve")
         invocations = self._create_plan_invocations(
@@ -119,7 +119,7 @@ class Compiler:
         return selected_functions
 
     @staticmethod
-    def _read_package_provenance(
+    def _read_plan_packages(
         entrypoints: dict[str, entrypoint.Entrypoint],
     ) -> dict[str, plan_module.Package]:
         """Read portable package provenance once per entrypoint."""
