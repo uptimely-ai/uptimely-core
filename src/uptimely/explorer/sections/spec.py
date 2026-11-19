@@ -241,7 +241,7 @@ def _build_context(
             function["source_origin"] = callable_inspection.source_origin.kind
             if callable_inspection.source_origin.distribution is not None:
                 function["source_distribution"] = callable_inspection.source_origin.distribution
-            return_type = callable_inspection.signature.returns
+            return_type = callable_inspection.display_signature.returns
             if return_type:
                 function["return_type"] = return_type
             docstring = callable_inspection.docstring
