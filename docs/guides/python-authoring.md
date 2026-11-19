@@ -43,7 +43,7 @@ rules.
 
 ### When to use merge
 
-See [Fragment and merge](../intro/dataframes.md#fragments-and-datasets)
+See [Fragment and merge](../concepts/dataframes.md#fragments-and-datasets)
 for when a merge is needed and how results are accumulated.
 
 Use the default merge explicitly:

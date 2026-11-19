@@ -30,5 +30,5 @@ Common classes are available from `uptimely`, including `Spec`, `Uptimely`,
 
 For a complete example, see the
 [repository examples](https://github.com/uptimely-ai/uptimely-core/tree/main/example).
-The [application overview](../intro/application.md) explains how the
+The [application overview](../concepts/application.md) explains how the
 packages work together.

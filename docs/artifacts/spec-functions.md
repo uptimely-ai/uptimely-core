@@ -28,8 +28,8 @@ available parameter and return annotations are compatible. Explorer inspects
 the implementation signature to show its details. Neither check verifies
 calculated results. Frame operations are derived from dataframe signatures for
 Explorer presentation and are not stored in the Spec. See
-[Function contracts](../intro/functions.md#functions-and-contracts) for the signature mapping,
-and the [Compiler](../intro/compiler.md) page for validation details.
+[Function contracts](../concepts/functions.md#functions-and-contracts) for the signature mapping,
+and the [Compiler](../concepts/compiler.md) page for validation details.
 
 Python authoring infers `dataframe` or `none` from unambiguous annotations.
 Otherwise, an explicit return contract is required.

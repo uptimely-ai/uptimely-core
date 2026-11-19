@@ -84,4 +84,4 @@ references are resolved from project configuration during execution.
 For compilation checks, see [Spec validation](../python/spec-validation.md#spec-validation).
 For runtime contract checks, see [Validate execution](../guides/runtime-validation.md).
 Supported dataframe types are described in the
-[Engine architecture](../intro/engine.md#dataframe-backend).
+[Engine architecture](../concepts/engine.md#dataframe-backend).

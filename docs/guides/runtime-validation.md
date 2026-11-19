@@ -22,9 +22,9 @@ are not deferred to writes or final collection. Execution still runs configured
 functions, including write sinks, and may have external side effects.
 Missing or invalid builds report a recovery command.
 
-See [Fragment and merge](../intro/dataframes.md#fragments-and-datasets)
+See [Fragment and merge](../concepts/dataframes.md#fragments-and-datasets)
 for merge-result requirements and
-[Engine architecture](../intro/engine.md#invocation-execution)
+[Engine architecture](../concepts/engine.md#invocation-execution)
 for execution order and failure handling.
 
 ## Runtime validation and configuration
