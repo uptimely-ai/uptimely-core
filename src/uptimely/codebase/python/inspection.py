@@ -16,7 +16,7 @@ class CallableInspection:
     source_file: str
     source_origin: origin.SourceOrigin
     raw_signature: inspect.Signature
-    display_signature: signatures.Signature
+    display_signature: signatures.DisplaySignature
     docstring: str | None
 
     @classmethod
@@ -32,6 +32,6 @@ class CallableInspection:
             source_file=implementation.module.source_file,
             source_origin=origin.read_source_origin(function, project_root),
             raw_signature=raw_signature,
-            display_signature=signatures.Signature.from_signature(raw_signature),
+            display_signature=signatures.DisplaySignature.from_signature(raw_signature),
             docstring=inspect.getdoc(function),
         )

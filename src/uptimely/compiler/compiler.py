@@ -241,7 +241,7 @@ class Compiler:
                     node,
                     dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
                     return_type=(
-                        signatures[node.function_id].returns
+                        signatures[node.function_id].display.returns
                         if node.function_id in signatures
                         else None
                     ),
