@@ -245,6 +245,33 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     ]
 
 
+def test_compiler_reads_shared_entrypoint_signature_once_but_validates_each_function(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    first = spec_model.FunctionTemplate(
+        id="first",
+        returns="any",
+        entrypoint="module:calculate",
+    )
+    second = first.model_copy(update={"id": "second"})
+    implementation = mock.Mock()
+    signature = entrypoint.Signature(return_annotation=float)
+    implementation.read_signature.return_value = signature
+    validate = mock.Mock()
+    monkeypatch.setattr(compiler.validation, "validation_callable_signature", validate)
+    signatures = compiler.Compiler._validate_signatures(
+        {"first": first, "second": second},
+        {"module:calculate": implementation},
+    )
+
+    implementation.read_signature.assert_called_once_with()
+    assert validate.call_args_list == [
+        mock.call(validation.CallableValidationContext(first, signature)),
+        mock.call(validation.CallableValidationContext(second, signature)),
+    ]
+    assert signatures == {"first": signature, "second": signature}
+
+
 def test_compiler_logs_signature_validation_summary(
     caplog: pytest.LogCaptureFixture,
 ) -> None:

@@ -161,8 +161,17 @@ class Entrypoint:
         return origin.OriginReader.read_source(self.function.load(), project_root)
 
     def read_signature(self) -> signatures.Signature:
-        """Import this entrypoint and read its callable signature."""
-        return self.function.read_signature()
+        """Import this entrypoint and read its callable signature.
+
+        Raises:
+            ValueError: The callable signature cannot be inspected.
+        """
+        try:
+            return self.function.read_signature()
+        except (ImportError, AttributeError, ValueError, TypeError, NameError) as error:
+            raise ValueError(
+                f"Could not read signature of {self._module_path}:{self._function_name}: {error}"
+            ) from error
 
     @classmethod
     def from_path(
