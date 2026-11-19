@@ -12,7 +12,7 @@ import uptimely
 from uptimely import application as application_module
 from uptimely.application import app as application_implementation
 from uptimely.application import paths as project_paths
-from uptimely.application.build import builder, bundle
+from uptimely.build import builder, bundle
 
 
 @pytest.fixture

@@ -8,11 +8,11 @@ import tomllib
 import typing
 
 from uptimely import engine as engine_module
+from uptimely.build import builder, bundle, models, source
+from uptimely.build import features as feature_selection
 
 from . import config as config_module
 from . import defaults, paths
-from .build import builder, bundle, models, source
-from .build import features as feature_selection
 
 
 class Uptimely:

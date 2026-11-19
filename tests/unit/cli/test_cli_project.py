@@ -15,7 +15,7 @@ from support import examples as example_support
 
 from uptimely import application, spec
 from uptimely import plan as plan_module
-from uptimely.application.build import builder as project_build
+from uptimely.build import builder as project_build
 from uptimely.cli import cli
 from uptimely.compiler import compiler as compiler_module
 
@@ -391,8 +391,8 @@ def test_failed_build_prints_trace_without_summary_and_preserves_logging(
     handlers, propagate = target.handlers[:], target.propagate
 
     def fail_build(*args: object, **kwargs: object) -> None:
-        logging.getLogger("uptimely.application.build").debug("attempting build")
-        logging.getLogger("uptimely.application.build").warning("build warning")
+        logging.getLogger("uptimely.build").debug("attempting build")
+        logging.getLogger("uptimely.build").warning("build warning")
         raise ValueError("injected failure")
 
     monkeypatch.setattr(application.Uptimely, "build", fail_build)

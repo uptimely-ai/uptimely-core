@@ -1,7 +1,6 @@
 """Standard project paths and active build bundle validation."""
 
-from .app import Uptimely
-from .build import (
+from uptimely.build import (
     BUILD_VERSION,
     BuildArtifactPaths,
     BuildBundle,
@@ -15,6 +14,8 @@ from .build import (
     load_spec_source,
     read_build_bundle,
 )
+
+from .app import Uptimely
 from .config import Params, Paths, ProjectConfig, ProjectSettings
 from .defaults import (
     DEFAULT_PROJECT_ROOT,

@@ -13,7 +13,7 @@ import pydantic
 
 from uptimely import plan as plan_module
 from uptimely import spec
-from uptimely.application.build import source as build_source
+from uptimely.build import source as build_source
 from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section

@@ -8,7 +8,7 @@ import pathlib
 import typing
 
 from uptimely.application import paths
-from uptimely.application.build.errors import BuildLockError
+from uptimely.build.errors import BuildLockError
 
 if os.name == "nt":
     import msvcrt
