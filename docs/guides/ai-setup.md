@@ -157,4 +157,4 @@ must not print there. Your AI application may send tool results to its model
 provider.
 
 See the [MCP architecture overview](ai-analytics.md) and
-[Engine reference](../intro/engine.md) for execution behavior.
+[Engine reference](../concepts/engine.md) for execution behavior.

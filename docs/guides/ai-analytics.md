@@ -17,7 +17,7 @@ or model API key.
 
 One server process works with one analytics project. It reads the project's
 saved build, containing the Spec and the plan prepared by the
-[Compiler](../intro/compiler.md). Changes to source declarations become available after
+[Compiler](../concepts/compiler.md). Changes to source declarations become available after
 a successful rebuild and a server reload.
 
 The server does not build the project automatically. Missing or invalid builds
@@ -28,7 +28,7 @@ run records without loading a build.
 
 A function describes reusable Python code. An operator describes where that
 function is used, which arguments it receives, and which features it needs.
-Running through the operator allows the [Engine](../intro/engine.md) to prepare the
+Running through the operator allows the [Engine](../concepts/engine.md) to prepare the
 required data and run earlier calculations first.
 
 An assistant can select a function when it has one matching use in the Spec.
@@ -80,4 +80,4 @@ See [MCP API](ai-setup.md) for installation, VS Code and other client
 configuration, working-directory requirements, connection checks, example
 questions, and troubleshooting. Install the latest published MCP extra or use
 the repository setup for unreleased tools. The
-[Engine reference](../intro/engine.md) explains execution and saved run records.
+[Engine reference](../concepts/engine.md) explains execution and saved run records.

@@ -62,7 +62,7 @@ specifies its return contract.
 When a merge is declared, the compute result is a fragment. It must include the
 target keys available in its source profile and the operator's declared
 outputs. For an `expand` relationship, the fragment may omit target keys that its
-source profile does not have. See the [Engine guide](../intro/dataframes.md#datasets-and-fragments)
+source profile does not have. See the [Engine guide](../concepts/dataframes.md#datasets-and-fragments)
 for details on combining and checking fragments.
 
 Use selectors in `compute.args` only where the argument accepts them. See
@@ -85,11 +85,11 @@ features.
 
 The built-in `merge_by_grain`, exposed as `merge.default()` in Python, aligns
 rows by target grain keys. Omission never selects it implicitly. See the
-[Engine guide](../intro/dataframes.md#fragments-and-datasets) for details.
+[Engine guide](../concepts/dataframes.md#fragments-and-datasets) for details.
 
 ### Grain relationships
 
-Explorer derives [grain relationships](../intro/grain-relationships.md#grain-relationships)
+Explorer derives [grain relationships](../concepts/grain-relationships.md#grain-relationships)
 from dimension resolutions. These are not function classifications or Spec
 fields. They neither perform calculations nor select a merge.
 

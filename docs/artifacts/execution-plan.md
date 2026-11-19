@@ -105,6 +105,6 @@ requires a newer plan version, rebuild the bundle from the source Spec.
 
 ## Learn more
 
-See the [Compiler](../intro/compiler.md) for how the plan is produced, the
-[Engine](../intro/engine.md) for how it is executed, and the
+See the [Compiler](../concepts/compiler.md) for how the plan is produced, the
+[Engine](../concepts/engine.md) for how it is executed, and the
 [Python Compiler API](../python/compiler.md) for plan serialization.

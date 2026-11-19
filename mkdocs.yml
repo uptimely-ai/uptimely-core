@@ -92,22 +92,22 @@ nav:
       - Explorer demo: intro/explorer-demo.md
   - Concepts:
       - Logical layer:
-        - Spec: intro/spec.md
-        - Grain: intro/grain.md
-        - Profile: intro/profiles.md
-        - Grain relationships: intro/grain-relationships.md
+        - Spec: concepts/spec.md
+        - Grain: concepts/grain.md
+        - Profile: concepts/profiles.md
+        - Grain relationships: concepts/grain-relationships.md
       - Bridge layer:
-        - Bind resolution: intro/bind.md
-        - Compiler: intro/compiler.md
+        - Bind resolution: concepts/bind.md
+        - Compiler: concepts/compiler.md
       - Physical layer:
-        - Function: intro/functions.md
-        - Dataset: intro/dataframes.md
+        - Function: concepts/functions.md
+        - Dataset: concepts/dataframes.md
       - Application:
-          - Application: intro/application.md
-          - Build: intro/build.md
-          - Engine: intro/engine.md
+          - Application: concepts/application.md
+          - Build: concepts/build.md
+          - Engine: concepts/engine.md
       - Semantics:
-          - Explorer: intro/explorer.md
+          - Explorer: concepts/explorer.md
   - Guides:
       - Project setup:
           - Project structure: guides/project-structure.md
