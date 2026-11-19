@@ -125,7 +125,7 @@ class Engine:
         for location, invocation in invocation_by_entrypoint.items():
             package = invocation.package
             provenance = (
-                entrypoint_module.PackageProvenance(
+                entrypoint_module.PackageOrigin(
                     distribution=package.distribution,
                     version=package.version,
                 )

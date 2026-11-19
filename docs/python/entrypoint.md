@@ -12,7 +12,7 @@ function = Entrypoint("my_package.calculations:calculate").load()
 ```
 
 Loading an entrypoint imports and runs the referenced module. Only load code
-you trust. Use `PackageProvenance` to inspect installed package information
+you trust. Use `PackageOrigin` to inspect installed package information
 without importing the function module.
 
 ::: uptimely.codebase.python.entrypoint

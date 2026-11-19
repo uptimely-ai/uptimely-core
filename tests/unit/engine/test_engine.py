@@ -60,7 +60,7 @@ def _patch_callables(monkeypatch: pytest.MonkeyPatch, callables: dict[str, objec
 
     class _TestEntrypoint:
         def __init__(
-            self, location: str, package: entrypoint_module.PackageProvenance | None = None
+            self, location: str, package: entrypoint_module.PackageOrigin | None = None
         ) -> None:
             self.location = location
             self.package = package
@@ -631,9 +631,9 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     engine = engine_for_plan(_plan())
-    runtime_package = entrypoint_module.PackageProvenance("runtime-package", "2.0")
+    runtime_package = entrypoint_module.PackageOrigin("runtime-package", "2.0")
     monkeypatch.setattr(
-        entrypoint_module.PackageProvenance,
+        entrypoint_module.PackageOrigin,
         "read",
         lambda _module: runtime_package,
     )
@@ -642,10 +642,10 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
         {
             location: entrypoint_module.Entrypoint(
                 location,
-                package=entrypoint_module.PackageProvenance("recorded-package", "1.0"),
+                package=entrypoint_module.PackageOrigin("recorded-package", "1.0"),
             )
             for location in (
-                "uptimely.codebase.python.entrypoint:PackageProvenance",
+                "uptimely.codebase.python.entrypoint:PackageOrigin",
                 "math:pi",
             )
         },
@@ -655,11 +655,11 @@ def test_engine_reports_package_provenance_without_enforcing_versions(
 
     invocation = copy.replace(
         engine.plan.invocations[0],
-        entrypoint="uptimely.codebase.python.entrypoint:PackageProvenance",
+        entrypoint="uptimely.codebase.python.entrypoint:PackageOrigin",
         arguments={"distribution": "recorded-package", "version": "1.0"},
     )
 
-    assert executor._invoke(invocation) == entrypoint_module.PackageProvenance(
+    assert executor._invoke(invocation) == entrypoint_module.PackageOrigin(
         "recorded-package", "1.0"
     )
     incompatible = copy.replace(invocation, entrypoint="math:pi", arguments={})
