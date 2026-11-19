@@ -124,7 +124,7 @@ class AnalyticalTools:
         if template is None:
             raise ValueError(f"Unknown function: {function_id}")
         signature = (
-            entrypoint.Entrypoint(template.entrypoint).function.read_signature()
+            entrypoint.Entrypoint(template.entrypoint).function.read_display_signature()
             if template.validate_signature
             else None
         )

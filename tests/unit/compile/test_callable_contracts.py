@@ -212,7 +212,7 @@ def test_signature_inspection_follows_wrapped_callable() -> None:
     signature = _signature("wrapped_dataframe")
 
     assert signature.parameters["frame"].kind is inspect.Parameter.POSITIONAL_OR_KEYWORD
-    assert signature.args["frame"] == "DataFrame | LazyFrame"
+    assert signature.display.args["frame"] == "DataFrame | LazyFrame"
 
 
 def test_signature_properties_follow_current_parameters() -> None:

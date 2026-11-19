@@ -1,4 +1,5 @@
 import collections
+import inspect
 import logging
 import math
 import pathlib
@@ -748,7 +749,16 @@ def test_entrypoint_reuses_module_and_function_but_reads_signature_explicitly(
     ) -> shared_entrypoint.Signature:
         nonlocal reads
         reads += 1
-        return cls(args={"value": "float"}, returns="int")
+        return cls(
+            parameters={
+                "value": inspect.Parameter(
+                    "value",
+                    inspect.Parameter.POSITIONAL_OR_KEYWORD,
+                    annotation=float,
+                )
+            },
+            return_annotation=int,
+        )
 
     monkeypatch.setattr(shared_entrypoint.Signature, "read", classmethod(read))
     implementation = shared_entrypoint.Entrypoint("math:ceil")

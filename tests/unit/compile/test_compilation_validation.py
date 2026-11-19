@@ -68,7 +68,7 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         "topology": mock.Mock(return_value=[[node]]),
         "entrypoint": mock.Mock(),
         "package": mock.Mock(return_value=entrypoint.PackageOrigin(None, None)),
-        "signature": mock.Mock(return_value=entrypoint.Signature(returns="float")),
+        "signature": mock.Mock(return_value=entrypoint.Signature(return_annotation=float)),
         "signature_validation": mock.Mock(),
         "invocation": mock.Mock(return_value=emitted_invocation),
     }
@@ -112,7 +112,9 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         mock.call.package(),
         mock.call.signature(),
         mock.call.signature_validation(
-            validation.CallableValidationContext(function, entrypoint.Signature(returns="float"))
+            validation.CallableValidationContext(
+                function, entrypoint.Signature(return_annotation=float)
+            )
         ),
         mock.call.invocation(
             specification,
@@ -170,7 +172,7 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     disabled = function.model_copy(update={"id": "disabled", "validate_signature": False})
     specification = spec.Spec(functions={"calculate": function, "disabled": disabled})
     monkeypatch.setattr(compiler.spec_validation, "validate_spec", mock.Mock())
-    signature = entrypoint.Signature(returns="float")
+    signature = entrypoint.Signature(return_annotation=float)
     implementation = mock.Mock()
     implementation.read_package.return_value = entrypoint.PackageOrigin(None, None)
     implementation.read_signature.return_value = signature

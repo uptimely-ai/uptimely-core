@@ -106,6 +106,10 @@ class Function:
         """
         return signatures.Signature.read(self)
 
+    def read_display_signature(self) -> signatures.DisplaySignature:
+        """Import this function and read its presentation-oriented signature."""
+        return self.read_signature().display
+
     @functools.cached_property
     def docstring(self) -> str | None:
         """Return the cleaned docstring of this function, importing its module."""

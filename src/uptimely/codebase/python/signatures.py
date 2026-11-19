@@ -36,11 +36,33 @@ class TypeAnnotation:
 
 
 @dataclasses.dataclass
-class Signature:
-    """Annotated input and output types of a Python function."""
+class DisplaySignature:
+    """Formatted input and output annotations for presentation."""
 
     args: dict[str, str] = dataclasses.field(default_factory=dict)
     returns: str | None = None
+
+    @classmethod
+    def from_signature(cls, signature: inspect.Signature) -> DisplaySignature:
+        """Create display metadata from an inspected Python signature."""
+        return cls(
+            args={
+                name: TypeAnnotation.name(parameter.annotation)
+                for name, parameter in signature.parameters.items()
+                if parameter.annotation is not inspect.Parameter.empty
+            },
+            returns=(
+                TypeAnnotation.name(signature.return_annotation)
+                if signature.return_annotation is not inspect.Signature.empty
+                else None
+            ),
+        )
+
+
+@dataclasses.dataclass
+class Signature:
+    """Raw reflection data required to validate a Python function signature."""
+
     parameters: dict[str, inspect.Parameter] = dataclasses.field(default_factory=dict)
     return_annotation: object = dataclasses.field(default=inspect.Signature.empty, repr=False)
 
@@ -63,6 +85,22 @@ class Signature:
             not in {inspect.Parameter.VAR_POSITIONAL, inspect.Parameter.VAR_KEYWORD}
         }
 
+    @property
+    def display(self) -> DisplaySignature:
+        """Return presentation-oriented annotation metadata."""
+        return DisplaySignature(
+            args={
+                name: TypeAnnotation.name(parameter.annotation)
+                for name, parameter in self.parameters.items()
+                if parameter.annotation is not inspect.Parameter.empty
+            },
+            returns=(
+                TypeAnnotation.name(self.return_annotation)
+                if self.return_annotation is not inspect.Signature.empty
+                else None
+            ),
+        )
+
     @classmethod
     def read(cls, function: address.Function) -> Signature:
         """Read the annotated argument and return types of a function."""
@@ -76,18 +114,8 @@ class Signature:
 
     @classmethod
     def from_signature(cls, signature: inspect.Signature) -> Signature:
-        """Create display metadata from an inspected Python signature."""
+        """Create validation metadata from an inspected Python signature."""
         return cls(
-            args={
-                name: TypeAnnotation.name(parameter.annotation)
-                for name, parameter in signature.parameters.items()
-                if parameter.annotation is not inspect.Parameter.empty
-            },
             parameters=dict(signature.parameters),
-            returns=(
-                TypeAnnotation.name(signature.return_annotation)
-                if signature.return_annotation is not inspect.Signature.empty
-                else None
-            ),
             return_annotation=signature.return_annotation,
         )
