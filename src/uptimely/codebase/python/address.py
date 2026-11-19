@@ -232,7 +232,7 @@ class Entrypoint:
     @staticmethod
     def _split_entrypoint(entrypoint: str) -> tuple[str, str]:
         if ":" not in entrypoint:
-            raise ValueError(f"Invalid entrypoint: {entrypoint}. Expected 'module.path:qualname'")
+            raise ValueError(f"Invalid entrypoint {entrypoint!r}. Expected 'module.path:qualname'")
 
         module_path, function_name = entrypoint.rsplit(":", 1)
         return module_path, function_name
@@ -240,7 +240,7 @@ class Entrypoint:
     @staticmethod
     def _validate_function_entrypoint(entrypoint: str, function_name: str) -> None:
         if not Function._is_valid_qualified_name(function_name):
-            raise ValueError(f"Invalid function entrypoint: {entrypoint}")
+            raise ValueError(f"Invalid function entrypoint: {entrypoint!r}")
 
     @staticmethod
     def _validate_module_path(module_path: str) -> None:
