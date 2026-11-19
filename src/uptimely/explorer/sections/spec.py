@@ -7,11 +7,11 @@ import datetime
 import pathlib
 import re
 import typing
-from importlib import util
 
 import docstring_parser
 
 from uptimely.codebase.python import entrypoint as entrypoint_module
+from uptimely.codebase.python import inspection
 from uptimely.spec import model as spec_model
 from uptimely.spec import operator_bindings, selectors
 
@@ -230,30 +230,21 @@ def _build_context(
         entrypoint = function.get("entrypoint")
         if not isinstance(entrypoint, str) or ":" not in entrypoint:
             continue
-        module_name = entrypoint.rsplit(":", 1)[0]
-        if validate_signature:
-            try:
-                module_spec = util.find_spec(module_name)
-            except (ModuleNotFoundError, ValueError):
-                module_spec = None
-            if module_spec is not None and module_spec.origin not in (
-                None,
-                "built-in",
-                "frozen",
-            ):
-                function["entrypoint_file"] = pathlib.Path(module_spec.origin).resolve().as_uri()
         if validate_signature:
             function_entrypoint = entrypoint_module.Entrypoint(entrypoint)
-            source_file = function_entrypoint.module.source_file
-            function["entrypoint_file"] = pathlib.Path(source_file).resolve().as_uri()
-            origin = function_entrypoint.read_source_origin(project_root)
-            function["source_origin"] = origin.kind
-            if origin.distribution is not None:
-                function["source_distribution"] = origin.distribution
-            return_type = function_entrypoint.function.read_signature().returns
+            callable_inspection = inspection.CallableInspection.read(
+                function_entrypoint, project_root
+            )
+            function["entrypoint_file"] = (
+                pathlib.Path(callable_inspection.source_file).resolve().as_uri()
+            )
+            function["source_origin"] = callable_inspection.source_origin.kind
+            if callable_inspection.source_origin.distribution is not None:
+                function["source_distribution"] = callable_inspection.source_origin.distribution
+            return_type = callable_inspection.signature.returns
             if return_type:
                 function["return_type"] = return_type
-            docstring = function_entrypoint.function.docstring
+            docstring = callable_inspection.docstring
             documentation = _parse_docstring(docstring) if docstring else None
             if documentation:
                 function["doc"] = documentation
