@@ -162,14 +162,11 @@ class Compiler:
         disabled_count = sum(
             not function.validate_signature for function in selected_functions.values()
         )
-        logger.debug("Check callable signatures for %d functions", enabled_count)
-        logger.debug("Check implementations accept declared arguments")
-        logger.debug("Check declared arguments can be passed as keywords")
-        logger.debug("Check declared implementation argument annotations")
-        logger.debug("Check required implementation parameters are declared")
-        logger.debug("Check declared implementation return annotations")
-        if disabled_count:
-            logger.debug("Skipping %d functions (validate_signature=false)", disabled_count)
+        logger.debug(
+            "Check callable signatures for %d functions; skip %d disabled functions",
+            enabled_count,
+            disabled_count,
+        )
 
         signatures: dict[str, entrypoint.Signature] = {}
         inspected: dict[str, entrypoint.Signature] = {}
