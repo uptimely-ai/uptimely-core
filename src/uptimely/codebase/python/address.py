@@ -158,7 +158,7 @@ class Entrypoint:
         """
         if project_root is None:
             return origin.SourceOrigin("unknown")
-        return origin.read_source_origin(self.function.load(), project_root)
+        return origin.OriginReader.read_source(self.function.load(), project_root)
 
     def read_signature(self) -> signatures.Signature:
         """Import this entrypoint and read its callable signature."""
