@@ -169,8 +169,14 @@ class Entrypoint:
         try:
             return self.function.read_signature()
         except (ImportError, AttributeError, ValueError, TypeError, NameError) as error:
+            try:
+                package = self.read_package()
+                available = f"distribution={package.distribution!r} version={package.version!r}"
+            except (ImportError, ValueError) as package_error:
+                available = f"unresolved ({package_error})"
             raise ValueError(
-                f"Could not read signature of {self._module_path}:{self._function_name}: {error}"
+                f"Could not read signature of {self._module_path}:{self._function_name}; "
+                f"available build package: {available}: {error}"
             ) from error
 
     @classmethod
