@@ -15,7 +15,7 @@ from support import execution as execution_support
 
 from uptimely import engine
 from uptimely import plan as execution_plan
-from uptimely.application import paths
+from uptimely.project import paths
 from uptimely.run import models, store
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures/plans/simple_engine.json"

@@ -7,8 +7,8 @@ import types
 import pytest
 
 from uptimely import application, engine
-from uptimely.application import source_environment
 from uptimely.cli import cli
+from uptimely.project import source_environment
 
 
 def _write_project(root: pathlib.Path, value: int) -> None:

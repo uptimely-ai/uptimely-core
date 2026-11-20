@@ -8,7 +8,7 @@ import tempfile
 import typing
 
 from uptimely import application as application_module
-from uptimely.application import paths
+from uptimely.project import paths
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[2]
 EXAMPLES_ROOT = pathlib.Path(

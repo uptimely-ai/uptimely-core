@@ -1,4 +1,4 @@
-"""Standard project paths and active build bundle validation."""
+"""Configured application API for project build and execution workflows."""
 
 from uptimely.build import (
     BUILD_VERSION,
@@ -14,15 +14,7 @@ from uptimely.build import (
     load_spec_source,
     read_build_bundle,
 )
-
-from .app import Uptimely
-from .config import Params, Paths, ProjectConfig, ProjectSettings
-from .defaults import (
-    DEFAULT_PROJECT_ROOT,
-    DEFAULT_SPEC_ATTRIBUTE,
-    DEFAULT_SRC_PATH,
-)
-from .paths import (
+from uptimely.project import (
     ARTIFACTS_DIR,
     BUILD_EXECUTION_PLAN_FILE,
     BUILD_MANIFEST_FILE,
@@ -32,12 +24,18 @@ from .paths import (
     CONFIG_DIR,
     CONFIG_FILE,
     DATA_DIR,
+    DEFAULT_PROJECT_ROOT,
+    DEFAULT_SPEC_ATTRIBUTE,
+    DEFAULT_SRC_PATH,
     EXPLORER_DATA_FILE,
     FUNCTIONS_DIR,
     SPEC_JSON_ENTRY_FILE,
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
 )
+
+from .app import Uptimely
+from .config import Params, Paths, ProjectConfig, ProjectSettings
 
 __all__ = [
     "Uptimely",
