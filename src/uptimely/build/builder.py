@@ -94,7 +94,7 @@ class ProjectBuilder:
                     staging_root,
                     selected_features,
                     resolved_src_path,
-                    self._describe_spec_source(spec_source, python_spec),
+                    spec_source.display_name,
                 )
                 self._publish_bundle(staging_root)
                 self._publish_explorer_snapshot(snapshot)
@@ -155,15 +155,6 @@ class ProjectBuilder:
             return project_spec_source.load_spec_source(source, validate=False)
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
-
-    @staticmethod
-    def _describe_spec_source(
-        source: project_spec_source.ResolvedSpecSource, python_spec: str | None
-    ) -> str:
-        """Describe the selected source for persisted build metadata."""
-        if isinstance(source, project_spec_source.PythonSpecSource) and python_spec is not None:
-            return python_spec
-        return str(source.path.resolve())
 
     @staticmethod
     def _compile_plan(
