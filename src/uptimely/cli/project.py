@@ -10,7 +10,7 @@ import polars as pl
 from uptimely import application
 from uptimely.application import BuildBundle, BuildLockError, ProjectBuildError
 from uptimely.cli import common
-from uptimely.project import source as project_source
+from uptimely.project import spec_source as project_spec_source
 
 logger = logging.getLogger(__name__)
 
@@ -55,10 +55,10 @@ def _log_build_details(
     python_spec, json_spec = app._resolve_spec_source(
         python_spec=args.python_spec, json_spec=args.json_spec
     )
-    source = project_source.SpecSourceResolver(root).resolve(
+    source = project_spec_source.SpecSourceResolver(root).resolve(
         python_spec=python_spec, json_spec=json_spec
     )
-    if isinstance(source, project_source.PythonSpecSource):
+    if isinstance(source, project_spec_source.PythonSpecSource):
         spec_source = str(source.path.resolve()) if python_spec is None else python_spec
     else:
         spec_source = str(source.path.resolve())

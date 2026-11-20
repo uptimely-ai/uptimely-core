@@ -8,7 +8,7 @@ import pytest
 
 from uptimely import application, engine
 from uptimely.cli import cli
-from uptimely.project import source_environment
+from uptimely.project import python_source_environment
 
 
 def _write_project(root: pathlib.Path, value: int) -> None:
@@ -110,7 +110,7 @@ def test_cli_run_uses_configured_source_path(
 def test_configured_source_path_must_be_a_directory(tmp_path: pathlib.Path) -> None:
     with (
         pytest.raises(NotADirectoryError, match="Project source path is not a directory"),
-        source_environment.project_source_path(tmp_path, pathlib.Path("missing")),
+        python_source_environment.project_source_path(tmp_path, pathlib.Path("missing")),
     ):
         pytest.fail("A missing configured source path must fail")
 

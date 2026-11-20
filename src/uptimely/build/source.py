@@ -1,6 +1,6 @@
 """Compatibility aliases for project specification sources."""
 
-from uptimely.project.source import (
+from uptimely.project.spec_source import (
     JsonSourceInput,
     JsonSpecSource,
     PythonSpecSource,

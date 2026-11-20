@@ -17,7 +17,7 @@ from uptimely.build.source import (
     PythonSource,
     SpecSource,
 )
-from uptimely.project.source import load_project_spec as load_spec_source
+from uptimely.project.spec_source import load_project_spec as load_spec_source
 
 __all__ = [
     "ProjectBuilder",
