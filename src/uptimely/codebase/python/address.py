@@ -37,6 +37,21 @@ class Module:
             and all(part.isidentifier() for part in location.split("."))
         )
 
+    @staticmethod
+    def find_import_root(project_root: pathlib.Path) -> pathlib.Path:
+        """Find the import root above enclosing regular Python packages.
+
+        Args:
+            project_root: Project directory that may itself be a Python package.
+
+        Returns:
+            Directory from which the project package hierarchy can be imported.
+        """
+        import_root = project_root.resolve()
+        while import_root.name.isidentifier() and (import_root / "__init__.py").is_file():
+            import_root = import_root.parent
+        return import_root
+
     def read_package(self) -> origin.PackageOrigin:
         """Read installed package provenance without importing this module.
 

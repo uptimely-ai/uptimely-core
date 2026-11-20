@@ -12,6 +12,7 @@ import uptimely
 from uptimely import application as application_module
 from uptimely.application import app as application_implementation
 from uptimely.application import paths as project_paths
+from uptimely.application import source_environment
 from uptimely.build import builder, bundle
 
 
@@ -244,9 +245,9 @@ def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) ->
     app.build()
 
     with mock.patch.object(
-        application_implementation.source,
+        source_environment,
         "project_source_path",
-        wraps=application_implementation.source.project_source_path,
+        wraps=source_environment.project_source_path,
     ) as source_path:
         result = app.run()
 

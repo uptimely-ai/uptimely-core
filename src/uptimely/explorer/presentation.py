@@ -13,7 +13,7 @@ import pydantic
 
 from uptimely import plan as plan_module
 from uptimely import spec
-from uptimely.build import source as build_source
+from uptimely.application import source_environment
 from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
@@ -89,7 +89,7 @@ def build_presentation_data(
         Versioned JSON-ready project, catalog, graph, plan, and animation data.
     """
     import_context = (
-        build_source.project_source_path(project_root, src_path=src_path)
+        source_environment.project_source_path(project_root, src_path=src_path)
         if project_root is not None
         else contextlib.nullcontext()
     )

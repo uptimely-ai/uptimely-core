@@ -15,22 +15,6 @@ from uptimely.spec import model as spec_models
 BUILD_VERSION = 2
 
 
-def validate_relative_path(value: str) -> str:
-    """Require a canonical POSIX path that cannot escape the build directory."""
-    if not value or "\\" in value:
-        raise ValueError("Build artifact paths must be nonempty relative POSIX paths")
-    path = pathlib.PurePosixPath(value)
-    if (
-        path.is_absolute()
-        or pathlib.PureWindowsPath(value).drive
-        or not path.parts
-        or any(part in {".", ".."} for part in path.parts)
-        or path.as_posix() != value
-    ):
-        raise ValueError(f"Build artifact path must stay within the build directory: {value!r}")
-    return value
-
-
 class BuildArtifactPaths(pydantic.BaseModel):
     """Relative locations of the required artifacts in an active build."""
 
@@ -43,7 +27,23 @@ class BuildArtifactPaths(pydantic.BaseModel):
     @classmethod
     def validate_path(cls, value: str) -> str:
         """Reject paths that are not safe to resolve under the bundle root."""
-        return validate_relative_path(value)
+        return cls._validate_relative_path(value)
+
+    @staticmethod
+    def _validate_relative_path(value: str) -> str:
+        """Require a canonical POSIX path that cannot escape the build directory."""
+        if not value or "\\" in value:
+            raise ValueError("Build artifact paths must be nonempty relative POSIX paths")
+        path = pathlib.PurePosixPath(value)
+        if (
+            path.is_absolute()
+            or pathlib.PureWindowsPath(value).drive
+            or not path.parts
+            or any(part in {".", ".."} for part in path.parts)
+            or path.as_posix() != value
+        ):
+            raise ValueError(f"Build artifact path must stay within the build directory: {value!r}")
+        return value
 
     @pydantic.model_validator(mode="after")
     def validate_distinct_paths(self) -> typing.Self:

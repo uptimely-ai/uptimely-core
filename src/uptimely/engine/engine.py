@@ -7,8 +7,8 @@ from collections import abc
 
 from uptimely import plan as plan_module
 from uptimely.application import config as project_config
+from uptimely.application import source_environment
 from uptimely.build import models as build_models
-from uptimely.build import source as build_source
 from uptimely.codebase.python import codebase as codebase_module
 from uptimely.codebase.python import entrypoint as entrypoint_module
 from uptimely.run import recording
@@ -106,7 +106,7 @@ class Engine:
             src_path = pathlib.Path(self.project_settings.src_path)
         plan = self.plan if operator is None else self.plan.for_operator(*operator)
         with (
-            build_source.project_source_path(self.bundle.project_root, src_path=src_path),
+            source_environment.project_source_path(self.bundle.project_root, src_path=src_path),
             recording.RunRecorder(
                 self.bundle, self.config, validate=validate, preview_rows=preview_rows
             ) as recorder,
