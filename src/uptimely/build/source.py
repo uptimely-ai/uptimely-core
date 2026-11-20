@@ -2,11 +2,7 @@
 
 from __future__ import annotations
 
-import contextlib
 import pathlib
-import sys
-import threading
-import typing
 
 from uptimely import spec
 from uptimely.application import defaults, paths
@@ -14,80 +10,6 @@ from uptimely.codebase.python import entrypoint as entrypoint_module
 from uptimely.spec import python as python_spec_api
 
 JsonSourceInput = str | pathlib.Path | None
-
-_IMPORT_LOCK = threading.RLock()
-_ACTIVE_ROOTS: list[tuple[pathlib.Path, pathlib.Path]] = []
-_RESERVED_MODULES = frozenset({"uptimely"})
-
-
-def find_import_root(root: pathlib.Path) -> pathlib.Path:
-    """Find the import root above the project's regular Python packages."""
-    root = root.resolve()
-    while root.name.isidentifier() and (root / "__init__.py").is_file():
-        root = root.parent
-    return root
-
-
-@contextlib.contextmanager
-def project_source_path(
-    root: pathlib.Path, src_path: pathlib.Path | None = None
-) -> typing.Iterator[None]:
-    """Make project modules importable for the duration of a build or run."""
-    root = root.resolve()
-    source = root / defaults.DEFAULT_SRC_PATH if src_path is None else src_path
-    if not source.is_absolute():
-        source = root / source
-    source = source.resolve()
-    if src_path is not None and not source.is_dir():
-        raise NotADirectoryError(f"Project source path is not a directory: {source}")
-
-    directories = [root]
-    import_root = find_import_root(root)
-    if import_root != root:
-        directories.append(import_root)
-    if source.is_dir():
-        directories.insert(0, source)
-
-    active_root = (root, source)
-    names = {"spec"} if (root / "spec").is_dir() else set()
-    if import_root != root:
-        names.add(root.relative_to(import_root).parts[0])
-    if source.is_dir():
-        names.update(
-            item.stem if item.is_file() else item.name
-            for item in source.iterdir()
-            if (
-                (item.is_file() and item.suffix == ".py" and item.stem.isidentifier())
-                or (item.is_dir() and item.name.isidentifier())
-            )
-            and not item.name.startswith("_")
-            and item.stem not in sys.stdlib_module_names
-            and item.stem not in _RESERVED_MODULES
-        )
-
-    with _IMPORT_LOCK:
-        if _ACTIVE_ROOTS and _ACTIVE_ROOTS[-1] == active_root:
-            yield
-            return
-        original_path = sys.path[:]
-        previous = {
-            name: module
-            for name, module in sys.modules.copy().items()
-            if name.partition(".")[0] in names
-        }
-        for name in previous:
-            del sys.modules[name]
-        sys.path[:0] = [str(directory) for directory in directories]
-        _ACTIVE_ROOTS.append(active_root)
-        try:
-            yield
-        finally:
-            _ACTIVE_ROOTS.pop()
-            for name in tuple(sys.modules):
-                if name.partition(".")[0] in names:
-                    del sys.modules[name]
-            sys.modules.update(previous)
-            sys.path[:] = original_path
 
 
 class PythonSource:
@@ -98,7 +20,7 @@ class PythonSource:
         if python_spec is None:
             self.entrypoint = entrypoint_module.Entrypoint.from_path(
                 self.path,
-                find_import_root(project_root),
+                entrypoint_module.Module.find_import_root(project_root),
                 defaults.DEFAULT_SPEC_ATTRIBUTE,
             )
         else:
