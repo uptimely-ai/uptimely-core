@@ -69,7 +69,7 @@ def _python_spec(profiles: list[profile.Profile], name: str | None = None) -> Sp
     return Spec(profiles=profiles, name=name)
 
 
-def _mapping_source() -> profile.Profile:
+def _expansion_source() -> profile.Profile:
     return profile.Profile(
         id="shared_source",
         assembly=[
@@ -140,7 +140,7 @@ def test_function_catalog_merges_and_deduplicates_contracts(scenario: str) -> No
         profiles.append(_conform_source("first"))
         profiles.append(_conform_source("second"))
     if scenario == "expand":
-        profiles.insert(0, _mapping_source())
+        profiles.insert(0, _expansion_source())
     spec_definition = _python_spec(profiles)
 
     catalog = spec_definition.function_catalog()
@@ -201,7 +201,7 @@ def test_function_catalog_rejects_conflicting_entrypoints(scenario: str) -> None
     if scenario == "conform":
         profiles.extend([_conform_source("first"), _conform_source("second")])
     if scenario == "expand":
-        profiles.insert(0, _mapping_source())
+        profiles.insert(0, _expansion_source())
     spec_definition = _python_spec(profiles)
 
     with pytest.raises(

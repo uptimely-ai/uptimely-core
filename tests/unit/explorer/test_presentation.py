@@ -41,9 +41,9 @@ def test_build_presentation_data_returns_versioned_json_structures(
     merged = next(item for item in pump["assembly"].values() if item.get("merge"))
     assert merged["merge_contract"] == data["catalogs"]["binding_contracts"]["merge"]
     assert {
-        function["frame_operation"]
+        tuple(function["frame_signature"])
         for function in data["catalogs"]["configuration"]["functions"].values()
-    } >= {"read", "write", "transform", "combine", "workflow"}
+    } >= {(0, 1), (1, 0), (1, 1), (2, 1), (None, None)}
     assert all(
         operator["execution_form"]
         == bundle.spec_definition.operators_by_key[(profile_id, operator_id)].execution_form

@@ -1,4 +1,4 @@
-"""Function definitions and kind rules for spec documents."""
+"""Function definitions and dataframe contracts for spec documents."""
 
 from __future__ import annotations
 
@@ -46,11 +46,6 @@ class FunctionTemplate(base.StrictModel):
         dataframe_inputs = len(self.arguments_by_type.get(arg_types.DATAFRAME, {}))
         dataframe_outputs = int(self.returns == "dataframe")
         return dataframe_inputs, dataframe_outputs
-
-    @property
-    def frame_operation(self) -> function_contracts.FrameOperation:
-        """Infer the frame operation from its dataframe signature."""
-        return function_contracts.FRAME_SIGNATURE_TO_OPERATION.get(self.frame_signature, "unknown")
 
     def check_return_contract(self) -> None:
         """Require a supported independent return contract."""
