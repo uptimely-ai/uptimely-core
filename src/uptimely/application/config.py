@@ -8,6 +8,7 @@ import typing
 
 import pydantic
 
+from uptimely.codebase import packaging
 from uptimely.engine import config as engine_config
 
 
@@ -72,6 +73,14 @@ class ProjectSettings(pydantic.BaseModel):
         return self
 
 
+class RuntimeSettings(pydantic.BaseModel):
+    """Location of project runtime definitions."""
+
+    model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    path: str = pydantic.Field(default=packaging.RUNTIMES_DIR, min_length=1)
+
+
 class ProjectConfig(pydantic.BaseModel):
     """Project configuration with settings for individual components."""
 
@@ -81,3 +90,4 @@ class ProjectConfig(pydantic.BaseModel):
     engine: engine_config.EngineConfig = pydantic.Field(default_factory=engine_config.EngineConfig)
     params: Params = pydantic.Field(default_factory=lambda: Params(root={}))
     paths: Paths = pydantic.Field(default_factory=lambda: Paths(root={}))
+    runtimes: RuntimeSettings = pydantic.Field(default_factory=RuntimeSettings)

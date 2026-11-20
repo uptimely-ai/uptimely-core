@@ -8,8 +8,8 @@ from collections import abc
 from uptimely import plan as plan_module
 from uptimely.application import config as project_config
 from uptimely.build import models as build_models
-from uptimely.codebase.python import codebase, entrypoint
-from uptimely.project import defaults, python_imports
+from uptimely.codebase.python import codebase, entrypoint, packaging
+from uptimely.project import python_imports
 from uptimely.run import recording
 
 from . import config as config_module
@@ -87,8 +87,8 @@ class Engine:
                 explicitly selected sink still runs. Unselected invocations
                 are recorded as skipped.
             src_path: Optional source directory, relative to the project root unless absolute.
-                Defaults to the source path saved with the active build, then the configured
-                project source path for older builds.
+                Defaults to the saved project source when it still exists, then the
+                source bundled with the build, then configured project source.
 
         Returns:
             Main dataframes, invocation results, execution duration, collected
@@ -102,12 +102,7 @@ class Engine:
         if preview_rows is None:
             preview_rows = self.config.preview_rows
         if src_path is None:
-            saved_src_path = self.bundle.manifest.src_path
-            if saved_src_path is not None:
-                saved_path = pathlib.Path(saved_src_path)
-                src_path = None if saved_path == defaults.DEFAULT_SRC_PATH else saved_path
-            elif self.project_settings.src_path is not None:
-                src_path = pathlib.Path(self.project_settings.src_path)
+            src_path = self._default_src_path()
         plan = self.plan if operator is None else self.plan.for_operator(*operator)
         with (
             python_imports.expose(self.bundle.project_root, src_path=src_path),
@@ -116,6 +111,20 @@ class Engine:
             ) as recorder,
         ):
             return recorder.finish(self._execute(validate=validate, plan=plan))
+
+    def _default_src_path(self) -> pathlib.Path | None:
+        """Select the saved, bundled, or configured Python source for execution."""
+        if (saved_src_path := self.bundle.manifest.src_path) is not None:
+            saved_path = python_imports.resolve_src_path(
+                self.bundle.project_root, pathlib.Path(saved_src_path)
+            )
+            if saved_path.is_dir():
+                return saved_path
+        if (bundled_source := self.bundle.package_paths.get(packaging.PACKAGE_ID)) is not None:
+            return bundled_source
+        if self.project_settings.src_path is not None:
+            return pathlib.Path(self.project_settings.src_path)
+        return None
 
     def _execute(
         self, *, validate: bool, plan: plan_module.ExecutionPlan | None = None

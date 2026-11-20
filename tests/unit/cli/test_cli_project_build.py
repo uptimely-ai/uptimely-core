@@ -122,7 +122,21 @@ def test_project_build_examples(
     assert bundle.manifest.features is None
     assert spec.load_spec(bundle.spec_path).profiles
     assert bundle.execution_plan.invocations
-    assert set(bundle_files(root)) == {"build.json", "execution_plan.json", "spec.json"}
+    assert set(bundle_files(root)) == {
+        "build.json",
+        "execution_plan.json",
+        "spec.json",
+        "packages/project/__init__.py",
+        "packages/project/pump_analytics.py",
+        "packages/project/pump_io.py",
+        "packages/project/pump_merge.py",
+        "packages/project/pump_util.py",
+        "runtimes/python/requirements.txt",
+    }
+    assert (
+        bundle.runtime_paths["python"].read_bytes()
+        == (root / "runtimes" / "python" / "requirements.txt").read_bytes()
+    )
     explorer_data = json.loads((root / application.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert explorer_data["format_version"] == 3
 

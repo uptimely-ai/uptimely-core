@@ -9,6 +9,7 @@ import typing
 import pydantic
 
 from uptimely.build import features
+from uptimely.codebase import packaging
 from uptimely.plan import models as plan_models
 from uptimely.spec import model as spec_models
 
@@ -16,12 +17,14 @@ BUILD_VERSION = 2
 
 
 class BuildArtifactPaths(pydantic.BaseModel):
-    """Relative locations of the required artifacts in an active build."""
+    """Relative locations of artifacts in an active build."""
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
 
     spec: str
     execution_plan: str
+    packages: dict[str, packaging.CodePackage] = pydantic.Field(default_factory=dict)
+    runtimes: dict[str, str] = pydantic.Field(default_factory=dict)
 
     @pydantic.field_validator("spec", "execution_plan")
     @classmethod
@@ -49,8 +52,19 @@ class BuildArtifactPaths(pydantic.BaseModel):
     def validate_distinct_paths(self) -> typing.Self:
         """Prevent required artifacts from colliding or containing one another."""
         artifact_paths = {
+            "manifest": pathlib.PurePosixPath("build.json"),
             "spec": pathlib.PurePosixPath(self.spec),
             "execution_plan": pathlib.PurePosixPath(self.execution_plan),
+            **{
+                f"package:{package_id}": pathlib.PurePosixPath(
+                    self._validate_relative_path(entry.path)
+                )
+                for package_id, entry in self.packages.items()
+            },
+            **{
+                f"runtime:{runtime}": pathlib.PurePosixPath(self._validate_relative_path(path))
+                for runtime, path in self.runtimes.items()
+            },
         }
         names = list(artifact_paths)
         for index, name in enumerate(names):
@@ -62,6 +76,18 @@ class BuildArtifactPaths(pydantic.BaseModel):
                     or other_path in artifact_path.parents
                 ):
                     raise ValueError(f"Build artifact paths {name!r} and {other_name!r} overlap")
+        return self
+
+    @pydantic.model_validator(mode="after")
+    def validate_code_packages(self) -> typing.Self:
+        """Check package IDs against directory names and validate runtime references."""
+        for package_id, entry in self.packages.items():
+            if pathlib.PurePosixPath(entry.path).parts != (packaging.PACKAGES_DIR, package_id):
+                raise ValueError(f"Code package {package_id!r} must match its directory name")
+            if entry.runtime is not None and entry.runtime not in self.runtimes:
+                raise ValueError(
+                    f"Code package {package_id!r} refers to undeclared runtime {entry.runtime!r}"
+                )
         return self
 
 
@@ -106,7 +132,7 @@ class BuildManifest(pydantic.BaseModel):
 
 @dataclasses.dataclass(frozen=True)
 class BuildBundle:
-    """Validated artifacts, execution plan, and project context for one active build."""
+    """Validated artifacts, execution plan, and portable code for one active build."""
 
     project_root: pathlib.Path
     root: pathlib.Path
@@ -115,3 +141,5 @@ class BuildBundle:
     spec_definition: spec_models.Spec
     execution_plan_path: pathlib.Path
     execution_plan: plan_models.ExecutionPlan
+    package_paths: dict[str, pathlib.Path] = dataclasses.field(default_factory=dict)
+    runtime_paths: dict[str, pathlib.Path] = dataclasses.field(default_factory=dict)

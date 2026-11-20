@@ -1,3 +1,4 @@
+import json
 import pathlib
 import shutil
 import sys
@@ -11,6 +12,7 @@ from uptimely import application, spec
 from uptimely import plan as plan_module
 from uptimely.build import builder as project_build
 from uptimely.cli import cli
+from uptimely.codebase import packaging
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -73,6 +75,186 @@ def test_project_build_compiles_once_and_prepares_the_compiled_plan(
     assert len(compiled) == 1
     assert len(plans) == 1
     assert plans[0] is compiled[0]
+
+
+def test_project_build_packages_python_source_and_requirements(
+    tmp_path: pathlib.Path,
+) -> None:
+    root = tmp_path / "project"
+    example_support.copy_example_project(root)
+    requirements = b"polars>=1,<2\n"
+    (root / "runtimes" / "python" / "requirements.txt").write_bytes(requirements)
+    (root / "requirements.txt").write_text("unused-package\n", encoding="utf-8")
+    (root / "poetry.lock").write_text("# development lock\n", encoding="utf-8")
+
+    build = project_build.build(root)
+
+    assert build.manifest.artifacts.model_dump()["packages"] == {
+        "project": {"path": "packages/project", "runtime": "python"}
+    }
+    assert build.manifest.artifacts.runtimes == {"python": "runtimes/python/requirements.txt"}
+    source = build.package_paths["project"]
+    assert (source / "pump_analytics.py").is_file()
+    assert build.runtime_paths["python"].read_bytes() == requirements
+    assert not (build.root / "poetry.lock").exists()
+    assert not (source / "__pycache__").exists()
+
+    shutil.rmtree(root / "src")
+    invocation = next(
+        item for item in build.execution_plan.invocations if item.function_id == "pump_mode"
+    )
+    result = application.Uptimely(root).run(
+        preview_rows=1, operator=(invocation.profile_id, invocation.operator_id)
+    )
+
+    assert result.failures == {}
+
+
+def test_bundle_loader_requires_declared_requirements(tmp_path: pathlib.Path) -> None:
+    root = tmp_path / "project"
+    copy_project_spec(root)
+    (root / "requirements.txt").touch()
+    build = project_build.build(root)
+    build.runtime_paths["python"].unlink()
+
+    with pytest.raises(
+        application.BuildError, match=r"missing artifact runtimes/python/requirements\.txt"
+    ):
+        application.load_build_bundle(root)
+
+
+@pytest.mark.parametrize("override", [False, True])
+def test_project_build_selects_runtimes_path(tmp_path: pathlib.Path, override: bool) -> None:
+    copy_project_spec(tmp_path)
+    (tmp_path / "uptimely.toml").write_text('[runtimes]\npath = "worker-env"\n', encoding="utf-8")
+    runtime = tmp_path / "worker-env"
+    runtime.mkdir()
+    (runtime / "requirements.txt").write_bytes(b"polars>=1,<2\n")
+    alternate = tmp_path / "alternate"
+    alternate.mkdir()
+    (alternate / "requirements.txt").write_bytes(b"polars==1.0.0\n")
+
+    build = application.Uptimely(tmp_path).build(runtimes_path=alternate if override else None)
+
+    assert build.runtime_paths["python"] == build.root / "runtimes" / "python" / "requirements.txt"
+    expected_source = alternate if override else runtime
+    expected_requirements = expected_source / "requirements.txt"
+    assert build.runtime_paths["python"].read_bytes() == expected_requirements.read_bytes()
+
+
+def test_bundle_loader_checks_code_runtime_reference(tmp_path: pathlib.Path) -> None:
+    root = tmp_path / "project"
+    example_support.copy_example_project(root)
+    build = project_build.build(root)
+    manifest_path = root / application.BUILD_MANIFEST_FILE
+    manifest = build.manifest.model_dump()
+    manifest["artifacts"]["packages"]["project"]["runtime"] = "missing"
+    manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
+
+    with pytest.raises(application.BuildError, match="refers to undeclared runtime 'missing'"):
+        application.load_build_bundle(root)
+
+
+def test_project_build_preserves_dependency_markers_in_generated_requirements(
+    tmp_path: pathlib.Path,
+) -> None:
+    copy_project_spec(tmp_path)
+    dependency = "package[extra]>=1; sys_platform == 'win32'"
+    (tmp_path / "pyproject.toml").write_text(
+        f'[project]\ndependencies = ["{dependency}"]\n'
+        '[project.optional-dependencies]\ntest = ["pytest"]\n',
+        encoding="utf-8",
+    )
+
+    build = project_build.build(tmp_path)
+
+    assert build.runtime_paths["python"].read_bytes() == f"{dependency}\n".encode()
+
+
+def test_project_build_reports_invalid_dependency_metadata(tmp_path: pathlib.Path) -> None:
+    copy_project_spec(tmp_path)
+    (tmp_path / "pyproject.toml").write_text(
+        '[project]\ndependencies = "polars"\n', encoding="utf-8"
+    )
+
+    with pytest.raises(application.ProjectBuildError, match=r"\[project\]\.dependencies"):
+        project_build.build(tmp_path)
+
+
+def test_bundle_loader_requires_declared_python_source(
+    tmp_path: pathlib.Path,
+) -> None:
+    root = tmp_path / "project"
+    example_support.copy_example_project(root)
+    build = project_build.build(root)
+    shutil.rmtree(build.package_paths["project"])
+
+    with pytest.raises(application.BuildError, match="missing artifact packages/project"):
+        application.load_build_bundle(root)
+
+
+def test_project_build_publishes_opaque_code_artifacts(tmp_path: pathlib.Path) -> None:
+    class Packager:
+        def stage(
+            self,
+            project_root: pathlib.Path,
+            source: pathlib.Path,
+            staging_root: pathlib.Path,
+            runtimes_root: pathlib.Path,
+        ) -> packaging.StagedCode:
+            artifact = staging_root / "packages" / "bin" / "worker"
+            artifact.parent.mkdir(parents=True)
+            artifact.write_bytes(b"packaged implementation")
+            other_package = staging_root / "packages" / "tools"
+            other_package.mkdir()
+            runtime = staging_root / "runtimes" / "native" / "runtime.json"
+            runtime.parent.mkdir(parents=True)
+            runtime.write_text("{}", encoding="utf-8")
+            return packaging.StagedCode(
+                packages={
+                    "bin": packaging.CodePackage(path="packages/bin", runtime="native"),
+                    "tools": packaging.CodePackage(path="packages/tools", runtime="native"),
+                },
+                runtimes={"native": "runtimes/native/runtime.json"},
+            )
+
+    spec_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
+    spec_path.parent.mkdir()
+    spec.write_document(spec.Spec(), spec_path)
+    project_build.ProjectBuilder(tmp_path, code_packager=Packager()).build()
+
+    loaded = application.load_build_bundle(tmp_path)
+    assert loaded.manifest.artifacts.model_dump()["packages"] == {
+        "bin": {"path": "packages/bin", "runtime": "native"},
+        "tools": {"path": "packages/tools", "runtime": "native"},
+    }
+    assert set(loaded.runtime_paths) == {"native"}
+    assert (loaded.package_paths["bin"] / "worker").read_bytes() == b"packaged implementation"
+
+
+@pytest.mark.parametrize("directory", ["packages", "runtimes"])
+def test_project_build_rejects_loose_package_or_runtime_files(
+    tmp_path: pathlib.Path, directory: str
+) -> None:
+    class Packager:
+        def stage(
+            self,
+            project_root: pathlib.Path,
+            source: pathlib.Path,
+            staging_root: pathlib.Path,
+            runtimes_root: pathlib.Path,
+        ) -> packaging.StagedCode:
+            target = staging_root / directory
+            target.mkdir()
+            (target / "loose.txt").touch()
+            return packaging.StagedCode()
+
+    copy_project_spec(tmp_path)
+    with pytest.raises(
+        application.ProjectBuildError,
+        match=f"{directory}/ must contain only declared ID directories",
+    ):
+        project_build.ProjectBuilder(tmp_path, code_packager=Packager()).build()
 
 
 @pytest.mark.parametrize(

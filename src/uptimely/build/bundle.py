@@ -10,6 +10,7 @@ import typing
 import pydantic
 
 from uptimely import spec
+from uptimely.codebase import packaging
 from uptimely.plan import models as plan_models
 from uptimely.plan import serialization as plan_serialization
 from uptimely.project import paths
@@ -81,8 +82,18 @@ class BundleStore:
             )
 
         manifest = self._load_manifest(bundle_root)
-        spec_path, execution_plan_path = self._resolve_artifacts(bundle_root, manifest)
-        self._validate_required_artifacts(bundle_root, spec_path, execution_plan_path)
+        spec_path = self._load_artifact_path(bundle_root, manifest.artifacts.spec, "file")
+        execution_plan_path = self._load_artifact_path(
+            bundle_root, manifest.artifacts.execution_plan, "file"
+        )
+        package_paths = {
+            package_id: self._load_artifact_path(bundle_root, entry.path, "directory")
+            for package_id, entry in manifest.artifacts.packages.items()
+        }
+        runtime_paths = {
+            runtime: self._load_artifact_path(bundle_root, path, "file")
+            for runtime, path in manifest.artifacts.runtimes.items()
+        }
         spec_definition = self._load_spec_definition(
             spec_path, validate=validate, log_structure=log_structure
         )
@@ -96,6 +107,8 @@ class BundleStore:
             spec_definition=spec_definition,
             execution_plan_path=execution_plan_path,
             execution_plan=execution_plan,
+            package_paths=package_paths,
+            runtime_paths=runtime_paths,
         )
 
     @staticmethod
@@ -127,30 +140,19 @@ class BundleStore:
             ) from error
         return manifest
 
-    def _resolve_artifacts(
-        self, bundle_root: pathlib.Path, manifest: models.BuildManifest
-    ) -> tuple[pathlib.Path, pathlib.Path]:
+    def _load_artifact_path(
+        self, bundle_root: pathlib.Path, relative_path: str, kind: packaging.ArtifactKind
+    ) -> pathlib.Path:
         try:
-            spec_path = self._resolve_bundle_path(bundle_root, manifest.artifacts.spec)
-            execution_plan_path = self._resolve_bundle_path(
-                bundle_root, manifest.artifacts.execution_plan
-            )
+            path = self._resolve_bundle_path(bundle_root, relative_path)
         except ValueError as error:
             raise errors.BuildError("invalid", str(error), self.root) from error
-        return spec_path, execution_plan_path
-
-    def _validate_required_artifacts(
-        self,
-        bundle_root: pathlib.Path,
-        spec_path: pathlib.Path,
-        execution_plan_path: pathlib.Path,
-    ) -> None:
-        for artifact_path in (spec_path, execution_plan_path):
-            if not artifact_path.is_file():
-                relative_path = artifact_path.relative_to(bundle_root.resolve())
-                raise errors.BuildError(
-                    "incomplete", f"missing artifact {relative_path}", self.root
-                )
+        exists = path.is_dir() if kind == "directory" else path.is_file()
+        if not exists:
+            raise errors.BuildError(
+                "incomplete", f"missing artifact {relative_path} (expected {kind})", self.root
+            )
+        return path
 
     def _load_execution_plan(self, execution_plan_path: pathlib.Path) -> plan_models.ExecutionPlan:
         try:

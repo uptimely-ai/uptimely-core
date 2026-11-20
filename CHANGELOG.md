@@ -12,6 +12,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - The documentation website publishes a human-readable Allure report of the
   Python test suite at `/uptimely-core/tests/`.
+- Build bundles group implementation packages and runtimes in separate ID-named
+  directories and record their assignments in the manifest. Python requirements
+  can be supplied under the configurable `[runtimes].path` directory.
 
 ### Changed
 
