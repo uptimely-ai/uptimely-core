@@ -74,6 +74,7 @@ class BuildManifest(pydantic.BaseModel):
     uptimely_version: str
     features: list[str] | None
     artifacts: BuildArtifactPaths
+    src_path: str | None = pydantic.Field(default=None, min_length=1)
 
     @pydantic.field_validator("build_version")
     @classmethod

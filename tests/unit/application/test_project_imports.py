@@ -65,7 +65,25 @@ def test_build_and_run_use_configured_source_path(tmp_path: pathlib.Path) -> Non
     (root / "src").rename(root / "python")
 
     bundle = application.build(root, src_path=pathlib.Path("python"))
-    result = engine.Engine(bundle).run(src_path=pathlib.Path("python"))
+    loaded_bundle = application.load_build_bundle(root)
+    result = engine.Engine(loaded_bundle).run()
+
+    assert bundle.manifest.src_path == "python"
+    assert loaded_bundle.manifest.src_path == "python"
+    assert not result.failures
+    assert result.datasets["values"].to_dict(as_series=False) == {"value": [7]}
+
+
+def test_run_uses_saved_source_path_instead_of_changed_config(tmp_path: pathlib.Path) -> None:
+    root = tmp_path / "project"
+    _write_project(root, 7)
+    (root / "src").rename(root / "python")
+    application.build(root, src_path=pathlib.Path("python"))
+    (root / application.CONFIG_FILE).write_text(
+        '[application]\nsrc_path = "missing"\n', encoding="utf-8"
+    )
+
+    result = application.Uptimely(root).run()
 
     assert not result.failures
     assert result.datasets["values"].to_dict(as_series=False) == {"value": [7]}

@@ -72,6 +72,7 @@ class ProjectBuilder:
             project_spec_source.SpecSourceResolver(self.root).resolve(python_spec, json_spec)
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
+        resolved_src_path = python_imports.resolve_src_path(self.root, src_path)
         with (
             locking.build_lock(self.root, exclusive=True, wait=False),
             python_imports.expose(self.root, src_path=src_path),
@@ -81,9 +82,13 @@ class ProjectBuilder:
             try:
                 execution_plan = self._compile_plan(spec_definition, selected_features)
                 snapshot = self._generate_artifacts(
-                    spec_definition, execution_plan, selected_features, staging_root, src_path
+                    spec_definition,
+                    execution_plan,
+                    selected_features,
+                    staging_root,
+                    src_path,
                 )
-                self._validate_staged_bundle(staging_root, selected_features)
+                self._validate_staged_bundle(staging_root, selected_features, resolved_src_path)
                 self._publish_bundle(staging_root)
                 self._publish_explorer_snapshot(snapshot)
             finally:
@@ -182,14 +187,22 @@ class ProjectBuilder:
             raise errors.ProjectBuildError("artifact generation", str(error)) from error
 
     def _validate_staged_bundle(
-        self, staging_root: pathlib.Path, selected_features: list[str] | None
+        self,
+        staging_root: pathlib.Path,
+        selected_features: list[str] | None,
+        resolved_src_path: pathlib.Path,
     ) -> None:
         """Write the bundle manifest and validate the staged spec and execution plan."""
         try:
+            try:
+                manifest_src_path = resolved_src_path.relative_to(self.root).as_posix()
+            except ValueError:
+                manifest_src_path = str(resolved_src_path)
             manifest = models.BuildManifest(
                 build_version=models.BUILD_VERSION,
                 uptimely_version=importlib.metadata.version("uptimely-core"),
                 features=selected_features,
+                src_path=manifest_src_path,
                 artifacts=models.BuildArtifactPaths(
                     spec="spec.json",
                     execution_plan="execution_plan.json",
