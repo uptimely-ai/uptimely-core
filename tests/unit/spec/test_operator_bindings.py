@@ -95,16 +95,14 @@ def test_operator_execution_contracts_derive_from_bound_dataframe_sources() -> N
     assert not remote.produces_target_features(spec, remote_key)
 
 
-def test_function_template_contract_has_roles_but_no_operator_kind() -> None:
+def test_function_template_contract_requires_returns_and_has_roles() -> None:
     fields = spec_model.FunctionTemplate.model_fields
-    assert "kind" not in fields
     assert fields["returns"].is_required()
 
     template = spec_model.FunctionTemplate.model_validate(
         {"id": "calculate", "returns": "any", "entrypoint": "example:calculate"}
     )
     assert template.returns == "any"
-    assert not hasattr(template, "kind")
 
     with pytest.raises(pydantic.ValidationError, match="returns"):
         spec_model.FunctionTemplate.model_validate(
@@ -128,14 +126,12 @@ def test_one_callable_can_have_distinct_operator_source_relationships() -> None:
         == "same"
     )
     assert spec.functions["shared"].returns == "dataframe"
-    assert not hasattr(spec.functions["shared"], "kind")
 
 
-def test_function_contract_round_trips_without_kind_metadata() -> None:
+def test_function_contract_round_trips() -> None:
     spec = _shared_callable_spec()
     payload = spec.model_dump(mode="json")
 
     assert payload["spec_version"] == 9
-    assert "kind" not in payload["functions"]["shared"]
     reloaded = spec_model.Spec.model_validate(payload)
     assert reloaded.model_dump(mode="json") == payload

@@ -108,8 +108,6 @@ def test_plan_round_trip_preserves_execution_metadata() -> None:
 
     assert restored == plan
     assert restored.invocations[1].function_id == "maximum"
-    assert not hasattr(restored.invocations[1], "source")
-    assert all("source" not in invocation for invocation in payload["invocations"])
     assert restored.invocations[1].entrypoint == "example.src:maximum"
     assert restored.invocations[1].profile_id == "pump_profile"
     assert restored.invocations[1].operator_id == "pressure_by_pump"
@@ -125,8 +123,6 @@ def test_plan_round_trip_preserves_execution_metadata() -> None:
     }
     assert restored.invocations[0].argument_types == {"dataset": "dataframe"}
     assert all("profile_id" in invocation for invocation in payload["invocations"])
-    assert all("dataset_id" not in invocation for invocation in payload["invocations"])
-    assert all(not hasattr(invocation, "dataset_id") for invocation in restored.invocations)
 
 
 def test_plan_round_trip_preserves_expansion_key_columns() -> None:
@@ -148,24 +144,6 @@ def test_plan_requires_fragment_identifier_metadata() -> None:
         invocation.pop("fragment_keys")
 
     with pytest.raises(ValueError, match="missing runtime metadata: fragment_keys"):
-        uptimely_plan.from_dict(payload)
-
-
-@pytest.mark.parametrize(
-    ("legacy_field", "current_field"),
-    [
-        ("identifiers", "target_identifiers"),
-        ("key_columns", "fragment_keys"),
-        ("target_grain_keys", "target_identifiers"),
-        ("fragment_identifiers", "fragment_keys"),
-    ],
-)
-def test_plan_rejects_legacy_grain_metadata_fields(legacy_field: str, current_field: str) -> None:
-    payload = uptimely_plan.to_dict(_sample_plan())
-    invocation = payload["invocations"][0]
-    invocation[legacy_field] = invocation[current_field]
-
-    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
         uptimely_plan.from_dict(payload)
 
 
@@ -198,22 +176,6 @@ def test_plan_round_trip_preserves_read_key_columns() -> None:
 
     assert restored == plan
     assert restored.invocations[0].fragment_keys == ["series", "category"]
-
-
-@pytest.mark.parametrize("include_profile_id", [False, True])
-def test_invocation_rejects_legacy_dataset_id_without_an_alias(
-    include_profile_id: bool,
-) -> None:
-    payload = uptimely_plan.to_dict(_sample_plan())
-    invocation = payload["invocations"][0]
-    invocation["dataset_id"] = invocation["profile_id"]
-    if not include_profile_id:
-        del invocation["profile_id"]
-
-    with pytest.raises(ValueError, match=r"dataset_id\n\s+Extra inputs are not permitted"):
-        uptimely_plan.from_dict(payload)
-    with pytest.raises(ValueError, match=r"dataset_id\n\s+Extra inputs are not permitted"):
-        uptimely_plan.Invocation.model_validate(invocation)
 
 
 @pytest.mark.parametrize(
@@ -278,13 +240,9 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
         "stages",
     }
     assert payload["plan_version"] == 14
-    assert "phase" not in payload["invocations"][0]
-    assert not hasattr(plan.invocations[0], "phase")
     assert {"function_id", "operator_id"} <= set(payload["invocations"][0])
     assert payload["invocations"][0]["role"] == "compute"
     assert payload["invocations"][0]["result"] == "target"
-    assert "operation" not in payload["invocations"][0]
-    assert "output" not in payload["invocations"][0]
     assert payload["invocations"][0]["return_type"] == "DataFrame"
     assert payload["invocations"][0]["package"] == {
         "distribution": "example-package",

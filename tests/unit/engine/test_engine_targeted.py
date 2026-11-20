@@ -146,7 +146,7 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
     assert set(result.invocation_statuses.values()) == {"succeeded"}
     assert result.failures == {}
     assert result.plan_version == uptimely_plan.PLAN_VERSION
-    assert not hasattr(result, "main_frames")
+
     assert isinstance(result.calculated_outputs["telemetry", "doubled"], pl.DataFrame)
     assert set(result.datasets) == {"telemetry"}
     assert result.datasets["telemetry"].select("doubled").to_series().to_list() == [

@@ -46,7 +46,6 @@ def test_python_spec_merge_binding_export() -> None:
         "dataset": "$profiles.@.dataset",
         "fragment": "$operators.@.fragment",
     }
-    assert not hasattr(spec_definition.functions["merge_frames"], "kind")
     assert spec_definition.functions["merge_frames"].args["dataset"].type == "dataframe | null"
     assert spec_definition.functions["merge_frames"].args["fragment"].type == "dataframe"
     assert "options" not in spec_definition.model_dump()

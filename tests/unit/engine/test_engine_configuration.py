@@ -151,9 +151,6 @@ def test_engine_rejects_spec_paths_instead_of_compiling() -> None:
     with pytest.raises(ValueError, match="bundle must be a BuildBundle"):
         uptimely_engine.Engine("spec.json", uptimely_engine.EngineConfig())  # type: ignore[arg-type]
 
-    assert not hasattr(uptimely_engine.Engine, "from_spec")
-    assert not hasattr(uptimely_engine.Engine, "spec")
-
 
 def test_engine_rejects_execution_plan_instead_of_bundle() -> None:
     with pytest.raises(ValueError, match="bundle must be a BuildBundle"):

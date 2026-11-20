@@ -157,7 +157,6 @@ def test_plain_string_binding_conversion_does_not_require_function_semantics() -
         "unavailable_assembly_test_package:calculate",
     )
     assert binding.to_model().function == "calculate"
-    assert not hasattr(binding, "kind")
     with pytest.raises(ValueError, match="Explicit returns metadata is required"):
         binding.to_function_template()
 

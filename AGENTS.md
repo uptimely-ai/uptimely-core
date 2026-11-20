@@ -65,8 +65,13 @@ Before making project-wide changes, consult the relevant guides:
 - Use # example comment to indicate that code is demonstration and does not execute succesfully as such
 
 ## Tests
-- Keep UI testing simple and small, it can be validated by user experience
-- Do not add tests to ensure old behavior is gone
+- UI testing
+  - Simple and small
+  - Can be validated largely by user experience
+  - Do not pollute tests with too many html tag existence checks
+- Python refactoring
+  - Do not add tests to ensure old behavior is gone
+  - Avoid refactoring tests to check "rejects", "does not accept" etc
 
 ## Breaking changes
 - Breaking changes are allowed on version 0.x.x

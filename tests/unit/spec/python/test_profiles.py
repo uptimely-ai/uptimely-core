@@ -217,19 +217,6 @@ def test_mapping_constructor_requires_a_compute_binding() -> None:
         authoring.Operator(id="read")
 
 
-@pytest.mark.parametrize("legacy", ["function", "arguments", "function_id"])
-def test_operator_rejects_flat_declaration_fields(legacy: str) -> None:
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        authoring.Operator(
-            id="read",
-            outputs=[],
-            compute=authoring.Bind(
-                ref.function("reader:read", returns="dataframe"),
-            ),
-            **{legacy: None},
-        )
-
-
 def test_mapping_requires_explicit_function_return_contract() -> None:
     operator = authoring.Operator(
         id="operator",

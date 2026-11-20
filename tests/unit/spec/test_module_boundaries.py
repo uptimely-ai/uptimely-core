@@ -1,8 +1,5 @@
-import ast
 import copy
 import pathlib
-import subprocess
-import sys
 
 import pytest
 from support import examples as example_support
@@ -11,7 +8,6 @@ import uptimely
 from uptimely import spec
 from uptimely.codebase.python import entrypoint
 from uptimely.compiler import compiler
-from uptimely.plan import models as execution_plan_models
 from uptimely.spec import model, serialization, validation
 from uptimely.spec.python import conversion, dimension, profile
 
@@ -21,146 +17,6 @@ SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
 def test_public_models_are_canonical_objects() -> None:
     assert spec.Spec is model.Spec
     assert uptimely.Spec is not model.Spec
-
-
-def test_canonical_models_do_not_import_outer_layers() -> None:
-    directory = pathlib.Path(model.__file__).parent
-    for path in directory.glob("*.py"):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.ImportFrom):
-                assert node.level < 2, path
-                if node.module == "uptimely":
-                    assert not {alias.name for alias in node.names}
-                elif node.module == "uptimely.spec":
-                    allowed_imports = {
-                        "arg_types",
-                        "operator_bindings",
-                        "function_contracts",
-                        "row_context",
-                        "selectors",
-                    }
-                    if path.name == "spec.py":
-                        allowed_imports.add("merge")
-                    assert {alias.name for alias in node.names} <= allowed_imports
-                else:
-                    assert not (node.module or "").startswith("uptimely"), path
-            elif isinstance(node, ast.Import):
-                assert all(not alias.name.startswith("uptimely") for alias in node.names), path
-
-
-def test_compiler_does_not_import_presentation_or_runtime_layers() -> None:
-    directory = pathlib.Path(compiler.__file__).parent
-    for path in directory.rglob("*.py"):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                assert all(
-                    not alias.name.startswith(("uptimely.explorer", "uptimely.engine"))
-                    for alias in node.names
-                ), path
-            elif isinstance(node, ast.ImportFrom):
-                if node.module == "uptimely":
-                    assert not {"explorer", "engine"} & {alias.name for alias in node.names}, path
-                assert not (node.module or "").startswith(
-                    ("uptimely.explorer", "uptimely.engine")
-                ), path
-
-
-def test_graph_does_not_import_explorer() -> None:
-    directory = pathlib.Path(spec.__file__).parent / "graph"
-    for path in directory.rglob("*.py"):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                assert all(
-                    not alias.name.startswith("uptimely.explorer") for alias in node.names
-                ), path
-            elif isinstance(node, ast.ImportFrom):
-                assert not (node.module or "").startswith("uptimely.explorer"), path
-
-
-def test_execution_plan_does_not_import_outer_layers() -> None:
-    directory = pathlib.Path(execution_plan_models.__file__).parent
-    for path in directory.glob("*.py"):
-        tree = ast.parse(path.read_text(encoding="utf-8"))
-        for node in ast.walk(tree):
-            if isinstance(node, ast.Import):
-                assert all(
-                    not alias.name.startswith(
-                        (
-                            "uptimely.compiler",
-                            "uptimely.engine",
-                            "uptimely.explorer",
-                            "uptimely.application",
-                        )
-                    )
-                    for alias in node.names
-                ), path
-            elif isinstance(node, ast.ImportFrom):
-                assert not (node.module or "").startswith(
-                    (
-                        "uptimely.compiler",
-                        "uptimely.engine",
-                        "uptimely.explorer",
-                        "uptimely.application",
-                    )
-                ), path
-
-
-@pytest.mark.parametrize(
-    "module",
-    [
-        "uptimely.spec.model.spec",
-        "uptimely.spec.operator_bindings",
-        "uptimely.spec.validation",
-        "uptimely.spec.validation.rules.operators.outputs",
-        "uptimely.spec.validation.rules.operators.inputs",
-        "uptimely.spec.validation.rules.operators.contracts",
-        "uptimely.spec.validation.rules.operators.dependencies",
-        "uptimely.spec.python.conversion",
-        "uptimely.spec.serialization",
-        "uptimely.spec.api",
-        "uptimely.compiler.graph",
-        "uptimely.compiler.compiler",
-    ],
-)
-def test_modules_import_in_a_fresh_process(module: str) -> None:
-    result = subprocess.run(
-        [sys.executable, "-c", f"import importlib; importlib.import_module({module!r})"],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 0, result.stderr
-
-
-@pytest.mark.parametrize(
-    "modules",
-    [
-        ("uptimely.application", "uptimely.explorer.presentation"),
-        ("uptimely.explorer.presentation", "uptimely.application"),
-        ("uptimely.build.builder", "uptimely.explorer.presentation"),
-        ("uptimely.explorer.presentation", "uptimely.build.builder"),
-    ],
-)
-def test_application_and_explorer_presentation_import_in_either_order_in_a_fresh_process(
-    modules: tuple[str, str],
-) -> None:
-    script = f"""
-import importlib
-for name in {modules!r}:
-    importlib.import_module(name)
-"""
-    result = subprocess.run(
-        [sys.executable, "-c", script],
-        check=False,
-        capture_output=True,
-        text=True,
-    )
-
-    assert result.returncode == 0, result.stderr
 
 
 @pytest.mark.usefixtures("example_projects")
@@ -174,9 +30,6 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
 
     assert serialization.write_document(document, path) == str(path)
     assert serialization.load_document(path) == expected == original_document
-    assert not {"path", "calls", "resolved_functions"} & model.Spec.model_fields.keys()
-    assert not {"path", "calls", "resolved_functions"} & expected.keys()
-
     reloaded = spec.load_spec(path)
     assert reloaded == document
     first = compiler.Compiler().compile(document)

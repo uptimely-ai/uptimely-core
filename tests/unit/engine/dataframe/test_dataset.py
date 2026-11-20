@@ -261,8 +261,6 @@ def test_dataset_requires_only_physical_identifiers() -> None:
     fragment = fragment_module.Fragment(data, ("asset_id",))
 
     assert main.identifiers == ("asset_id",)
-    assert not hasattr(main, "dataset")
-    assert not hasattr(main, "validator")
     assert main.merge(fragment, fragment_id="source") is fragment
     assert main.dataframe is data
     assert main.fragments == {"source": fragment}

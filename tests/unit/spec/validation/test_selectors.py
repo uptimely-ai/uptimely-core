@@ -46,7 +46,6 @@ def test_system_and_subset_support_multiple_variables() -> None:
         == 13
     )
     collapse = spec_definition.profiles["pump"].assembly["bearing_temperature_by_pump"]
-    assert not hasattr(collapse, "source")
     assert collapse.compute.function == "aggregate"
     assert collapse.compute.args["aggregations"].root == {"bearing_temperature": "max"}
     system = spec.FeatureGraph(spec_definition)

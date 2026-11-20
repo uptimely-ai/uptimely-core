@@ -60,14 +60,6 @@ def test_spec_accepts_top_level_name(tmp_path: pathlib.Path) -> None:
     assert spec_definition.name == "Pump analytics"
 
 
-def test_loading_keeps_only_declarations_on_the_document() -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-
-    validation.validate_spec(spec_definition)
-    assert not hasattr(spec_definition, "calls")
-    assert not hasattr(spec_definition, "path")
-
-
 def test_canonical_model_rejects_file_loading_arguments() -> None:
     with pytest.raises(pydantic.ValidationError, match="json"):
         spec.Spec.model_validate({"json": str(SPEC_PATH)})
