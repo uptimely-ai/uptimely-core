@@ -222,6 +222,7 @@ nav:
               - Selectors: artifacts/spec-selectors.md
   - Project:
       - Background: project/background.md
+      - Tests: https://uptimely-ai.github.io/uptimely-core/tests/
       - Research: project/research.md
       - Comparisons: project/comparisons-platforms.md
       - Roadmap: project/index.md
