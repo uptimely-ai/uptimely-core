@@ -4,17 +4,17 @@
 
 ```text
 artifacts/
-├── build/
-│   ├── build.json
-│   ├── spec.json
-│   ├── plan.json
-│   ├── packages/
-│   │   └── project/
-│   │       └── pump_analytics.py
-│   └── runtimes/
-│       └── python/
-│           └── requirements.txt
-└── explorer.json
+└── build/
+    ├── build.json
+    ├── spec.json
+    ├── plan.json
+    ├── explorer.json
+    ├── packages/
+    │   └── project/
+    │       └── pump_analytics.py
+    └── runtimes/
+        └── python/
+            └── requirements.txt
 ```
 
 ## Package and runtime manifest

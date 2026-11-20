@@ -2,7 +2,6 @@ import json
 import pathlib
 import shutil
 import sys
-import threading
 from collections import abc
 
 import pytest
@@ -277,10 +276,9 @@ def test_project_build_failures_preserve_previous_bundle(
     root = tmp_path / "project"
     copy_project_spec(root)
     shutil.copytree(example_support.example_bundle().root, root / application.BUILD_OUTPUT_DIR)
-    old_bundle = bundle_files(root)
     snapshot = root / application.EXPLORER_DATA_FILE
-    snapshot.parent.mkdir(parents=True, exist_ok=True)
-    snapshot.write_text("previous snapshot", encoding="utf-8")
+    previous_snapshot = snapshot.read_bytes()
+    old_bundle = bundle_files(root)
 
     if stage == "compile":
 
@@ -322,79 +320,19 @@ def test_project_build_failures_preserve_previous_bundle(
     assert expected in result.err
     assert f"Build files created to {root / application.BUILD_OUTPUT_DIR}" not in result.out
     assert bundle_files(root) == old_bundle
-    assert snapshot.read_text(encoding="utf-8") == "previous snapshot"
+    assert snapshot.read_bytes() == previous_snapshot
     assert not list((root / application.ARTIFACTS_DIR).glob(".build-staging-*"))
     assert not list((root / application.ARTIFACTS_DIR).glob(".build-backup-*"))
 
 
-def test_snapshot_publication_failure_preserves_previous_snapshot(
-    tmp_path: pathlib.Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    root = tmp_path / "project"
-    copy_project_spec(root)
-    snapshot = root / application.EXPLORER_DATA_FILE
-    snapshot.parent.mkdir(parents=True, exist_ok=True)
-    snapshot.write_text("previous snapshot", encoding="utf-8")
-    original_replace = project_build.os.replace
+def test_bundle_loader_requires_declared_explorer_snapshot(tmp_path: pathlib.Path) -> None:
+    copy_project_spec(tmp_path)
+    build = project_build.build(tmp_path)
+    assert build.explorer_path == tmp_path / application.EXPLORER_DATA_FILE
+    build.explorer_path.unlink()
 
-    def fail_snapshot_replace(source: pathlib.Path, target: pathlib.Path) -> None:
-        if target == snapshot:
-            raise OSError("injected snapshot failure")
-        original_replace(source, target)
-
-    monkeypatch.setattr(project_build.os, "replace", fail_snapshot_replace)
-
-    with pytest.raises(application.ProjectBuildError, match="Explorer snapshot publication failed"):
-        project_build.build(root)
-
-    assert application.load_build_bundle(root).manifest.build_version == application.BUILD_VERSION
-    assert snapshot.read_text(encoding="utf-8") == "previous snapshot"
-    assert not list(snapshot.parent.glob(f".{snapshot.name}.*.tmp"))
-
-
-def test_snapshot_readers_observe_complete_old_or_new_data(
-    tmp_path: pathlib.Path,
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    snapshot = tmp_path / application.EXPLORER_DATA_FILE
-    snapshot.parent.mkdir(parents=True)
-    previous = b'{"generation":"previous"}'
-    replacement = '{"generation":"replacement"}'
-    snapshot.write_bytes(previous)
-    replacement_ready = threading.Event()
-    allow_replace = threading.Event()
-    failures: list[Exception] = []
-    original_replace = project_build.os.replace
-
-    def pause_before_replace(source: pathlib.Path, target: pathlib.Path) -> None:
-        try:
-            assert target == snapshot
-            assert source.read_bytes() == replacement.encode()
-            replacement_ready.set()
-            if not allow_replace.wait(timeout=5):
-                raise TimeoutError("Timed out waiting to replace the snapshot")
-            original_replace(source, target)
-        except Exception as error:
-            failures.append(error)
-            raise
-
-    monkeypatch.setattr(project_build.os, "replace", pause_before_replace)
-    writer = threading.Thread(
-        target=project_build.ProjectBuilder(tmp_path)._publish_explorer_snapshot,
-        args=(replacement,),
-    )
-    writer.start()
-    try:
-        assert replacement_ready.wait(timeout=5)
-        assert snapshot.read_bytes() == previous
-    finally:
-        allow_replace.set()
-    writer.join(timeout=5)
-
-    assert not writer.is_alive()
-    assert failures == []
-    assert snapshot.read_bytes() == replacement.encode()
+    with pytest.raises(application.BuildError, match=r"missing artifact explorer\.json"):
+        application.load_build_bundle(tmp_path)
 
 
 @pytest.mark.parametrize("exclusive", [False, True])

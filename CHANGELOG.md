@@ -19,6 +19,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 ### Changed
 
 - New build bundles save the execution plan as `plan.json`.
+- Builds publish the Explorer snapshot with the Spec and plan under `artifacts/build/`.
 - Relative JSON specification paths are consistently resolved from the project
   root for Python APIs, CLI builds, and configured project sources.
 - Builds save their Python source path so later runs do not depend on changed

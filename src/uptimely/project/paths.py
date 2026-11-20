@@ -14,8 +14,7 @@ DATA_DIR: typing.Final = pathlib.Path("data")
 FUNCTIONS_DIR: typing.Final = pathlib.Path("functions")
 
 ARTIFACTS_DIR: typing.Final = pathlib.Path("artifacts")
-
-EXPLORER_DATA_FILE: typing.Final = ARTIFACTS_DIR / "explorer.json"
+BUILD_LOCK_FILE: typing.Final = ARTIFACTS_DIR / ".build.lock"
 
 RUN_OUTPUT_DIR: typing.Final = ARTIFACTS_DIR / "run"
 RUN_MANIFEST_FILE: typing.Final = RUN_OUTPUT_DIR / "run.json"
@@ -24,3 +23,4 @@ BUILD_OUTPUT_DIR: typing.Final = ARTIFACTS_DIR / "build"
 BUILD_MANIFEST_FILE: typing.Final = BUILD_OUTPUT_DIR / "build.json"
 BUILD_SPEC_FILE: typing.Final = BUILD_OUTPUT_DIR / "spec.json"
 BUILD_EXECUTION_PLAN_FILE: typing.Final = BUILD_OUTPUT_DIR / "plan.json"
+EXPLORER_DATA_FILE: typing.Final = BUILD_OUTPUT_DIR / "explorer.json"

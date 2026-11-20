@@ -14,8 +14,8 @@ not both. If omitted, the current working directory is used.
 
 The command validates the complete source specification, compiles one execution
 plan, and prepares a versioned Explorer data snapshot. The active build manifest
-tracks the spec and execution plan. The snapshot is published separately at
-`artifacts/explorer.json`.
+tracks all three. The snapshot is published with the bundle at
+`artifacts/build/explorer.json`.
 
 ### Feature selection
 
