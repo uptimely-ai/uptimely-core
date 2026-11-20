@@ -27,6 +27,8 @@ env/
 .coverage.*
 htmlcov/
 coverage.xml
+allure-results/
+allure-report/
 
 # Mypy / type checkers
 .mypy_cache/
