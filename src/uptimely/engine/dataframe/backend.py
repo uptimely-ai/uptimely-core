@@ -7,7 +7,7 @@ from collections import abc
 
 import polars as pl
 
-from uptimely.library.merge import polars as merge_module
+from uptimely.library.merge import polars
 from uptimely.spec import feature_types
 
 from .. import config as config_module
@@ -74,17 +74,17 @@ class PolarsBackend:
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
     ) -> object:
         """Full-join dataframes using the shared Polars merge implementation."""
-        return merge_module.full_join(left, right, keys, validate=validate)
+        return polars.full_join(left, right, keys, validate=validate)
 
     def left_join(
         self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "m:1"
     ) -> object:
         """Left-join dataframes using the shared Polars merge implementation."""
-        return merge_module.left_join(left, right, keys, validate=validate)
+        return polars.left_join(left, right, keys, validate=validate)
 
     def cross_join(self, left: object, right: object) -> object:
         """Return the Cartesian product using the shared Polars merge implementation."""
-        return merge_module.cross_join(left, right)
+        return polars.cross_join(left, right)
 
     def collect(self, frame: object) -> object:
         return frame.collect()

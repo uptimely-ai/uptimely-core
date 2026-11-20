@@ -6,15 +6,15 @@ import logging
 import pathlib
 import typing
 
-from uptimely import plan as plan_module
+from uptimely import plan
 from uptimely.codebase.python import entrypoint as entrypoint_module
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import merge as merge_module
+from uptimely.engine.dataframe import merge
 from uptimely.spec import arg_types
 
-from . import bindings as bindings_module
+from . import bindings
 from . import state as state_module
 
 logger = logging.getLogger(__name__)
@@ -39,14 +39,14 @@ class InvocationExecutor:
         self.entrypoints = entrypoints
         self.state = state
         self.validate = validate
-        self.bindings = bindings_module.RuntimeBindings(
+        self.bindings = bindings.RuntimeBindings(
             state,
             parameters,
             paths=paths,
             project_root=project_root,
         )
 
-    def execute(self, invocation: plan_module.Invocation) -> None:
+    def execute(self, invocation: plan.Invocation) -> None:
         """Execute one invocation, validating before side effects and state updates."""
         if invocation.role == "merge":
             self._execute_merge(invocation)
@@ -68,7 +68,7 @@ class InvocationExecutor:
             else:
                 self._execute_target_operator(invocation)
 
-    def check_input_requirements(self, invocation: plan_module.Invocation) -> None:
+    def check_input_requirements(self, invocation: plan.Invocation) -> None:
         """Check input scope and feature availability before execution.
 
         Raises:
@@ -83,7 +83,7 @@ class InvocationExecutor:
         else:
             self._check_input_features(invocation)
 
-    def _check_input_features(self, invocation: plan_module.Invocation) -> None:
+    def _check_input_features(self, invocation: plan.Invocation) -> None:
         """Require each feature locally or in exactly one other profile."""
         logger.debug("Check declared input features")
         target = self.state.datasets.get(invocation.profile_id)
@@ -107,7 +107,7 @@ class InvocationExecutor:
                 )
 
     @staticmethod
-    def _dataframe_arguments(invocation: plan_module.Invocation) -> list[str]:
+    def _dataframe_arguments(invocation: plan.Invocation) -> list[str]:
         """Return names of declared dataframe arguments."""
         return [
             name
@@ -115,7 +115,7 @@ class InvocationExecutor:
             if argument_type == arg_types.DATAFRAME
         ]
 
-    def _check_foreign_dataframe_argument(self, invocation: plan_module.Invocation) -> str:
+    def _check_foreign_dataframe_argument(self, invocation: plan.Invocation) -> str:
         """Require and return the single dataframe argument for a foreign input."""
         logger.debug("Check foreign dataframe argument")
         arguments = self._dataframe_arguments(invocation)
@@ -127,7 +127,7 @@ class InvocationExecutor:
         return arguments[0]
 
     def _check_foreign_source_reference(
-        self, invocation: plan_module.Invocation, argument_name: str
+        self, invocation: plan.Invocation, argument_name: str
     ) -> str:
         """Require a dataset reference distinct from the invocation's target."""
         logger.debug("Check foreign source reference")
@@ -147,7 +147,7 @@ class InvocationExecutor:
         return source
 
     def _check_foreign_input_features(
-        self, invocation: plan_module.Invocation, source: dataset_module.Dataset
+        self, invocation: plan.Invocation, source: dataset_module.Dataset
     ) -> None:
         """Require declared features in the validated foreign source."""
         logger.debug("Check foreign input features")
@@ -159,7 +159,7 @@ class InvocationExecutor:
                     f"source profile: {feature}"
                 )
 
-    def _execute_dataframe_operator(self, invocation: plan_module.Invocation) -> None:
+    def _execute_dataframe_operator(self, invocation: plan.Invocation) -> None:
         """Produce and retain a fragment for its scheduled merge invocation."""
         dataset_id = self._profile_id(invocation)
         dataset = self.state.datasets.get(dataset_id)
@@ -172,7 +172,7 @@ class InvocationExecutor:
         )
         self.state.computed_fragments[invocation.id] = fragment
 
-    def _execute_merge(self, invocation: plan_module.Invocation) -> None:
+    def _execute_merge(self, invocation: plan.Invocation) -> None:
         """Invoke a merge binding and publish its complete target frame on success."""
         dataset_id = self._profile_id(invocation)
         fragment_id, fragment = self.state.computed_fragment_for(invocation)
@@ -194,7 +194,7 @@ class InvocationExecutor:
         arguments = self.bindings.resolve_args(invocation, computed_fragment=fragment.dataframe)
         if invocation.entrypoint == "uptimely.library.merge.polars:merge_by_grain":
             arguments["key_columns"] = fragment.keys
-        result = merge_module.Merge(dataset, fragment).execute(
+        result = merge.Merge(dataset, fragment).execute(
             functools.partial(self._invoke, invocation, arguments=arguments),
             description=(
                 f"Merge result {invocation.function_id} for profile {dataset_id}, "
@@ -209,7 +209,7 @@ class InvocationExecutor:
         self.state.datasets[dataset_id] = dataset
         del self.state.computed_fragments[fragment_id]
 
-    def _execute_target_transform(self, invocation: plan_module.Invocation) -> None:
+    def _execute_target_transform(self, invocation: plan.Invocation) -> None:
         """Publish target dataframe outputs without fragment assembly."""
         dataset_id = self._profile_id(invocation)
         dataset = self.state.datasets.get(dataset_id)
@@ -243,7 +243,7 @@ class InvocationExecutor:
         dataset.dataframe = frame
         self.state.calculated_outputs.update(calculated_outputs)
 
-    def _execute_target_operator(self, invocation: plan_module.Invocation) -> None:
+    def _execute_target_operator(self, invocation: plan.Invocation) -> None:
         """Publish a complete target dataframe returned without a merge binding."""
         dataset_id = self._profile_id(invocation)
         frame = self._invoke(invocation)
@@ -310,7 +310,7 @@ class InvocationExecutor:
     def _validate_target_transform_result(
         self,
         frame: object,
-        invocation: plan_module.Invocation,
+        invocation: plan.Invocation,
         comparison_frame: object,
         *,
         preserve_data: bool,
@@ -429,7 +429,7 @@ class InvocationExecutor:
         return output_features
 
     @staticmethod
-    def _profile_id(invocation: plan_module.Invocation) -> str:
+    def _profile_id(invocation: plan.Invocation) -> str:
         """Require a target profile ID for a dataframe invocation."""
         if invocation.profile_id is None:
             raise ValueError(f"Dataframe invocation {invocation.id} must declare a profile ID")
@@ -437,7 +437,7 @@ class InvocationExecutor:
 
     def _invoke(
         self,
-        invocation: plan_module.Invocation,
+        invocation: plan.Invocation,
         *,
         arguments: typing.Mapping[str, object] | None = None,
     ) -> object:

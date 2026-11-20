@@ -8,13 +8,13 @@ from collections import abc
 
 from .. import model as spec_model
 from .. import selectors, serialization
-from . import profile as profile_module
+from . import profile
 
 logger = logging.getLogger(__name__)
 
 type Profiles = (
-    abc.Iterable[profile_module.Profile | spec_model.Profile]
-    | abc.Mapping[str, profile_module.Profile | spec_model.Profile]
+    abc.Iterable[profile.Profile | spec_model.Profile]
+    | abc.Mapping[str, profile.Profile | spec_model.Profile]
 )
 type Functions = (
     spec_model.FunctionCatalog | dict[str, spec_model.FunctionTemplate | dict[str, typing.Any]]
@@ -58,7 +58,7 @@ def to_model(
     profile_values: dict[str, spec_model.Profile] = {}
     dimension_values: dict[str, spec_model.Dimension] = {}
     for declaration in declarations:
-        if isinstance(declaration, profile_module.Profile):
+        if isinstance(declaration, profile.Profile):
             canonical = declaration.to_model()
             for item in (*declaration.grain, *declaration.relations):
                 dimension_declaration = item.dimension
@@ -89,7 +89,7 @@ def to_model(
         operator_count = sum(
             len(declaration.assembly)
             for declaration in declarations
-            if isinstance(declaration, profile_module.Profile)
+            if isinstance(declaration, profile.Profile)
         )
         logger.debug(
             "Collected feature interfaces for %d operators",
@@ -100,7 +100,7 @@ def to_model(
         functions = spec_model.FunctionCatalog.merge(
             declaration.function_catalog()
             for declaration in declarations
-            if isinstance(declaration, profile_module.Profile)
+            if isinstance(declaration, profile.Profile)
         )
     elif not isinstance(functions, (spec_model.FunctionCatalog, dict)):
         raise TypeError("functions must be a FunctionCatalog or dictionary")
@@ -115,7 +115,7 @@ def to_model(
         }
     )
     for declaration in declarations:
-        if not isinstance(declaration, profile_module.Profile):
+        if not isinstance(declaration, profile.Profile):
             continue
         for operator in declaration._assembly_by_id.values():
             if operator.inputs is None:

@@ -7,7 +7,7 @@ import pathlib
 import tomllib
 import typing
 
-from uptimely import engine as engine_module
+from uptimely import engine
 from uptimely.build import builder, bundle, models
 from uptimely.build import features as feature_selection
 from uptimely.project import defaults, paths
@@ -83,7 +83,7 @@ class Uptimely:
         with config_path.open("rb") as file:
             return tomllib.load(file)
 
-    def create_engine(self, build: models.BuildBundle) -> engine_module.Engine:
+    def create_engine(self, build: models.BuildBundle) -> engine.Engine:
         """Create an engine with this project's configuration.
 
         Args:
@@ -97,7 +97,7 @@ class Uptimely:
         """
         if build.project_root.resolve() != self.root:
             raise ValueError("Build bundle belongs to a different project")
-        return engine_module.Engine(
+        return engine.Engine(
             build,
             self.config.engine,
             self.config.params.root,
@@ -172,7 +172,7 @@ class Uptimely:
         preview_rows: int | None = None,
         operator: tuple[str, str] | None = None,
         src_path: pathlib.Path | None = None,
-    ) -> engine_module.ExecutionResult:
+    ) -> engine.ExecutionResult:
         """Run the saved build without rebuilding it.
 
         Args:

@@ -7,10 +7,7 @@ import typing
 from uptimely.spec import arg_types, selectors
 from uptimely.spec import row_context as row_context_values
 
-from . import bind, references
-from . import dimension as dimension_module
-from . import feature as feature_module
-from . import profile as profile_module
+from . import bind, dimension, feature, profile, references
 from . import row_context as row_context_module
 
 
@@ -20,13 +17,13 @@ def resource_reference(
     """Normalize declaration instances and deferred lookups at one boundary."""
     if isinstance(value, (references.Reference, references.Params, references.Paths)):
         return value
-    if isinstance(value, feature_module.Feature):
+    if isinstance(value, feature.Feature):
         return references.FeatureReference(kind="feature", value=f"$features.{value.id}")
-    if isinstance(value, dimension_module.Dimension):
+    if isinstance(value, dimension.Dimension):
         return references.DimensionReference(kind=arg_types.STRING, value=f"$dimensions.{value.id}")
-    if isinstance(value, dimension_module.Resolution):
+    if isinstance(value, dimension.Resolution):
         return references.Reference(kind=arg_types.STRING, value=value.id)
-    if isinstance(value, profile_module.Profile):
+    if isinstance(value, profile.Profile):
         return references.ProfileReference(kind=arg_types.STRING, value=f"$profiles.{value.id}")
     return None
 

@@ -8,15 +8,13 @@ from collections import abc
 from uptimely import plan as plan_module
 from uptimely.application import config as project_config
 from uptimely.build import models as build_models
-from uptimely.codebase.python import codebase as codebase_module
-from uptimely.codebase.python import entrypoint as entrypoint_module
+from uptimely.codebase.python import codebase, entrypoint
 from uptimely.project import python_imports
 from uptimely.run import recording
 
 from . import config as config_module
-from .dataframe import backend as backend_module
-from .runtime import execution as execution_module
-from .runtime import result as result_module
+from .dataframe import backend
+from .runtime import execution, result
 from .runtime import state as state_module
 
 logger = logging.getLogger(__name__)
@@ -48,7 +46,7 @@ class Engine:
         self.project_settings = (
             project_config.ProjectSettings() if project_settings is None else project_settings
         )
-        self.backend = backend_module.create_backend(self.config.backend)
+        self.backend = backend.create_backend(self.config.backend)
         self.check_plan_backend()
 
     def check_plan_backend(self) -> None:
@@ -75,7 +73,7 @@ class Engine:
         preview_rows: int | None = None,
         operator: tuple[str, str] | None = None,
         src_path: pathlib.Path | None = None,
-    ) -> result_module.ExecutionResult:
+    ) -> result.ExecutionResult:
         """Execute the plan and overwrite the project's latest-run artifacts.
 
         Args:
@@ -115,27 +113,27 @@ class Engine:
 
     def _execute(
         self, *, validate: bool, plan: plan_module.ExecutionPlan | None = None
-    ) -> result_module.ExecutionResult:
+    ) -> result.ExecutionResult:
         """Execute invocations without coupling runtime state to artifact storage."""
         plan = self.plan if plan is None else plan
         state = state_module.RuntimeState()
         invocation_by_entrypoint = {
             invocation.entrypoint: invocation for invocation in plan.invocations
         }
-        packages: dict[str, entrypoint_module.PackageOrigin] = {}
+        packages: dict[str, entrypoint.PackageOrigin] = {}
         for location, invocation in invocation_by_entrypoint.items():
             package = invocation.package
             if package is not None:
-                packages[location] = entrypoint_module.PackageOrigin(
+                packages[location] = entrypoint.PackageOrigin(
                     distribution=package.distribution,
                     version=package.version,
                 )
-        python_codebase = codebase_module.Codebase.from_locations(
+        python_codebase = codebase.Codebase.from_locations(
             invocation_by_entrypoint,
             packages,
-            entrypoint_type=entrypoint_module.Entrypoint,
+            entrypoint_type=entrypoint.Entrypoint,
         )
-        invocation_executor = execution_module.InvocationExecutor(
+        invocation_executor = execution.InvocationExecutor(
             self.backend,
             python_codebase.entrypoints_index,
             self.parameters,
@@ -144,7 +142,7 @@ class Engine:
             project_root=self.bundle.project_root,
             validate=validate,
         )
-        statuses: dict[str, result_module.InvocationStatus] = {}
+        statuses: dict[str, result.InvocationStatus] = {}
         durations: dict[str, float] = {}
         failures: dict[str, str] = {}
 
@@ -166,7 +164,7 @@ class Engine:
                 )
                 invocation_executor.execute(invocation)
             except Exception as error:
-                statuses[invocation.id] = result_module.INVOCATION_STATUS_FAILED
+                statuses[invocation.id] = result.INVOCATION_STATUS_FAILED
                 failures[invocation.id] = str(error)
                 durations[invocation.id] = time.perf_counter() - started
                 logger.warning(
@@ -177,13 +175,13 @@ class Engine:
                     extra={"invocation_id": invocation.id, "profile_id": invocation.profile_id},
                 )
                 break
-            statuses[invocation.id] = result_module.INVOCATION_STATUS_SUCCEEDED
+            statuses[invocation.id] = result.INVOCATION_STATUS_SUCCEEDED
             durations[invocation.id] = time.perf_counter() - started
 
         for invocation in self.plan.invocations:
-            statuses.setdefault(invocation.id, result_module.INVOCATION_STATUS_SKIPPED)
+            statuses.setdefault(invocation.id, result.INVOCATION_STATUS_SKIPPED)
 
-        return result_module.ExecutionResult(
+        return result.ExecutionResult(
             datasets={key: frame.dataframe for key, frame in state.datasets.items()},
             calculated_outputs=dict(state.calculated_outputs),
             invocation_statuses=statuses,

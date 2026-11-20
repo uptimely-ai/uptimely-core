@@ -6,7 +6,7 @@ import json
 import pathlib
 import typing
 
-from uptimely import storage as storage_module
+from uptimely import storage
 
 if typing.TYPE_CHECKING:
     from .. import model as spec_model
@@ -14,11 +14,11 @@ if typing.TYPE_CHECKING:
 
 def load_document(path: str | pathlib.Path) -> dict[str, typing.Any]:
     """Read one JSON document, rejecting unsupported multi-file definitions."""
-    if storage_module.Storage.is_dir(path):
+    if storage.Storage.is_dir(path):
         from uptimely.project import paths
 
-        path = storage_module.Storage.join(path, paths.SPEC_JSON_ENTRY_FILE.name)
-    spec_definition = json.loads(storage_module.Storage.read(path))
+        path = storage.Storage.join(path, paths.SPEC_JSON_ENTRY_FILE.name)
+    spec_definition = json.loads(storage.Storage.read(path))
     if spec_definition.get("includes", []) or spec_definition.get("external_specs", []):
         raise ValueError("Spec must be defined in a single JSON file")
     return spec_definition

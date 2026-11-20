@@ -6,14 +6,14 @@ import dataclasses
 import logging
 from collections import abc
 
-from uptimely import plan as plan_module
+from uptimely import plan
 
 from . import backend as backend_module
 
 logger = logging.getLogger(__name__)
 
 
-def _log_validation(invocation: plan_module.Invocation, message: str, *args: object) -> None:
+def _log_validation(invocation: plan.Invocation, message: str, *args: object) -> None:
     """Log a fragment check with the identity of its producing invocation."""
     logger.debug(
         message + " from operator %s, function %s, invocation %s, profile %s",
@@ -37,7 +37,7 @@ class Fragment:
 
     dataframe: object
     identifiers: tuple[str, ...]
-    invocation: plan_module.Invocation | None = None
+    invocation: plan.Invocation | None = None
     relations: tuple[str, ...] = ()
 
     def __post_init__(self) -> None:
@@ -60,7 +60,7 @@ class Fragment:
     def compute(
         cls,
         backend: backend_module.DataFrameBackend,
-        invocation: plan_module.Invocation,
+        invocation: plan.Invocation,
         load: abc.Callable[[], object],
         *,
         validate: bool = False,
@@ -121,7 +121,7 @@ class Fragment:
     def validate_invocation_result(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: plan_module.Invocation,
+        invocation: plan.Invocation,
         *,
         output_features: abc.Sequence[str] | None = None,
         comparison_frame: object | None = None,
@@ -199,7 +199,7 @@ class Fragment:
     def _validate_identifier_columns(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: plan_module.Invocation,
+        invocation: plan.Invocation,
     ) -> None:
         _log_validation(
             invocation, "Check fragment required identifier columns %s", self.identifiers
@@ -212,7 +212,7 @@ class Fragment:
             )
 
     def _validate_dimensionless_row_count(
-        self, backend: backend_module.DataFrameBackend, invocation: plan_module.Invocation
+        self, backend: backend_module.DataFrameBackend, invocation: plan.Invocation
     ) -> None:
         if self.identifiers:
             _log_validation(
@@ -229,7 +229,7 @@ class Fragment:
     def _validate_unique_identifiers(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: plan_module.Invocation,
+        invocation: plan.Invocation,
     ) -> None:
         if not self.identifiers:
             _log_validation(invocation, "Skipping fragment identifier uniqueness (no dimensions)")
@@ -244,7 +244,7 @@ class Fragment:
     def _validate_output_columns(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: plan_module.Invocation,
+        invocation: plan.Invocation,
         output_features: abc.Sequence[str],
     ) -> None:
         _log_validation(
@@ -260,7 +260,7 @@ class Fragment:
     def _validate_column_types(
         self,
         backend: backend_module.DataFrameBackend,
-        invocation: plan_module.Invocation,
+        invocation: plan.Invocation,
         columns: abc.Sequence[str],
     ) -> None:
         types = {
