@@ -16,7 +16,7 @@ from uptimely import spec
 from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
-from uptimely.project import python_source_environment
+from uptimely.project import python_imports
 from uptimely.spec import operator_bindings
 
 EXPLORER_FORMAT_VERSION = 3
@@ -89,7 +89,7 @@ def build_presentation_data(
         Versioned JSON-ready project, catalog, graph, plan, and animation data.
     """
     import_context = (
-        python_source_environment.project_source_path(project_root, src_path=src_path)
+        python_imports.expose(project_root, src_path=src_path)
         if project_root is not None
         else contextlib.nullcontext()
     )
