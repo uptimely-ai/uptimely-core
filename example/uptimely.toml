@@ -2,7 +2,7 @@
 python_spec = "spec.spec:python_spec"
 
 [runtimes]
-path = "runtimes"
+path = "."
 
 [engine]
 preview_rows = 5

@@ -4,6 +4,7 @@ import pathlib
 import shutil
 import sys
 import threading
+import tomllib
 from collections import abc
 from concurrent import futures
 
@@ -80,14 +81,18 @@ def test_project_build_compiles_once_and_prepares_the_compiled_plan(
     assert plans[0] is compiled[0]
 
 
-def test_project_build_packages_python_source_and_requirements(
+def test_project_build_packages_python_source_and_runtime_definition(
     tmp_path: pathlib.Path,
 ) -> None:
     root = tmp_path / "project"
     example_support.copy_example_project(root)
-    requirements = b"polars>=1,<2\n"
-    (root / "runtimes" / "python" / "requirements.txt").write_bytes(requirements)
-    (root / "requirements.txt").write_text("unused-package\n", encoding="utf-8")
+    runtime = b'# Explicit runtime\n[project]\nrequires-python = ">=3.13"\n'
+    runtime_dir = root / "runtimes" / "python"
+    runtime_dir.mkdir(parents=True, exist_ok=True)
+    (runtime_dir / "pyproject.toml").write_bytes(runtime)
+    (root / "pyproject.toml").write_text(
+        '[project]\ndependencies = ["unused-package"]\n', encoding="utf-8"
+    )
     (root / "poetry.lock").write_text("# development lock\n", encoding="utf-8")
 
     build = project_build.build(root)
@@ -95,10 +100,10 @@ def test_project_build_packages_python_source_and_requirements(
     assert build.manifest.artifacts.model_dump()["packages"] == {
         "project": {"path": "packages/project", "runtime": "python"}
     }
-    assert build.manifest.artifacts.runtimes == {"python": "runtimes/python/requirements.txt"}
+    assert build.manifest.artifacts.runtimes == {"python": "runtimes/python/pyproject.toml"}
     source = build.package_paths["project"]
     assert (source / "pump_analytics.py").is_file()
-    assert build.runtime_paths["python"].read_bytes() == requirements
+    assert build.runtime_paths["python"].read_bytes() == runtime
     assert not (build.root / "poetry.lock").exists()
     assert not (source / "__pycache__").exists()
 
@@ -113,15 +118,17 @@ def test_project_build_packages_python_source_and_requirements(
     assert result.failures == {}
 
 
-def test_bundle_loader_requires_declared_requirements(tmp_path: pathlib.Path) -> None:
+def test_bundle_loader_requires_declared_runtime_definition(tmp_path: pathlib.Path) -> None:
     root = tmp_path / "project"
     copy_project_spec(root)
-    (root / "requirements.txt").touch()
+    (root / "pyproject.toml").write_text(
+        '[project]\nrequires-python = ">=3.13"\n', encoding="utf-8"
+    )
     build = project_build.build(root)
     build.runtime_paths["python"].unlink()
 
     with pytest.raises(
-        application.BuildError, match=r"missing artifact runtimes/python/requirements\.txt"
+        application.BuildError, match=r"missing artifact runtimes/python/pyproject\.toml"
     ):
         application.load_build_bundle(root)
 
@@ -132,17 +139,19 @@ def test_project_build_selects_runtimes_path(tmp_path: pathlib.Path, override: b
     (tmp_path / "uptimely.toml").write_text('[runtimes]\npath = "worker-env"\n', encoding="utf-8")
     runtime = tmp_path / "worker-env"
     runtime.mkdir()
-    (runtime / "requirements.txt").write_bytes(b"polars>=1,<2\n")
+    (runtime / "pyproject.toml").write_bytes(b'[project]\ndependencies = ["polars>=1,<2"]\n')
     alternate = tmp_path / "alternate"
     alternate.mkdir()
-    (alternate / "requirements.txt").write_bytes(b"polars==1.0.0\n")
+    (alternate / "pyproject.toml").write_bytes(b'[project]\ndependencies = ["polars==1.0.0"]\n')
 
     build = application.Uptimely(tmp_path).build(runtimes_path=alternate if override else None)
 
-    assert build.runtime_paths["python"] == build.root / "runtimes" / "python" / "requirements.txt"
+    assert build.runtime_paths["python"] == build.root / "runtimes" / "python" / "pyproject.toml"
     expected_source = alternate if override else runtime
-    expected_requirements = expected_source / "requirements.txt"
-    assert build.runtime_paths["python"].read_bytes() == expected_requirements.read_bytes()
+    assert (
+        build.runtime_paths["python"].read_bytes()
+        == (expected_source / "pyproject.toml").read_bytes()
+    )
 
 
 def test_bundle_loader_checks_code_runtime_reference(tmp_path: pathlib.Path) -> None:
@@ -158,20 +167,27 @@ def test_bundle_loader_checks_code_runtime_reference(tmp_path: pathlib.Path) -> 
         application.load_build_bundle(root)
 
 
-def test_project_build_preserves_dependency_markers_in_generated_requirements(
+@pytest.mark.parametrize("runtimes_path", [None, "."])
+def test_project_build_exports_only_root_runtime_metadata(
     tmp_path: pathlib.Path,
+    runtimes_path: str | None,
 ) -> None:
     copy_project_spec(tmp_path)
     dependency = "package[extra]>=1; sys_platform == 'win32'"
     (tmp_path / "pyproject.toml").write_text(
-        f'[project]\ndependencies = ["{dependency}"]\n'
-        '[project.optional-dependencies]\ntest = ["pytest"]\n',
+        '[build-system]\nrequires = ["setuptools"]\n'
+        '[project]\nname = "analytics"\nrequires-python = ">=3.13,<4"\n'
+        f'dependencies = ["{dependency}"]\n'
+        '[project.optional-dependencies]\ntest = ["pytest"]\n'
+        "[tool.ruff]\nline-length = 100\n",
         encoding="utf-8",
     )
 
-    build = project_build.build(tmp_path)
+    build = application.Uptimely(tmp_path).build(runtimes_path=runtimes_path)
 
-    assert build.runtime_paths["python"].read_bytes() == f"{dependency}\n".encode()
+    assert tomllib.loads(build.runtime_paths["python"].read_text(encoding="utf-8")) == {
+        "project": {"requires-python": ">=3.13,<4", "dependencies": [dependency]}
+    }
 
 
 def test_project_build_reports_invalid_dependency_metadata(tmp_path: pathlib.Path) -> None:

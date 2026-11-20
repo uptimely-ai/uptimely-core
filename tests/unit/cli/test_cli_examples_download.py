@@ -203,7 +203,6 @@ def test_no_setup_merges_into_existing_directory(
         }
     )
     monkeypatch.setattr(examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
-    (tmp_path / "pyproject.toml").write_text("existing setup")
     (tmp_path / "README.md").write_text("existing guide")
     (tmp_path / "init.sh").write_text("existing script")
     (tmp_path / ".devcontainer").mkdir()
@@ -214,7 +213,7 @@ def test_no_setup_merges_into_existing_directory(
 
     cli.main()
 
-    assert (tmp_path / "pyproject.toml").read_text() == "existing setup"
+    assert (tmp_path / "pyproject.toml").read_text() == "setup"
     assert (tmp_path / "README.md").read_text() == "existing guide"
     assert (tmp_path / "init.sh").read_text() == "existing script"
     assert (tmp_path / ".devcontainer/devcontainer.json").read_text() == "existing container"
@@ -309,7 +308,7 @@ def test_no_setup_example_builds_and_runs_in_existing_environment(
             text=True,
             timeout=90,
         )
-    assert not (output / "pyproject.toml").exists()
+    assert (output / "pyproject.toml").is_file()
 
 
 def test_examples_cli_reports_existing_default_destination(

@@ -1,13 +1,12 @@
 """Stage Python implementation artifacts without installing dependencies."""
 
+import json
 import pathlib
 import shutil
 import tomllib
 
 from uptimely.codebase import packaging
 from uptimely.project import paths
-
-from . import REQUIREMENTS_FILE
 
 PACKAGE_ID = "project"
 SOURCE_DIR = f"{packaging.PACKAGES_DIR}/{PACKAGE_ID}"
@@ -16,7 +15,7 @@ _PROJECT_METADATA_FILE = "pyproject.toml"
 
 
 class PythonPackager:
-    """Package project Python source and optional requirements."""
+    """Package project Python source and optional runtime metadata."""
 
     def stage(
         self,
@@ -25,10 +24,10 @@ class PythonPackager:
         staging_root: pathlib.Path,
         runtimes_root: pathlib.Path,
     ) -> packaging.StagedCode:
-        """Stage Python source and requirements, returning their paths and kinds."""
+        """Stage Python source and its runtime definition."""
         artifacts = packaging.StagedCode()
-        runtime_path = f"{packaging.RUNTIMES_DIR}/{RUNTIME_ID}/{REQUIREMENTS_FILE}"
-        if self._stage_requirements(project_root, runtimes_root, staging_root / runtime_path):
+        runtime_path = f"{packaging.RUNTIMES_DIR}/{RUNTIME_ID}/{_PROJECT_METADATA_FILE}"
+        if self._stage_runtime(project_root, runtimes_root, staging_root / runtime_path):
             artifacts.runtimes[RUNTIME_ID] = runtime_path
         if source.is_dir():
             self._copy_source(source, staging_root / SOURCE_DIR)
@@ -38,27 +37,40 @@ class PythonPackager:
         return artifacts
 
     @staticmethod
-    def _stage_requirements(
+    def _stage_runtime(
         project_root: pathlib.Path, runtimes_root: pathlib.Path, target: pathlib.Path
     ) -> bool:
-        """Use explicit requirements or export static project dependencies."""
-        for root in (runtimes_root / RUNTIME_ID, runtimes_root, project_root):
-            requirements = root / REQUIREMENTS_FILE
-            if requirements.is_file():
+        """Copy an explicit definition or export the root's static runtime fields."""
+        metadata = project_root / _PROJECT_METADATA_FILE
+        for root in (runtimes_root / RUNTIME_ID, runtimes_root):
+            definition = root / _PROJECT_METADATA_FILE
+            if definition.is_file() and definition.resolve() != metadata.resolve():
+                contents = definition.read_bytes()
+                try:
+                    tomllib.loads(contents.decode("utf-8"))
+                except ValueError as error:
+                    raise ValueError(f"{definition}: {error}") from error
                 target.parent.mkdir(parents=True, exist_ok=True)
-                shutil.copy2(requirements, target)
+                target.write_bytes(contents)
                 return True
 
-        metadata = project_root / _PROJECT_METADATA_FILE
         if not metadata.is_file():
             return False
         with metadata.open("rb") as stream:
             project = tomllib.load(stream).get("project", {})
         if not isinstance(project, dict):
-            raise ValueError(f"{_PROJECT_METADATA_FILE}: expected a [project] table")
-        if "dependencies" not in project:
+            raise ValueError(f"{metadata}: expected a [project] table")
+        runtime = {
+            key: project[key] for key in ("requires-python", "dependencies") if key in project
+        }
+        if not runtime:
             return False
-        dependencies = project["dependencies"]
+        if "requires-python" in runtime and (
+            not isinstance(runtime["requires-python"], str)
+            or not runtime["requires-python"].strip()
+        ):
+            raise ValueError(f"{metadata}: [project].requires-python must be a nonempty string")
+        dependencies = runtime.get("dependencies", [])
         if not isinstance(dependencies, list) or not all(
             isinstance(dependency, str)
             and dependency.strip()
@@ -68,12 +80,17 @@ class PythonPackager:
             for dependency in dependencies
         ):
             raise ValueError(
-                f"{_PROJECT_METADATA_FILE}: [project].dependencies must be an array "
+                f"{metadata}: [project].dependencies must be an array "
                 "of single-line requirement strings"
             )
+        # JSON strings and string arrays use TOML-compatible escapes, except for raw DEL.
+        fields = "".join(
+            f"{key} = " + json.dumps(value, ensure_ascii=False).replace("\x7f", r"\u007f") + "\n"
+            for key, value in runtime.items()
+        )
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(
-            "".join(f"{dependency}\n" for dependency in dependencies),
+            f"[project]\n{fields}",
             encoding="utf-8",
             newline="\n",
         )
