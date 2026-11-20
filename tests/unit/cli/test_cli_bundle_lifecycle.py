@@ -1,8 +1,11 @@
+import contextlib
 import json
 import pathlib
 import shutil
 import sys
+import threading
 from collections import abc
+from concurrent import futures
 
 import pytest
 from support import examples as example_support
@@ -10,6 +13,7 @@ from support import examples as example_support
 from uptimely import application, spec
 from uptimely import plan as plan_module
 from uptimely.build import builder as project_build
+from uptimely.build import bundle, locking
 from uptimely.cli import cli
 from uptimely.codebase import packaging
 
@@ -323,6 +327,36 @@ def test_project_build_failures_preserve_previous_bundle(
     assert snapshot.read_bytes() == previous_snapshot
     assert not list((root / application.ARTIFACTS_DIR).glob(".build-staging-*"))
     assert not list((root / application.ARTIFACTS_DIR).glob(".build-backup-*"))
+
+
+def test_explorer_snapshot_read_retries_during_bundle_replacement(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    snapshot = tmp_path / application.EXPLORER_DATA_FILE
+    snapshot.parent.mkdir(parents=True)
+    snapshot.write_bytes(b'{"build": "original"}')
+    replacement = tmp_path / "replacement"
+    replacement.mkdir()
+    new_snapshot = b'{"build": "replacement"}'
+    (replacement / snapshot.name).write_bytes(new_snapshot)
+    read_reached_lock = threading.Event()
+    original_lock = locking.build_lock
+
+    def signal_read(
+        root: str | pathlib.Path, *, exclusive: bool, wait: bool = True
+    ) -> contextlib.AbstractContextManager[None]:
+        read_reached_lock.set()
+        return original_lock(root, exclusive=exclusive, wait=wait)
+
+    with futures.ThreadPoolExecutor(max_workers=1) as executor:
+        with original_lock(tmp_path, exclusive=True, wait=False):
+            snapshot.parent.rename(tmp_path / "old-build")
+            monkeypatch.setattr(locking, "build_lock", signal_read)
+            read = executor.submit(bundle.BundleStore(tmp_path).read_explorer_snapshot)
+            assert read_reached_lock.wait(timeout=5)
+            replacement.rename(snapshot.parent)
+
+        assert read.result(timeout=5) == new_snapshot
 
 
 def test_bundle_loader_requires_declared_explorer_snapshot(tmp_path: pathlib.Path) -> None:

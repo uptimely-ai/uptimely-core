@@ -114,9 +114,15 @@ class InstalledImportsTest(unittest.TestCase):
                 else None
             )
             self.assertEqual(package["version"], expected_version)
-        result = self.command("run", str(project), "--preview", "2", cwd=project)
+        deployment = self.root / "deployed-pump-analytics"
+        shutil.copytree(build, deployment / "artifacts" / "build")
+        shutil.copytree(project / "data" / "input", deployment / "data" / "input")
+        shutil.copyfile(project / "uptimely.toml", deployment / "uptimely.toml")
+        result = self.command("run", str(deployment), "--preview", "2", cwd=deployment)
         self.assertIn("Engine processed", result.stdout)
         self.assertIn("Profile:", result.stdout)
+        workflow_output = deployment / "data" / "output" / "pump_external_workflow_results.csv"
+        self.assertIn("CWP-101,0.75", workflow_output.read_text(encoding="utf-8"))
 
     def test_installed_project_builds_and_executes_in_separate_processes(self) -> None:
         project = self.root / "project"

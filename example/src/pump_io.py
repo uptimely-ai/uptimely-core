@@ -184,8 +184,15 @@ def read_file(
 
 
 @function(returns="any", category="workflow")
-def process_pump_external_workflow() -> None:
+def process_pump_external_workflow(source: str, output: str) -> None:
     """Read cooling-pump inputs, calculate ratios, and write results internally.
+
+    Parameters
+    ----------
+    source
+        Resolved path to the workflow input CSV.
+    output
+        Resolved path for the workflow results CSV.
 
     Returns
     -------
@@ -193,13 +200,12 @@ def process_pump_external_workflow() -> None:
 
     Examples
     --------
-    >>> process_pump_external_workflow()  # doctest: +SKIP
+    >>> process_pump_external_workflow("input.csv", "results.csv")  # doctest: +SKIP
     """
-    project_root = pathlib.Path(__file__).resolve().parent.parent
-    observations = pl.read_csv(project_root / "data" / "input" / "pump_external_workflow.csv")
+    observations = pl.read_csv(source)
     result = observations.with_columns(
         (pl.col("measurement") / pl.col("reference_value")).alias("ratio")
     )
-    output_path = project_root / "data" / "output" / "pump_external_workflow_results.csv"
+    output_path = pathlib.Path(output)
     output_path.parent.mkdir(parents=True, exist_ok=True)
     result.select("data_center_id", "server_room_id", "pump_id", "ratio").write_csv(output_path)

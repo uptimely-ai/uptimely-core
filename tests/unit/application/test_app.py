@@ -1,6 +1,7 @@
 """Tests for root-bound project operations."""
 
 import json
+import logging
 import pathlib
 from unittest import mock
 
@@ -236,7 +237,9 @@ def test_run_forwards_options_and_holds_build_lock(app: application_module.Uptim
     app.build()
 
 
-def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) -> None:
+def test_run_uses_project_preview_and_bundled_source_by_default(
+    tmp_path: pathlib.Path, caplog: pytest.LogCaptureFixture
+) -> None:
     (tmp_path / "spec").mkdir()
     (tmp_path / "spec/spec.json").write_text(
         '{"spec_version": 9, "name": "Run config"}', encoding="utf-8"
@@ -247,7 +250,8 @@ def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) ->
         encoding="utf-8",
     )
     app = application_module.Uptimely(tmp_path)
-    app.build()
+    bundle = app.build()
+    caplog.set_level(logging.DEBUG, logger="uptimely.engine.engine")
 
     with mock.patch.object(
         python_imports,
@@ -256,11 +260,31 @@ def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) ->
     ) as source_path:
         result = app.run()
 
-    source_path.assert_called_once_with(app.root, src_path=app.root / "custom-src")
+    source_path.assert_called_once_with(app.root, src_path=bundle.package_paths["project"])
+    assert (
+        f"Selected Python source directory (bundle): {bundle.package_paths['project']}"
+        in caplog.messages
+    )
     assert not result.failures
     manifest_path = app.root / project_paths.RUN_MANIFEST_FILE
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     assert manifest["preview_rows"] == 12
+
+
+def test_run_logs_resolved_source_override(
+    app: application_module.Uptimely, caplog: pytest.LogCaptureFixture
+) -> None:
+    app.build()
+    override = pathlib.Path("custom-src")
+    (app.root / override).mkdir()
+    caplog.set_level(logging.DEBUG, logger="uptimely.engine.engine")
+
+    app.run(src_path=override)
+
+    assert (
+        f"Selected Python source directory (explicit override): {app.root / override}"
+        in caplog.messages
+    )
 
 
 def test_run_releases_build_lock_on_failure(app: application_module.Uptimely) -> None:

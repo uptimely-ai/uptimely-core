@@ -183,7 +183,11 @@ class Pump(Profile):
         ),
         Operator(
             inputs=[features.measurement, features.reference_value],
-            compute=Bind(io.process_pump_external_workflow),
+            compute=Bind(
+                io.process_pump_external_workflow,
+                source=ref.paths("pump_external_inputs_source"),
+                output=ref.paths("pump_external_workflow_output"),
+            ),
         ),
         Operator(
             outputs=[],

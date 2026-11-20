@@ -47,7 +47,7 @@ def _unknown_result_spec_configuration() -> dict:
     profile["features"]["unknown_start_output"] = {"type": "float"}
     profile["features"]["unknown_chain_output"] = {"type": "float"}
     profile["features"]["unknown_source_output"] = {"type": "float"}
-    entrypoint = "pump_io:process_pump_external_workflow"
+    entrypoint = "pump_util:dummy_pass"
     _add_unknown_result_operator(
         configuration,
         "unknown_start",
@@ -220,7 +220,7 @@ def test_existing_invocation_ids_survive_unrelated_additions_and_reordering() ->
         "unrelated_unknown_result",
         "unrelated_unknown_result",
         [],
-        "pump_io:process_pump_external_workflow",
+        "pump_util:dummy_pass",
     )
     configuration["functions"]["unrelated_unknown_result"]["validate_signature"] = False
     configuration["profiles"] = dict(reversed(configuration["profiles"].items()))

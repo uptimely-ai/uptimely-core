@@ -164,7 +164,7 @@ class Uptimely:
             operator: Optional profile and operator IDs selecting an operator
                 and its saved prerequisites.
             src_path: Optional Python source directory, relative to the project root
-                unless absolute. Defaults to the configured project value or ``src``.
+                unless absolute. Overrides the source bundled with the build.
 
         Returns:
             Execution results, including any invocation failures.
