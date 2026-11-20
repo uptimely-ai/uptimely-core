@@ -69,8 +69,9 @@ previews and debugging files. Each run replaces
 
 Uptimely makes the project root and the selected source directory importable
 during builds and runs. Set `application.src_path` in config or use
-`--src-path` to select a different directory for a build. The build records
-that selection, and later runs reuse it unless they provide a run-time override.
+`--src-path` to select a different directory for a build. Later runs use the
+bundled copy by default. Pass `--src-path` to the run command to use a different
+source directory explicitly.
 
 Use a distinctive module name under the source directory to avoid conflicts
 with dependencies and Python's standard library. The `uptimely` name is reserved

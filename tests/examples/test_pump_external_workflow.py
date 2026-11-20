@@ -80,7 +80,10 @@ def test_pump_external_workflow_runs_with_its_own_paths(
         if invocation.function_id == "process_pump_external_workflow"
     )
     assert workflow.is_workflow
-    assert workflow.arguments == {}
+    assert workflow.arguments == {
+        "source": "$paths.pump_external_inputs_source",
+        "output": "$paths.pump_external_workflow_output",
+    }
     assert workflow.input_features == ["measurement", "reference_value"]
     assert workflow.output_features == []
     assert result.invocation_statuses[workflow.id] == "succeeded"
@@ -111,15 +114,33 @@ def test_selected_workflow_ignores_returns_and_reports_failures(
     statement = "raise RuntimeError('workflow failed')" if fails else "return {'ignored': True}"
     source.write_text(
         source.read_text(encoding="utf-8")
-        + f"\ndef process_pump_external_workflow():\n    {statement}\n",
+        + f"\ndef process_pump_external_workflow(source, output):\n    {statement}\n",
         encoding="utf-8",
     )
     app = application.Uptimely(root)
     bundle = application.load_build_bundle(root)
     workflow = next(item for item in bundle.execution_plan.invocations if item.is_workflow)
-    result = app.create_engine(bundle).run()
+    result = app.run(src_path=source.parent)
     assert result.invocation_statuses[workflow.id] == ("failed" if fails else "succeeded")
     if fails:
         assert "workflow failed" in result.failures[workflow.id]
     else:
         assert result.failures == {}
+
+
+def test_saved_build_keeps_running_bundled_workflow_after_source_edit(
+    tmp_path: pathlib.Path,
+    example_project_factory: example_support.ProjectFactory,
+) -> None:
+    root = example_project_factory(tmp_path / "example", features=("measurement",))
+    app = application.Uptimely(root)
+    assert app.run().failures == {}
+    output = root / "data" / "output" / "pump_external_workflow_results.csv"
+    expected = output.read_bytes()
+    output.unlink()
+
+    source = root / "src" / "pump_io.py"
+    source.write_text("raise RuntimeError('edited after build')\n", encoding="utf-8")
+
+    assert app.run().failures == {}
+    assert output.read_bytes() == expected

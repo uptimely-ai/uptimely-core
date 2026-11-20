@@ -16,7 +16,7 @@ directory is used.
 | --- | --- | --- | --- |
 | `PROJECT_ROOT` | — | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | — | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
-| `--src-path PATH` | `application.src_path` | Source path saved with the active build<br>For older builds, configured value or `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the saved build value for this command. |
+| `--src-path PATH` | `application.src_path` | Bundled project source<br>If absent, the saved original source when available, then the configured value or `src` | Explicit Python source directory, relative to the project root or given as an absolute path. Overrides the default for this run. |
 | `--build` | — | Disabled | Build and publish the project before execution, then run the newly published build. |
 | `--config CONFIG_OR_PATH` | — | Root `uptimely.toml`<br>Otherwise built-in defaults | Pass a config name such as `prod` to load `config/prod.toml`, recursively overriding root `uptimely.toml`. Pass a TOML path to load that file alone without merging root settings. Relative paths resolve from the current working directory. |
 | `--validate` | — | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
@@ -24,6 +24,8 @@ directory is used.
 | `--preview [ROWS]` | `engine.preview_rows` | No console preview by default<br>Bare `--preview` uses `engine.preview_rows` (default `5`) | Set the saved preview row limit and log those rows from each final profile after successful execution at info level. Without this option, saved previews use `engine.preview_rows`. |
 
 Console display reuses the saved sample rather than executing the lazy query again.
+Use `--log-level debug` to see the absolute Python source directory selected
+for the run and whether it came from the bundle, an override, or a fallback.
 See [Run artifacts](../artifacts/run.md#latest-run-artifacts) for preview collection,
 query costs, and timing, and [Preview run results](../guides/preview.md) for
 console output behavior.

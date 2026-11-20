@@ -15,15 +15,16 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Build bundles group implementation packages and runtimes in separate ID-named
   directories and record their assignments in the manifest. Python requirements
   can be supplied under the configurable `[runtimes].path` directory.
+- Engine debug logs show the selected Python source directory and its origin.
 
 ### Changed
 
 - New build bundles save the execution plan as `plan.json`.
 - Builds publish the Explorer snapshot with the Spec and plan under `artifacts/build/`.
+- Saved builds run their bundled Python source by default. Pass `--src-path`
+  to run against a different source directory.
 - Relative JSON specification paths are consistently resolved from the project
   root for Python APIs, CLI builds, and configured project sources.
-- Builds save their Python source path so later runs do not depend on changed
-  configuration or repeated command-line options.
 - Build manifests record the selected specification source used to create the
   saved bundle.
 - Explicit Python spec sources retain their entrypoint identity instead of

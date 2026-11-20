@@ -87,8 +87,8 @@ class Engine:
                 explicitly selected sink still runs. Unselected invocations
                 are recorded as skipped.
             src_path: Optional source directory, relative to the project root unless absolute.
-                Defaults to the saved project source when it still exists, then the
-                source bundled with the build, then configured project source.
+                Defaults to bundled source, then the saved original source if it
+                still exists, then configured or default project source.
 
         Returns:
             Main dataframes, invocation results, execution duration, collected
@@ -102,7 +102,9 @@ class Engine:
         if preview_rows is None:
             preview_rows = self.config.preview_rows
         if src_path is None:
-            src_path = self._default_src_path()
+            src_path, source_origin = self._default_source()
+        else:
+            source_origin = "explicit override"
         plan = self.plan if operator is None else self.plan.for_operator(*operator)
         with (
             python_imports.expose(self.bundle.project_root, src_path=src_path),
@@ -110,21 +112,27 @@ class Engine:
                 self.bundle, self.config, validate=validate, preview_rows=preview_rows
             ) as recorder,
         ):
+            if logger.isEnabledFor(logging.DEBUG):
+                logger.debug(
+                    "Selected Python source directory (%s): %s",
+                    source_origin,
+                    python_imports.resolve_src_path(self.bundle.project_root, src_path),
+                )
             return recorder.finish(self._execute(validate=validate, plan=plan))
 
-    def _default_src_path(self) -> pathlib.Path | None:
-        """Select the saved, bundled, or configured Python source for execution."""
+    def _default_source(self) -> tuple[pathlib.Path | None, str]:
+        """Return the default Python source path and its origin for logging."""
+        if (bundled_source := self.bundle.package_paths.get(packaging.PACKAGE_ID)) is not None:
+            return bundled_source, "bundle"
         if (saved_src_path := self.bundle.manifest.src_path) is not None:
             saved_path = python_imports.resolve_src_path(
                 self.bundle.project_root, pathlib.Path(saved_src_path)
             )
             if saved_path.is_dir():
-                return saved_path
-        if (bundled_source := self.bundle.package_paths.get(packaging.PACKAGE_ID)) is not None:
-            return bundled_source
+                return saved_path, "saved original source"
         if self.project_settings.src_path is not None:
-            return pathlib.Path(self.project_settings.src_path)
-        return None
+            return pathlib.Path(self.project_settings.src_path), "project configuration"
+        return None, "default project source"
 
     def _execute(
         self, *, validate: bool, plan: plan_module.ExecutionPlan | None = None
