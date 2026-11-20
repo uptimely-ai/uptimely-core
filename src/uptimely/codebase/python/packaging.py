@@ -1,5 +1,8 @@
 """Stage Python implementation artifacts without installing dependencies."""
 
+from __future__ import annotations
+
+import dataclasses
 import json
 import pathlib
 import shutil
@@ -14,6 +17,97 @@ RUNTIME_ID = "python"
 _PROJECT_METADATA_FILE = "pyproject.toml"
 
 
+@dataclasses.dataclass(frozen=True)
+class PythonRuntimeDefinition:
+    """Static Python runtime fields exported from project metadata."""
+
+    requires_python: str | None = None
+    dependencies: tuple[str, ...] | None = None
+
+    @classmethod
+    def from_project_file(cls, metadata_path: pathlib.Path) -> PythonRuntimeDefinition | None:
+        """Read supported runtime fields from a project metadata file.
+
+        Args:
+            metadata_path: Path to the project's ``pyproject.toml``.
+
+        Returns:
+            A runtime definition, or ``None`` when the file does not declare any.
+
+        Raises:
+            ValueError: The TOML table or one of its runtime fields is invalid.
+        """
+        if not metadata_path.is_file():
+            return None
+        with metadata_path.open("rb") as stream:
+            project = tomllib.load(stream).get("project", {})
+        if not isinstance(project, dict):
+            raise ValueError(f"{metadata_path}: expected a [project] table")
+
+        requires_python = cls._read_requires_python(project, metadata_path)
+        dependencies = cls._read_dependencies(project, metadata_path)
+        if requires_python is None and dependencies is None:
+            return None
+        return cls(requires_python=requires_python, dependencies=dependencies)
+
+    @staticmethod
+    def _read_requires_python(
+        project: dict[str, object], metadata_path: pathlib.Path
+    ) -> str | None:
+        """Return and validate the optional supported Python version range."""
+        if "requires-python" not in project:
+            return None
+        value = project["requires-python"]
+        if not isinstance(value, str) or not value.strip():
+            raise ValueError(
+                f"{metadata_path}: [project].requires-python must be a nonempty string"
+            )
+        return value
+
+    @staticmethod
+    def _read_dependencies(
+        project: dict[str, object], metadata_path: pathlib.Path
+    ) -> tuple[str, ...] | None:
+        """Return and validate optional package requirement strings."""
+        if "dependencies" not in project:
+            return None
+        dependencies = project["dependencies"]
+        if not isinstance(dependencies, list) or not all(
+            PythonRuntimeDefinition._is_valid_dependency(dependency) for dependency in dependencies
+        ):
+            raise ValueError(
+                f"{metadata_path}: [project].dependencies must be an array "
+                "of single-line requirement strings"
+            )
+        return tuple(dependencies)
+
+    @staticmethod
+    def _is_valid_dependency(value: object) -> bool:
+        """Return whether a value is safe to serialize as one requirement."""
+        return (
+            isinstance(value, str)
+            and bool(value.strip())
+            and not value.lstrip().startswith(("-", "#"))
+            and value.splitlines() == [value]
+            and not value.rstrip().endswith("\\")
+        )
+
+    def to_toml(self) -> str:
+        """Serialize the supported fields as a standalone project definition."""
+        fields = ["[project]"]
+        if self.requires_python is not None:
+            fields.append(f"requires-python = {self._toml_string(self.requires_python)}")
+        if self.dependencies is not None:
+            dependencies = ", ".join(self._toml_string(item) for item in self.dependencies)
+            fields.append(f"dependencies = [{dependencies}]")
+        return "\n".join(fields) + "\n"
+
+    @staticmethod
+    def _toml_string(value: str) -> str:
+        """Quote one string using TOML-compatible JSON escapes."""
+        return json.dumps(value, ensure_ascii=False).replace("\x7f", r"\u007f")
+
+
 class PythonPackager:
     """Package project Python source and optional runtime metadata."""
 
@@ -26,8 +120,8 @@ class PythonPackager:
     ) -> packaging.StagedCode:
         """Stage Python source and its runtime definition."""
         artifacts = packaging.StagedCode()
-        runtime_path = f"{packaging.RUNTIMES_DIR}/{RUNTIME_ID}/{_PROJECT_METADATA_FILE}"
-        if self._stage_runtime(project_root, runtimes_root, staging_root / runtime_path):
+        runtime_path = self._stage_runtime(project_root, runtimes_root, staging_root)
+        if runtime_path is not None:
             artifacts.runtimes[RUNTIME_ID] = runtime_path
         if source.is_dir():
             self._copy_source(source, staging_root / SOURCE_DIR)
@@ -38,63 +132,48 @@ class PythonPackager:
 
     @staticmethod
     def _stage_runtime(
-        project_root: pathlib.Path, runtimes_root: pathlib.Path, target: pathlib.Path
-    ) -> bool:
-        """Copy an explicit definition or export the root's static runtime fields."""
-        metadata = project_root / _PROJECT_METADATA_FILE
-        for root in (runtimes_root / RUNTIME_ID, runtimes_root):
-            definition = root / _PROJECT_METADATA_FILE
-            if definition.is_file() and definition.resolve() != metadata.resolve():
-                contents = definition.read_bytes()
-                try:
-                    tomllib.loads(contents.decode("utf-8"))
-                except ValueError as error:
-                    raise ValueError(f"{definition}: {error}") from error
-                target.parent.mkdir(parents=True, exist_ok=True)
-                target.write_bytes(contents)
-                return True
+        project_root: pathlib.Path, runtimes_root: pathlib.Path, staging_root: pathlib.Path
+    ) -> str | None:
+        """Stage an explicit runtime definition or export root metadata."""
+        relative_path = pathlib.PurePosixPath(
+            packaging.RUNTIMES_DIR, RUNTIME_ID, _PROJECT_METADATA_FILE
+        )
+        target = staging_root.joinpath(*relative_path.parts)
+        metadata_path = project_root / _PROJECT_METADATA_FILE
+        explicit_path = PythonPackager._find_explicit_runtime(metadata_path, runtimes_root)
+        if explicit_path is not None:
+            contents = PythonPackager._read_valid_toml(explicit_path)
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_bytes(contents)
+            return relative_path.as_posix()
 
-        if not metadata.is_file():
-            return False
-        with metadata.open("rb") as stream:
-            project = tomllib.load(stream).get("project", {})
-        if not isinstance(project, dict):
-            raise ValueError(f"{metadata}: expected a [project] table")
-        runtime = {
-            key: project[key] for key in ("requires-python", "dependencies") if key in project
-        }
-        if not runtime:
-            return False
-        if "requires-python" in runtime and (
-            not isinstance(runtime["requires-python"], str)
-            or not runtime["requires-python"].strip()
-        ):
-            raise ValueError(f"{metadata}: [project].requires-python must be a nonempty string")
-        dependencies = runtime.get("dependencies", [])
-        if not isinstance(dependencies, list) or not all(
-            isinstance(dependency, str)
-            and dependency.strip()
-            and not dependency.lstrip().startswith(("-", "#"))
-            and dependency.splitlines() == [dependency]
-            and not dependency.rstrip().endswith("\\")
-            for dependency in dependencies
-        ):
-            raise ValueError(
-                f"{metadata}: [project].dependencies must be an array "
-                "of single-line requirement strings"
-            )
-        # JSON strings and string arrays use TOML-compatible escapes, except for raw DEL.
-        fields = "".join(
-            f"{key} = " + json.dumps(value, ensure_ascii=False).replace("\x7f", r"\u007f") + "\n"
-            for key, value in runtime.items()
-        )
+        definition = PythonRuntimeDefinition.from_project_file(metadata_path)
+        if definition is None:
+            return None
         target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text(
-            f"[project]\n{fields}",
-            encoding="utf-8",
-            newline="\n",
-        )
-        return True
+        target.write_text(definition.to_toml(), encoding="utf-8", newline="\n")
+        return relative_path.as_posix()
+
+    @staticmethod
+    def _find_explicit_runtime(
+        project_metadata: pathlib.Path, runtimes_root: pathlib.Path
+    ) -> pathlib.Path | None:
+        """Find the highest-precedence runtime definition outside root metadata."""
+        for root in (runtimes_root / RUNTIME_ID, runtimes_root):
+            candidate = root / _PROJECT_METADATA_FILE
+            if candidate.is_file() and candidate.resolve() != project_metadata.resolve():
+                return candidate
+        return None
+
+    @staticmethod
+    def _read_valid_toml(path: pathlib.Path) -> bytes:
+        """Read a TOML file while reporting invalid content with its path."""
+        contents = path.read_bytes()
+        try:
+            tomllib.loads(contents.decode("utf-8"))
+        except (UnicodeError, tomllib.TOMLDecodeError) as error:
+            raise ValueError(f"{path}: {error}") from error
+        return contents
 
     @staticmethod
     def _copy_source(source: pathlib.Path, target: pathlib.Path) -> None:
