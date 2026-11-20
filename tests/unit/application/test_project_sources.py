@@ -68,6 +68,7 @@ def test_spec_source_resolves_without_loading(tmp_path: pathlib.Path) -> None:
 
     assert isinstance(source, project_spec_source.PythonSpecSource)
     assert source.path == python_path
+    assert source.display_name == str(python_path.resolve())
     assert source.entrypoint.module.location == "spec.spec"
     assert source.entrypoint.function.name == application.DEFAULT_SPEC_ATTRIBUTE
 
@@ -99,6 +100,16 @@ def test_python_spec_rejects_local_file_entrypoints(tmp_path: pathlib.Path) -> N
 
     with pytest.raises(ValueError, match="Invalid module path"):
         project_spec_source.SpecSourceResolver(tmp_path).resolve(f"{python_path}:python_spec")
+
+
+def test_explicit_python_source_has_no_conventional_file_path(tmp_path: pathlib.Path) -> None:
+    source = project_spec_source.SpecSourceResolver(tmp_path).resolve(
+        "custom.declaration:python_spec"
+    )
+
+    assert isinstance(source, project_spec_source.PythonSpecSource)
+    assert source.path is None
+    assert source.display_name == "custom.declaration:python_spec"
 
 
 def test_spec_source_rejects_ambiguous_discovered_sources(tmp_path: pathlib.Path) -> None:

@@ -16,6 +16,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   configuration or repeated command-line options.
 - Build manifests record the selected specification source used to create the
   saved bundle.
+- Explicit Python spec sources retain their entrypoint identity instead of
+  reporting the conventional `spec/spec.py` path.
 - Build APIs moved from `uptimely.application.build` to `uptimely.build`.
 - Python entrypoint APIs moved from `uptimely.entrypoint` to
   `uptimely.codebase.python.entrypoint`.

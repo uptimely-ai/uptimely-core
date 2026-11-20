@@ -17,8 +17,17 @@ JsonSourceInput = str | pathlib.Path | None
 class PythonSpecSource:
     """Describe a resolved Python spec source."""
 
-    path: pathlib.Path
+    path: pathlib.Path | None
     entrypoint: entrypoint_module.Entrypoint
+
+    @property
+    def display_name(self) -> str:
+        """Return a path for conventional sources or the explicit entrypoint."""
+        if self.path is not None:
+            return str(self.path.resolve())
+        return entrypoint_module.Entrypoint.format(
+            self.entrypoint.module.location, self.entrypoint.function.name
+        )
 
 
 @dataclasses.dataclass(frozen=True)
@@ -26,6 +35,11 @@ class JsonSpecSource:
     """Describe a resolved JSON spec source."""
 
     path: pathlib.Path
+
+    @property
+    def display_name(self) -> str:
+        """Return the resolved JSON source path."""
+        return str(self.path.resolve())
 
 
 ResolvedSpecSource = PythonSpecSource | JsonSpecSource
@@ -48,7 +62,7 @@ class SpecSourceResolver:
 
         if python_spec is not None:
             return PythonSpecSource(
-                self.project_root / paths.SPEC_PYTHON_ENTRY_FILE,
+                None,
                 entrypoint_module.Entrypoint(python_spec),
             )
         if json_spec is not None:
