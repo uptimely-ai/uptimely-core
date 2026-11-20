@@ -18,6 +18,7 @@ While the version is `0.x`, minor releases may include breaking changes.
   saved bundle.
 - Explicit Python spec sources retain their entrypoint identity instead of
   reporting the conventional `spec/spec.py` path.
+- Remove the unused `Uptimely.resolve_path` helper.
 - Build APIs moved from `uptimely.application.build` to `uptimely.build`.
 - Python entrypoint APIs moved from `uptimely.entrypoint` to
   `uptimely.codebase.python.entrypoint`.
