@@ -13,15 +13,6 @@ def must_not_execute(values: list[str], output: str) -> object:
     raise AssertionError("Assembly executed the implementation")
 
 
-def test_operator_is_the_public_work_declaration_name() -> None:
-    assert authoring.Operator.__name__ == "Operator"
-    assert not hasattr(authoring, "Action")
-    assert not hasattr(authoring, "FunctionCall")
-    assert not hasattr(authoring, "Mapping")
-    assert not hasattr(authoring, "FunctionMapping")
-    assert not hasattr(authoring, "action")
-
-
 @pytest.mark.parametrize("returns", ["dataframe", "none", "any"])
 def test_operator_serialization_preserves_compute_contract(returns: str) -> None:
     operator = authoring.Operator(

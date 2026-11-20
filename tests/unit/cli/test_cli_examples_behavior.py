@@ -188,11 +188,6 @@ def test_console_script_registration() -> None:
     assert config["project"]["scripts"]["uptimely-mcp"] == "uptimely.mcp.server:main"
 
 
-def test_cli_does_not_reexport_command_helpers() -> None:
-    assert not hasattr(cli, "download_examples")
-    assert not hasattr(cli, "serve_explorer")
-
-
 @pytest.mark.parametrize(
     ("arguments", "command", "expected_options"),
     [

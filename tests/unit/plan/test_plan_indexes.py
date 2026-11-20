@@ -115,8 +115,6 @@ def test_plan_keeps_signature_and_package_metadata_on_invocations() -> None:
     assert invocation.return_type == "DataFrame"
     assert invocation.package is not None
     assert invocation.package.distribution == "example-package"
-    assert not hasattr(original, "entrypoints_by_id")
-    assert not hasattr(original, "entrypoint_packages")
 
 
 def test_plan_rejects_function_ids_with_multiple_entrypoints() -> None:

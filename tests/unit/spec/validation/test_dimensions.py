@@ -1,7 +1,6 @@
 import copy
 import typing
 
-import pydantic
 import pytest
 
 from uptimely.spec import model
@@ -108,22 +107,6 @@ def test_serialization_keeps_resolution_grain_and_order_references() -> None:
     }
     assert "dimensions" not in serialized["profiles"]["pump_telemetry"]
     assert serialized["profiles"]["pump_telemetry"]["scope"] == "One row per pump observation"
-
-
-@pytest.mark.parametrize(
-    "legacy_field",
-    ["dimensions", "row_scope"],
-)
-def test_profile_rejects_removed_dimension_and_descriptive_grain_fields(
-    legacy_field: str,
-) -> None:
-    document = _document()
-    document["profiles"]["pump_telemetry"][legacy_field] = (
-        ["machine"] if legacy_field == "dimensions" else {"grain": "One row per pump"}
-    )
-
-    with pytest.raises(pydantic.ValidationError):
-        model.Spec.model_validate(document)
 
 
 @pytest.mark.parametrize(

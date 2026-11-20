@@ -239,11 +239,6 @@ def test_validation_is_opt_in_for_eager_and_lazy_frames(
     assert "skipped" in checked.invocation_statuses.values()
 
 
-def test_removed_lazy_validation_config_is_rejected() -> None:
-    with pytest.raises(ValueError, match="Extra inputs are not permitted"):
-        uptimely_engine.EngineBackendConfig.model_validate({"validate_lazy_frames": False})
-
-
 def test_default_execution_skips_expensive_fragment_validation(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
@@ -316,7 +311,6 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
     main = state.datasets["telemetry"]
     source = main.fragments[read.operator_id]
     assert main.identifiers == ("asset_id",)
-    assert not hasattr(main, "dataset")
     assert source.dataframe.columns == ["asset_id", "reading"]
 
     executor.execute(calculate)

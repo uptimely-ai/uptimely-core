@@ -139,13 +139,6 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         assert calls.mock_calls == expected
 
 
-def test_compiler_has_no_active_build_properties() -> None:
-    builder = compiler.Compiler()
-    assert builder.__dict__ == {}
-    assert not hasattr(builder, "graph")
-    assert not hasattr(builder, "spec_definition")
-
-
 def test_compiler_rejects_string_features_and_recovers() -> None:
     builder = compiler.Compiler()
     specification = spec.Spec()

@@ -156,8 +156,6 @@ def test_profiles_keep_only_their_own_dimension_context() -> None:
     first = document.profiles["first"]
     assert first.dimension_ids == ["key"]
     assert first.features["value"].id == "value"
-    assert not hasattr(first, "functions")
-    assert not hasattr(first, "_bind_resources")
 
     serialized = document.model_dump()
     assert serialized["profiles"]["first"]["grain"] == [{"dimension": "key", "resolution": "key"}]

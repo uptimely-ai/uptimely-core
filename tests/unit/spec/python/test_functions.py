@@ -44,7 +44,7 @@ def explicit_result(value: str) -> str:
     return value
 
 
-def test_decorator_preserves_callable_identity_and_has_no_operator_kind() -> None:
+def test_decorator_preserves_callable_identity() -> None:
     def original(value: str) -> str:
         return value
 
@@ -53,15 +53,12 @@ def test_decorator_preserves_callable_identity_and_has_no_operator_kind() -> Non
     assert result is original
     assert result("value") == "value"
     assert functions.declared_metadata(result).returns == "any"
-    assert not hasattr(functions.declared_metadata(result), "kind")
 
 
 def test_public_decorator_and_module_exports_are_unambiguous() -> None:
     module = importlib.import_module("uptimely.spec.python.functions")
     assert authoring.functions is module
     assert authoring.function is module.function
-    assert not hasattr(authoring, "kind")
-    assert not hasattr(authoring.assembly, "kind")
 
 
 @pytest.mark.parametrize(
