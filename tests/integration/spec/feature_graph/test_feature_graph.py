@@ -60,9 +60,9 @@ def test_graph_cli_inspects_without_exporting(
 
 
 @pytest.mark.usefixtures("example_projects")
-def test_system_graph_connects_operator_to_feature_outputs() -> None:
+def test_feature_graph_connects_operator_to_feature_outputs() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    system = spec.FeatureGraph(spec_definition)
+    feature_graph = spec.FeatureGraph(spec_definition)
     pump_profile = spec_definition.profiles["pump"]
     warning_profile = spec_definition.profiles["pump_telemetry_by_hour_when_warning"]
     health_operator_id = example_support.operator_id_for_output(
@@ -81,7 +81,7 @@ def test_system_graph_connects_operator_to_feature_outputs() -> None:
         warning_profile.assembly, "converged"
     )
 
-    operator_function_ids = {operator.compute.function for operator in system.operators}
+    operator_function_ids = {operator.compute.function for operator in feature_graph.operators}
     assert "aggregate" in operator_function_ids
     assert "min_max_scale" in operator_function_ids
     assert "extract_field" in operator_function_ids
@@ -90,14 +90,14 @@ def test_system_graph_connects_operator_to_feature_outputs() -> None:
     assert "extract_convergence_flag" not in operator_function_ids
     recommendation_nodes = [
         node
-        for node in system.graph
+        for node in feature_graph.graph
         if isinstance(node.reference, models.OperatorNode)
         and node.reference.function.id == "extract_field"
     ]
     recommendation_outputs = {
         neighbor.reference.name
         for operator_node in recommendation_nodes
-        for neighbor, _attrs in system.graph.neighbors(operator_node)
+        for neighbor, _attrs in feature_graph.graph.neighbors(operator_node)
         if isinstance(neighbor.reference, models.FeatureNode)
     }
     assert recommendation_outputs == {
@@ -114,9 +114,9 @@ def test_system_graph_connects_operator_to_feature_outputs() -> None:
             source.reference.operator_id,
             neighbor_node.reference.name,
         )
-        for source in system.graph
+        for source in feature_graph.graph
         if isinstance(source.reference, models.OperatorNode)
-        for neighbor_node, _attrs in system.graph.neighbors(source)
+        for neighbor_node, _attrs in feature_graph.graph.neighbors(source)
         if isinstance(neighbor_node.reference, models.FeatureNode)
     }
 
@@ -132,33 +132,37 @@ def test_system_graph_connects_operator_to_feature_outputs() -> None:
 
 
 @pytest.mark.usefixtures("example_projects")
-def test_system_graph_contains_one_node_per_operator() -> None:
+def test_feature_graph_contains_one_node_per_operator() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    system = spec.FeatureGraph(spec_definition)
+    feature_graph = spec.FeatureGraph(spec_definition)
 
     operator_nodes = [
-        node.reference for node in system.graph if isinstance(node.reference, models.OperatorNode)
+        node.reference
+        for node in feature_graph.graph
+        if isinstance(node.reference, models.OperatorNode)
     ]
-    spec_function_ids = set(system.spec.functions)
+    spec_function_ids = set(feature_graph.spec.functions)
     operator_count = sum(len(profile.assembly) for profile in spec_definition.profiles.values())
     assert len(operator_nodes) == operator_count
     assert any(operator.operator_id == "bearing_temperature_by_pump" for operator in operator_nodes)
     assert all(operator.function.id in spec_function_ids for operator in operator_nodes)
     assert len({operator.node_id for operator in operator_nodes}) == operator_count
-    assert system.feature_nodes == tuple(
-        node.reference for node in system.graph if isinstance(node.reference, models.FeatureNode)
+    assert feature_graph.feature_nodes == tuple(
+        node.reference
+        for node in feature_graph.graph
+        if isinstance(node.reference, models.FeatureNode)
     )
-    subset = system.subset(["health_signal_normalized"])
+    subset = feature_graph.subset(["health_signal_normalized"])
     assert subset.feature_nodes == tuple(
         node.reference for node in subset.graph if isinstance(node.reference, models.FeatureNode)
     )
     assert {feature.name for feature in subset.feature_nodes} <= {
-        feature.name for feature in system.feature_nodes
+        feature.name for feature in feature_graph.feature_nodes
     }
-    assert "bearing_temperature" in system.input_names
-    assert all(isinstance(name, str) for name in system.input_names)
+    assert "bearing_temperature" in feature_graph.input_names
+    assert all(isinstance(name, str) for name in feature_graph.input_names)
 
-    graph_text = system.print_graph()
+    graph_text = feature_graph.print_graph()
     assert "OperatorNode(" not in graph_text
     assert "bearing_temperature_by_pump" in graph_text
 
@@ -166,10 +170,10 @@ def test_system_graph_contains_one_node_per_operator() -> None:
 @pytest.mark.usefixtures("example_projects")
 def test_subset_raises_helpful_error_for_missing_output() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    system = spec.FeatureGraph(spec_definition)
+    feature_graph = spec.FeatureGraph(spec_definition)
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): temperature_3"):
-        system.subset(["temperature_3"])
+        feature_graph.subset(["temperature_3"])
 
 
 @pytest.mark.usefixtures("example_projects")
@@ -177,8 +181,8 @@ def test_subset_raises_helpful_error_for_missing_output() -> None:
 def test_graph_rendering_and_explicit_printing(
     capsys: pytest.CaptureFixture[str], subset: bool
 ) -> None:
-    system = spec.FeatureGraph(spec.load_spec(SPEC_PATH))
-    graph = system.subset(["health_signal_normalized"]) if subset else system
+    feature_graph = spec.FeatureGraph(spec.load_spec(SPEC_PATH))
+    graph = feature_graph.subset(["health_signal_normalized"]) if subset else feature_graph
 
     graph_text = graph.render_graph()
     assert "health_signal_normalized" in graph_text
@@ -190,20 +194,20 @@ def test_graph_rendering_and_explicit_printing(
 
 
 @pytest.mark.usefixtures("example_projects")
-def test_system_graph_builds_from_profile_feature_bindings() -> None:
+def test_feature_graph_builds_from_profile_feature_bindings() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
-    system = spec.FeatureGraph(spec_definition)
+    feature_graph = spec.FeatureGraph(spec_definition)
 
-    assert "bearing_temperature_max" in system.feature_names
-    assert "health_signal_normalized" in system.feature_names
+    assert "bearing_temperature_max" in feature_graph.feature_names
+    assert "health_signal_normalized" in feature_graph.feature_names
 
 
 @pytest.mark.usefixtures("example_projects")
 def test_dependency_features_keep_their_producer_profile_without_becoming_source_inputs() -> None:
-    system = spec.FeatureGraph(spec.load_spec(SPEC_PATH))
+    feature_graph = spec.FeatureGraph(spec.load_spec(SPEC_PATH))
     features = {
         node.reference.name: node.reference
-        for node in system.graph
+        for node in feature_graph.graph
         if isinstance(node.reference, models.FeatureNode)
     }
 

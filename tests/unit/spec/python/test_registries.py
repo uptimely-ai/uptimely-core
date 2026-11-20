@@ -255,7 +255,7 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
     assert set(exported["features"]) == {"result"}
 
 
-def test_dataset_registry_collects_dataset_classes_in_order() -> None:
+def test_profile_registry_collects_profile_classes_in_order() -> None:
     class First(authoring.Profile):
         id = "first"
 

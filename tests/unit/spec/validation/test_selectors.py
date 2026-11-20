@@ -48,9 +48,8 @@ def test_system_and_subset_support_multiple_variables() -> None:
     collapse = spec_definition.profiles["pump"].assembly["bearing_temperature_by_pump"]
     assert collapse.compute.function == "aggregate"
     assert collapse.compute.args["aggregations"].root == {"bearing_temperature": "max"}
-    system = spec.FeatureGraph(spec_definition)
-
-    assert system.feature_names == {
+    feature_graph = spec.FeatureGraph(spec_definition)
+    assert feature_graph.feature_names == {
         "bearing_temperature_max",
         "bearing_temperature_series_max",
         "bearing_temperature_category_max",
@@ -76,17 +75,17 @@ def test_system_and_subset_support_multiple_variables() -> None:
         "warning_hour_max_vibration_rms",
         "operating_point_recommendation",
     }
-    assert system.graph is not None
-    assert "bearing_temperature" in system.input_names
+    assert feature_graph.graph is not None
+    assert "bearing_temperature" in feature_graph.input_names
     assert any(
         isinstance(node.reference, models.FeatureNode)
         and node.reference.is_input
         and node.reference.name == "bearing_temperature"
-        for node in system.graph
+        for node in feature_graph.graph
     )
-    assert "machine" not in system.input_names
+    assert "machine" not in feature_graph.input_names
 
-    subset = system.subset(["health_signal_normalized"])
+    subset = feature_graph.subset(["health_signal_normalized"])
 
     assert subset.output_names == ["health_signal_normalized"]
     assert "health_signal_normalized" in subset.feature_names
@@ -151,7 +150,7 @@ def test_spec_validation_rejects_duplicate_fragment_input_names(
         spec.load_spec(spec_path)
 
 
-def test_dimension_outputs_are_implicit_in_mapping(
+def test_dimension_outputs_are_implicit_in_operator(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))

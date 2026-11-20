@@ -61,7 +61,9 @@ def _parse(tmp_path: pathlib.Path, order: object) -> spec.Spec:
     return spec.load_spec(path)
 
 
-def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Path) -> None:
+def test_profile_order_json_round_trip_preserves_precedence(
+    tmp_path: pathlib.Path,
+) -> None:
     spec_definition = _parse(tmp_path, ORDER)
     keys = spec_definition.profiles["observations"].order
     assert keys == [spec.Order(**key) for key in ORDER]
@@ -73,7 +75,9 @@ def test_dataset_order_json_round_trip_preserves_precedence(tmp_path: pathlib.Pa
     assert spec.load_spec(path).profiles["observations"].order == keys
 
 
-def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.Path) -> None:
+def test_profile_order_defaults_to_empty_without_shared_state(
+    tmp_path: pathlib.Path,
+) -> None:
     assert _parse(tmp_path, []).profiles["observations"].order == []
     configuration = _configuration()
     del configuration["profiles"]["observations"]["order"]
@@ -116,13 +120,13 @@ def test_dataset_order_defaults_to_empty_without_shared_state(tmp_path: pathlib.
         ],
     ],
 )
-def test_dataset_order_rejects_invalid_structure(tmp_path: pathlib.Path, order: object) -> None:
+def test_profile_order_rejects_invalid_structure(tmp_path: pathlib.Path, order: object) -> None:
     with pytest.raises(pydantic.ValidationError):
         _parse(tmp_path, order)
 
 
 @pytest.mark.parametrize("identifier", ["missing", "external", "@"])
-def test_dataset_order_requires_selected_profile_resolutions(
+def test_profile_order_requires_selected_profile_resolutions(
     tmp_path: pathlib.Path, identifier: str
 ) -> None:
     with pytest.raises(validation.SpecError) as error:
@@ -141,7 +145,7 @@ def test_dataset_order_requires_selected_profile_resolutions(
 
 
 @pytest.mark.parametrize("direction", ["asc", "desc"])
-def test_dataset_order_rejects_repeated_dimensions(tmp_path: pathlib.Path, direction: str) -> None:
+def test_profile_order_rejects_repeated_dimensions(tmp_path: pathlib.Path, direction: str) -> None:
     with pytest.raises(validation.SpecError) as error:
         _parse(
             tmp_path,
@@ -152,7 +156,9 @@ def test_dataset_order_rejects_repeated_dimensions(tmp_path: pathlib.Path, direc
     assert error.value.path[-2:] == ("order", 1)
 
 
-def test_dataset_order_reports_first_invalid_key_in_sequence(tmp_path: pathlib.Path) -> None:
+def test_profile_order_reports_first_invalid_key_in_sequence(
+    tmp_path: pathlib.Path,
+) -> None:
     order = [
         ORDER[0],
         {"dimension": "machine", "resolution": "machine", "direction": "desc"},
@@ -166,7 +172,9 @@ def test_dataset_order_reports_first_invalid_key_in_sequence(tmp_path: pathlib.P
     assert error.value.path[-2:] == ("order", 1)
 
 
-def test_dataset_order_python_authoring_matches_json(tmp_path: pathlib.Path) -> None:
+def test_profile_order_python_authoring_matches_json(
+    tmp_path: pathlib.Path,
+) -> None:
     dimensions = [
         python_spec.dimension.Dimension(
             id="machine",
@@ -203,7 +211,7 @@ def test_dataset_order_python_authoring_matches_json(tmp_path: pathlib.Path) -> 
     ]
 
 
-def test_dataset_order_python_authoring_validates_references() -> None:
+def test_profile_order_python_authoring_validates_references() -> None:
     machine = python_spec.dimension.Dimension(
         id="machine",
         resolutions=[
@@ -223,7 +231,7 @@ def test_dataset_order_python_authoring_validates_references() -> None:
         )
 
 
-def test_dataset_order_does_not_change_plan_or_sort_engine_rows(
+def test_profile_order_does_not_change_plan_or_sort_engine_rows(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     identifier = python_spec.dimension.Dimension(

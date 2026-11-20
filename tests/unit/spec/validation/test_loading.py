@@ -50,9 +50,9 @@ def make_spec(kind: str = "vectorize") -> model.Spec:
         ]
     )
     args = {} if kind in {"read", "escape"} else {"data": {"type": "dataframe"}}
-    input_dataset = "source" if kind in {"collapse", "conform", "expand"} else "target"
+    input_profile = "source" if kind in {"collapse", "conform", "expand"} else "target"
     binding_args = (
-        {} if kind in {"read", "escape"} else {"data": f"$profiles.{input_dataset}.dataset"}
+        {} if kind in {"read", "escape"} else {"data": f"$profiles.{input_profile}.dataset"}
     )
     inputs = (
         []

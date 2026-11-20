@@ -14,7 +14,7 @@ SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
 pytestmark = pytest.mark.usefixtures("example_projects")
 
 
-def _add_unknown_result_mapping(
+def _add_unknown_result_operator(
     configuration: dict,
     operator_id: str,
     function_id: str,
@@ -41,14 +41,14 @@ def _add_unknown_result_mapping(
 
 
 def _unknown_result_spec_configuration() -> dict:
-    """Return a valid pump spec with input-only, output-only, and chained mappings."""
+    """Return a valid pump spec with input-only, output-only, and chained operators."""
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["profiles"]["pump_telemetry"]
-    dataset["features"]["unknown_start_output"] = {"type": "float"}
-    dataset["features"]["unknown_chain_output"] = {"type": "float"}
-    dataset["features"]["unknown_source_output"] = {"type": "float"}
+    profile = configuration["profiles"]["pump_telemetry"]
+    profile["features"]["unknown_start_output"] = {"type": "float"}
+    profile["features"]["unknown_chain_output"] = {"type": "float"}
+    profile["features"]["unknown_source_output"] = {"type": "float"}
     entrypoint = "pump_io:process_pump_external_workflow"
-    _add_unknown_result_mapping(
+    _add_unknown_result_operator(
         configuration,
         "unknown_start",
         "unknown_start",
@@ -56,7 +56,7 @@ def _unknown_result_spec_configuration() -> dict:
         entrypoint,
         ["unknown_start_output"],
     )
-    _add_unknown_result_mapping(
+    _add_unknown_result_operator(
         configuration,
         "unknown_chain",
         "unknown_chain",
@@ -64,14 +64,14 @@ def _unknown_result_spec_configuration() -> dict:
         entrypoint,
         ["unknown_chain_output"],
     )
-    _add_unknown_result_mapping(
+    _add_unknown_result_operator(
         configuration,
         "unknown_unrelated",
         "unknown_unrelated",
         ["bearing_temperature"],
         entrypoint,
     )
-    _add_unknown_result_mapping(
+    _add_unknown_result_operator(
         configuration,
         "unknown_source",
         "unknown_source",
@@ -105,7 +105,7 @@ def test_compilation_preserves_the_saved_plan() -> None:
     ]
 
 
-def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
+def test_profile_dimension_selector_is_resolved_in_the_portable_plan(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
@@ -113,8 +113,8 @@ def test_dataset_dimension_selector_is_resolved_in_the_portable_plan(
     function["validate_signature"] = False
     function["args"]["keys"] = {"type": "array[string]"}
     function["args"]["source_keys"] = {"type": "array[string]"}
-    dataset = configuration["profiles"]["pump_telemetry"]
-    dataset["assembly"]["read_pump_telemetry"]["compute"]["args"].update(
+    profile = configuration["profiles"]["pump_telemetry"]
+    profile["assembly"]["read_pump_telemetry"]["compute"]["args"].update(
         {
             "keys": "$profiles.@.grain.ids",
             "source_keys": "$profiles.pump.grain.ids",
@@ -158,7 +158,7 @@ def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Pat
     assert invocation.arguments["rename"] == {"bearing_temperature": "bearing_temperature_max"}
 
 
-def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> None:
+def test_compiler_keeps_reused_function_operators_as_distinct_invocations() -> None:
     plan = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
     invocations = [
         invocation for invocation in plan.invocations if invocation.function_id == "extract_field"
@@ -186,10 +186,10 @@ def test_compiler_keeps_reused_function_mappings_as_distinct_invocations() -> No
 
 def test_compact_invocation_ids_are_stable_across_recompilation_and_selection() -> None:
     document = spec.load_spec(SPEC_PATH)
-    builder = compiler.Compiler()
-    full_plan = builder.compile(document)
-    repeated_plan = builder.compile(document)
-    selected_plan = builder.compile(document, features=["health_signal_normalized"])
+    compiler_instance = compiler.Compiler()
+    full_plan = compiler_instance.compile(document)
+    repeated_plan = compiler_instance.compile(document)
+    selected_plan = compiler_instance.compile(document, features=["health_signal_normalized"])
     full_by_binding = {
         (item.function_id, item.profile_id, item.operator_id, item.role): item.id
         for item in full_plan.invocations
@@ -212,10 +212,10 @@ def test_compact_invocation_ids_are_stable_across_recompilation_and_selection() 
 
 def test_existing_invocation_ids_survive_unrelated_additions_and_reordering() -> None:
     document = spec.load_spec(SPEC_PATH)
-    builder = compiler.Compiler()
-    original = builder.compile(document)
+    compiler_instance = compiler.Compiler()
+    original = compiler_instance.compile(document)
     configuration = document.model_dump(mode="json")
-    _add_unknown_result_mapping(
+    _add_unknown_result_operator(
         configuration,
         "unrelated_unknown_result",
         "unrelated_unknown_result",
@@ -226,7 +226,7 @@ def test_existing_invocation_ids_survive_unrelated_additions_and_reordering() ->
     configuration["profiles"] = dict(reversed(configuration["profiles"].items()))
     for profile in configuration["profiles"].values():
         profile["assembly"] = dict(reversed(profile["assembly"].items()))
-    expanded = builder.compile(spec.Spec.model_validate(configuration))
+    expanded = compiler_instance.compile(spec.Spec.model_validate(configuration))
 
     assert {item.id for item in original.invocations} < {item.id for item in expanded.invocations}
     assert len(expanded.invocations) == len(original.invocations) + 1
@@ -236,7 +236,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     definition = spec.load_spec(SPEC_PATH)
     pump_profile = definition.profiles["pump"]
     pump_profile = pump_profile
-    read_mapping = definition.profiles["pump_telemetry"].assembly["read_pump_telemetry"]
+    read_operator = definition.profiles["pump_telemetry"].assembly["read_pump_telemetry"]
 
     definition.profiles["auxiliary_dataset"] = spec_model.Profile(
         id="auxiliary_dataset",
@@ -247,7 +247,7 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
                 id="read_auxiliary",
                 compute=spec_model.Binding(
                     function="read_pump_telemetry",
-                    args=dict(read_mapping.compute.args),
+                    args=dict(read_operator.compute.args),
                 ),
                 interface=spec_model.Interface(outputs=["$features.auxiliary_value"]),
             ),
@@ -368,15 +368,17 @@ def test_workflow_is_selected_only_for_its_profile_and_keeps_logical_dependencie
     assert any(item.is_workflow for item in by_logical_output.invocations)
 
 
-def test_compiler_emits_one_operation_for_multi_output_mapping(tmp_path: pathlib.Path) -> None:
+def test_compiler_emits_one_invocation_for_multi_output_operator(
+    tmp_path: pathlib.Path,
+) -> None:
     spec_definition = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = spec_definition["profiles"]["pump"]
+    profile = spec_definition["profiles"]["pump"]
     operator_id = example_support.operator_id_for_output(
-        dataset["assembly"], "health_signal_normalized"
+        profile["assembly"], "health_signal_normalized"
     )
-    operator = dataset["assembly"][operator_id]
+    operator = profile["assembly"][operator_id]
     operator["interface"]["outputs"].append("$features.health_signal_secondary")
-    dataset["features"]["health_signal_secondary"] = {"type": "float"}
+    profile["features"]["health_signal_secondary"] = {"type": "float"}
     spec_path = tmp_path / "spec.json"
     spec_path.write_text(json.dumps(spec_definition), encoding="utf-8")
 
@@ -504,7 +506,7 @@ def test_unknown_result_annotations_do_not_constrain_compilation(
         "returns_dataframe",
         "returns_unannotated",
     ):
-        _add_unknown_result_mapping(
+        _add_unknown_result_operator(
             configuration,
             function_id,
             function_id,
@@ -596,7 +598,7 @@ def test_compiler_feature_subset_contains_requested_output_and_ancestors() -> No
         compiler.Compiler().compile(document, features=[grain_key_output])
 
 
-def test_compiled_inputs_match_each_profile_mapping() -> None:
+def test_compiled_inputs_match_each_profile_operator() -> None:
     document = spec.load_spec(SPEC_PATH)
     execution_plan = compiler.Compiler().compile(document)
     profiles = document.profiles

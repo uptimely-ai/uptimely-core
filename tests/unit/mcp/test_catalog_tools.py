@@ -159,8 +159,8 @@ async def test_describe_function_reports_bindings_and_derived_operator_usage(
         returns="any",
         entrypoint="pump_analytics:aggregate",
     )
-    dataset = definition.profiles["pump_telemetry"]
-    dataset.assembly["external_audit"] = spec_model.Operator(
+    profile = definition.profiles["pump_telemetry"]
+    profile.assembly["external_audit"] = spec_model.Operator(
         id="external_audit",
         compute=spec_model.Binding(function="external_audit"),
         interface=spec_model.Interface(

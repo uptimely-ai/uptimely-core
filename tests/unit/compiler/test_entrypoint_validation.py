@@ -141,9 +141,9 @@ def test_compiler_summarizes_invocation_checks_once(
     caplog: pytest.LogCaptureFixture, pump_bundle: application.BuildBundle, level: int
 ) -> None:
     caplog.set_level(level, logger="uptimely.compiler")
-    builder = compiler.Compiler()
+    compiler_instance = compiler.Compiler()
 
-    compiled = builder.compile(pump_bundle.spec_definition)
+    compiled = compiler_instance.compile(pump_bundle.spec_definition)
     summaries = [message for message in caplog.messages if message.startswith("Validating ")]
     assert summaries == (
         [f"Validating {len(compiled.invocations)} invocations"] if level == logging.DEBUG else []

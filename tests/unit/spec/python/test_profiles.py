@@ -12,7 +12,7 @@ def calculate(value: str) -> str:
     return value
 
 
-def test_dataset_subclasses_inherit_and_replace_collections() -> None:
+def test_profile_subclasses_inherit_and_replace_collections() -> None:
     first = authoring.Operator(
         id="read",
         outputs=[authoring.Feature(id="value", type="float")],
@@ -139,7 +139,7 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
     }
 
 
-def test_programmatic_dataset_uses_function_name_for_catalog_id() -> None:
+def test_programmatic_profile_operator_uses_function_name_for_catalog_id() -> None:
     operator = authoring.Operator(
         id="named",
         inputs=[ref.feature("explicit")],
@@ -212,12 +212,12 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
     assert payload["functions"]["read"]["args"]["keys"]["type"] == "array[string]"
 
 
-def test_mapping_constructor_requires_a_compute_binding() -> None:
+def test_operator_constructor_requires_a_compute_binding() -> None:
     with pytest.raises(TypeError, match="required keyword-only argument: 'compute'"):
         authoring.Operator(id="read")
 
 
-def test_mapping_requires_explicit_function_return_contract() -> None:
+def test_operator_requires_explicit_function_return_contract() -> None:
     operator = authoring.Operator(
         id="operator",
         outputs=[],

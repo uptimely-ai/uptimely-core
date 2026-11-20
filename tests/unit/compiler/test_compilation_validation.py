@@ -78,8 +78,8 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
     operations["entrypoint"].return_value = implementation
     selected_graph.topology = operations["topology"]
     calls = mock.Mock()
-    for name, operation in operations.items():
-        calls.attach_mock(operation, name)
+    for name, step in operations.items():
+        calls.attach_mock(step, name)
     if failure is not None:
         operations[failure].side_effect = ValueError("invalid compilation")
 
@@ -93,14 +93,14 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         compiler.validation, "validation_callable_signature", operations["signature_validation"]
     )
 
-    builder = compiler.Compiler()
+    compiler_instance = compiler.Compiler()
     features = ["result", "result"]
     if failure is None:
-        plan = builder.compile(specification, features=features)
+        plan = compiler_instance.compile(specification, features=features)
     else:
         with pytest.raises(ValueError, match="invalid compilation"):
-            builder.compile(specification, features=features)
-    assert builder.__dict__ == {}
+            compiler_instance.compile(specification, features=features)
+    assert compiler_instance.__dict__ == {}
 
     expected = [
         mock.call.spec(specification),
@@ -140,18 +140,18 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
 
 
 def test_compiler_rejects_string_features_and_recovers() -> None:
-    builder = compiler.Compiler()
+    compiler_instance = compiler.Compiler()
     specification = spec.Spec()
-    original_plan = builder.compile(specification)
+    original_plan = compiler_instance.compile(specification)
 
     with pytest.raises(ValueError, match="features must be a collection"):
-        builder.compile(specification, features="result")
-    assert builder.__dict__ == {}
+        compiler_instance.compile(specification, features="result")
+    assert compiler_instance.__dict__ == {}
 
-    replacement_plan = builder.compile(specification, features=[])
+    replacement_plan = compiler_instance.compile(specification, features=[])
     assert replacement_plan == original_plan
     assert replacement_plan.invocations is not original_plan.invocations
-    assert builder.__dict__ == {}
+    assert compiler_instance.__dict__ == {}
 
 
 def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
@@ -280,15 +280,15 @@ def test_compiler_logs_feature_and_graph_checks_before_failure(
     caplog: pytest.LogCaptureFixture, features: list[str] | str | None
 ) -> None:
     caplog.set_level(logging.DEBUG, logger="uptimely")
-    builder = compiler.Compiler()
+    compiler_instance = compiler.Compiler()
     specification = spec.Spec()
     caplog.clear()
 
     if features:
         with pytest.raises(ValueError):
-            builder.compile(specification, features=features)
+            compiler_instance.compile(specification, features=features)
     else:
-        builder.compile(specification, features=features)
+        compiler_instance.compile(specification, features=features)
 
     selection_check = "Check feature selection is a collection, not a string"
     assert caplog.messages.count(selection_check) == 1
@@ -312,5 +312,5 @@ def test_compiler_logs_feature_and_graph_checks_before_failure(
         )
         assert not any("Compiled plan:" in message for message in caplog.messages)
         caplog.clear()
-        builder.compile(specification, features=features)
+        compiler_instance.compile(specification, features=features)
         assert caplog.messages.count(selection_check) == 1

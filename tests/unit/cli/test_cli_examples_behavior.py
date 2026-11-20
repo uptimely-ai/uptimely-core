@@ -80,7 +80,7 @@ def test_cli_output_and_revision(
     assert (output / "README.md").exists()
 
 
-def test_examples_without_action_downloads_default_destination(
+def test_examples_without_subcommand_downloads_default_destination(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     calls: list[tuple[pathlib.Path, str | None, bool]] = []

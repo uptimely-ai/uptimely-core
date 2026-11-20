@@ -17,9 +17,9 @@ def test_copied_example_runs_without_installation_or_pythonpath(tmp_path: pathli
     )
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
-    for action in ("build", "run"):
+    for command in ("build", "run"):
         result = subprocess.run(
-            [sys.executable, "-m", "uptimely.cli.cli", action, str(project)],
+            [sys.executable, "-m", "uptimely.cli.cli", command, str(project)],
             cwd=tmp_path,
             env=environment,
             capture_output=True,

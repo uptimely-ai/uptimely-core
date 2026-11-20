@@ -88,30 +88,30 @@ def test_spec_plan_execution_and_presentation_preserve_context(
     path = tmp_path / "spec.json"
     spec.write_document(spec_definition, path)
     payload = json.loads(path.read_text())
-    authored_dataset = payload["profiles"]["observations"]
-    assert "row_context" not in authored_dataset["features"]["result"]
-    assert authored_dataset["assembly"]["result"]["row_context"] == context.to_dict()
+    authored_profile = payload["profiles"]["observations"]
+    assert "row_context" not in authored_profile["features"]["result"]
+    assert authored_profile["assembly"]["result"]["row_context"] == context.to_dict()
     restored = spec.load_spec(path)
     compiled = compiler.Compiler().compile(restored)
-    operation = next(item for item in compiled.invocations if item.row_context is not None)
-    assert operation.input_features == ["temperature"]
-    assert operation.row_context == context
+    invocation = next(item for item in compiled.invocations if item.row_context is not None)
+    assert invocation.input_features == ["temperature"]
+    assert invocation.row_context == context
     portable = uptimely_plan.from_dict(uptimely_plan.to_dict(compiled))
     result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
     frame = result.datasets["observations"]
     assert frame.sort("timestamp")["result"].to_list() == [21, 11]
     data = presentation.build_presentation_data(restored, compiled)
-    rendered_operation = next(
+    rendered_invocation = next(
         step
         for stage in data["stages"]
         for step in stage["steps"]
         if step["function"] == "calculate"
     )
-    assert rendered_operation["row_context"] == context.to_dict()
+    assert rendered_invocation["row_context"] == context.to_dict()
 
 
-def test_data_mapping_preserves_annotated_context():
+def test_operator_preserves_annotated_context():
     declaration = assembly.Operator(
         id="declaration",
         inputs=[],
@@ -136,18 +136,18 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     spec_path = tmp_path / "spec.json"
     spec.write_document(spec_definition, spec_path)
     restored_spec = spec.load_spec(spec_path)
-    original_mapping = spec_definition.profiles["observations"].assembly["result"]
-    restored_mapping = restored_spec.profiles["observations"].assembly["result"]
-    assert restored_mapping.row_context == original_mapping.row_context == context
+    original_operator = spec_definition.profiles["observations"].assembly["result"]
+    restored_operator = restored_spec.profiles["observations"].assembly["result"]
+    assert restored_operator.row_context == original_operator.row_context == context
     assert (
         "row_context"
         not in spec_definition.profiles["observations"].assembly["result"].compute.model_dump()
     )
     exported = json.loads(spec_path.read_text())
-    exported_dataset = exported["profiles"]["observations"]
-    exported_feature = exported_dataset["features"]["result"]
+    exported_profile = exported["profiles"]["observations"]
+    exported_feature = exported_profile["features"]["result"]
     assert "row_context" not in exported_feature
-    assert exported_dataset["assembly"]["result"]["row_context"] == context.to_dict()
+    assert exported_profile["assembly"]["result"]["row_context"] == context.to_dict()
     assert "compute" not in exported_feature
     assert (
         "row_context" not in exported["profiles"]["observations"]["assembly"]["result"]["compute"]
@@ -155,10 +155,10 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     assert spec_definition.functions["calculate"].args["column"].type == "string"
 
     plan = compiler.Compiler().compile(restored_spec)
-    operation = next(item for item in plan.invocations if item.row_context is not None)
-    assert operation.row_context == context
-    assert all(item.row_context is None for item in plan.invocations if item is not operation)
-    assert operation.arguments == {
+    invocation = next(item for item in plan.invocations if item.row_context is not None)
+    assert invocation.row_context == context
+    assert all(item.row_context is None for item in plan.invocations if item is not invocation)
+    assert invocation.arguments == {
         "dataset": "observations",
         "column": "temperature",
         "output": "result",
@@ -191,8 +191,8 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
 
 def test_plan_context_is_present_in_portable_operations() -> None:
     plan = compiler.Compiler().compile(_spec(context=authoring.current()))
-    operation = next(item for item in plan.invocations if "result" in item.output_features)
-    assert operation.row_context == authoring.current()
+    invocation = next(item for item in plan.invocations if "result" in item.output_features)
+    assert invocation.row_context == authoring.current()
 
 
 def test_collapse_functions_execute_without_row_context(
@@ -248,16 +248,16 @@ def test_collapse_functions_execute_without_row_context(
         ]
     )
     plan = compiler.Compiler().compile(spec_definition)
-    operation = next(item for item in plan.invocations if item.entrypoint.endswith(":maximum"))
-    assert operation.row_context is None
-    assert operation.entrypoint.endswith(":maximum")
-    assert operation.arguments == {
+    invocation = next(item for item in plan.invocations if item.entrypoint.endswith(":maximum"))
+    assert invocation.row_context is None
+    assert invocation.entrypoint.endswith(":maximum")
+    assert invocation.arguments == {
         "dataset": "observations",
         "column": "temperature",
         "output": "temperature_max",
     }
-    output_dataset = spec_definition.profiles["summary"]
-    output = output_dataset.assembly["summary"]
+    output_profile = spec_definition.profiles["summary"]
+    output = output_profile.assembly["summary"]
     assert output.row_context is None
     payload = output.model_dump()
     assert "group_by" not in payload

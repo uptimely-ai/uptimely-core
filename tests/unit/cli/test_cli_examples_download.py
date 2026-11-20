@@ -289,8 +289,8 @@ def test_no_setup_example_builds_and_runs_in_existing_environment(
     examples.download_examples(output, no_setup=True)
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
-    for action in ("build", "run"):
-        if action == "run":
+    for command in ("build", "run"):
+        if command == "run":
             renamed = tmp_path / "renamed-example"
             output.rename(renamed)
             output = renamed
@@ -299,7 +299,7 @@ def test_no_setup_example_builds_and_runs_in_existing_environment(
                 sys.executable,
                 "-c",
                 "from uptimely.cli import cli; cli.main()",
-                action,
+                command,
                 str(output),
             ],
             cwd=tmp_path,
