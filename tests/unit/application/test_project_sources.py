@@ -181,7 +181,8 @@ def test_build_defers_source_semantic_validation_to_compiler(
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
         project_builder = builder.ProjectBuilder(tmp_path)
-        document = project_builder._load_spec_definition(python_spec, json_spec)
+        source = project_spec_source.SpecSourceResolver(tmp_path).resolve(python_spec, json_spec)
+        document = project_builder._load_spec_definition(source)
         check.assert_not_called()
         project_builder._compile_plan(document, None)
         check.assert_called_once_with(document)
@@ -197,7 +198,8 @@ def test_build_reports_deferred_semantic_error_at_compilation(tmp_path: pathlib.
         encoding="utf-8",
     )
     project_builder = builder.ProjectBuilder(tmp_path)
-    document = project_builder._load_spec_definition(None, path)
+    source = project_spec_source.SpecSourceResolver(tmp_path).resolve(json_spec=path)
+    document = project_builder._load_spec_definition(source)
 
     with pytest.raises(application.ProjectBuildError, match="compilation.*unknown parent"):
         project_builder._compile_plan(document, None)
@@ -210,11 +212,22 @@ def test_complete_build_validates_spec_semantics_once(
     path.write_text('{"spec_version": 9}', encoding="utf-8")
     caplog.set_level(logging.DEBUG, logger="uptimely")
 
-    with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
+    original_resolve = project_spec_source.SpecSourceResolver.resolve
+    with (
+        mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check,
+        mock.patch.object(
+            project_spec_source.SpecSourceResolver,
+            "resolve",
+            autospec=True,
+            side_effect=original_resolve,
+        ) as resolve,
+    ):
         bundle = application.build(tmp_path, json_spec=path)
 
     check.assert_called_once()
+    resolve.assert_called_once()
     assert caplog.messages.count("Check spec version is an integer") == 1
+    assert bundle.manifest.spec_source == str(path.resolve())
     assert bundle.spec_path.is_file()
     assert (tmp_path / application.EXPLORER_DATA_FILE).is_file()
     assert application.load_build_bundle(tmp_path).spec_definition == bundle.spec_definition

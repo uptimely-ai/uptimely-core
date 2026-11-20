@@ -69,7 +69,9 @@ class ProjectBuilder:
         except (ValueError, TypeError) as error:
             raise errors.ProjectBuildError("feature selection", str(error)) from error
         try:
-            project_spec_source.SpecSourceResolver(self.root).resolve(python_spec, json_spec)
+            spec_source = project_spec_source.SpecSourceResolver(self.root).resolve(
+                python_spec, json_spec
+            )
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
         resolved_src_path = python_imports.resolve_src_path(self.root, src_path)
@@ -77,7 +79,7 @@ class ProjectBuilder:
             locking.build_lock(self.root, exclusive=True, wait=False),
             python_imports.expose(self.root, src_path=src_path),
         ):
-            spec_definition = self._load_spec_definition(python_spec, json_spec)
+            spec_definition = self._load_spec_definition(spec_source)
             staging_root = self._create_staging_root()
             try:
                 execution_plan = self._compile_plan(spec_definition, selected_features)
@@ -88,7 +90,12 @@ class ProjectBuilder:
                     staging_root,
                     src_path,
                 )
-                self._validate_staged_bundle(staging_root, selected_features, resolved_src_path)
+                self._validate_staged_bundle(
+                    staging_root,
+                    selected_features,
+                    resolved_src_path,
+                    self._describe_spec_source(spec_source, python_spec),
+                )
                 self._publish_bundle(staging_root)
                 self._publish_explorer_snapshot(snapshot)
             finally:
@@ -141,16 +148,22 @@ class ProjectBuilder:
                     f"{backup_root} could not be removed: {error}",
                 ) from error
 
-    def _load_spec_definition(
-        self, python_spec: str | None, json_spec: project_spec_source.JsonSourceInput
-    ) -> spec.Spec:
-        """Parse the source, deferring semantic validation to compilation."""
+    @staticmethod
+    def _load_spec_definition(source: project_spec_source.ResolvedSpecSource) -> spec.Spec:
+        """Load a resolved source, deferring semantic validation to compilation."""
         try:
-            return project_spec_source.load_project_spec(
-                python_spec, self.root, json_spec, validate=False
-            )
+            return project_spec_source.load_spec_source(source, validate=False)
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
+
+    @staticmethod
+    def _describe_spec_source(
+        source: project_spec_source.ResolvedSpecSource, python_spec: str | None
+    ) -> str:
+        """Describe the selected source for persisted build metadata."""
+        if isinstance(source, project_spec_source.PythonSpecSource) and python_spec is not None:
+            return python_spec
+        return str(source.path.resolve())
 
     @staticmethod
     def _compile_plan(
@@ -193,6 +206,7 @@ class ProjectBuilder:
         staging_root: pathlib.Path,
         selected_features: list[str] | None,
         resolved_src_path: pathlib.Path,
+        spec_source: str,
     ) -> None:
         """Write the bundle manifest and validate the staged spec and execution plan."""
         try:
@@ -205,6 +219,7 @@ class ProjectBuilder:
                 uptimely_version=importlib.metadata.version("uptimely-core"),
                 features=selected_features,
                 src_path=manifest_src_path,
+                spec_source=spec_source,
                 artifacts=models.BuildArtifactPaths(
                     spec=paths.BUILD_SPEC_FILE.name,
                     execution_plan=paths.BUILD_EXECUTION_PLAN_FILE.name,

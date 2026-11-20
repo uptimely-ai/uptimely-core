@@ -7,10 +7,8 @@ import time
 
 import polars as pl
 
-from uptimely import application
 from uptimely.application import BuildBundle, BuildLockError, ProjectBuildError
 from uptimely.cli import common
-from uptimely.project import spec_source as project_spec_source
 
 logger = logging.getLogger(__name__)
 
@@ -45,23 +43,11 @@ def configure_build_parser(parser: argparse.ArgumentParser) -> None:
 
 def _log_build_details(
     bundle: BuildBundle,
-    root: pathlib.Path,
-    args: argparse.Namespace,
     duration: float,
-    app: application.Uptimely,
 ) -> None:
     """Log build details and full-spec counts alongside the compiled plan."""
     definition = bundle.spec_definition
-    python_spec, json_spec = app._resolve_spec_source(
-        python_spec=args.python_spec, json_spec=args.json_spec
-    )
-    source = project_spec_source.SpecSourceResolver(root).resolve(
-        python_spec=python_spec, json_spec=json_spec
-    )
-    if isinstance(source, project_spec_source.PythonSpecSource):
-        spec_source = str(source.path.resolve()) if python_spec is None else python_spec
-    else:
-        spec_source = str(source.path.resolve())
+    spec_source = bundle.manifest.spec_source or str(bundle.spec_path)
     scope = (
         "all features" if bundle.manifest.features is None else ", ".join(bundle.manifest.features)
     )
@@ -108,7 +94,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             )
             duration = time.perf_counter() - started
             if logger.isEnabledFor(logging.DEBUG):
-                _log_build_details(bundle, root, args, duration, app)
+                _log_build_details(bundle, duration)
             logger.info("Build files created to %s", bundle.root)
         except (
             BuildLockError,
