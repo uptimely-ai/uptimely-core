@@ -123,10 +123,7 @@ class Uptimely:
         """Apply configured spec-source defaults when no source was passed."""
         if python_spec is None and json_spec is None:
             python_spec = self.config.application.python_spec
-            configured_json_spec = self.config.application.json_spec
-            if configured_json_spec is not None:
-                json_path = pathlib.Path(configured_json_spec)
-                json_spec = json_path if json_path.is_absolute() else self.root / json_path
+            json_spec = self.config.application.json_spec
         return python_spec, json_spec
 
     def build(
@@ -142,8 +139,8 @@ class Uptimely:
         Args:
             python_spec: Optional ``module:attribute`` containing a Python Spec.
                 Defaults to the configured source or standard source discovery.
-            json_spec: Optional explicit spec JSON path. Defaults to the configured source
-                or standard source discovery.
+            json_spec: Optional explicit spec JSON path, relative to the project root
+                unless absolute. Defaults to the configured source or standard discovery.
             features: Optional output features to compile with their dependencies.
             src_path: Optional source directory, relative to the project root unless absolute.
                 Defaults to ``src``.

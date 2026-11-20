@@ -52,7 +52,10 @@ class SpecSourceResolver:
                 entrypoint_module.Entrypoint(python_spec),
             )
         if json_spec is not None:
-            return JsonSpecSource(pathlib.Path(json_spec))
+            json_path = pathlib.Path(json_spec)
+            if not json_path.is_absolute():
+                json_path = self.project_root / json_path
+            return JsonSpecSource(json_path)
 
         python_path = self.project_root / paths.SPEC_PYTHON_ENTRY_FILE
         json_path = self.project_root / paths.SPEC_JSON_ENTRY_FILE

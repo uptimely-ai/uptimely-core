@@ -256,7 +256,7 @@ def test_project_build_explicit_source_does_not_execute_workflow(
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(root))
-    source = tmp_path / "source.json"
+    source = root / "source.json"
     source.write_text(
         json.dumps(
             {

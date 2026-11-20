@@ -109,7 +109,9 @@ def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.P
     assert app.config.application.src_path == "production-src"
 
 
-def test_project_build_uses_configured_source_and_cli_overrides(tmp_path: pathlib.Path) -> None:
+def test_project_build_uses_configured_source_and_cli_overrides(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     spec_dir = tmp_path / "spec"
     spec_dir.mkdir()
     (spec_dir / "configured.json").write_text(
@@ -124,6 +126,9 @@ def test_project_build_uses_configured_source_and_cli_overrides(tmp_path: pathli
         encoding="utf-8",
     )
     app = application_module.Uptimely(tmp_path)
+    working_directory = tmp_path / "working-directory"
+    working_directory.mkdir()
+    monkeypatch.chdir(working_directory)
 
     configured_build = app.build()
     override_build = app.build(json_spec=override_spec, src_path=pathlib.Path("configured-src"))
