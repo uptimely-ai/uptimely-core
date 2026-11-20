@@ -1,8 +1,12 @@
 # Application {#app}
 
-Uptimely application is the top level components that manages the project state.
+The application layer is the configured entry point for using Uptimely. It loads
+configuration, composes the build and execution components, and coordinates a
+requested operation for one project.
 
-In practice when your run commands such as `uptimely build` and `uptimely run`, the application loads required configs, specification, code modules and is aware of the project paths.
+Commands such as `uptimely build` and `uptimely run` use this layer to apply
+configuration and invoke the lower-level components. Project structure and
+path conventions belong to the [project layer](project.md).
 
 ## Config
 

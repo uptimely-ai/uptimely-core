@@ -11,9 +11,9 @@ from support import examples as example_support
 import uptimely
 from uptimely import application as application_module
 from uptimely.application import app as application_implementation
-from uptimely.application import paths as project_paths
-from uptimely.application import source_environment
 from uptimely.build import builder, bundle
+from uptimely.project import paths as project_paths
+from uptimely.project import source_environment
 
 
 @pytest.fixture

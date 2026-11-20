@@ -17,9 +17,9 @@ import fastmcp as fastmcp_  # noqa: E402
 
 from uptimely import application, compiler, engine  # noqa: E402
 from uptimely import plan as plan_module  # noqa: E402
-from uptimely.application import paths  # noqa: E402
 from uptimely.mcp import server  # noqa: E402
 from uptimely.mcp import state as mcp_state  # noqa: E402
+from uptimely.project import paths  # noqa: E402
 from uptimely.run import store as run_store  # noqa: E402
 from uptimely.spec import model as spec_model  # noqa: E402
 

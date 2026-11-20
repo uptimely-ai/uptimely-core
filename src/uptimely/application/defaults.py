@@ -1,8 +1,13 @@
-"""Default values for an Uptimely project."""
+"""Compatibility aliases for project defaults."""
 
-import pathlib
-import typing
+from uptimely.project.defaults import (
+    DEFAULT_PROJECT_ROOT,
+    DEFAULT_SPEC_ATTRIBUTE,
+    DEFAULT_SRC_PATH,
+)
 
-DEFAULT_PROJECT_ROOT: typing.Final = pathlib.Path(".")
-DEFAULT_SRC_PATH: typing.Final = pathlib.Path("src")
-DEFAULT_SPEC_ATTRIBUTE: typing.Final = "python_spec"
+__all__ = [
+    "DEFAULT_PROJECT_ROOT",
+    "DEFAULT_SPEC_ATTRIBUTE",
+    "DEFAULT_SRC_PATH",
+]

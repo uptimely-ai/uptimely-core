@@ -15,7 +15,7 @@ if typing.TYPE_CHECKING:
 def load_document(path: str | pathlib.Path) -> dict[str, typing.Any]:
     """Read one JSON document, rejecting unsupported multi-file definitions."""
     if storage_module.Storage.is_dir(path):
-        from uptimely.application import paths
+        from uptimely.project import paths
 
         path = storage_module.Storage.join(path, paths.SPEC_JSON_ENTRY_FILE.name)
     spec_definition = json.loads(storage_module.Storage.read(path))

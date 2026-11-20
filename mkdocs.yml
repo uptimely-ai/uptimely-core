@@ -91,6 +91,9 @@ nav:
       - Example project: intro/example-project.md
       - Explorer demo: intro/explorer-demo.md
   - Concepts:
+      - Architecture:
+          - Application: concepts/application.md
+          - Project: concepts/project.md
       - Spec:
         - Spec: concepts/spec.md
         - Grain: concepts/grain.md
@@ -105,8 +108,6 @@ nav:
         - Engine: concepts/engine.md
         - Runtime: concepts/runtime.md
         - Orchestration: concepts/orchestration.md
-      - Application:
-          - Overview: concepts/application.md
       - Semantics:
           - Explorer: concepts/explorer.md
   - Guides:

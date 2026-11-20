@@ -9,8 +9,8 @@ import typing
 from collections.abc import Iterator
 
 from uptimely import application as application_module
-from uptimely.application import defaults as project_defaults
-from uptimely.application import paths as project_paths
+from uptimely.project import defaults as project_defaults
+from uptimely.project import paths as project_paths
 
 LOG_LEVELS = ("debug", "info", "warning", "error", "critical")
 

@@ -5,8 +5,8 @@ from __future__ import annotations
 import pathlib
 
 from uptimely import spec
-from uptimely.application import defaults, paths
 from uptimely.codebase.python import entrypoint as entrypoint_module
+from uptimely.project import defaults, paths
 from uptimely.spec import python as python_spec_api
 
 JsonSourceInput = str | pathlib.Path | None

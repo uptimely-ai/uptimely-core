@@ -11,7 +11,7 @@ import typing
 import urllib.parse
 import uuid
 
-from uptimely.application import paths
+from uptimely.project import paths
 
 from . import models
 

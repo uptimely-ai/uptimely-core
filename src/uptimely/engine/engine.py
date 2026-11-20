@@ -7,10 +7,10 @@ from collections import abc
 
 from uptimely import plan as plan_module
 from uptimely.application import config as project_config
-from uptimely.application import source_environment
 from uptimely.build import models as build_models
 from uptimely.codebase.python import codebase as codebase_module
 from uptimely.codebase.python import entrypoint as entrypoint_module
+from uptimely.project import source_environment
 from uptimely.run import recording
 
 from . import config as config_module
