@@ -9,7 +9,7 @@ from uptimely import plan as plan_module
 from uptimely.application import config as project_config
 from uptimely.build import models as build_models
 from uptimely.codebase.python import codebase, entrypoint
-from uptimely.project import python_imports
+from uptimely.project import defaults, python_imports
 from uptimely.run import recording
 
 from . import config as config_module
@@ -87,7 +87,8 @@ class Engine:
                 explicitly selected sink still runs. Unselected invocations
                 are recorded as skipped.
             src_path: Optional source directory, relative to the project root unless absolute.
-                Defaults to the project source path.
+                Defaults to the source path saved with the active build, then the configured
+                project source path for older builds.
 
         Returns:
             Main dataframes, invocation results, execution duration, collected
@@ -100,8 +101,13 @@ class Engine:
         """
         if preview_rows is None:
             preview_rows = self.config.preview_rows
-        if src_path is None and self.project_settings.src_path is not None:
-            src_path = pathlib.Path(self.project_settings.src_path)
+        if src_path is None:
+            saved_src_path = self.bundle.manifest.src_path
+            if saved_src_path is not None:
+                saved_path = pathlib.Path(saved_src_path)
+                src_path = None if saved_path == defaults.DEFAULT_SRC_PATH else saved_path
+            elif self.project_settings.src_path is not None:
+                src_path = pathlib.Path(self.project_settings.src_path)
         plan = self.plan if operator is None else self.plan.for_operator(*operator)
         with (
             python_imports.expose(self.bundle.project_root, src_path=src_path),

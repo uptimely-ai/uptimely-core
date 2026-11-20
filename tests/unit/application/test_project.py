@@ -108,6 +108,21 @@ def test_build_manifest_normalizes_feature_selection() -> None:
     assert manifest.features == ["pressure", "temperature"]
 
 
+def test_build_manifest_accepts_source_path() -> None:
+    data = _manifest_data()
+    data["src_path"] = "custom-src"
+
+    manifest = application.BuildManifest.model_validate(data)
+
+    assert manifest.src_path == "custom-src"
+
+
+def test_build_manifest_defaults_source_path_for_older_bundles() -> None:
+    manifest = application.BuildManifest.model_validate(_manifest_data())
+
+    assert manifest.src_path is None
+
+
 @pytest.mark.parametrize("version", [0, 3, "2", True])
 def test_build_manifest_rejects_unsupported_or_noninteger_version(version: object) -> None:
     data = _manifest_data()

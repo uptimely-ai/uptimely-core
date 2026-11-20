@@ -10,6 +10,23 @@ from uptimely.codebase.python import imports
 from . import defaults, paths
 
 
+def resolve_src_path(root: pathlib.Path, src_path: pathlib.Path | None = None) -> pathlib.Path:
+    """Resolve a project's Python source directory.
+
+    Args:
+        root: Uptimely project root.
+        src_path: Explicit source path, or ``None`` for the default ``src`` path.
+
+    Returns:
+        The absolute Python source path.
+    """
+    root = root.resolve()
+    source = root / defaults.DEFAULT_SRC_PATH if src_path is None else pathlib.Path(src_path)
+    if not source.is_absolute():
+        source = root / source
+    return source.resolve()
+
+
 def expose(root: pathlib.Path, src_path: pathlib.Path | None = None) -> typing.ContextManager[None]:
     """Expose an Uptimely project's Python modules within a context.
 
@@ -29,10 +46,7 @@ def expose(root: pathlib.Path, src_path: pathlib.Path | None = None) -> typing.C
         NotADirectoryError: An explicit source directory does not exist.
     """
     root = root.resolve()
-    source = root / defaults.DEFAULT_SRC_PATH if src_path is None else src_path
-    if not source.is_absolute():
-        source = root / source
-    source = source.resolve()
+    source = resolve_src_path(root, src_path)
     if src_path is not None and not source.is_dir():
         raise NotADirectoryError(f"Project source path is not a directory: {source}")
 
