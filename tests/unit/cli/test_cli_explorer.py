@@ -12,6 +12,7 @@ from support import examples as example_support
 from uptimely import application, compiler
 from uptimely.cli import cli, explorer
 from uptimely.explorer import server as explorer_server
+from uptimely.project import spec_source
 
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
@@ -106,7 +107,7 @@ def test_explorer_serves_packaged_frontend_without_building(
         assert host == "127.0.0.1"
         assert port == 0
 
-    monkeypatch.setattr(application, "load_spec_source", fail)
+    monkeypatch.setattr(spec_source, "load_project_spec", fail)
     monkeypatch.setattr(compiler.Compiler, "compile", fail)
     monkeypatch.setattr(explorer_server.uvicorn, "run", serve_and_check_assets)
     monkeypatch.setattr(
