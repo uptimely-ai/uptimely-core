@@ -19,7 +19,8 @@ from .paths import (
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
 )
-from .source import (
+from .python_source_environment import project_source_path
+from .spec_source import (
     JsonSpecSource,
     PythonSpecSource,
     ResolvedSpecSource,
@@ -27,7 +28,6 @@ from .source import (
     load_project_spec,
     load_spec_source,
 )
-from .source_environment import project_source_path
 
 __all__ = [
     "ARTIFACTS_DIR",

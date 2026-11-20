@@ -15,8 +15,8 @@ import pydantic
 from uptimely import compiler, spec
 from uptimely.explorer import presentation
 from uptimely.plan import serialization as plan_serialization
-from uptimely.project import defaults, paths, source_environment
-from uptimely.project import source as project_source
+from uptimely.project import defaults, paths, python_source_environment
+from uptimely.project import spec_source as project_spec_source
 
 from . import bundle, errors, locking, models
 from . import features as feature_selection
@@ -43,7 +43,7 @@ class ProjectBuilder:
         self,
         *,
         python_spec: str | None = None,
-        json_spec: project_source.JsonSourceInput = None,
+        json_spec: project_spec_source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
         src_path: pathlib.Path | None = None,
     ) -> models.BuildBundle:
@@ -68,12 +68,12 @@ class ProjectBuilder:
         except (ValueError, TypeError) as error:
             raise errors.ProjectBuildError("feature selection", str(error)) from error
         try:
-            project_source.SpecSourceResolver(self.root).resolve(python_spec, json_spec)
+            project_spec_source.SpecSourceResolver(self.root).resolve(python_spec, json_spec)
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
         with (
             locking.build_lock(self.root, exclusive=True, wait=False),
-            source_environment.project_source_path(self.root, src_path=src_path),
+            python_source_environment.project_source_path(self.root, src_path=src_path),
         ):
             spec_definition = self._load_spec_definition(python_spec, json_spec)
             staging_root = self._create_staging_root()
@@ -136,11 +136,11 @@ class ProjectBuilder:
                 ) from error
 
     def _load_spec_definition(
-        self, python_spec: str | None, json_spec: project_source.JsonSourceInput
+        self, python_spec: str | None, json_spec: project_spec_source.JsonSourceInput
     ) -> spec.Spec:
         """Parse the source, deferring semantic validation to compilation."""
         try:
-            return project_source.load_project_spec(
+            return project_spec_source.load_project_spec(
                 python_spec, self.root, json_spec, validate=False
             )
         except _SPEC_PROCESSING_ERRORS as error:
@@ -257,7 +257,7 @@ class ProjectBuilder:
 def build(
     project_root: str | pathlib.Path = defaults.DEFAULT_PROJECT_ROOT,
     python_spec: str | None = None,
-    json_spec: project_source.JsonSourceInput = None,
+    json_spec: project_spec_source.JsonSourceInput = None,
     features: feature_selection.FeatureSelection = None,
     src_path: pathlib.Path | None = None,
 ) -> models.BuildBundle:
