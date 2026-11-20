@@ -31,11 +31,11 @@ from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 type Mutation = collections.abc.Callable[[model.Spec], object]
 
 
-def make_spec(kind: str = "vectorize") -> model.Spec:
+def make_spec(operator_scenario: str = "vectorize") -> model.Spec:
     """Build a valid document without invoking semantic validation."""
     source_grain = (
         [{"dimension": "machine", "resolution": "machine"}]
-        if kind == "expand"
+        if operator_scenario == "expand"
         else [
             {"dimension": "machine", "resolution": "machine"},
             {"dimension": "time", "resolution": "time"},
@@ -43,22 +43,24 @@ def make_spec(kind: str = "vectorize") -> model.Spec:
     )
     target_grain = (
         [{"dimension": "machine", "resolution": "machine"}]
-        if kind == "collapse"
+        if operator_scenario == "collapse"
         else [
             {"dimension": "machine", "resolution": "machine"},
             {"dimension": "time", "resolution": "time"},
         ]
     )
-    args = {} if kind in {"read", "escape"} else {"data": {"type": "dataframe"}}
-    input_profile = "source" if kind in {"collapse", "conform", "expand"} else "target"
+    args = {} if operator_scenario in {"read", "escape"} else {"data": {"type": "dataframe"}}
+    input_profile = "source" if operator_scenario in {"collapse", "conform", "expand"} else "target"
     binding_args = (
-        {} if kind in {"read", "escape"} else {"data": f"$profiles.{input_profile}.dataset"}
+        {}
+        if operator_scenario in {"read", "escape"}
+        else {"data": f"$profiles.{input_profile}.dataset"}
     )
     inputs = (
         []
-        if kind == "read"
+        if operator_scenario == "read"
         else ["$features.s"]
-        if kind in {"collapse", "conform", "expand", "escape"}
+        if operator_scenario in {"collapse", "conform", "expand", "escape"}
         else ["$features.x"]
     )
     document: dict[str, typing.Any] = {
@@ -73,7 +75,11 @@ def make_spec(kind: str = "vectorize") -> model.Spec:
             },
             "compute": {
                 "returns": (
-                    "none" if kind == "write" else "any" if kind == "escape" else "dataframe"
+                    "none"
+                    if operator_scenario == "write"
+                    else "any"
+                    if operator_scenario == "escape"
+                    else "dataframe"
                 ),
                 "entrypoint": "not_imported:compute",
                 "args": args,
@@ -105,7 +111,7 @@ def make_spec(kind: str = "vectorize") -> model.Spec:
                     "machine": {},
                     **({"time": {}} if len(target_grain) > 1 else {}),
                     "x": {},
-                    **({} if kind in {"write", "escape"} else {"y": {}}),
+                    **({} if operator_scenario in {"write", "escape"} else {"y": {}}),
                 },
                 "order": [{"dimension": "machine", "resolution": "machine", "direction": "asc"}],
                 "assembly": {
@@ -121,7 +127,9 @@ def make_spec(kind: str = "vectorize") -> model.Spec:
                         "compute": {"function": "compute", "args": binding_args},
                         "interface": {
                             "inputs": inputs,
-                            "outputs": ([] if kind in {"write", "escape"} else ["$features.y"]),
+                            "outputs": (
+                                [] if operator_scenario in {"write", "escape"} else ["$features.y"]
+                            ),
                         },
                     },
                 },
@@ -157,7 +165,7 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
 
 
 @pytest.mark.parametrize(
-    ("validate", "kind", "mutate", "message"),
+    ("validate", "operator_scenario", "mutate", "message"),
     [
         (
             dimensions.validate_parent,
@@ -523,11 +531,11 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
 )
 def test_atomic_rules_reject_their_own_invariant(
     validate: validation.Validator,
-    kind: str,
+    operator_scenario: str,
     mutate: Mutation,
     message: str,
 ) -> None:
-    spec = make_spec(kind)
+    spec = make_spec(operator_scenario)
     mutate(spec)
     before = spec.model_dump()
     with pytest.raises(ValueError, match=message):

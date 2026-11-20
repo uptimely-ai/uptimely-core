@@ -216,7 +216,8 @@ def test_operator_bindings_preserve_identity_aliases_order_and_unresolved_functi
     }
     assert document.model_dump() == original
     assert document.binding_selectors_with_paths == tuple(
-        (path, leaf.root, kind) for path, leaf, kind in document.binding_arguments_with_paths
+        (path, leaf.root, argument_type)
+        for path, leaf, argument_type in document.binding_arguments_with_paths
     )
     assert [path for path, _, _ in document.binding_arguments_with_paths] == [
         ("profiles", "first", "assembly", "read", "compute", "args"),

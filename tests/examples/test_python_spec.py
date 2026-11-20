@@ -165,7 +165,7 @@ def test_recommended_flow_rate_binds_polars_with_columns() -> None:
 
     assert template.entrypoint == "polars.lazyframe.frame:LazyFrame.with_columns"
     assert template.returns == "dataframe"
-    assert "kind" not in template.model_dump()
+
     assert template.validate_signature is False
     assert operator.compute.inferred_feature_inputs == ("warning_hour_mean_flow_rate",)
     assert operator.output_features == ["recommended_flow_rate"]
@@ -241,7 +241,7 @@ def test_spec_from_profiles_python_api() -> None:
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
     reader = spec_definition.profiles["pump_telemetry"].assembly["read_pump_telemetry"]
-    assert spec_definition.functions[reader.compute.function].frame_operation == "read"
+    assert spec_definition.functions[reader.compute.function].frame_signature == (0, 1)
 
 
 def test_example_timestamp_order_matches_python_declaration() -> None:

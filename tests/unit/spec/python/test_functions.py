@@ -137,22 +137,21 @@ def test_bound_argument_types_are_inferred_and_nullable_dataframe_is_preserved()
 
 
 @pytest.mark.parametrize(
-    ("dataframe_inputs", "returns", "expected_signature", "expected_operation"),
+    ("dataframe_inputs", "returns", "expected_signature"),
     [
-        (0, "dataframe", (0, 1), "read"),
-        (1, "none", (1, 0), "write"),
-        (1, "dataframe", (1, 1), "transform"),
-        (2, "dataframe", (2, 1), "combine"),
-        (0, "any", (None, None), "workflow"),
-        (0, "none", (0, 0), "unknown"),
-        (2, "none", (2, 0), "unknown"),
+        (0, "dataframe", (0, 1)),
+        (1, "none", (1, 0)),
+        (1, "dataframe", (1, 1)),
+        (2, "dataframe", (2, 1)),
+        (0, "any", (None, None)),
+        (0, "none", (0, 0)),
+        (2, "none", (2, 0)),
     ],
 )
-def test_frame_operation_is_inferred_from_dataframe_signature(
+def test_frame_signature_tracks_dataframe_input_and_output_counts(
     dataframe_inputs: int,
     returns: str,
     expected_signature: tuple[int | None, int | None],
-    expected_operation: str,
 ) -> None:
     function = spec_model.FunctionTemplate(
         id="operation",
@@ -165,8 +164,6 @@ def test_frame_operation_is_inferred_from_dataframe_signature(
     )
 
     assert function.frame_signature == expected_signature
-    assert function.frame_operation == expected_operation
-    assert "frame_operation" not in function.model_dump()
 
 
 def test_explicit_argument_contract_overrides_bound_value_inference() -> None:

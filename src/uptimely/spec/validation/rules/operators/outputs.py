@@ -88,7 +88,7 @@ def validate_merge_function_exists(spec: spec_model.Spec) -> None:
 
 
 def validate_nonproducing_outputs(spec: spec_model.Spec) -> None:
-    """Reject output feature declarations on kinds that do not support them."""
+    """Reject output features on operators with a nonproducing return contract."""
     logger.debug("Check nonproducing operator do not declare outputs")
     for key, operator in spec.operator_items:
         function = spec.functions.root.get(operator.compute.function)

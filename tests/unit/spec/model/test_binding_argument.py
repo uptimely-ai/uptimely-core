@@ -304,7 +304,9 @@ def test_binding_contract_comparison_and_typed_reference_views() -> None:
         },
     )
     assert binding.argument_mismatches(function) == ({"data"}, {"unexpected"})
-    assert [(leaf.root, kind) for leaf, kind in binding.typed_arguments(function)] == [
+    assert [
+        (leaf.root, argument_type) for leaf, argument_type in binding.typed_arguments(function)
+    ] == [
         ("$features.pressure.unit", "string"),
         ("$features.@", "string"),
         ("$profiles.@.grain.ids", "string"),

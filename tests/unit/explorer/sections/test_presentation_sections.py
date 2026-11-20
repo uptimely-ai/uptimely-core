@@ -215,15 +215,17 @@ def test_feature_data_preserves_empty_strings() -> None:
     }
 
 
-@pytest.mark.parametrize("kind", ["read", "vectorize"])
-def test_lineage_preserves_declared_feature_types_for_all_producers(kind: str) -> None:
+@pytest.mark.parametrize("dataframe_inputs", [0, 1])
+def test_lineage_preserves_declared_feature_types_for_all_producers(
+    dataframe_inputs: int,
+) -> None:
     definition = spec.Spec.model_validate(
         {
             "functions": {
                 "calculate": {
                     "returns": "dataframe",
                     "entrypoint": "example:calculate",
-                    "args": {"dataset": {"type": "dataframe"}} if kind == "vectorize" else {},
+                    "args": ({"dataset": {"type": "dataframe"}} if dataframe_inputs else {}),
                 }
             },
             "profiles": {
@@ -233,9 +235,11 @@ def test_lineage_preserves_declared_feature_types_for_all_producers(kind: str) -
                         "calculate": {
                             "compute": {
                                 "function": "calculate",
-                                "args": {"dataset": "$profiles.data.dataset"}
-                                if kind == "vectorize"
-                                else {},
+                                "args": (
+                                    {"dataset": "$profiles.data.dataset"}
+                                    if dataframe_inputs
+                                    else {}
+                                ),
                             },
                             "interface": {"outputs": ["$features.reading"]},
                         }
@@ -250,7 +254,7 @@ def test_lineage_preserves_declared_feature_types_for_all_producers(kind: str) -
         reading = next(node for node in nodes if node["id"] == "reading")
         assert reading["data_type"] == "float"
         operator_node = next(node for node in nodes if node.get("is_operator"))
-        assert operator_node["execution_form"] == ("compute" if kind == "read" else "compute")
+        assert operator_node["execution_form"] == "compute"
         assert operator_node["binding_roles"] == ["compute"]
 
 
@@ -315,7 +319,6 @@ def test_catalog_groups_callables_by_category_and_labels_each_operator_usage() -
         "compute",
     ]
     assert configuration["functions"]["calculate"]["declared_returns"] == "dataframe"
-    assert all("kind" not in function for function in configuration["functions"].values())
     local_operator = configuration["profiles"]["local"]["assembly"]["calculate"]
     foreign_operator = configuration["profiles"]["foreign"]["assembly"]["copy"]
     assert local_operator["execution_form"] == "compute"

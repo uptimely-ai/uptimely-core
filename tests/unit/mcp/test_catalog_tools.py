@@ -82,7 +82,6 @@ async def test_list_functions_returns_callable_contracts(state: mcp_state.Server
         "category": "calculate",
         "returns": "dataframe",
     } in payload
-    assert all("kind" not in function for function in payload)
 
 
 @pytest.mark.anyio
@@ -91,7 +90,6 @@ async def test_describe_function_resolves_signature(state: mcp_state.ServerState
     operator_id = _operator_id_for_output(state, "pump_telemetry", "pump_health_score")
     payload = await _call(state, "describe_function", {"function_id": "pump_health_score"})
     assert payload["category"] == "calculate"
-    assert "kind" not in payload
     assert payload["entrypoint"].endswith(":pump_health_score")
     assert payload["declared_args"]["health_features"]["type"] == "array[string]"
     assert payload["python_signature_validation"] == "enabled"

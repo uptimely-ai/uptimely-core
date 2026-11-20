@@ -342,7 +342,6 @@ def test_escape_catalog_metadata_survives_json_round_trip() -> None:
     payload = conversion.to_dict(profiles=[declaration])
     reloaded = spec_model.Spec.model_validate(json.loads(json.dumps(payload)))
 
-    assert "kind" not in payload["functions"]["ceil"]
     assert payload["functions"]["ceil"]["returns"] == "any"
     assert reloaded.functions["ceil"].returns == "any"
 

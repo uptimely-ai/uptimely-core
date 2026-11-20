@@ -22,11 +22,11 @@ from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 OPERATOR_CASES = ("read", "write", "escape", "conform", "expand", "collapse", "vectorize")
 
 
-def make_spec(kind: str = "vectorize") -> model.Spec:
+def make_spec(operator_scenario: str = "vectorize") -> model.Spec:
     """Build a valid document without invoking semantic validation."""
     source_grain = (
         [{"dimension": "machine", "resolution": "machine"}]
-        if kind == "expand"
+        if operator_scenario == "expand"
         else [
             {"dimension": "machine", "resolution": "machine"},
             {"dimension": "time", "resolution": "time"},
@@ -34,22 +34,24 @@ def make_spec(kind: str = "vectorize") -> model.Spec:
     )
     target_grain = (
         [{"dimension": "machine", "resolution": "machine"}]
-        if kind == "collapse"
+        if operator_scenario == "collapse"
         else [
             {"dimension": "machine", "resolution": "machine"},
             {"dimension": "time", "resolution": "time"},
         ]
     )
-    args = {} if kind in {"read", "escape"} else {"data": {"type": "dataframe"}}
-    input_profile = "source" if kind in {"collapse", "conform", "expand"} else "target"
+    args = {} if operator_scenario in {"read", "escape"} else {"data": {"type": "dataframe"}}
+    input_profile = "source" if operator_scenario in {"collapse", "conform", "expand"} else "target"
     binding_args = (
-        {} if kind in {"read", "escape"} else {"data": f"$profiles.{input_profile}.dataset"}
+        {}
+        if operator_scenario in {"read", "escape"}
+        else {"data": f"$profiles.{input_profile}.dataset"}
     )
     inputs = (
         []
-        if kind == "read"
+        if operator_scenario == "read"
         else ["$features.s"]
-        if kind in {"collapse", "conform", "expand", "escape"}
+        if operator_scenario in {"collapse", "conform", "expand", "escape"}
         else ["$features.x"]
     )
     document: dict[str, typing.Any] = {
@@ -64,7 +66,11 @@ def make_spec(kind: str = "vectorize") -> model.Spec:
             },
             "compute": {
                 "returns": (
-                    "none" if kind == "write" else "any" if kind == "escape" else "dataframe"
+                    "none"
+                    if operator_scenario == "write"
+                    else "any"
+                    if operator_scenario == "escape"
+                    else "dataframe"
                 ),
                 "entrypoint": "not_imported:compute",
                 "args": args,
@@ -96,7 +102,7 @@ def make_spec(kind: str = "vectorize") -> model.Spec:
                     "machine": {},
                     **({"time": {}} if len(target_grain) > 1 else {}),
                     "x": {},
-                    **({} if kind in {"write", "escape"} else {"y": {}}),
+                    **({} if operator_scenario in {"write", "escape"} else {"y": {}}),
                 },
                 "order": [{"dimension": "machine", "resolution": "machine", "direction": "asc"}],
                 "assembly": {
@@ -112,7 +118,9 @@ def make_spec(kind: str = "vectorize") -> model.Spec:
                         "compute": {"function": "compute", "args": binding_args},
                         "interface": {
                             "inputs": inputs,
-                            "outputs": ([] if kind in {"write", "escape"} else ["$features.y"]),
+                            "outputs": (
+                                [] if operator_scenario in {"write", "escape"} else ["$features.y"]
+                            ),
                         },
                     },
                 },
@@ -165,41 +173,43 @@ def test_atomic_rules_accept_spec_and_do_not_mutate(
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", OPERATOR_CASES)
-def test_full_validation_preserves_valid_operator_declarations(kind: str) -> None:
-    spec = make_spec(kind)
+@pytest.mark.parametrize("operator_scenario", OPERATOR_CASES)
+def test_full_validation_preserves_valid_operator_declarations(
+    operator_scenario: str,
+) -> None:
+    spec = make_spec(operator_scenario)
     before = spec.model_dump()
     assert validation.validate_spec(spec) is None
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", OPERATOR_CASES)
-def test_source_discovery_visits_each_operator_declaration(kind: str) -> None:
-    spec = make_spec(kind)
+@pytest.mark.parametrize("operator_scenario", OPERATOR_CASES)
+def test_source_discovery_visits_each_operator_declaration(operator_scenario: str) -> None:
+    spec = make_spec(operator_scenario)
     before = spec.model_dump()
     sources = spec.input_sources
     assert list(sources) == [key for key, _ in spec.operator_items]
     key = ("target", "compute")
     source = sources[key]
-    if kind == "read":
+    if operator_scenario == "read":
         assert spec.input_candidates[key] == ()
         assert source is None
     else:
-        expected = "target" if kind in {"vectorize", "write"} else "source"
+        expected = "target" if operator_scenario in {"vectorize", "write"} else "source"
         assert source is not None
         assert source == expected
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", OPERATOR_CASES)
+@pytest.mark.parametrize("operator_scenario", OPERATOR_CASES)
 @pytest.mark.parametrize(
     "inputs",
     [[], ["machine"], ["missing"], ["s", "x"], ["s", "missing"]],
 )
 def test_source_discovery_preserves_unresolved_inputs_for_every_declaration(
-    kind: str, inputs: list[str]
+    operator_scenario: str, inputs: list[str]
 ) -> None:
-    spec = make_spec(kind)
+    spec = make_spec(operator_scenario)
     compute(spec).interface.inputs = [f"$features.{feature}" for feature in inputs]
     before = spec.model_dump()
     key = ("target", "compute")
@@ -210,9 +220,11 @@ def test_source_discovery_preserves_unresolved_inputs_for_every_declaration(
     assert spec.model_dump() == before
 
 
-@pytest.mark.parametrize("kind", OPERATOR_CASES)
-def test_source_discovery_does_not_choose_an_ambiguous_owner(kind: str) -> None:
-    spec = make_spec(kind)
+@pytest.mark.parametrize("operator_scenario", OPERATOR_CASES)
+def test_source_discovery_does_not_choose_an_ambiguous_owner(
+    operator_scenario: str,
+) -> None:
+    spec = make_spec(operator_scenario)
     source = spec.profiles["source"]
     duplicate = source.model_copy(update={"id": "duplicate"}, deep=True)
     spec.profiles["duplicate"] = duplicate
