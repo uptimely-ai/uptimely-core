@@ -6,7 +6,7 @@ import pytest
 
 from uptimely import application, spec
 from uptimely.build import builder
-from uptimely.build import source as build_source
+from uptimely.project import source as project_source
 from uptimely.spec import validation
 
 FIXTURE_SPEC = pathlib.Path(__file__).parents[2] / "fixtures/spec/observation_totals.json"
@@ -15,18 +15,17 @@ FIXTURE_SPEC = pathlib.Path(__file__).parents[2] / "fixtures/spec/observation_to
 def test_json_source_loads_configured_path(tmp_path: pathlib.Path) -> None:
     configured_path = tmp_path / "custom-spec.json"
     configured_path.write_bytes(FIXTURE_SPEC.read_bytes())
-    source = build_source.JsonSource(tmp_path, configured_path)
+    source = project_source.JsonSpecSource(configured_path)
 
     assert source.path == configured_path
-    assert source.is_available()
-    assert source.load() == spec.load_spec(FIXTURE_SPEC)
+    assert project_source.load_spec_source(source) == spec.load_spec(FIXTURE_SPEC)
 
 
 def test_spec_source_loads_explicit_json_without_default_source(tmp_path: pathlib.Path) -> None:
     configured_path = tmp_path / "custom-spec.json"
     configured_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
-    loaded = build_source.SpecSource(tmp_path).load(json_spec=configured_path)
+    loaded = project_source.load_project_spec(None, tmp_path, json_spec=configured_path)
 
     assert loaded == spec.load_spec(FIXTURE_SPEC)
 
@@ -36,7 +35,7 @@ def test_spec_source_discovers_conventional_json_source(tmp_path: pathlib.Path) 
     configured_path.parent.mkdir(parents=True)
     configured_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
-    loaded = build_source.SpecSource(tmp_path).load()
+    loaded = project_source.load_project_spec(None, tmp_path)
 
     assert loaded == spec.load_spec(FIXTURE_SPEC)
 
@@ -45,9 +44,9 @@ def test_spec_source_resolves_without_loading(tmp_path: pathlib.Path) -> None:
     python_path = tmp_path / application.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir(parents=True)
     python_path.write_text("raise RuntimeError('Source must not be loaded')\n", encoding="utf-8")
-    source = build_source.SpecSource(tmp_path).resolve()
+    source = project_source.SpecSourceResolver(tmp_path).resolve()
 
-    assert isinstance(source, build_source.PythonSource)
+    assert isinstance(source, project_source.PythonSpecSource)
     assert source.path == python_path
     assert source.entrypoint.module.location == "spec.spec"
     assert source.entrypoint.function.name == application.DEFAULT_SPEC_ATTRIBUTE
@@ -67,8 +66,9 @@ def test_python_source_resolves_enclosing_packages(
     python_path.parent.mkdir()
     python_path.touch()
 
-    source = build_source.PythonSource(root)
+    source = project_source.SpecSourceResolver(root).resolve()
 
+    assert isinstance(source, project_source.PythonSpecSource)
     assert source.entrypoint.module.location == ".".join([*package_names, "spec", "spec"])
 
 
@@ -78,7 +78,7 @@ def test_python_spec_rejects_local_file_entrypoints(tmp_path: pathlib.Path) -> N
     python_path.write_text("python_spec = None\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="Invalid module path"):
-        build_source.PythonSource(tmp_path, f"{python_path}:python_spec")
+        project_source.SpecSourceResolver(tmp_path).resolve(f"{python_path}:python_spec")
 
 
 def test_spec_source_rejects_ambiguous_discovered_sources(tmp_path: pathlib.Path) -> None:
@@ -89,14 +89,14 @@ def test_spec_source_rejects_ambiguous_discovered_sources(tmp_path: pathlib.Path
     json_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
     with pytest.raises(ValueError, match="Ambiguous spec sources") as error:
-        build_source.SpecSource(tmp_path).load()
+        project_source.load_project_spec(None, tmp_path)
     assert "--python-spec" not in str(error.value)
     assert "--json-spec" not in str(error.value)
 
 
 def test_spec_source_missing_source_error_is_not_cli_specific(tmp_path: pathlib.Path) -> None:
     with pytest.raises(FileNotFoundError, match="No spec source found") as error:
-        build_source.SpecSource(tmp_path).load()
+        project_source.load_project_spec(None, tmp_path)
 
     assert "--python-spec" not in str(error.value)
     assert "--json-spec" not in str(error.value)
@@ -124,8 +124,8 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
     monkeypatch.syspath_prepend(str(tmp_path))
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
-        loaded = build_source.SpecSource(tmp_path).load(
-            python_spec=f"{module_name}:python_spec", validate=validate
+        loaded = project_source.load_project_spec(
+            f"{module_name}:python_spec", tmp_path, validate=validate
         )
     assert check.call_count == int(validate)
 

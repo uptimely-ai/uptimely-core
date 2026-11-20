@@ -13,10 +13,11 @@ from uptimely.build.models import (
 )
 from uptimely.build.source import (
     JsonSource,
+    JsonSourceInput,
     PythonSource,
     SpecSource,
-    load_spec_source,
 )
+from uptimely.project.source import load_project_spec as load_spec_source
 
 __all__ = [
     "ProjectBuilder",
@@ -29,6 +30,7 @@ __all__ = [
     "BUILD_VERSION",
     "FeatureSelection",
     "JsonSource",
+    "JsonSourceInput",
     "ProjectBuildError",
     "PythonSource",
     "SpecSource",

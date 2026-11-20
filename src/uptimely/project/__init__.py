@@ -19,6 +19,14 @@ from .paths import (
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
 )
+from .source import (
+    JsonSpecSource,
+    PythonSpecSource,
+    ResolvedSpecSource,
+    SpecSourceResolver,
+    load_project_spec,
+    load_spec_source,
+)
 from .source_environment import project_source_path
 
 __all__ = [
@@ -36,10 +44,16 @@ __all__ = [
     "DEFAULT_SRC_PATH",
     "EXPLORER_DATA_FILE",
     "FUNCTIONS_DIR",
+    "JsonSpecSource",
+    "PythonSpecSource",
     "RUN_MANIFEST_FILE",
     "RUN_OUTPUT_DIR",
+    "ResolvedSpecSource",
     "SPEC_JSON_ENTRY_FILE",
     "SPEC_PYTHON_ENTRY_FILE",
     "SPEC_SOURCE_DIR",
+    "SpecSourceResolver",
+    "load_project_spec",
+    "load_spec_source",
     "project_source_path",
 ]

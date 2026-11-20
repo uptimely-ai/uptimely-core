@@ -4,8 +4,34 @@ from __future__ import annotations
 
 import pathlib
 
+from uptimely.codebase.python import entrypoint
+
 from . import model, serialization, validation
 from .python import conversion
+from .python import spec as python_spec
+
+
+def load_python_spec(source: entrypoint.Entrypoint, *, validate: bool = True) -> model.Spec:
+    """Resolve a Python declaration and convert it to a spec document.
+
+    Args:
+        source: Entrypoint addressing a Python Spec declaration.
+        validate: Run semantic checks. Structural conversion always runs.
+
+    Returns:
+        A structurally parsed spec document with reusable cached views.
+
+    Raises:
+        TypeError: The entrypoint does not resolve to a Python Spec declaration.
+    """
+    declaration = source.resolve()
+    if not isinstance(declaration, python_spec.Spec):
+        raise TypeError(f"{source.module.location}:{source.function.name} must resolve to a Spec")
+    return from_python(
+        profiles=declaration.profiles,
+        name=declaration.name,
+        validate=validate,
+    )
 
 
 def load_spec(
