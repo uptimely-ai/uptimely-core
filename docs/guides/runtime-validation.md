@@ -1,5 +1,18 @@
 # Validate execution
 
+## Python runtime preflight
+
+Before running any operator, the Engine checks the bundle's Python version
+constraint and verifies that dependencies whose environment markers match are
+installed at compatible versions. This check runs regardless of `--validate`
+and reports missing or incompatible dependencies together with any Python
+version mismatch.
+
+The Engine does not install dependencies or verify transitive dependencies,
+extras, or direct URL provenance. Bundles without TOML runtime metadata skip
+this check. See [Build bundle runtime requirements](../artifacts/build.md#runtime-requirements)
+for how the metadata is generated.
+
 ## Runtime validation
 
 Runtime contract validation is opt-in. Enable it with `uptimely run --validate`

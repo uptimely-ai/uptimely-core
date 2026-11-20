@@ -15,6 +15,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Build bundles group implementation packages and runtimes in separate ID-named
   directories and record their assignments in the manifest.
 - Engine debug logs show the selected Python source directory and its origin.
+- Runs check declared Python and dependency versions before executing operators.
 
 ### Changed
 

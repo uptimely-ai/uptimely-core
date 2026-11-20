@@ -9,6 +9,7 @@ from uptimely import plan as plan_module
 from uptimely.application import config as project_config
 from uptimely.build import models as build_models
 from uptimely.codebase.python import codebase, entrypoint, packaging
+from uptimely.codebase.python import runtime as python_runtime
 from uptimely.project import python_imports
 from uptimely.run import recording
 
@@ -98,6 +99,7 @@ class Engine:
             OSError: Run artifacts cannot be persisted.
             ValueError: The preview row limit is invalid.
                 The requested operator is absent from the saved execution scope.
+                The Python runtime requirements are invalid or not satisfied.
         """
         if preview_rows is None:
             preview_rows = self.config.preview_rows
@@ -106,6 +108,9 @@ class Engine:
         else:
             source_origin = "explicit override"
         plan = self.plan if operator is None else self.plan.for_operator(*operator)
+        runtime = self.bundle.runtime_paths.get(packaging.RUNTIME_ID)
+        if runtime is not None and runtime.suffix == ".toml":
+            python_runtime.check_compatibility(runtime)
         with (
             python_imports.expose(self.bundle.project_root, src_path=src_path),
             recording.RunRecorder(

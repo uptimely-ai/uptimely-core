@@ -63,9 +63,9 @@ without maintaining a separate runtime file.
 
 Use the metadata to choose a compatible interpreter and install the listed
 dependencies in the target environment. The generated `pyproject.toml` is
-runtime metadata, not an installable project or a lockfile. The build and Engine
-do not resolve, install, or embed dependencies or enforce the Python version
-constraint.
+runtime metadata, not an installable project or a lockfile. The build does not
+install dependencies. See [Python runtime preflight](../guides/runtime-validation.md#python-runtime-preflight)
+for what the Engine checks before execution.
 
 ## Source paths and overrides
 

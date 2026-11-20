@@ -1967,7 +1967,6 @@ files = [
     {file = "packaging-26.3-py3-none-any.whl", hash = "sha256:d7193f7c8e4e93f444fde0262bf90af30e16fa0ad0ad44cb553c87339b23cd1c"},
     {file = "packaging-26.3.tar.gz", hash = "sha256:94edc256424af38762eb31306eed28beb9f0efc50a8837492c9d6fd6004aed79"},
 ]
-markers = {main = "extra == \"mcp\""}
 
 [[package]]
 name = "paginate"
@@ -3412,4 +3411,4 @@ s3 = ["boto3"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "86a428a3c942f42c4a59ce220d224056bd4e1e7d8a0e4f184ff9bbabacf4d17b"
+content-hash = "d233dbb3108cb16b47ffdc4f5e5c8420ac80add95681b658d17f8250824637f1"

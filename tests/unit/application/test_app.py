@@ -287,6 +287,42 @@ def test_run_logs_resolved_source_override(
     )
 
 
+def test_run_reports_runtime_mismatches_before_exposing_code(
+    app: application_module.Uptimely,
+) -> None:
+    (app.root / "pyproject.toml").write_text(
+        '[project]\nrequires-python = ">=999"\n'
+        'dependencies = ["uptimely-core>=999", "uptimely-test-nonexistent-dependency"]\n',
+        encoding="utf-8",
+    )
+    app.build()
+
+    with (
+        mock.patch.object(python_imports, "expose") as expose,
+        pytest.raises(ValueError, match="Python runtime preflight failed") as error,
+    ):
+        app.run()
+
+    assert "does not satisfy >=999" in str(error.value)
+    assert "does not satisfy uptimely-core>=999" in str(error.value)
+    assert "Missing dependency: uptimely-test-nonexistent-dependency" in str(error.value)
+    expose.assert_not_called()
+    assert not (app.root / project_paths.RUN_MANIFEST_FILE).exists()
+
+
+def test_run_ignores_dependencies_with_nonmatching_markers(
+    app: application_module.Uptimely,
+) -> None:
+    (app.root / "pyproject.toml").write_text(
+        '[project]\ndependencies = ["uptimely-core>=0", '
+        "\"uptimely-test-nonexistent-dependency; python_version < '3'\"]\n",
+        encoding="utf-8",
+    )
+    app.build()
+
+    assert not app.run().failures
+
+
 def test_run_releases_build_lock_on_failure(app: application_module.Uptimely) -> None:
     app.build()
     with (
