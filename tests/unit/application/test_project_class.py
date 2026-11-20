@@ -13,7 +13,7 @@ from uptimely import application as application_module
 from uptimely.application import app as application_implementation
 from uptimely.build import builder, bundle
 from uptimely.project import paths as project_paths
-from uptimely.project import python_source_environment
+from uptimely.project import python_imports
 
 
 @pytest.fixture
@@ -245,9 +245,9 @@ def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) ->
     app.build()
 
     with mock.patch.object(
-        python_source_environment,
-        "project_source_path",
-        wraps=python_source_environment.project_source_path,
+        python_imports,
+        "expose",
+        wraps=python_imports.expose,
     ) as source_path:
         result = app.run()
 

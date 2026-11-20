@@ -15,7 +15,7 @@ import pydantic
 from uptimely import compiler, spec
 from uptimely.explorer import presentation
 from uptimely.plan import serialization as plan_serialization
-from uptimely.project import defaults, paths, python_source_environment
+from uptimely.project import defaults, paths, python_imports
 from uptimely.project import spec_source as project_spec_source
 
 from . import bundle, errors, locking, models
@@ -73,7 +73,7 @@ class ProjectBuilder:
             raise errors.ProjectBuildError("source loading", str(error)) from error
         with (
             locking.build_lock(self.root, exclusive=True, wait=False),
-            python_source_environment.project_source_path(self.root, src_path=src_path),
+            python_imports.expose(self.root, src_path=src_path),
         ):
             spec_definition = self._load_spec_definition(python_spec, json_spec)
             staging_root = self._create_staging_root()

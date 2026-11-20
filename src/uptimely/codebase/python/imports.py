@@ -1,4 +1,4 @@
-"""Isolate activation of project-local Python imports."""
+"""Temporarily make Python modules importable and restore the previous state."""
 
 from __future__ import annotations
 
@@ -12,8 +12,14 @@ import typing
 from . import entrypoint
 
 
-class PythonSourceEnvironment:
-    """Activate Python source directories without leaking import state."""
+class PythonModuleImportManager:
+    """Make Python modules under a source root importable for a short time.
+
+    The scope adds the root, parent package root, and source directory to
+    ``sys.path``. It removes modules that could conflict with project modules.
+    When the scope ends, it removes newly imported modules and puts the old
+    modules and ``sys.path`` back.
+    """
 
     _LOCK = threading.RLock()
     _ACTIVE_ROOTS: list[tuple[pathlib.Path, pathlib.Path]] = []
@@ -32,8 +38,16 @@ class PythonSourceEnvironment:
         self.reserved_modules = frozenset(reserved_modules)
 
     @contextlib.contextmanager
-    def activate(self) -> typing.Iterator[None]:
-        """Make configured Python modules importable while the environment is active."""
+    def expose(self) -> typing.Iterator[None]:
+        """Make the configured modules importable, then restore the previous state.
+
+        Nested scopes for the same root and source directory reuse the current
+        scope. Changes use a lock because ``sys.path`` and ``sys.modules`` are
+        shared by the whole Python process.
+
+        Yields:
+            Control to code that may import from the configured Python roots.
+        """
         directories = [self.root]
         import_root = entrypoint.Module.find_import_root(self.root)
         if import_root != self.root:

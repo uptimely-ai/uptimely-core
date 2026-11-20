@@ -19,7 +19,7 @@ from .paths import (
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
 )
-from .python_source_environment import project_source_path
+from .python_imports import expose
 from .spec_source import (
     JsonSpecSource,
     PythonSpecSource,
@@ -55,5 +55,5 @@ __all__ = [
     "SpecSourceResolver",
     "load_project_spec",
     "load_spec_source",
-    "project_source_path",
+    "expose",
 ]
