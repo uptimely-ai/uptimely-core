@@ -2,7 +2,7 @@
 
 import dataclasses
 
-from uptimely import plan as plan_module
+from uptimely import plan
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
 
@@ -18,7 +18,7 @@ class RuntimeState:
     calculated_outputs: dict[tuple[str, str], object] = dataclasses.field(default_factory=dict)
 
     def computed_fragment_for(
-        self, invocation: plan_module.Invocation
+        self, invocation: plan.Invocation
     ) -> tuple[str, fragment_module.Fragment]:
         """Find the single computed fragment dependency of a merge invocation.
 

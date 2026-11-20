@@ -5,10 +5,8 @@ from __future__ import annotations
 import logging
 from collections import abc
 
-from uptimely import plan as plan_module
-from uptimely import spec
-from uptimely.codebase.python import codebase as codebase_module
-from uptimely.codebase.python import entrypoint
+from uptimely import plan, spec
+from uptimely.codebase.python import codebase, entrypoint
 from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
@@ -32,7 +30,7 @@ class Compiler:
         self,
         spec_definition: spec.Spec,
         features: abc.Collection[str] | None = None,
-    ) -> plan_module.ExecutionPlan:
+    ) -> plan.ExecutionPlan:
         """Compile a Spec by creating, selecting, scheduling, and serializing its invocations.
 
         This method owns the rules that turn operators into invocation nodes and
@@ -78,7 +76,7 @@ class Compiler:
             function.entrypoint for function in selected_functions.values() if function.entrypoint
         )
         logger.debug("Parse %d unique entrypoints", len(locations))
-        python_codebase = codebase_module.Codebase.from_locations(
+        python_codebase = codebase.Codebase.from_locations(
             locations, entrypoint_type=entrypoint.Entrypoint
         )
         entrypoints = python_codebase.entrypoints_index
@@ -96,11 +94,11 @@ class Compiler:
         stages = [[node.node_id for node in stage] for stage in execution_stages]
 
         logger.debug("Validate invocation IDs, dependencies, and execution stages")
-        return plan_module.ExecutionPlan(
-            plan_version=plan_module.PLAN_VERSION,
+        return plan.ExecutionPlan(
+            plan_version=plan.PLAN_VERSION,
             required_backend="polars",
             invocations=invocations,
-            stages=[plan_module.Stage(stage) for stage in stages],
+            stages=[plan.Stage(stage) for stage in stages],
         )
 
     @staticmethod
@@ -125,10 +123,10 @@ class Compiler:
     @staticmethod
     def _read_plan_packages(
         entrypoints: abc.Mapping[str, entrypoint.Entrypoint],
-    ) -> dict[str, plan_module.Package]:
+    ) -> dict[str, plan.Package]:
         """Read portable package provenance once per entrypoint."""
         logger.debug("Resolve package ownership for %d unique entrypoints", len(entrypoints))
-        packages: dict[str, plan_module.Package] = {}
+        packages: dict[str, plan.Package] = {}
         for location, implementation in entrypoints.items():
             try:
                 provenance = implementation.read_package()
@@ -136,7 +134,7 @@ class Compiler:
                 raise ValueError(
                     f"Could not read package provenance for entrypoint {location}: {error}"
                 ) from error
-            packages[location] = plan_module.Package(
+            packages[location] = plan.Package(
                 distribution=provenance.distribution,
                 version=provenance.version,
             )
@@ -180,15 +178,15 @@ class Compiler:
         nodes: list[invocation_graph.InvocationNode],
         selected_functions: dict[str, spec_model.FunctionTemplate],
         signatures: dict[str, entrypoint.Signature],
-        packages: dict[str, plan_module.Package],
-    ) -> list[plan_module.Invocation]:
+        packages: dict[str, plan.Package],
+    ) -> list[plan.Invocation]:
         """Convert scheduled nodes to portable invocations with resolved metadata."""
         logger.debug("Create portable invocations")
-        invocations: list[plan_module.Invocation] = []
+        invocations: list[plan.Invocation] = []
         for node in nodes:
             function = selected_functions[node.function_id]
             invocations.append(
-                plan_module.Invocation.from_node(
+                plan.Invocation.from_node(
                     spec_definition,
                     node,
                     dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],

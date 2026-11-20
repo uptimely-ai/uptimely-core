@@ -7,7 +7,7 @@ import logging
 import typing
 from collections import abc
 
-from uptimely.library.merge import polars as merge_module
+from uptimely.library.merge import polars
 
 if typing.TYPE_CHECKING:
     from . import dataset as dataset_module
@@ -54,7 +54,7 @@ class Merge:
         self.validate_input(column_types=column_types, validate=validate)
         if load is None:
             load = functools.partial(
-                merge_module.merge_by_grain,
+                polars.merge_by_grain,
                 self.dataset.dataframe,
                 self.fragment.dataframe,
                 self.dataset.identifiers,

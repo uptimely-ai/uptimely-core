@@ -8,7 +8,7 @@ import traceback
 import typing
 from collections.abc import Iterator
 
-from uptimely import application as application_module
+from uptimely import application
 from uptimely.project import defaults as project_defaults
 from uptimely.project import paths as project_paths
 
@@ -71,10 +71,10 @@ def configure_project_config_argument(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def create_project(root: pathlib.Path, config_value: str | None) -> application_module.Uptimely:
+def create_project(root: pathlib.Path, config_value: str | None) -> application.Uptimely:
     """Create a project from its default config, named config, or explicit file."""
     if config_value is None:
-        return application_module.Uptimely(root)
+        return application.Uptimely(root)
     config_path = pathlib.Path(config_value)
     is_explicit_path = (
         config_path.is_absolute()
@@ -83,8 +83,8 @@ def create_project(root: pathlib.Path, config_value: str | None) -> application_
         or config_path.is_file()
     )
     if is_explicit_path:
-        return application_module.Uptimely(root, config_path=config_path)
-    return application_module.Uptimely(root, config=config_value)
+        return application.Uptimely(root, config_path=config_path)
+    return application.Uptimely(root, config=config_value)
 
 
 def resolve_project_root(args: argparse.Namespace, parser: argparse.ArgumentParser) -> pathlib.Path:

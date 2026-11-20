@@ -13,7 +13,7 @@ import graphable as graphable_
 
 from uptimely.spec import model as spec_model
 from uptimely.spec import row_context
-from uptimely.spec.model import profile as profile_module
+from uptimely.spec.model import profile
 
 INVOCATION_LABEL_MAX_LENGTH = 24
 INVOCATION_HASH_LENGTH = 10
@@ -33,7 +33,7 @@ class InvocationNode:
     produces_features: bool = False
     is_sink: bool = False
     is_workflow: bool = False
-    dataframe_input_scope: profile_module.DataFrameInputScope = "unrestricted"
+    dataframe_input_scope: profile.DataFrameInputScope = "unrestricted"
     fragment_dimensions: typing.Literal["target", "subset", "not_applicable"] = "not_applicable"
     row_count_relation: typing.Literal["same", "unrestricted"] = "unrestricted"
     key_relation: typing.Literal["identical", "unrestricted"] = "unrestricted"

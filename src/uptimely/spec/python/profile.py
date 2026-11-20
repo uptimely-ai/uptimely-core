@@ -10,9 +10,8 @@ from uptimely.spec import model as spec_model
 from uptimely.spec import selectors
 from uptimely.spec.model import base as model_base
 
-from . import assembly, references
+from . import assembly, feature, references
 from . import dimension as dimension_module
-from . import feature as feature_module
 
 __all__ = [
     "Profile",
@@ -82,7 +81,7 @@ class Profile:
     description: str | None = None
     category: str | None = None
     scope: str | None = None
-    features: feature_module.FeatureSet | None = None
+    features: feature.FeatureSet | None = None
     grain: abc.Sequence[dimension_module.Resolution] = ()
     relations: abc.Sequence[dimension_module.Resolution] = ()
     order: abc.Sequence[Order] = ()

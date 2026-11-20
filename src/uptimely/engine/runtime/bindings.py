@@ -4,7 +4,7 @@ import pathlib
 import typing
 from collections import abc
 
-from uptimely import plan as plan_module
+from uptimely import plan
 from uptimely.spec import arg_types, selectors
 
 from . import state as state_module
@@ -28,7 +28,7 @@ class RuntimeBindings:
 
     def resolve_args(
         self,
-        invocation: plan_module.Invocation,
+        invocation: plan.Invocation,
         *,
         computed_fragment: object | None = None,
     ) -> dict[str, object]:

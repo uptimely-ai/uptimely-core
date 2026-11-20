@@ -14,8 +14,7 @@ from uptimely.spec import (
     row_context as row_context_values,
 )
 
-from . import binding_conversion, ref
-from . import feature as feature_module
+from . import binding_conversion, feature, ref
 from . import functions as function_metadata
 from . import row_context as row_context_module
 
@@ -130,8 +129,8 @@ class Operator:
     """
 
     id: str
-    inputs: list[feature_module.Feature | ref.Reference | str] | None
-    outputs: list[feature_module.Feature]
+    inputs: list[feature.Feature | ref.Reference | str] | None
+    outputs: list[feature.Feature]
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
@@ -144,8 +143,8 @@ class Operator:
         *,
         compute: Bind,
         id: str | None = None,
-        inputs: abc.Sequence[feature_module.Feature | ref.Reference | str] | None = None,
-        outputs: abc.Sequence[feature_module.Feature] = (),
+        inputs: abc.Sequence[feature.Feature | ref.Reference | str] | None = None,
+        outputs: abc.Sequence[feature.Feature] = (),
         row_context: (
             row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
         ) = None,
@@ -179,7 +178,7 @@ class Operator:
         self.__post_init__()
 
     @classmethod
-    def _generate_id(cls, outputs: abc.Sequence[feature_module.Feature], function_id: str) -> str:
+    def _generate_id(cls, outputs: abc.Sequence[feature.Feature], function_id: str) -> str:
         """Create an ID from its function, outputs, and short hash."""
         output_ids = cls._output_ids(outputs)
         output_id = output_ids[0] if len(output_ids) == 1 else f"features{len(output_ids)}"
@@ -193,11 +192,11 @@ class Operator:
         return self._output_ids(self.outputs)
 
     @classmethod
-    def _output_ids(cls, outputs: abc.Sequence[feature_module.Feature]) -> list[str]:
+    def _output_ids(cls, outputs: abc.Sequence[feature.Feature]) -> list[str]:
         """Validate and normalize output feature IDs."""
         identifiers = []
         for output in outputs:
-            if not isinstance(output, feature_module.Feature):
+            if not isinstance(output, feature.Feature):
                 raise TypeError("Operator outputs must contain Features")
             identifiers.append(cls._validate_feature_id(output.id))
         if len(identifiers) != len(set(identifiers)):
@@ -214,9 +213,9 @@ class Operator:
         return identifiers
 
     @classmethod
-    def _feature_id(cls, value: feature_module.Feature | ref.Reference | str) -> str:
+    def _feature_id(cls, value: feature.Feature | ref.Reference | str) -> str:
         """Normalize and validate a feature identifier or reference."""
-        if isinstance(value, feature_module.Feature):
+        if isinstance(value, feature.Feature):
             identifier = value.id
         elif isinstance(value, ref.Reference):
             prefix, separator, identifier = value.value.partition(".")
