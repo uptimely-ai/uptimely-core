@@ -51,7 +51,8 @@ class ProjectBuilder:
 
         Args:
             python_spec: Optional ``module:attribute`` containing a Python Spec.
-            json_spec: Optional explicit spec JSON path.
+            json_spec: Optional explicit spec JSON path, relative to the project root
+                unless absolute.
             features: Optional output features to compile with their dependencies.
             src_path: Optional source directory, relative to the project root unless absolute.
                 Defaults to the project source path.
@@ -266,7 +267,8 @@ def build(
     Args:
         project_root: Project directory, defaulting to the current directory.
         python_spec: Optional ``module:attribute`` containing a Python Spec.
-        json_spec: Optional explicit spec JSON path.
+        json_spec: Optional explicit spec JSON path, relative to the project root
+            unless absolute.
         features: Optional output features to compile with their dependencies.
         src_path: Optional source directory, relative to the project root unless absolute.
             Defaults to ``src``.

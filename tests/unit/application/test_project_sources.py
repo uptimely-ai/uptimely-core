@@ -30,6 +30,26 @@ def test_spec_source_loads_explicit_json_without_default_source(tmp_path: pathli
     assert loaded == spec.load_spec(FIXTURE_SPEC)
 
 
+def test_spec_source_resolves_relative_json_from_project_root(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    project_root = tmp_path / "project"
+    project_root.mkdir()
+    configured_path = project_root / "custom-spec.json"
+    configured_path.write_bytes(FIXTURE_SPEC.read_bytes())
+    working_directory = tmp_path / "working-directory"
+    working_directory.mkdir()
+    (working_directory / "custom-spec.json").write_text('{"spec_version": 999}', encoding="utf-8")
+    monkeypatch.chdir(working_directory)
+
+    source = project_spec_source.SpecSourceResolver(project_root).resolve(
+        json_spec=pathlib.Path("custom-spec.json")
+    )
+
+    assert source == project_spec_source.JsonSpecSource(configured_path)
+    assert project_spec_source.load_spec_source(source) == spec.load_spec(FIXTURE_SPEC)
+
+
 def test_spec_source_discovers_conventional_json_source(tmp_path: pathlib.Path) -> None:
     configured_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
     configured_path.parent.mkdir(parents=True)

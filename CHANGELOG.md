@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Relative JSON specification paths are consistently resolved from the project
+  root for Python APIs, CLI builds, and configured project sources.
 - Build APIs moved from `uptimely.application.build` to `uptimely.build`.
 - Python entrypoint APIs moved from `uptimely.entrypoint` to
   `uptimely.codebase.python.entrypoint`.
