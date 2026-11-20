@@ -8,9 +8,10 @@ import tomllib
 import typing
 
 from uptimely import engine as engine_module
-from uptimely.build import builder, bundle, models, source
+from uptimely.build import builder, bundle, models
 from uptimely.build import features as feature_selection
 from uptimely.project import defaults, paths
+from uptimely.project import source as project_source
 
 from . import config as config_module
 
@@ -117,8 +118,8 @@ class Uptimely:
         return path if path is not None else self.root / default
 
     def _resolve_spec_source(
-        self, python_spec: str | None, json_spec: source.JsonSourceInput
-    ) -> tuple[str | None, source.JsonSourceInput]:
+        self, python_spec: str | None, json_spec: project_source.JsonSourceInput
+    ) -> tuple[str | None, project_source.JsonSourceInput]:
         """Apply configured spec-source defaults when no source was passed."""
         if python_spec is None and json_spec is None:
             python_spec = self.config.application.python_spec
@@ -132,7 +133,7 @@ class Uptimely:
         self,
         *,
         python_spec: str | None = None,
-        json_spec: source.JsonSourceInput = None,
+        json_spec: project_source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
         src_path: pathlib.Path | None = None,
     ) -> models.BuildBundle:

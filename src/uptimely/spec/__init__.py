@@ -1,6 +1,6 @@
 """Spec document models and operations."""
 
-from .api import from_python, load_spec
+from .api import from_python, load_python_spec, load_spec
 from .feature_graph import FeatureGraph, FeatureSubGraph
 from .model import (
     Argument,
@@ -33,6 +33,7 @@ __all__ = [
     "Order",
     "Spec",
     "from_python",
+    "load_python_spec",
     "load_spec",
     "write_document",
     "FeatureSubGraph",

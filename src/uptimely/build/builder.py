@@ -16,10 +16,10 @@ from uptimely import compiler, spec
 from uptimely.explorer import presentation
 from uptimely.plan import serialization as plan_serialization
 from uptimely.project import defaults, paths, source_environment
+from uptimely.project import source as project_source
 
 from . import bundle, errors, locking, models
 from . import features as feature_selection
-from . import source as build_source
 
 _SPEC_PROCESSING_ERRORS = (
     OSError,
@@ -43,7 +43,7 @@ class ProjectBuilder:
         self,
         *,
         python_spec: str | None = None,
-        json_spec: build_source.JsonSourceInput = None,
+        json_spec: project_source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
         src_path: pathlib.Path | None = None,
     ) -> models.BuildBundle:
@@ -68,7 +68,7 @@ class ProjectBuilder:
         except (ValueError, TypeError) as error:
             raise errors.ProjectBuildError("feature selection", str(error)) from error
         try:
-            build_source.SpecSource(self.root).resolve(python_spec, json_spec)
+            project_source.SpecSourceResolver(self.root).resolve(python_spec, json_spec)
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
         with (
@@ -136,11 +136,13 @@ class ProjectBuilder:
                 ) from error
 
     def _load_spec_definition(
-        self, python_spec: str | None, json_spec: build_source.JsonSourceInput
+        self, python_spec: str | None, json_spec: project_source.JsonSourceInput
     ) -> spec.Spec:
         """Parse the source, deferring semantic validation to compilation."""
         try:
-            return build_source.SpecSource(self.root).load(python_spec, json_spec, validate=False)
+            return project_source.load_project_spec(
+                python_spec, self.root, json_spec, validate=False
+            )
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
 
@@ -255,7 +257,7 @@ class ProjectBuilder:
 def build(
     project_root: str | pathlib.Path = defaults.DEFAULT_PROJECT_ROOT,
     python_spec: str | None = None,
-    json_spec: build_source.JsonSourceInput = None,
+    json_spec: project_source.JsonSourceInput = None,
     features: feature_selection.FeatureSelection = None,
     src_path: pathlib.Path | None = None,
 ) -> models.BuildBundle:
