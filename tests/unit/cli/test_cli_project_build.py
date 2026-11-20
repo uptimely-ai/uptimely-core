@@ -125,6 +125,7 @@ def test_project_build_examples(
     assert set(bundle_files(root)) == {
         "build.json",
         "plan.json",
+        "explorer.json",
         "spec.json",
         "packages/project/__init__.py",
         "packages/project/pump_analytics.py",

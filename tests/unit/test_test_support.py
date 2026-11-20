@@ -117,10 +117,7 @@ def test_example_project_copy_excludes_mutable_run_artifacts(
 
     assert {
         path.name for path in (copied_root / application.BUILD_OUTPUT_DIR.parent).iterdir()
-    } == {
-        "build",
-        "explorer.json",
-    }
+    } == {"build"}
     copied = application.load_build_bundle(copied_root)
     assert copied.manifest == application.load_build_bundle(source).manifest
 

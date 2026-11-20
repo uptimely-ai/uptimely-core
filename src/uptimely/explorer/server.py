@@ -17,9 +17,9 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse, Response
 from starlette.background import BackgroundTask
 
+from uptimely.build import bundle, errors
 from uptimely.explorer import export as explorer_export
 from uptimely.explorer import presentation
-from uptimely.project import paths
 from uptimely.run import store as run_store
 
 logger = logging.getLogger(__name__)
@@ -54,15 +54,16 @@ def _read_run(load: abc.Callable[[], str]) -> Response:
     return Response(content, media_type="application/json", headers={"Cache-Control": "no-store"})
 
 
-def _read_snapshot(path: pathlib.Path) -> Response:
+def _read_snapshot(project_root: pathlib.Path) -> Response:
     """Read and validate the Explorer snapshot without caching it in the app."""
     try:
-        data: object = json.loads(path.read_text(encoding="utf-8"))
+        contents = bundle.BundleStore(project_root).read_explorer_snapshot()
+        data: object = json.loads(contents.decode("utf-8"))
     except FileNotFoundError as error:
         raise HTTPException(
             status_code=503, detail=f"Explorer data is missing. {_BUILD_INSTRUCTION}"
         ) from error
-    except (OSError, UnicodeDecodeError, json.JSONDecodeError) as error:
+    except (OSError, errors.BuildLockError, UnicodeDecodeError, json.JSONDecodeError) as error:
         raise HTTPException(
             status_code=503,
             detail=f"Explorer data could not be read: {error}. {_BUILD_INSTRUCTION}",
@@ -84,7 +85,7 @@ def create_app(project_root: pathlib.Path) -> FastAPI:
     """Create an app serving packaged frontend files and the current data snapshot.
 
     Args:
-        project_root: Project directory containing ``artifacts/explorer.json``.
+        project_root: Project directory containing ``artifacts/build/explorer.json``.
 
     Returns:
         A FastAPI app serving the packaged frontend and Explorer data API.
@@ -106,7 +107,7 @@ def create_app(project_root: pathlib.Path) -> FastAPI:
 
     @app.get("/api/explorer", include_in_schema=False)
     def explorer_data() -> Response:
-        return _read_snapshot(project_root / paths.EXPLORER_DATA_FILE)
+        return _read_snapshot(project_root)
 
     @app.get("/api/run", include_in_schema=False)
     def run_data() -> Response:

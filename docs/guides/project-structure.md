@@ -30,8 +30,8 @@ project/
     ├── build/
     │   ├── build.json
     │   ├── spec.json
-    │   └── plan.json
-    ├── explorer.json
+    │   ├── plan.json
+    │   └── explorer.json
     └── run/
         ├── run.json
         ├── log.jsonl

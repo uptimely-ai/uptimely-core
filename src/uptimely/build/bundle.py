@@ -25,6 +25,18 @@ class BundleStore:
         """Resolve the project root without reading artifacts or acquiring a lock."""
         self.root = pathlib.Path(project_root).resolve()
 
+    def read_explorer_snapshot(self) -> bytes:
+        """Read the snapshot without validating execution artifacts or requiring write access."""
+        snapshot = self.root / paths.EXPLORER_DATA_FILE
+        try:
+            return snapshot.read_bytes()
+        except FileNotFoundError:
+            if not (self.root / paths.BUILD_LOCK_FILE).is_file():
+                raise
+        # A rebuild can briefly leave the path missing between directory renames.
+        with locking.build_lock(self.root, exclusive=False):
+            return snapshot.read_bytes()
+
     def load(self, *, validate: bool = True) -> models.BuildBundle:
         """Load the active build, releasing its reader lock before returning.
 
@@ -94,6 +106,11 @@ class BundleStore:
             runtime: self._load_artifact_path(bundle_root, path, "file")
             for runtime, path in manifest.artifacts.runtimes.items()
         }
+        explorer_path = (
+            self._load_artifact_path(bundle_root, manifest.artifacts.explorer, "file")
+            if manifest.artifacts.explorer is not None
+            else None
+        )
         spec_definition = self._load_spec_definition(
             spec_path, validate=validate, log_structure=log_structure
         )
@@ -109,6 +126,7 @@ class BundleStore:
             execution_plan=execution_plan,
             package_paths=package_paths,
             runtime_paths=runtime_paths,
+            explorer_path=explorer_path,
         )
 
     @staticmethod

@@ -4,8 +4,8 @@ import json
 import pathlib
 import zipfile
 
+from uptimely.build import bundle, errors
 from uptimely.explorer import presentation
-from uptimely.project import paths
 from uptimely.run import store as run_store
 
 _BUILD_INSTRUCTION = "Run 'uptimely build' to generate a valid Explorer snapshot."
@@ -43,12 +43,11 @@ def _read_run_snapshot(project_root: pathlib.Path) -> bytes:
 
 def _read_snapshot(project_root: pathlib.Path) -> bytes:
     """Read and validate the snapshot once, preserving its original JSON bytes."""
-    snapshot_path = project_root / paths.EXPLORER_DATA_FILE
     try:
-        contents = snapshot_path.read_bytes()
+        contents = bundle.BundleStore(project_root).read_explorer_snapshot()
     except FileNotFoundError as error:
         raise FileNotFoundError(f"Explorer snapshot is missing. {_BUILD_INSTRUCTION}") from error
-    except OSError as error:
+    except (OSError, errors.BuildLockError) as error:
         raise OSError(f"Could not read Explorer snapshot: {error}. {_BUILD_INSTRUCTION}") from error
 
     try:

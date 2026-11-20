@@ -23,6 +23,7 @@ class BuildArtifactPaths(pydantic.BaseModel):
 
     spec: str
     execution_plan: str
+    explorer: typing.Literal["explorer.json"] | None = None
     packages: dict[str, packaging.CodePackage] = pydantic.Field(default_factory=dict)
     runtimes: dict[str, str] = pydantic.Field(default_factory=dict)
 
@@ -66,6 +67,8 @@ class BuildArtifactPaths(pydantic.BaseModel):
                 for runtime, path in self.runtimes.items()
             },
         }
+        if self.explorer is not None:
+            artifact_paths["explorer"] = pathlib.PurePosixPath(self.explorer)
         names = list(artifact_paths)
         for index, name in enumerate(names):
             for other_name in names[index + 1 :]:
@@ -143,3 +146,4 @@ class BuildBundle:
     execution_plan: plan_models.ExecutionPlan
     package_paths: dict[str, pathlib.Path] = dataclasses.field(default_factory=dict)
     runtime_paths: dict[str, pathlib.Path] = dataclasses.field(default_factory=dict)
+    explorer_path: pathlib.Path | None = None

@@ -83,7 +83,7 @@ def copy_example_project(
 
     def ignore(directory: str, names: list[str]) -> list[str]:
         if pathlib.Path(directory) == source / paths.ARTIFACTS_DIR:
-            retained = {paths.BUILD_OUTPUT_DIR.name, paths.EXPLORER_DATA_FILE.name}
+            retained = {paths.BUILD_OUTPUT_DIR.name}
             return [name for name in names if name not in retained]
         return [name for name in names if name == "__pycache__"]
 

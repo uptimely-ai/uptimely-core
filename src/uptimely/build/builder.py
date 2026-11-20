@@ -101,7 +101,7 @@ class ProjectBuilder:
             staging_root = self._create_staging_root()
             try:
                 execution_plan = self._compile_plan(spec_definition, selected_features)
-                snapshot, code_artifacts = self._generate_artifacts(
+                code_artifacts = self._generate_artifacts(
                     spec_definition,
                     execution_plan,
                     selected_features,
@@ -117,7 +117,6 @@ class ProjectBuilder:
                     code_artifacts,
                 )
                 self._publish_bundle(staging_root)
-                self._publish_explorer_snapshot(snapshot)
             finally:
                 self._cleanup_staging_root(staging_root)
 
@@ -194,8 +193,8 @@ class ProjectBuilder:
         staging_root: pathlib.Path,
         resolved_src_path: pathlib.Path,
         runtimes_root: pathlib.Path,
-    ) -> tuple[str, packaging.StagedCode]:
-        """Write portable inputs and prepare the Explorer snapshot."""
+    ) -> packaging.StagedCode:
+        """Stage portable inputs and the Explorer snapshot."""
         try:
             spec.write_document(spec_definition, staging_root / paths.BUILD_SPEC_FILE.name)
             plan_serialization.export_json(
@@ -212,7 +211,10 @@ class ProjectBuilder:
                 project_root=self.root,
                 src_path=resolved_src_path if resolved_src_path.is_dir() else None,
             )
-            return presentation.serialize_presentation_data(presentation_data), code_artifacts
+            (staging_root / paths.EXPLORER_DATA_FILE.name).write_text(
+                presentation.serialize_presentation_data(presentation_data), encoding="utf-8"
+            )
+            return code_artifacts
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("artifact generation", str(error)) from error
 
@@ -239,6 +241,7 @@ class ProjectBuilder:
                 artifacts=models.BuildArtifactPaths(
                     spec=paths.BUILD_SPEC_FILE.name,
                     execution_plan=paths.BUILD_EXECUTION_PLAN_FILE.name,
+                    explorer="explorer.json",
                     packages=code_artifacts.packages,
                     runtimes=code_artifacts.runtimes,
                 ),
@@ -257,32 +260,6 @@ class ProjectBuilder:
             errors.BuildError,
         ) as error:
             raise errors.ProjectBuildError("bundle validation", str(error)) from error
-
-    def _publish_explorer_snapshot(self, snapshot: str) -> None:
-        """Atomically replace the saved Explorer snapshot after a successful build."""
-        target = self.root / paths.EXPLORER_DATA_FILE
-        temporary_path: pathlib.Path | None = None
-        try:
-            target.parent.mkdir(parents=True, exist_ok=True)
-            with tempfile.NamedTemporaryFile(
-                mode="w",
-                encoding="utf-8",
-                prefix=f".{target.name}.",
-                suffix=".tmp",
-                dir=target.parent,
-                delete=False,
-            ) as temporary_file:
-                temporary_path = pathlib.Path(temporary_file.name)
-                temporary_file.write(snapshot)
-            os.replace(temporary_path, target)
-        except OSError as error:
-            detail = str(error)
-            if temporary_path is not None:
-                try:
-                    temporary_path.unlink(missing_ok=True)
-                except OSError as cleanup_error:
-                    detail = f"{detail}. Could not remove temporary snapshot: {cleanup_error}"
-            raise errors.ProjectBuildError("Explorer snapshot publication", detail) from error
 
     def _create_staging_root(self) -> pathlib.Path:
         """Create a temporary directory for the next active bundle."""
