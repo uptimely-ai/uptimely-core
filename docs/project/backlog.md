@@ -16,8 +16,6 @@ These release groupings do not assign software version numbers. Versions are ass
 - [Release 4: Specification expressions, composition, and summaries](release-04-specification-authoring.md)
 - [Release 5: Freshness requirements and dependency-derived schedules](release-05-freshness-scheduling.md)
 - [Release 6: Cooling-pump signal processing and sliding-window examples](release-06-signal-processing.md)
-- [Release 7: Immutable build snapshots, dependency provenance, and source diagnostics](release-07-reproducible-builds.md)
-- [Release 8: Isolated runtime provisioning, contract inspection, and ZIP bundles](release-08-runtime-bundles.md)
 - [Release 9: Venv and Docker graph launchers with local and Prefect deployment](release-09-launchers-deployment.md)
 - [Release 10: Arrow IPC segments and parallel, multi-node execution](release-10-segmented-execution.md)
 - [Release 11: Reusable profile filters and action-driven row scopes](release-11-executable-scopes.md)

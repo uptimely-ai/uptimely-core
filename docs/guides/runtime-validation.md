@@ -27,8 +27,9 @@ whether analytical results are correct.
 
 Some structural checks always apply, even when runtime validation is disabled.
 For example, results must have the required dataframe structure, declared
-outputs, and expected merge schema. Configuration, saved-build integrity, and
-backend compatibility are also always checked.
+outputs, and expected merge schema. The Engine also checks configuration,
+saved-build structure, and runtime compatibility. It does not verify bundle
+contents against build-time hashes.
 
 Native dataframe and function errors can also fail execution. Skipped checks
 are not deferred to writes or final collection. Execution still runs configured
