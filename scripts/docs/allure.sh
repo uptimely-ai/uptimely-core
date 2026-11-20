@@ -9,9 +9,15 @@ poetry run pytest \
   --clean-alluredir \
   "$@"
 
-npx --yes allure@3.33.0 generate allure-results \
-  --clean \
+rm -rf -- allure-report
+
+npx --yes allure@3.33.0 awesome allure-results \
   --output allure-report \
-  --name "Uptimely Core Tests"
+  --name "Uptimely Core Tests" \
+  --theme dark \
+  --hide-labels host \
+  --hide-labels thread \
+  --hide-labels framework \
+  --hide-labels language
 
 exec npx --yes allure@3.33.0 open allure-report

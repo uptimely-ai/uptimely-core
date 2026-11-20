@@ -62,10 +62,14 @@ jobs:
       - run: poetry run mkdocs build --site-dir site
       - name: Generate test report
         run: |
-          npx --yes allure@3.33.0 generate allure-results \
-            --clean \
+          npx --yes allure@3.33.0 awesome allure-results \
             --output site/tests \
-            --name "Uptimely Core Tests"
+            --name "Uptimely Core Tests" \
+            --theme dark \
+            --hide-labels host \
+            --hide-labels thread \
+            --hide-labels framework \
+            --hide-labels language
       - name: Upload the site for deployment
         uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
