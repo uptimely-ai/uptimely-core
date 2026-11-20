@@ -137,7 +137,7 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
 @pytest.mark.parametrize("validate", [False, True])
 def test_json_source_forwards_validation_option(tmp_path: pathlib.Path, validate: bool) -> None:
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
-        application.load_spec_source(None, tmp_path, FIXTURE_SPEC, validate=validate)
+        project_spec_source.load_project_spec(None, tmp_path, FIXTURE_SPEC, validate=validate)
 
     assert check.call_count == int(validate)
 

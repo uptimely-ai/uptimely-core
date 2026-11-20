@@ -31,13 +31,10 @@ from uptimely.project import (
     SPEC_JSON_ENTRY_FILE,
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
-    load_project_spec,
 )
 
 from .app import Uptimely
 from .config import Params, Paths, ProjectConfig, ProjectSettings
-
-load_spec_source = load_project_spec
 
 __all__ = [
     "Uptimely",
@@ -72,6 +69,5 @@ __all__ = [
     "build_lock",
     "build",
     "load_build_bundle",
-    "load_spec_source",
     "read_build_bundle",
 ]
