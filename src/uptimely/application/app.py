@@ -105,15 +105,6 @@ class Uptimely:
             project_settings=self.config.application,
         )
 
-    def _resolve_spec_source(
-        self, python_spec: str | None, json_spec: project_spec_source.JsonSourceInput
-    ) -> tuple[str | None, project_spec_source.JsonSourceInput]:
-        """Apply configured spec-source defaults when no source was passed."""
-        if python_spec is None and json_spec is None:
-            python_spec = self.config.application.python_spec
-            json_spec = self.config.application.json_spec
-        return python_spec, json_spec
-
     def build(
         self,
         *,
@@ -140,7 +131,9 @@ class Uptimely:
             BuildLockError: Another builder or active bundle reader holds the lock.
             ProjectBuildError: Loading, compilation, generation, or publication fails.
         """
-        python_spec, json_spec = self._resolve_spec_source(python_spec, json_spec)
+        if python_spec is None and json_spec is None:
+            python_spec = self.config.application.python_spec
+            json_spec = self.config.application.json_spec
         if src_path is None and self.config.application.src_path is not None:
             src_path = pathlib.Path(self.config.application.src_path)
         return builder.ProjectBuilder(self.root).build(
