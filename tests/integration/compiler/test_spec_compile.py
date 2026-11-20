@@ -83,7 +83,7 @@ def _unknown_result_spec_configuration() -> dict:
 
 
 def test_compilation_preserves_the_saved_plan() -> None:
-    expected = json.loads(SPEC_PATH.with_name("execution_plan.json").read_text(encoding="utf-8"))
+    expected = json.loads(SPEC_PATH.with_name("plan.json").read_text(encoding="utf-8"))
     actual = compiler_plan.to_dict(compiler.Compiler().compile(spec.load_spec(SPEC_PATH)))
 
     assert actual.keys() == expected.keys()

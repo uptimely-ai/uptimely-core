@@ -5,7 +5,7 @@ will call, what each call needs, and how the calls depend on one another. It is
 data, not executable Python, and does not contain function implementations.
 The Engine uses it together with the Spec and runtime configuration.
 
-The plan is stored as JSON in `execution_plan.json` inside the build bundle,
+The plan is stored as JSON in `plan.json` inside the build bundle,
 alongside `spec.json`. Project builds normally place these files in
 `artifacts/build/`.
 

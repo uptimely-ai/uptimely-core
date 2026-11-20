@@ -7,7 +7,7 @@ artifacts/
 ├── build/
 │   ├── build.json
 │   ├── spec.json
-│   ├── execution_plan.json
+│   ├── plan.json
 │   ├── packages/
 │   │   └── project/
 │   │       └── pump_analytics.py

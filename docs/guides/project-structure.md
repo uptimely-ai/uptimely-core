@@ -30,7 +30,7 @@ project/
     ├── build/
     │   ├── build.json
     │   ├── spec.json
-    │   └── execution_plan.json
+    │   └── plan.json
     ├── explorer.json
     └── run/
         ├── run.json
