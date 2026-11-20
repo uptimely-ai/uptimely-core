@@ -47,7 +47,7 @@ def _escape_configuration() -> dict:
     return configuration
 
 
-def test_mapping_locations_preserve_keys_duplicates_and_unresolved_functions() -> None:
+def test_operator_locations_preserve_keys_duplicates_and_unresolved_functions() -> None:
     model = spec_model.Spec.model_validate(json.loads(SPEC_PATH.read_text(encoding="utf-8")))
     profile_id = next(iter(model.profiles))
     profile = model.profiles[profile_id]
@@ -112,7 +112,7 @@ def test_location_indexes_describe_original_objects() -> None:
     assert item.compute.references_by_prefix["$dimensions."] == (("new_dimension", ("nested", 1)),)
 
 
-def test_mapping_validation(tmp_path: pathlib.Path) -> None:
+def test_operator_validation(tmp_path: pathlib.Path) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
     configuration["functions"]["expand_telemetry"] = {
         "returns": "dataframe",
@@ -121,9 +121,12 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
             "source": {"type": "dataframe"},
         },
     }
-    dataset = configuration["profiles"]["pump_telemetry"]
-    dataset["features"]["expanded_feature"] = {"type": "float", "description": "Expanded feature"}
-    dataset["assembly"]["expand_op"] = {
+    profile = configuration["profiles"]["pump_telemetry"]
+    profile["features"]["expanded_feature"] = {
+        "type": "float",
+        "description": "Expanded feature",
+    }
+    profile["assembly"]["expand_op"] = {
         "compute": {
             "function": "expand_telemetry",
             "args": {
@@ -142,11 +145,11 @@ def test_mapping_validation(tmp_path: pathlib.Path) -> None:
     spec_path = tmp_path / "valid_mappings_spec.json"
     spec_path.write_text(json.dumps(configuration), encoding="utf-8")
     parsed_spec = spec.load_spec(spec_path)
-    ds = parsed_spec.profiles["pump_telemetry"]
+    parsed_profile = parsed_spec.profiles["pump_telemetry"]
 
-    assert "read_pump_telemetry" in ds.assembly
-    assert "expand_op" in ds.assembly
-    assert "expanded_feature" in ds.all_features
+    assert "read_pump_telemetry" in parsed_profile.assembly
+    assert "expand_op" in parsed_profile.assembly
+    assert "expanded_feature" in parsed_profile.all_features
 
     bad_source_config = json.loads(json.dumps(configuration))
     bad_source_config["profiles"]["pump_telemetry"]["features"]["bad_source_feature"] = {
@@ -182,8 +185,8 @@ def test_unproduced_declared_features_warn_instead_of_failing(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = json.loads(SPEC_PATH.read_text(encoding="utf-8"))
-    dataset = configuration["profiles"]["pump_telemetry"]
-    dataset["features"]["unproduced_feature"] = {"type": "float"}
+    profile = configuration["profiles"]["pump_telemetry"]
+    profile["features"]["unproduced_feature"] = {"type": "float"}
     path = tmp_path / "unproduced_feature.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -199,19 +202,19 @@ def test_unproduced_declared_features_warn_instead_of_failing(
     assert "unproduced_feature" in parsed_spec.profiles["pump_telemetry"].features
 
 
-def test_escape_mappings_preserve_logical_inputs_and_outputs(
+def test_escape_operators_preserve_logical_inputs_and_outputs(
     tmp_path: pathlib.Path,
 ) -> None:
     configuration = _escape_configuration()
-    dataset_config = configuration["profiles"]["pump_telemetry"]
-    dataset_config["assembly"]["escape_first"]["interface"]["inputs"].remove("$features.pump_id")
-    dataset_config["features"]["external_result"] = {"type": "float"}
-    dataset_config["features"]["external_followup"] = {"type": "float"}
-    dataset_config["assembly"]["escape_first"]["interface"]["outputs"] = [
+    profile_config = configuration["profiles"]["pump_telemetry"]
+    profile_config["assembly"]["escape_first"]["interface"]["inputs"].remove("$features.pump_id")
+    profile_config["features"]["external_result"] = {"type": "float"}
+    profile_config["features"]["external_followup"] = {"type": "float"}
+    profile_config["assembly"]["escape_first"]["interface"]["outputs"] = [
         "$features.external_result"
     ]
-    dataset_config["assembly"]["escape_second"]["interface"]["inputs"] = []
-    dataset_config["assembly"]["escape_second"]["interface"]["outputs"] = [
+    profile_config["assembly"]["escape_second"]["interface"]["inputs"] = []
+    profile_config["assembly"]["escape_second"]["interface"]["outputs"] = [
         "$features.external_followup"
     ]
     path = tmp_path / "escape.json"
@@ -246,7 +249,7 @@ def test_escape_mappings_preserve_logical_inputs_and_outputs(
         ),
     ],
 )
-def test_escape_mappings_validate_declared_input_references(
+def test_escape_operators_validate_declared_input_references(
     tmp_path: pathlib.Path,
     field: str,
     value: list[str],
@@ -255,8 +258,8 @@ def test_escape_mappings_validate_declared_input_references(
     path_suffix: tuple[str, ...] | None,
 ) -> None:
     configuration = _escape_configuration()
-    mapping_definition = configuration["profiles"]["pump_telemetry"]["assembly"]["escape_first"]
-    mapping_definition["interface"][field] = value
+    operator_definition = configuration["profiles"]["pump_telemetry"]["assembly"]["escape_first"]
+    operator_definition["interface"][field] = value
     path = tmp_path / "invalid_escape.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
@@ -297,7 +300,7 @@ def test_python_conversion_and_json_loading_accept_output_only_escape_operator(
     assert json_operator.output_features == ["external_result"]
 
 
-def test_python_dataset_accepts_escape_feature_outputs() -> None:
+def test_python_profile_accepts_escape_feature_outputs() -> None:
     declaration = profile.Profile(
         id="observations",
         assembly=[

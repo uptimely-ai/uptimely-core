@@ -97,12 +97,12 @@ def test_merge_invokes_custom_assembly_once_without_publishing(invalid: bool) ->
         calls.append("custom")
         return target if invalid else target.with_columns(pl.lit(42).alias("new"))
 
-    operation = engine.Merge(dataset, fragment)
+    merge = engine.Merge(dataset, fragment)
     if invalid:
         with pytest.raises(ValueError, match="missing required columns: new"):
-            operation.execute(assemble)
+            merge.execute(assemble)
     else:
-        assert operation.execute(assemble)["new"].to_list() == [42]
+        assert merge.execute(assemble)["new"].to_list() == [42]
     assert calls == ["custom"]
     assert dataset.dataframe is target
     assert dataset.fragments == {}

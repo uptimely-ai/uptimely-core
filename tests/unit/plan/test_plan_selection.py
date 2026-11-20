@@ -154,7 +154,7 @@ def test_plan_rejects_version_twelve_before_loading_invocations() -> None:
         uptimely_plan.from_dict(payload)
 
 
-def test_test_spec_return_contract_comes_from_invocation_metadata() -> None:
+def test_support_return_contract_comes_from_invocation_metadata() -> None:
     invocation = (
         _sample_plan()
         .invocations[0]

@@ -197,7 +197,7 @@ def test_count_extents_require_nonnegative_integers(factory, value):
         factory("argument", before=value, **kwargs)
 
 
-def test_mapping_consolidates_directional_maxima_and_unwraps_arguments():
+def test_operator_consolidates_directional_maxima_and_unwraps_arguments():
     declaration = assembly.Operator(
         id="declaration",
         inputs=[],

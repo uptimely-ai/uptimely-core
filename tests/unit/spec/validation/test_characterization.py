@@ -124,12 +124,12 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
     invalid_binding: bool,
 ) -> None:
     document = spec.Spec.model_validate(_configuration())
-    dataset = document.profiles["pump_telemetry"]
+    profile = document.profiles["pump_telemetry"]
     operator_id = example_support.operator_id_for_output(
-        dataset.assembly, "pressure_flow_efficiency"
+        profile.assembly, "pressure_flow_efficiency"
     )
-    operator = dataset.assembly.pop(operator_id)
-    dataset.assembly["alias"] = operator
+    operator = profile.assembly.pop(operator_id)
+    profile.assembly["alias"] = operator
     if invalid_binding:
         operator.compute.args["unexpected"] = spec.model.BindingArgument(None)
         expected_id = "alias"
@@ -147,7 +147,7 @@ def test_binding_and_contract_paths_keep_their_existing_operator_identifiers(
     assert error.value.code == expected_code
     assert error.value.path == (
         "profiles",
-        dataset.id,
+        profile.id,
         "assembly",
         expected_id,
         "compute",
@@ -182,10 +182,10 @@ def test_public_standalone_profile_id_validation_rejects_mismatched_keys() -> No
 
 def test_duplicate_ids_block_operator_cycle_validation() -> None:
     document = spec.Spec.model_validate(_configuration())
-    dataset = document.profiles["pump"]
+    profile = document.profiles["pump"]
     document.profiles["wrong"] = spec.Profile(id="different")
-    operator = dataset.assembly[
-        example_support.operator_id_for_output(dataset.assembly, "health_signal_normalized")
+    operator = profile.assembly[
+        example_support.operator_id_for_output(profile.assembly, "health_signal_normalized")
     ]
     operator.interface.inputs.append("$features.health_signal_normalized")
     with pytest.raises(validation.SpecError) as error:
@@ -264,7 +264,7 @@ def test_binding_argument_name_contract_keeps_structured_error() -> None:
     assert "unknown arguments: unexpected" in str(error.value)
 
 
-def test_mapping_dependency_cycle_keeps_its_message() -> None:
+def test_operator_dependency_cycle_keeps_its_message() -> None:
     configuration = _configuration()
     operator_id = _operator_key(
         configuration, "pump_telemetry_by_hour_when_warning", "recommended_flow_rate"
@@ -283,7 +283,7 @@ def test_mapping_dependency_cycle_keeps_its_message() -> None:
     )
 
 
-def test_mapping_dependency_rejects_unknown_feature() -> None:
+def test_operator_dependency_rejects_unknown_feature() -> None:
     configuration = _configuration()
     operator_id = _operator_key(configuration, "pump_telemetry", "pressure_flow_efficiency")
     operator = configuration["profiles"]["pump_telemetry"]["assembly"][operator_id]
@@ -326,10 +326,10 @@ def test_document_validation_rejects_blank_calculation_function_id() -> None:
 
 def test_document_validation_rejects_blank_calculated_output() -> None:
     configuration = _configuration()
-    dataset = configuration["profiles"]["pump_telemetry"]
+    profile = configuration["profiles"]["pump_telemetry"]
     operator_id = _operator_key(configuration, "pump_telemetry", "pressure_flow_efficiency")
-    dataset["features"][" "] = dict(dataset["features"]["pressure_flow_efficiency"])
-    dataset["assembly"][operator_id]["interface"]["outputs"] = ["$features. "]
+    profile["features"][" "] = dict(profile["features"]["pressure_flow_efficiency"])
+    profile["assembly"][operator_id]["interface"]["outputs"] = ["$features. "]
     document = spec.Spec.model_validate(configuration)
 
     with pytest.raises(ValueError, match="non-empty output feature names"):
@@ -341,8 +341,8 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     document.dimensions["machine_dimension"].resolutions[
         "machine_category"
     ].parent = "machine_category"
-    dataset = document.profiles["pump"]
-    dataset.assembly["bearing_temperature_by_pump"].interface.inputs = ["$features.missing"]
+    profile = document.profiles["pump"]
+    profile.assembly["bearing_temperature_by_pump"].interface.inputs = ["$features.missing"]
     other = document.profiles["pump_telemetry"]
     other.assembly[
         example_support.operator_id_for_output(other.assembly, "pressure_flow_efficiency")
@@ -350,7 +350,7 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
     other.assembly[
         example_support.operator_id_for_output(other.assembly, "pump_mode")
     ].compute.args = {"unexpected": spec.model.BindingArgument(None)}
-    document.profiles["pump_copy"] = dataset.model_copy(update={"id": "pump_copy"}, deep=True)
+    document.profiles["pump_copy"] = profile.model_copy(update={"id": "pump_copy"}, deep=True)
     original = document.model_copy(deep=True)
     profiles = document.profile_items
     assembly = document.operators
@@ -370,22 +370,22 @@ def test_topic_traversal_is_non_mutating_and_retains_invalid_declarations() -> N
 
 def test_duplicate_feature_ownership_retains_all_candidates() -> None:
     document = spec.Spec.model_validate(_configuration())
-    dataset = document.profiles["pump"]
+    profile = document.profiles["pump"]
     grain_keys = {
         document.dimensions[reference.dimension].resolutions[reference.resolution].key
         for profile in document.profiles.values()
         for reference in profile.grain
     }
-    first, second = [feature for feature in dataset.features if feature not in grain_keys][:2]
-    duplicate = dataset.model_copy(deep=True)
+    first, second = [feature for feature in profile.features if feature not in grain_keys][:2]
+    duplicate = profile.model_copy(deep=True)
     duplicate.id = "another_dataset"
     duplicate.features = {
-        second: dataset.features[second].model_copy(deep=True),
-        first: dataset.features[first].model_copy(deep=True),
+        second: profile.features[second].model_copy(deep=True),
+        first: profile.features[first].model_copy(deep=True),
     }
     document.profiles[duplicate.id] = duplicate
     owners = document.feature_owners
-    assert [document.profiles[key] for key in owners[first]] == [dataset, duplicate]
-    assert [document.profiles[key] for key in owners[second]] == [dataset, duplicate]
+    assert [document.profiles[key] for key in owners[first]] == [profile, duplicate]
+    assert [document.profiles[key] for key in owners[second]] == [profile, duplicate]
     with pytest.raises(ValueError, match="Duplicate feature name"):
         feature_rules.validate_feature_ownership(document)

@@ -478,10 +478,10 @@ def test_engine_merges_fragments_by_profile_grain_keys(
         }
     )
 
-    operation = next(
-        operation for operation in engine.plan.invocations if operation.profile_id == "pump"
+    invocation = next(
+        invocation for invocation in engine.plan.invocations if invocation.profile_id == "pump"
     )
-    grain_keys = engine.spec_definition.identifiers_by_profile[operation.profile_id]
+    grain_keys = engine.spec_definition.identifiers_by_profile[invocation.profile_id]
     main = execution_support.dataset(
         existing,
         grain_keys,
@@ -723,23 +723,23 @@ def test_engine_rejects_invalid_fragments(
         spec_definition=pump_bundle.spec_definition,
         paths=_engine_paths(pump_bundle.project_root),
     )
-    operation = next(
-        operation
-        for operation in engine.plan.invocations
-        if operation.profile_id == "pump"
-        and operation.operator_id == "bearing_temperature_by_pump"
-        and operation.result == "fragment"
+    invocation = next(
+        invocation
+        for invocation in engine.plan.invocations
+        if invocation.profile_id == "pump"
+        and invocation.operator_id == "bearing_temperature_by_pump"
+        and invocation.result == "fragment"
     )
 
     main = execution_support.dataset(
         None,
-        engine.spec_definition.identifiers_by_profile[operation.profile_id],
+        engine.spec_definition.identifiers_by_profile[invocation.profile_id],
         backend=engine.backend,
     )
     with pytest.raises(ValueError, match=message):
         execution_support.merge_fragment(
             main,
-            fragment_module.Fragment(fragment, main.identifiers, operation),
+            fragment_module.Fragment(fragment, main.identifiers, invocation),
         )
 
 
@@ -809,17 +809,17 @@ def test_engine_executes_requested_feature_and_its_dependencies(
     assert [
         feature
         for stage in engine.plan.execution_stages
-        for operation in stage
-        if operation.dataframe_input_scope == "target"
-        for feature in operation.output_features
+        for invocation in stage
+        if invocation.dataframe_input_scope == "target"
+        for feature in invocation.output_features
     ] == [
         "max_capacity",
         "health_signal_normalized",
     ]
     assert all(
-        "operator_kind" not in operation.model_dump()
+        "operator_kind" not in invocation.model_dump()
         for stage in engine.plan.execution_stages
-        for operation in stage
+        for invocation in stage
     )
 
     result = engine.run()

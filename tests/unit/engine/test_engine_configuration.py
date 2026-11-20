@@ -182,7 +182,7 @@ def test_engine_rejects_ambiguous_fragment_references() -> None:
         state.resolve_dataset_or_fragment_dataframe("shared")
 
 
-def test_fragment_names_are_scoped_by_dataset_not_entity(
+def test_fragment_names_are_scoped_by_profile(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     def read(source: str) -> pl.DataFrame:

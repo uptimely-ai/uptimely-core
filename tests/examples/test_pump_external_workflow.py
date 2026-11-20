@@ -108,10 +108,10 @@ def test_selected_workflow_ignores_returns_and_reports_failures(
 ) -> None:
     root = example_project_factory(tmp_path / "example", features=("measurement",))
     source = root / "src" / "pump_io.py"
-    action = "raise RuntimeError('workflow failed')" if fails else "return {'ignored': True}"
+    statement = "raise RuntimeError('workflow failed')" if fails else "return {'ignored': True}"
     source.write_text(
         source.read_text(encoding="utf-8")
-        + f"\ndef process_pump_external_workflow():\n    {action}\n",
+        + f"\ndef process_pump_external_workflow():\n    {statement}\n",
         encoding="utf-8",
     )
     app = application.Uptimely(root)

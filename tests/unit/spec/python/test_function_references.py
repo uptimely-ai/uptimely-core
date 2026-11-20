@@ -285,7 +285,7 @@ def test_string_locations_are_preserved_without_importing(
 
 
 @pytest.mark.parametrize("returns", ["dataframe", "none", "any"])
-def test_generic_mapping_exports_return_contract_without_importing(
+def test_generic_operator_exports_return_contract_without_importing(
     returns: str, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     def unexpected_import(*_args: object, **_kwargs: object) -> typing.NoReturn:
@@ -310,7 +310,7 @@ def test_generic_mapping_exports_return_contract_without_importing(
     assert catalog["calculate"].entrypoint == "unavailable_package.functions:calculate"
 
 
-def test_generic_mapping_requires_return_metadata() -> None:
+def test_generic_operator_requires_return_metadata() -> None:
     operator = assembly.Operator(
         id="operator",
         inputs=[],

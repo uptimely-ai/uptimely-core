@@ -24,7 +24,7 @@ def test_operator_serialization_preserves_compute_contract(returns: str) -> None
     assert restored.is_workflow == (returns != "dataframe")
 
 
-def test_dataset_name_defaults_to_humanized_id() -> None:
+def test_profile_name_defaults_to_humanized_id() -> None:
     declaration = authoring.Profile(id="pump_telemetry-dataset")
 
     assert declaration.name == "Pump Telemetry Dataset"
@@ -251,7 +251,7 @@ def test_named_output_list_preserves_order_and_canonical_json_ids() -> None:
     ]
 
 
-def test_mapping_rejects_duplicate_output_ids() -> None:
+def test_operator_rejects_duplicate_output_ids() -> None:
     with pytest.raises(ValueError, match="output feature IDs must not repeat"):
         authoring.Operator(
             id="operator",

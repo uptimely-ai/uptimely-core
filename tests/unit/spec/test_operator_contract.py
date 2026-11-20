@@ -172,13 +172,13 @@ def _spec() -> spec.Spec:
 
 def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     spec_definition = _spec()
-    dataset_model = spec_definition.profiles["observations"]
-    assert dataset_model.assembly["metadata"].input_features == ["value"]
-    assert dataset_model.assembly["metadata"].output_features == ["metadata"]
+    profile_model = spec_definition.profiles["observations"]
+    assert profile_model.assembly["metadata"].input_features == ["value"]
+    assert profile_model.assembly["metadata"].output_features == ["metadata"]
     assert (
-        dataset_model.assembly["metadata"].compute.args["identifier"].root == "$features.result.id"
+        profile_model.assembly["metadata"].compute.args["identifier"].root == "$features.result.id"
     )
-    assert dataset_model.assembly["result"].input_features == ["value"]
+    assert profile_model.assembly["result"].input_features == ["value"]
 
     computed = compiler.Compiler().compile(spec_definition, features=["result"])
     assert len(computed.invocations) == 2
@@ -401,15 +401,15 @@ def test_identifier_binding_needs_no_interface_or_feature_metadata(
     path = tmp_path / "spec.json"
     spec.write_document(_spec(), path)
     configuration = json.loads(path.read_text())
-    dataset = configuration["profiles"]["observations"]
-    assert "id" not in dataset["features"]
+    profile = configuration["profiles"]["observations"]
+    assert "id" not in profile["features"]
     if with_sink:
         configuration["functions"]["write_ids"] = {
             "returns": "none",
             "entrypoint": f"{__name__}:write_ids",
             "args": {"dataset": {"type": "dataframe"}, "column": {"type": "string"}},
         }
-        dataset["assembly"]["write_ids"] = {
+        profile["assembly"]["write_ids"] = {
             "interface": {"inputs": ["$features.value"], "outputs": []},
             "compute": {
                 "function": "write_ids",
@@ -425,7 +425,7 @@ def test_identifier_binding_needs_no_interface_or_feature_metadata(
 
 
 @pytest.mark.parametrize("dataframe", [False, True])
-def test_dimensional_mapping_schedules_only_its_foreign_dataframe_dependency(
+def test_dimensional_operator_schedules_only_its_foreign_dataframe_dependency(
     dataframe: bool,
 ) -> None:
     source_reference = ref.profile("source")

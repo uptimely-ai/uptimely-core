@@ -352,7 +352,7 @@ def test_execute_rejects_scalar_calculations(
     assert "must be a Polars DataFrame or LazyFrame" in next(iter(result.failures.values()))
 
 
-def test_vectorize_mapping_emits_multiple_features_with_one_call(
+def test_vectorize_operator_emits_multiple_features_with_one_call(
     monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
 ) -> None:
     calls = 0
