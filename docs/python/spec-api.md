@@ -16,6 +16,7 @@ For loading and compilation examples, see
       show_root_heading: false
       members:
         - load_spec
+        - load_python_spec
         - from_python
 
 </div>
