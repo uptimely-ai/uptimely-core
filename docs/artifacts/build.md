@@ -77,6 +77,12 @@ Original Python source paths under the project root are stored
 relative to that root. Source directories outside the project remain absolute.
 
 To run a copied bundle, place it under `artifacts/build/` in the target project
-and supply the runtime configuration and inputs the plan uses. Bind data paths
-through runtime configuration rather than locating project data relative to
-the bundled Python files.
+and supply the runtime configuration and inputs the plan uses. With Uptimely
+Core and the declared dependencies installed on the target, run
+`uptimely run TARGET_PROJECT` without `--build`. The original source checkout
+is not needed when the bundle contains the project code.
+
+The target needs write access to `artifacts/` for the build lock and latest-run
+artifacts, and to any configured output locations. Bind data paths through
+runtime configuration rather than locating project data relative to the
+bundled Python files.
