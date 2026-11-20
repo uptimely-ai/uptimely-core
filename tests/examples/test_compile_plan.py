@@ -237,7 +237,7 @@ def test_project_build_cli_exports_complete_bundle(
     bundle = project_root / application.BUILD_OUTPUT_DIR
     assert (bundle / "build.json").is_file()
     assert (bundle / "spec.json").is_file()
-    assert (bundle / "execution_plan.json").is_file()
+    assert (bundle / "plan.json").is_file()
     assert not (bundle / "explorer").exists()
     assert (project_root / application.EXPLORER_DATA_FILE).is_file()
     assert not (project_root / "artifacts/spec/spec.json").exists()

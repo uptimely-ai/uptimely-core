@@ -124,7 +124,7 @@ def test_project_build_examples(
     assert bundle.execution_plan.invocations
     assert set(bundle_files(root)) == {
         "build.json",
-        "execution_plan.json",
+        "plan.json",
         "spec.json",
         "packages/project/__init__.py",
         "packages/project/pump_analytics.py",
@@ -133,6 +133,7 @@ def test_project_build_examples(
         "packages/project/pump_util.py",
         "runtimes/python/requirements.txt",
     }
+    assert bundle.manifest.artifacts.execution_plan == "plan.json"
     assert (
         bundle.runtime_paths["python"].read_bytes()
         == (root / "runtimes" / "python" / "requirements.txt").read_bytes()

@@ -18,6 +18,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- New build bundles save the execution plan as `plan.json`.
 - Relative JSON specification paths are consistently resolved from the project
   root for Python APIs, CLI builds, and configured project sources.
 - Builds save their Python source path so later runs do not depend on changed
