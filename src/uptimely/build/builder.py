@@ -172,8 +172,10 @@ class ProjectBuilder:
     ) -> str:
         """Write the spec and execution plan and prepare the Explorer snapshot."""
         try:
-            spec.write_document(spec_definition, staging_root / "spec.json")
-            plan_serialization.export_json(execution_plan, staging_root / "execution_plan.json")
+            spec.write_document(spec_definition, staging_root / paths.BUILD_SPEC_FILE.name)
+            plan_serialization.export_json(
+                execution_plan, staging_root / paths.BUILD_EXECUTION_PLAN_FILE.name
+            )
             presentation_data = presentation.build_presentation_data(
                 spec_definition,
                 execution_plan,
@@ -204,8 +206,8 @@ class ProjectBuilder:
                 features=selected_features,
                 src_path=manifest_src_path,
                 artifacts=models.BuildArtifactPaths(
-                    spec="spec.json",
-                    execution_plan="execution_plan.json",
+                    spec=paths.BUILD_SPEC_FILE.name,
+                    execution_plan=paths.BUILD_EXECUTION_PLAN_FILE.name,
                 ),
             )
             (staging_root / paths.BUILD_MANIFEST_FILE.name).write_text(
