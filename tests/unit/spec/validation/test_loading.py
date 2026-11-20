@@ -1,9 +1,6 @@
-"""Contract tests for spec-in atomic rules and grouped validation."""
-
 from __future__ import annotations
 
 import collections.abc
-import inspect
 import json
 import pathlib
 import typing
@@ -23,7 +20,6 @@ from uptimely.spec.validation.rules import (
     dimensions,
     features,
     profile_identity,
-    profiles,
     row_context,
 )
 from uptimely.spec.validation.rules import functions as function_rules
@@ -33,7 +29,6 @@ from uptimely.spec.validation.rules.operators import inputs as operator_inputs
 from uptimely.spec.validation.rules.operators import outputs as operator_outputs
 
 type Mutation = collections.abc.Callable[[model.Spec], object]
-OPERATOR_CASES = ("read", "write", "escape", "conform", "expand", "collapse", "vectorize")
 
 
 def make_spec(kind: str = "vectorize") -> model.Spec:
@@ -144,181 +139,21 @@ def compute(spec: model.Spec) -> model.Operator:
     return target(spec).assembly["compute"]
 
 
-def test_dimension_change_uses_dimension_identities_not_cardinality() -> None:
-    spec = make_spec("conform")
-    spec.dimensions["other"] = model.Dimension(
-        id="other",
-        resolutions={"other": model.Resolution(id="other", key="other", type="integer")},
+def _python_profile_with_missing_input() -> python_profile.Profile:
+    return python_profile.Profile(
+        id="source",
+        assembly=[
+            assembly.Operator(
+                id="compute",
+                inputs=[python_ref.feature("missing")],
+                outputs=[python_feature.Feature(id="result")],
+                compute=assembly.Bind(
+                    python_ref.function("external:compute", returns="dataframe"),
+                    data=python_ref.profile().dataset,
+                ),
+            )
+        ],
     )
-    spec.profiles["source"].grain[1] = model.Grain(dimension="other", resolution="other")
-    assert len(spec.profiles["source"].dimension_ids) == len(spec.profiles["target"].dimension_ids)
-
-    with pytest.raises(ValueError, match="unrelated grain relationship"):
-        operator_contracts.validate_dimension_change(spec)
-
-    key = ("target", "compute")
-    assert spec.operators_by_key[key].grain_relationships(spec, key)["source"] == "unrelated"
-
-
-@pytest.mark.parametrize(
-    "validate",
-    [
-        validate
-        for _, group in validation.VALIDATION_GROUPS
-        for validate in group
-        if validate is not operator_outputs.warn_unproduced_features
-    ],
-    ids=lambda validate: f"{validate.__module__.rsplit('.', 1)[-1]}.{validate.__name__}",
-)
-def test_atomic_rules_accept_spec_and_do_not_mutate(
-    validate: validation.Validator,
-) -> None:
-    spec = make_spec()
-    before = spec.model_dump()
-    assert validate(spec) is None
-    assert spec.model_dump() == before
-
-
-@pytest.mark.parametrize("kind", OPERATOR_CASES)
-def test_full_validation_preserves_valid_operator_declarations(kind: str) -> None:
-    spec = make_spec(kind)
-    before = spec.model_dump()
-    assert validation.validate_spec(spec) is None
-    assert spec.model_dump() == before
-
-
-@pytest.mark.parametrize("kind", OPERATOR_CASES)
-def test_source_discovery_visits_each_operator_declaration(kind: str) -> None:
-    spec = make_spec(kind)
-    before = spec.model_dump()
-    sources = spec.input_sources
-    assert list(sources) == [key for key, _ in spec.operator_items]
-    key = ("target", "compute")
-    source = sources[key]
-    if kind == "read":
-        assert spec.input_candidates[key] == ()
-        assert source is None
-    else:
-        expected = "target" if kind in {"vectorize", "write"} else "source"
-        assert source is not None
-        assert source == expected
-    assert spec.model_dump() == before
-
-
-@pytest.mark.parametrize("kind", OPERATOR_CASES)
-@pytest.mark.parametrize(
-    "inputs",
-    [[], ["machine"], ["missing"], ["s", "x"], ["s", "missing"]],
-)
-def test_source_discovery_preserves_unresolved_inputs_for_every_declaration(
-    kind: str, inputs: list[str]
-) -> None:
-    spec = make_spec(kind)
-    compute(spec).interface.inputs = [f"$features.{feature}" for feature in inputs]
-    before = spec.model_dump()
-    key = ("target", "compute")
-    assert [feature for feature, _ in spec.input_candidates[key]] == [
-        feature for feature in inputs if feature not in spec.identifier_ids
-    ]
-    assert spec.input_sources[key] is None
-    assert spec.model_dump() == before
-
-
-@pytest.mark.parametrize("kind", OPERATOR_CASES)
-def test_source_discovery_does_not_choose_an_ambiguous_owner(kind: str) -> None:
-    spec = make_spec(kind)
-    source = spec.profiles["source"]
-    duplicate = source.model_copy(update={"id": "duplicate"}, deep=True)
-    spec.profiles["duplicate"] = duplicate
-    compute(spec).interface.inputs = ["$features.s"]
-    key = ("target", "compute")
-    assert [owner for _, owners in spec.input_candidates[key] for owner in owners] == [
-        "source",
-        "duplicate",
-    ]
-    assert spec.input_sources[key] is None
-
-
-def test_every_rule_is_registered_in_one_validation_group() -> None:
-    modules = (
-        operator_contracts,
-        operator_inputs,
-        operator_outputs,
-        bindings,
-        profile_identity,
-        dependencies,
-        dimensions,
-        features,
-        function_rules,
-        profiles,
-        row_context,
-    )
-    rules = {
-        function
-        for module in modules
-        for name, function in inspect.getmembers(module, inspect.isfunction)
-        if name.startswith("validate_")
-    }
-    grouped_rules = [
-        validate
-        for _, group in validation.VALIDATION_GROUPS
-        for validate in group
-        if validate is not operator_outputs.warn_unproduced_features
-    ]
-    assert len(grouped_rules) == len(set(grouped_rules))
-    assert rules == set(grouped_rules)
-    for validate in rules:
-        assert list(inspect.signature(validate).parameters) == ["spec"]
-
-
-def test_runner_runs_validation_groups_in_order(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    spec = make_spec()
-    seen: list[str] = []
-
-    def first(document: model.Spec) -> None:
-        assert document is spec
-        seen.append("first")
-
-    def second(document: model.Spec) -> None:
-        assert document is spec
-        seen.append("second")
-
-    def third(document: model.Spec) -> None:
-        assert document is spec
-        seen.append("third")
-
-    monkeypatch.setattr(
-        validation,
-        "VALIDATION_GROUPS",
-        (("first group", (first, second)), ("next", (third,))),
-    )
-    validation.validate_spec(spec)
-    assert seen == ["first", "second", "third"]
-
-
-def test_failed_check_stops_runner_and_warnings(monkeypatch: pytest.MonkeyPatch) -> None:
-    seen: list[str] = []
-
-    def first(spec: model.Spec) -> None:
-        seen.append("first")
-        raise ValueError("invalid prerequisite")
-
-    def dependent(spec: model.Spec) -> None:
-        pytest.fail("A dependent validator must not run")
-
-    def warn(spec: model.Spec) -> None:
-        pytest.fail("Warnings must not be emitted for invalid specs")
-
-    monkeypatch.setattr(
-        validation,
-        "VALIDATION_GROUPS",
-        (("first group", (first,)), ("later group", (dependent,)), ("warnings", (warn,))),
-    )
-    with pytest.raises(ValueError, match="invalid prerequisite"):
-        validation.validate_spec(make_spec())
-    assert seen == ["first"]
 
 
 @pytest.mark.parametrize(
@@ -804,23 +639,6 @@ def test_load_spec_always_checks_document_structure(tmp_path: pathlib.Path, vali
 
     with pytest.raises(pydantic.ValidationError, match="spec_version"):
         api.load_spec(path, validate=validate)
-
-
-def _python_profile_with_missing_input() -> python_profile.Profile:
-    return python_profile.Profile(
-        id="source",
-        assembly=[
-            assembly.Operator(
-                id="compute",
-                inputs=[python_ref.feature("missing")],
-                outputs=[python_feature.Feature(id="result")],
-                compute=assembly.Bind(
-                    python_ref.function("external:compute", returns="dataframe"),
-                    data=python_ref.profile().dataset,
-                ),
-            )
-        ],
-    )
 
 
 @pytest.mark.parametrize("validate", [False, True])

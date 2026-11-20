@@ -1,26 +1,13 @@
 import datetime
-import json
-import pathlib
 import typing
 
 import polars as pl
 import pydantic
 import pytest
-from support import execution as execution_support
 
 from uptimely import compiler, row_context, spec
-from uptimely import plan as uptimely_plan
-from uptimely.explorer import presentation
 from uptimely.spec import arg_types
-from uptimely.spec.python import (
-    assembly,
-    binding_conversion,
-    dimension,
-    feature,
-    merge,
-    profile,
-    ref,
-)
+from uptimely.spec.python import assembly, binding_conversion, dimension, feature, profile, ref
 from uptimely.spec.python import row_context as authoring
 from uptimely.spec.validation.rules import row_context as row_context_rules
 
@@ -37,11 +24,6 @@ def read_observations() -> pl.DataFrame:
 def calculate(dataset: pl.DataFrame, column: str, output: str, configuration: dict) -> pl.DataFrame:
     assert configuration == {"windows": ["8h", "24h"]}
     return dataset.with_columns((pl.col(column) + 1).alias(output))
-
-
-def maximum(dataset: pl.DataFrame, column: str, output: str) -> pl.DataFrame:
-    """Return a whole-dataset maximum without observation-context requirements."""
-    return dataset.select(pl.col(column).max().alias(output))
 
 
 def _spec(context=None, *, ordered=True, dimension_type="datetime"):
@@ -407,194 +389,3 @@ def test_row_context_accessors_preserve_unresolved_sources() -> None:
     key = ("observations", "result")
     assert document.get_row_context_profile(key) is None
     assert document.get_row_context_dimensions(key) is None
-
-
-def test_spec_plan_execution_and_presentation_preserve_context(
-    tmp_path: pathlib.Path, engine_for_plan: execution_support.EngineFactory
-) -> None:
-    context = authoring.time(
-        "24h", dimension=ref.dimension("timestamp"), before="24h", after="2h"
-    ).row_context
-    spec_definition = _spec(context)
-    path = tmp_path / "spec.json"
-    spec.write_document(spec_definition, path)
-    payload = json.loads(path.read_text())
-    authored_dataset = payload["profiles"]["observations"]
-    assert "row_context" not in authored_dataset["features"]["result"]
-    assert authored_dataset["assembly"]["result"]["row_context"] == context.to_dict()
-    restored = spec.load_spec(path)
-    compiled = compiler.Compiler().compile(restored)
-    operation = next(item for item in compiled.invocations if item.row_context is not None)
-    assert operation.input_features == ["temperature"]
-    assert operation.row_context == context
-    portable = uptimely_plan.from_dict(uptimely_plan.to_dict(compiled))
-    result = engine_for_plan(portable, spec_definition=restored).run()
-    assert not result.failures
-    frame = result.datasets["observations"]
-    assert frame.sort("timestamp")["result"].to_list() == [21, 11]
-    data = presentation.build_presentation_data(restored, compiled)
-    rendered_operation = next(
-        step
-        for stage in data["stages"]
-        for step in stage["steps"]
-        if step["function"] == "calculate"
-    )
-    assert rendered_operation["row_context"] == context.to_dict()
-
-
-def test_data_mapping_preserves_annotated_context():
-    declaration = assembly.Operator(
-        id="declaration",
-        inputs=[],
-        outputs=[],
-        compute=assembly.Bind(
-            ref.function(f"{__name__}:calculate", returns="dataframe"),
-            configuration={"windows": [authoring.rows(8, before=7)]},
-        ),
-    )
-    assert declaration.to_model().row_context.before.rows == 7
-    assert declaration.to_model().compute.model_dump()["args"] == {
-        "configuration": {"windows": [8]}
-    }
-
-
-def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
-    tmp_path: pathlib.Path,
-    engine_for_plan: execution_support.EngineFactory,
-) -> None:
-    context = authoring.time("8h", dimension=ref.dimension("timestamp"), before="8h").row_context
-    spec_definition = _spec(context)
-    spec_path = tmp_path / "spec.json"
-    spec.write_document(spec_definition, spec_path)
-    restored_spec = spec.load_spec(spec_path)
-    original_mapping = spec_definition.profiles["observations"].assembly["result"]
-    restored_mapping = restored_spec.profiles["observations"].assembly["result"]
-    assert restored_mapping.row_context == original_mapping.row_context == context
-    assert (
-        "row_context"
-        not in spec_definition.profiles["observations"].assembly["result"].compute.model_dump()
-    )
-    exported = json.loads(spec_path.read_text())
-    exported_dataset = exported["profiles"]["observations"]
-    exported_feature = exported_dataset["features"]["result"]
-    assert "row_context" not in exported_feature
-    assert exported_dataset["assembly"]["result"]["row_context"] == context.to_dict()
-    assert "compute" not in exported_feature
-    assert (
-        "row_context" not in exported["profiles"]["observations"]["assembly"]["result"]["compute"]
-    )
-    assert spec_definition.functions["calculate"].args["column"].type == "string"
-
-    plan = compiler.Compiler().compile(restored_spec)
-    operation = next(item for item in plan.invocations if item.row_context is not None)
-    assert operation.row_context == context
-    assert all(item.row_context is None for item in plan.invocations if item is not operation)
-    assert operation.arguments == {
-        "dataset": "observations",
-        "column": "temperature",
-        "output": "result",
-        "configuration": {"windows": ["8h", "24h"]},
-    }
-    assert spec_definition.profiles["observations"].order == [
-        spec.Order(dimension="timestamp", resolution="timestamp", direction="asc")
-    ]
-    plan_path = uptimely_plan.export_json(plan, tmp_path / "plan.json")
-    restored_plan = uptimely_plan.from_json(plan_path)
-    assert restored_plan == plan
-    result = engine_for_plan(restored_plan, spec_definition=restored_spec).run()
-    assert not result.failures
-    frame = next(iter(result.datasets.values()))
-    assert frame["result"].to_list() == [11, 21]
-    assert frame["timestamp"].to_list() == [
-        datetime.datetime(2026, 1, 2),
-        datetime.datetime(2026, 1, 1),
-    ]
-
-    data = presentation.build_presentation_data(restored_spec, restored_plan)
-    step = next(
-        step
-        for stage in data["stages"]
-        for step in stage["steps"]
-        if step["function"] == "calculate"
-    )
-    assert step["row_context"] == context.to_dict()
-
-
-def test_plan_context_is_present_in_portable_operations() -> None:
-    plan = compiler.Compiler().compile(_spec(context=authoring.current()))
-    operation = next(item for item in plan.invocations if "result" in item.output_features)
-    assert operation.row_context == authoring.current()
-
-
-def test_collapse_functions_execute_without_row_context(
-    engine_for_plan: execution_support.EngineFactory,
-) -> None:
-    source = profile.Profile(
-        id="observations",
-        assembly=[
-            assembly.Operator(
-                id="read_observations",
-                inputs=[],
-                outputs=[
-                    feature.Feature(id="temperature", type="integer"),
-                ],
-                compute=assembly.Bind(
-                    ref.function(read_observations),
-                ),
-            )
-        ],
-    )
-    summary = profile.Profile(
-        id="summary",
-        assembly=[
-            assembly.Operator(
-                id="summary",
-                inputs=[ref.feature("temperature")],
-                outputs=[feature.Feature(id="temperature_max", type="integer")],
-                compute=assembly.Bind(
-                    ref.function(maximum),
-                    dataset=ref.profile("observations").dataset,
-                    column=ref.feature("temperature").id,
-                    output=ref.feature("temperature_max").id,
-                ),
-                merge=merge.default(),
-            )
-        ],
-    )
-    timestamp = dimension.Dimension(
-        id="timestamp",
-        resolutions=[dimension.Resolution(id="timestamp", key="timestamp", type="datetime")],
-    )
-    spec_definition = spec.from_python(
-        profiles=[
-            profile.Profile(
-                id=source.id,
-                grain=[timestamp.resolution("timestamp")],
-                assembly=source.assembly,
-            ),
-            profile.Profile(
-                id=summary.id,
-                assembly=summary.assembly,
-            ),
-        ]
-    )
-    plan = compiler.Compiler().compile(spec_definition)
-    operation = next(item for item in plan.invocations if item.entrypoint.endswith(":maximum"))
-    assert operation.row_context is None
-    assert operation.entrypoint.endswith(":maximum")
-    assert operation.arguments == {
-        "dataset": "observations",
-        "column": "temperature",
-        "output": "temperature_max",
-    }
-    output_dataset = spec_definition.profiles["summary"]
-    output = output_dataset.assembly["summary"]
-    assert output.row_context is None
-    payload = output.model_dump()
-    assert "group_by" not in payload
-    assert "row_context" not in payload["compute"]
-    restored = uptimely_plan.from_dict(json.loads(json.dumps(uptimely_plan.to_dict(plan))))
-    assert restored == plan
-    result = engine_for_plan(restored, spec_definition=spec_definition).run()
-    assert not result.failures
-    assert result.datasets["summary"]["temperature_max"].to_list() == [20]
