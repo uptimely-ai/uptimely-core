@@ -180,7 +180,8 @@ nav:
           - Feature graphs:
               - Graphs: python/feature-graph.md
               - Nodes: python/feature-graph-nodes.md
-          - Application:
+          - Project API:
+              - Project: python/project.md
               - Application API: python/application.md
               - Configuration: python/application-config.md
           - Execution plans:

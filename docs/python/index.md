@@ -12,6 +12,7 @@ reference pages show the public classes and functions, grouped by package.
 | --- | --- |
 | Declare profiles and calculations | [Python authoring](python.md) |
 | Load, validate, and write a Spec | [Spec](spec.md) |
+| Resolve project paths, sources, and Python imports | [Project](project.md) |
 | Work with a configured project | [Application](application.md) |
 | Build or load a project bundle | [Builds and bundles](build.md) |
 | Compile a Spec | [Compiler](compiler.md) |
@@ -30,5 +31,6 @@ Common classes are available from `uptimely`, including `Spec`, `Uptimely`,
 
 For a complete example, see the
 [repository examples](https://github.com/uptimely-ai/uptimely-core/tree/main/example).
-The [application overview](../concepts/application.md) explains how the
-packages work together.
+The [application](../concepts/application.md) and
+[project](../concepts/project.md) overviews explain how the packages work
+together.
