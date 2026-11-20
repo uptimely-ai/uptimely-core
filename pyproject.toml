@@ -46,7 +46,12 @@ Repository = "https://github.com/uptimely-ai/uptimely-core"
 Documentation = "https://uptimely-ai.github.io/uptimely-core"
 
 [dependency-groups]
-test = ["pytest>=8.0", "pytest-cov>=5.0", "pytest-xdist (>=3.6,<4.0)"]
+test = [
+  "allure-pytest (>=2.13,<3.0)",
+  "pytest>=8.0",
+  "pytest-cov>=5.0",
+  "pytest-xdist (>=3.6,<4.0)",
+]
 dev = ["pre-commit>=3.0", "ruff>=0.8"]
 docs = ["mkdocs>=1.6,<2.0", "mkdocs-material>=9.7,<10.0", "mkdocstrings[python]>=1.0,<2.0"]
 

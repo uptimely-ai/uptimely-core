@@ -8,6 +8,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- The documentation website publishes a human-readable Allure report of the
+  Python test suite at `/uptimely-core/tests/`.
+
 ### Changed
 
 - Relative JSON specification paths are consistently resolved from the project

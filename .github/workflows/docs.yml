@@ -17,6 +17,10 @@ jobs:
     steps:
       - name: Download project files
         uses: actions/checkout@v5
+      - name: Set up Node.js for Allure
+        uses: actions/setup-node@v6
+        with:
+          node-version: "24"
       - name: Check documentation copies match
         run: |
           diff -u readme.md docs/intro/index.md
@@ -28,7 +32,7 @@ jobs:
           python-version: "3.13"
           cache: poetry
           cache-dependency-path: poetry.lock
-      - run: poetry install --without dev,test --with docs
+      - run: poetry install --extras mcp --without dev --with docs,test
       - name: Build pump analytics demo site
         run: |
           poetry run uptimely build example
@@ -50,7 +54,18 @@ jobs:
           poetry run uptimely export \
             --project-root example \
             --output docs/example
+      - name: Generate test results
+        run: |
+          poetry run pytest \
+            --alluredir=allure-results \
+            --clean-alluredir
       - run: poetry run mkdocs build --site-dir site
+      - name: Generate test report
+        run: |
+          npx --yes allure@3.33.0 generate allure-results \
+            --clean \
+            --output site/tests \
+            --name "Uptimely Core Tests"
       - name: Upload the site for deployment
         uses: actions/upload-pages-artifact@v3
         if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'

@@ -17,6 +17,38 @@ files = [
 caio = ">=0.12.0,<0.13.0"
 
 [[package]]
+name = "allure-pytest"
+version = "2.16.2"
+description = "Allure pytest integration"
+optional = false
+python-versions = "*"
+groups = ["test"]
+files = [
+    {file = "allure_pytest-2.16.2-py3-none-any.whl", hash = "sha256:b16790e2f3749ffb2d3737ba443ba2eede8efba5226978847358fe2fd3e31303"},
+    {file = "allure_pytest-2.16.2.tar.gz", hash = "sha256:19912ee41c298e080ea4dbffaa3a2cbbc9ca93da14a664056192fc4609ec8eed"},
+]
+
+[package.dependencies]
+allure-python-commons = "2.16.2"
+pytest = ">=4.5.0"
+
+[[package]]
+name = "allure-python-commons"
+version = "2.16.2"
+description = "Contains the API for end users as well as helper functions and classes to build Allure adapters for Python test frameworks"
+optional = false
+python-versions = ">=3.6"
+groups = ["test"]
+files = [
+    {file = "allure_python_commons-2.16.2-py3-none-any.whl", hash = "sha256:0445f2745dfa8af70da1d3261cde2c83d44e7278c105f113ed050b61252f79bd"},
+    {file = "allure_python_commons-2.16.2.tar.gz", hash = "sha256:2df87131ae5cbd941e656a56261000189862ebcb71e4c4435879ee2a7c07daa1"},
+]
+
+[package.dependencies]
+attrs = ">=16.0.0"
+pluggy = ">=0.4.0"
+
+[[package]]
 name = "annotated-doc"
 version = "0.0.6"
 description = "Document parameters, class attributes, return types, and variables inline, with Annotated."
@@ -63,14 +95,14 @@ trio = ["trio (>=0.32.0)"]
 name = "attrs"
 version = "26.1.0"
 description = "Classes Without Boilerplate"
-optional = true
+optional = false
 python-versions = ">=3.9"
-groups = ["main"]
-markers = "extra == \"mcp\""
+groups = ["main", "test"]
 files = [
     {file = "attrs-26.1.0-py3-none-any.whl", hash = "sha256:c647aa4a12dfbad9333ca4e71fe62ddc36f4e63b2d260a37a8b83d2f043ac309"},
     {file = "attrs-26.1.0.tar.gz", hash = "sha256:d03ceb89cb322a8fd706d4fb91940737b6642aa36998fe130a9bc96c985eff32"},
 ]
+markers = {main = "extra == \"mcp\""}
 
 [[package]]
 name = "authlib"
@@ -3380,4 +3412,4 @@ s3 = ["boto3"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0"
-content-hash = "186ba51109b62f688d79ca42688938efe0ae820df7d0985d104b58ca8685d07e"
+content-hash = "86a428a3c942f42c4a59ce220d224056bd4e1e7d8a0e4f184ff9bbabacf4d17b"
