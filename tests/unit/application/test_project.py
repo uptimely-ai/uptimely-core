@@ -40,34 +40,6 @@ def test_standard_paths(path: pathlib.Path, expected: str) -> None:
     assert pathlib.Path("example") / path == pathlib.Path("example") / expected
 
 
-@pytest.mark.parametrize("relative", [False, True])
-def test_resolve_path_preserves_explicit_path(tmp_path: pathlib.Path, relative: bool) -> None:
-    explicit_path = pathlib.Path("custom.json") if relative else tmp_path / "custom.json"
-
-    resolved_path = application.Uptimely(tmp_path).resolve_path(
-        explicit_path, application.CONFIG_FILE
-    )
-    assert resolved_path is explicit_path
-
-
-def test_resolve_path_places_default_under_project_root(tmp_path: pathlib.Path) -> None:
-    assert application.Uptimely(tmp_path).resolve_path(None, application.CONFIG_FILE) == (
-        tmp_path / application.CONFIG_FILE
-    )
-
-
-def test_resolve_path_uses_root_from_construction(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    app = application.Uptimely()
-    child = tmp_path / "child"
-    child.mkdir()
-    monkeypatch.chdir(child)
-
-    assert app.resolve_path(None, application.CONFIG_FILE) == tmp_path / application.CONFIG_FILE
-
-
 def _manifest_data() -> dict[str, object]:
     return {
         "build_version": application.BUILD_VERSION,

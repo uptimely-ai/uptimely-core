@@ -105,18 +105,6 @@ class Uptimely:
             project_settings=self.config.application,
         )
 
-    def resolve_path(self, path: pathlib.Path | None, default: pathlib.Path) -> pathlib.Path:
-        """Preserve an explicit path or place a default beneath the project root.
-
-        Args:
-            path: Explicit path to preserve, including relative paths.
-            default: Default project-relative path.
-
-        Returns:
-            The explicit path or the default path joined to this project's root.
-        """
-        return path if path is not None else self.root / default
-
     def _resolve_spec_source(
         self, python_spec: str | None, json_spec: project_spec_source.JsonSourceInput
     ) -> tuple[str | None, project_spec_source.JsonSourceInput]:
