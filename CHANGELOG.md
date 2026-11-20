@@ -14,6 +14,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   root for Python APIs, CLI builds, and configured project sources.
 - Builds save their Python source path so later runs do not depend on changed
   configuration or repeated command-line options.
+- Build manifests record the selected specification source used to create the
+  saved bundle.
 - Build APIs moved from `uptimely.application.build` to `uptimely.build`.
 - Python entrypoint APIs moved from `uptimely.entrypoint` to
   `uptimely.codebase.python.entrypoint`.

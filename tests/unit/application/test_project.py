@@ -123,6 +123,12 @@ def test_build_manifest_defaults_source_path_for_older_bundles() -> None:
     assert manifest.src_path is None
 
 
+def test_build_manifest_defaults_spec_source_for_older_bundles() -> None:
+    manifest = application.BuildManifest.model_validate(_manifest_data())
+
+    assert manifest.spec_source is None
+
+
 @pytest.mark.parametrize("version", [0, 3, "2", True])
 def test_build_manifest_rejects_unsupported_or_noninteger_version(version: object) -> None:
     data = _manifest_data()
