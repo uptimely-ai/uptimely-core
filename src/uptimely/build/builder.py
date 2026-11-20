@@ -13,6 +13,8 @@ import uuid
 import pydantic
 
 from uptimely import compiler, spec
+from uptimely.codebase import packaging
+from uptimely.codebase.python import packaging as python_packaging
 from uptimely.explorer import presentation
 from uptimely.plan import serialization as plan_serialization
 from uptimely.project import defaults, paths, python_imports
@@ -34,10 +36,23 @@ _SPEC_PROCESSING_ERRORS = (
 class ProjectBuilder:
     """Build project artifacts without retaining per-build mutable state."""
 
-    def __init__(self, project_root: str | pathlib.Path = defaults.DEFAULT_PROJECT_ROOT) -> None:
-        """Resolve the project root without loading or generating artifacts."""
+    def __init__(
+        self,
+        project_root: str | pathlib.Path = defaults.DEFAULT_PROJECT_ROOT,
+        *,
+        code_packager: packaging.CodePackager | None = None,
+    ) -> None:
+        """Resolve the project root without loading or generating artifacts.
+
+        Args:
+            project_root: Project directory, defaulting to the current directory.
+            code_packager: Implementation artifact provider, defaulting to Python.
+        """
         self.root = pathlib.Path(project_root).resolve()
         self._store = bundle.BundleStore(self.root)
+        self._code_packager = (
+            python_packaging.PythonPackager() if code_packager is None else code_packager
+        )
 
     def build(
         self,
@@ -46,6 +61,7 @@ class ProjectBuilder:
         json_spec: project_spec_source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
         src_path: pathlib.Path | None = None,
+        runtimes_path: str | pathlib.Path = packaging.RUNTIMES_DIR,
     ) -> models.BuildBundle:
         """Build and publish a spec, execution plan, and Explorer snapshot.
 
@@ -56,6 +72,8 @@ class ProjectBuilder:
             features: Optional output features to compile with their dependencies.
             src_path: Optional source directory, relative to the project root unless absolute.
                 Defaults to the project source path.
+            runtimes_path: Runtime definitions directory, relative to the project root unless
+                absolute. Defaults to ``runtimes``.
 
         Returns:
             The validated newly published bundle.
@@ -83,18 +101,20 @@ class ProjectBuilder:
             staging_root = self._create_staging_root()
             try:
                 execution_plan = self._compile_plan(spec_definition, selected_features)
-                snapshot = self._generate_artifacts(
+                snapshot, code_artifacts = self._generate_artifacts(
                     spec_definition,
                     execution_plan,
                     selected_features,
                     staging_root,
-                    src_path,
+                    resolved_src_path,
+                    self.root / runtimes_path,
                 )
                 self._validate_staged_bundle(
                     staging_root,
                     selected_features,
                     resolved_src_path,
                     spec_source.display_name,
+                    code_artifacts,
                 )
                 self._publish_bundle(staging_root)
                 self._publish_explorer_snapshot(snapshot)
@@ -172,13 +192,17 @@ class ProjectBuilder:
         execution_plan: compiler.ExecutionPlan,
         selected_features: list[str] | None,
         staging_root: pathlib.Path,
-        src_path: pathlib.Path | None,
-    ) -> str:
-        """Write the spec and execution plan and prepare the Explorer snapshot."""
+        resolved_src_path: pathlib.Path,
+        runtimes_root: pathlib.Path,
+    ) -> tuple[str, packaging.StagedCode]:
+        """Write portable inputs and prepare the Explorer snapshot."""
         try:
             spec.write_document(spec_definition, staging_root / paths.BUILD_SPEC_FILE.name)
             plan_serialization.export_json(
                 execution_plan, staging_root / paths.BUILD_EXECUTION_PLAN_FILE.name
+            )
+            code_artifacts = self._code_packager.stage(
+                self.root, resolved_src_path, staging_root, runtimes_root
             )
             presentation_data = presentation.build_presentation_data(
                 spec_definition,
@@ -186,9 +210,9 @@ class ProjectBuilder:
                 features=selected_features,
                 validate_spec=False,
                 project_root=self.root,
-                src_path=src_path,
+                src_path=resolved_src_path if resolved_src_path.is_dir() else None,
             )
-            return presentation.serialize_presentation_data(presentation_data)
+            return presentation.serialize_presentation_data(presentation_data), code_artifacts
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("artifact generation", str(error)) from error
 
@@ -198,6 +222,7 @@ class ProjectBuilder:
         selected_features: list[str] | None,
         resolved_src_path: pathlib.Path,
         spec_source: str,
+        code_artifacts: packaging.StagedCode,
     ) -> None:
         """Write the bundle manifest and validate the staged spec and execution plan."""
         try:
@@ -214,8 +239,11 @@ class ProjectBuilder:
                 artifacts=models.BuildArtifactPaths(
                     spec=paths.BUILD_SPEC_FILE.name,
                     execution_plan=paths.BUILD_EXECUTION_PLAN_FILE.name,
+                    packages=code_artifacts.packages,
+                    runtimes=code_artifacts.runtimes,
                 ),
             )
+            code_artifacts.validate_layout(staging_root)
             (staging_root / paths.BUILD_MANIFEST_FILE.name).write_text(
                 json.dumps(manifest.model_dump(), indent=2),
                 encoding="utf-8",
@@ -282,6 +310,8 @@ def build(
     json_spec: project_spec_source.JsonSourceInput = None,
     features: feature_selection.FeatureSelection = None,
     src_path: pathlib.Path | None = None,
+    *,
+    runtimes_path: str | pathlib.Path = packaging.RUNTIMES_DIR,
 ) -> models.BuildBundle:
     """Build and publish project artifacts through a root-bound builder.
 
@@ -293,6 +323,8 @@ def build(
         features: Optional output features to compile with their dependencies.
         src_path: Optional source directory, relative to the project root unless absolute.
             Defaults to ``src``.
+        runtimes_path: Runtime definitions directory, relative to the project root unless
+            absolute. Defaults to ``runtimes``.
 
     Returns:
         The validated newly published bundle.
@@ -302,5 +334,9 @@ def build(
         ProjectBuildError: Loading, compilation, generation, or publication fails.
     """
     return ProjectBuilder(project_root).build(
-        python_spec=python_spec, json_spec=json_spec, features=features, src_path=src_path
+        python_spec=python_spec,
+        json_spec=json_spec,
+        features=features,
+        src_path=src_path,
+        runtimes_path=runtimes_path,
     )

@@ -256,7 +256,7 @@ def test_run_uses_project_preview_and_source_defaults(tmp_path: pathlib.Path) ->
     ) as source_path:
         result = app.run()
 
-    source_path.assert_called_once_with(app.root, src_path=pathlib.Path("custom-src"))
+    source_path.assert_called_once_with(app.root, src_path=app.root / "custom-src")
     assert not result.failures
     manifest_path = app.root / project_paths.RUN_MANIFEST_FILE
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -303,6 +303,7 @@ def test_project_build_forwards_source_and_feature_options(
         json_spec=source,
         features=["reading"],
         src_path=None,
+        runtimes_path="runtimes",
     )
     assert result is builder_class.return_value.build.return_value
 

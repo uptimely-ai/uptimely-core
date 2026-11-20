@@ -2,6 +2,9 @@
 python_spec = "spec.spec:python_spec"
 src_path = "src"
 
+[runtimes]
+path = "runtimes"
+
 [engine]
 preview_rows = 5
 

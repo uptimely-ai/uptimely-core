@@ -11,6 +11,7 @@ The file supports these top-level tables:
 | Table | Contents |
 | --- | --- |
 | `[application]` | Optional specification source and source directory settings. |
+| `[runtimes]` | Location of runtime dependency definitions for builds. |
 | `[engine]` | Engine settings, including the nested `[engine.backend]` table. |
 | `[paths]` | A flat table of path strings. |
 | `[params]` | A flat table of scalar values. |
@@ -24,6 +25,7 @@ Below is the full configuration file reference.
 | `application.python_spec` | String | Optional `MODULE:ATTRIBUTE` entrypoint. Mutually exclusive with `application.json_spec`. |
 | `application.json_spec` | String | Optional project-root-relative or absolute path. Mutually exclusive with `application.python_spec`. |
 | `application.src_path` | String | Optional project-root-relative or absolute source path used when building. The active build saves the resolved selection for later runs. |
+| `runtimes.path` | String | Project-root-relative or absolute directory. Default: `"runtimes"`. Overridden by the `runtimes_path` argument to `Uptimely.build()`. |
 | `engine.preview_rows` | Integer | Positive integer. Default: `5`. |
 | `engine.backend.type` | String | Default: `"python_venv"`. |
 | `engine.backend.definition` | String | Optional. |
