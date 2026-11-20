@@ -14,7 +14,7 @@ artifacts/
     │       └── pump_analytics.py
     └── runtimes/
         └── python/
-            └── requirements.txt
+            └── pyproject.toml
 ```
 
 ## Package and runtime manifest
@@ -31,7 +31,7 @@ runtime IDs (`runtime`). Multiple packages can reference the same runtime.
     "project": {"path": "packages/project", "runtime": "python"}
   },
   "runtimes": {
-    "python": "runtimes/python/requirements.txt"
+    "python": "runtimes/python/pyproject.toml"
   }
 }
 ```
@@ -48,21 +48,24 @@ symlinks are not included. Built-in wheel packaging is not supported.
 
 ## Runtime requirements
 
-The Python packager looks for `python/requirements.txt` under `[runtimes].path`
-(default: `runtimes/` relative to the project root). It falls back to a
-`requirements.txt` directly in that directory, then to one at the project
-root. If no file exists, it uses `[project].dependencies` in
-`pyproject.toml`, preserving environment markers for the target installer.
-If none of these sources declares requirements, the bundle omits the runtime
-definition and its assignment. Projects with dynamic dependencies or optional
-extras can supply their own self-contained `requirements.txt`.
+The Python packager copies `python/pyproject.toml` from `[runtimes].path`
+(default: `runtimes/` relative to the project root), or `pyproject.toml` directly
+in that directory if present. An explicit runtime definition replaces the root
+project's metadata rather than merging with it.
 
-### Install dependencies
+Without an explicit definition, the bundle takes only static
+`[project].requires-python` and `[project].dependencies` from the root
+`pyproject.toml`. Dependency markers are preserved. Build-system settings, tool
+settings, and optional extras are not included. If neither field is present,
+the bundle omits the Python runtime definition and its assignment.
+The example sets `[runtimes].path = "."` to use its root `pyproject.toml`
+without maintaining a separate runtime file.
 
-Install the file in the target environment with
-`pip install -r artifacts/build/runtimes/python/requirements.txt`. A generated file is not a
-lockfile. Supply pinned requirements for repeatable installs. The build does
-not resolve, install, or embed dependencies.
+Use the metadata to choose a compatible interpreter and install the listed
+dependencies in the target environment. The generated `pyproject.toml` is
+runtime metadata, not an installable project or a lockfile. The build and Engine
+do not resolve, install, or embed dependencies or enforce the Python version
+constraint.
 
 ## Source paths and overrides
 
