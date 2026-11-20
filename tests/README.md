@@ -2,10 +2,19 @@
 
 Tests are organized by the scope of the behavior they verify:
 
-- `unit/` contains focused checks with small, isolated inputs.
+- `unit/` contains focused checks with small, isolated inputs. Its directories
+  mirror the package directories under `src/uptimely/`, including nested areas
+  such as `engine/dataframe/`, `engine/runtime/`, `spec/python/`, and
+  `spec/validation/`. Cross-package checks remain in the nearest shared package
+  directory or at the root of `unit/`.
 - `integration/` contains checks that compose package subsystems, such as spec compilation, graph construction, and documentation generation.
 - `examples/` verifies the documented, runnable project under `example/`.
 - `fixtures/` contains reusable spec documents and portable execution plans. Add lengthy JSON setup here rather than embedding it in individual test modules.
+
+Name and place a new test according to the source module that owns the behavior.
+Keep test modules beside related files when a package has several implementation
+areas. Explorer JavaScript tests remain grouped in `unit/explorer/` so they can
+be discovered by the standalone Node.js test command.
 
 Keep examples user-focused. Test-only scenarios and invalid inputs belong in fixtures or directly in focused unit tests.
 
