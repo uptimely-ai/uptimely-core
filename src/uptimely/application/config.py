@@ -8,8 +8,8 @@ import typing
 
 import pydantic
 
-from uptimely.codebase import packaging
 from uptimely.engine import config as engine_config
+from uptimely.project import config as project_config
 
 
 class Params(pydantic.RootModel[dict[str, typing.Any]]):
@@ -61,7 +61,6 @@ class ProjectSettings(pydantic.BaseModel):
 
     python_spec: str | None = pydantic.Field(default=None, min_length=1)
     json_spec: str | None = pydantic.Field(default=None, min_length=1)
-    src_path: str | None = pydantic.Field(default=None, min_length=1)
 
     @pydantic.model_validator(mode="after")
     def validate_spec_source(self) -> ProjectSettings:
@@ -73,13 +72,10 @@ class ProjectSettings(pydantic.BaseModel):
         return self
 
 
-class RuntimeSettings(pydantic.BaseModel):
-    """Project runtime type and definition location."""
+class PythonCodeSettings(project_config.CodeSettings):
+    """Project code settings supported by the Python application."""
 
-    model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    type: typing.Literal["python"] = "python"
-    path: str = pydantic.Field(default=packaging.RUNTIME_DIR, min_length=1)
+    language: typing.Literal["python"] = "python"
 
 
 class ProjectConfig(pydantic.BaseModel):
@@ -91,12 +87,14 @@ class ProjectConfig(pydantic.BaseModel):
     engine: engine_config.EngineConfig = pydantic.Field(default_factory=engine_config.EngineConfig)
     params: Params = pydantic.Field(default_factory=lambda: Params(root={}))
     paths: Paths = pydantic.Field(default_factory=lambda: Paths(root={}))
-    runtime: RuntimeSettings = pydantic.Field(default_factory=RuntimeSettings)
+    code: PythonCodeSettings = pydantic.Field(default_factory=PythonCodeSettings)
 
     @pydantic.model_validator(mode="before")
     @classmethod
     def reject_legacy_runtimes(cls, value: object) -> object:
-        """Report the renamed runtime configuration instead of ignoring it."""
-        if isinstance(value, dict) and "runtimes" in value:
-            raise ValueError("Use [runtime] instead of [runtimes] in project configuration")
+        """Report renamed code configuration instead of ignoring it."""
+        if isinstance(value, dict) and ("runtime" in value or "runtimes" in value):
+            raise ValueError(
+                "Use [code] instead of [runtime] or [runtimes] in project configuration"
+            )
         return value

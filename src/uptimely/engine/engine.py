@@ -10,6 +10,7 @@ from uptimely.application import config as project_config
 from uptimely.build import models as build_models
 from uptimely.codebase.python import codebase, entrypoint, packaging
 from uptimely.codebase.python import runtime as python_runtime
+from uptimely.project import config as code_config
 from uptimely.project import python_imports
 from uptimely.run import recording
 
@@ -31,7 +32,7 @@ class Engine:
         parameters: abc.Mapping[str, object] | None = None,
         *,
         paths: abc.Mapping[str, str] | None = None,
-        project_settings: project_config.ProjectSettings | None = None,
+        code_settings: code_config.CodeSettings | None = None,
     ) -> None:
         """Prepare an engine using bundle resources and runtime configuration."""
         if not isinstance(bundle, build_models.BuildBundle):
@@ -44,9 +45,7 @@ class Engine:
             {} if parameters is None else dict(parameters)
         ).root
         self.paths = project_config.Paths.model_validate({} if paths is None else dict(paths)).root
-        self.project_settings = (
-            project_config.ProjectSettings() if project_settings is None else project_settings
-        )
+        self.code_settings = code_config.CodeSettings() if code_settings is None else code_settings
         self.backend = backend.create_backend(self.config.backend)
         self.check_plan_backend()
 
@@ -88,8 +87,7 @@ class Engine:
                 explicitly selected sink still runs. Unselected invocations
                 are recorded as skipped.
             src_path: Optional source directory, relative to the project root unless absolute.
-                Defaults to bundled source, then the saved original source if it
-                still exists, then configured or default project source.
+                Defaults to bundled source, then configured or default project source.
 
         Returns:
             Main dataframes, invocation results, execution duration, collected
@@ -108,14 +106,13 @@ class Engine:
         else:
             source_origin = "explicit override"
         plan = self.plan if operator is None else self.plan.for_operator(*operator)
-        runtime = self.bundle.manifest.artifacts.runtime
-        if runtime is not None:
-            if runtime.type != packaging.RUNTIME_TYPE:
-                raise ValueError(f"Unsupported project runtime: {runtime.type}")
-            if runtime.path is not None:
-                if self.bundle.runtime_path is None:
-                    raise ValueError("Project runtime definition is missing")
-                python_runtime.check_compatibility(self.bundle.runtime_path)
+        code = self.bundle.manifest.artifacts.code
+        if code.language != packaging.RUNTIME_TYPE:
+            raise ValueError(f"Unsupported project runtime: {code.language}")
+        if code.requirements is not None:
+            if self.bundle.requirements_file is None:
+                raise ValueError("Project runtime definition is missing")
+            python_runtime.check_compatibility(self.bundle.requirements_file)
         with (
             python_imports.expose(self.bundle.project_root, src_path=src_path),
             recording.RunRecorder(
@@ -132,16 +129,10 @@ class Engine:
 
     def _default_source(self) -> tuple[pathlib.Path | None, str]:
         """Return the default Python source path and its origin for logging."""
-        if (bundled_source := self.bundle.package_paths.get(packaging.PACKAGE_ID)) is not None:
+        if (bundled_source := self.bundle.source_path) is not None:
             return bundled_source, "bundle"
-        if (saved_src_path := self.bundle.manifest.src_path) is not None:
-            saved_path = python_imports.resolve_src_path(
-                self.bundle.project_root, pathlib.Path(saved_src_path)
-            )
-            if saved_path.is_dir():
-                return saved_path, "saved original source"
-        if self.project_settings.src_path is not None:
-            return pathlib.Path(self.project_settings.src_path), "project configuration"
+        if self.code_settings.src is not None:
+            return pathlib.Path(self.code_settings.src), "project configuration"
         return None, "default project source"
 
     def _execute(

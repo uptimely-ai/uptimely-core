@@ -8,6 +8,7 @@ from support import examples as example_support
 from uptimely import application as application_module
 from uptimely import plan as execution_plan
 from uptimely.cli import cli
+from uptimely.codebase import packaging
 
 PROJECT = example_support.EXAMPLES_ROOT
 
@@ -55,6 +56,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
         artifacts=application_module.BuildArtifactPaths(
             spec="spec.json",
             execution_plan="execution_plan.json",
+            code=packaging.CodeArtifacts(language="python"),
         ),
     )
     (build_root / "build.json").write_text(json.dumps(manifest.model_dump()), encoding="utf-8")

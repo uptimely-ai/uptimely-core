@@ -13,7 +13,7 @@ project/
 ├── data/
 │   ├── input/
 │   └── output/
-├── runtime/ <-- optional runtime definition
+├── requirements/ <-- optional runtime requirements
 │   └── pyproject.toml
 ├── src/
 │   └── project_functions/
@@ -51,15 +51,15 @@ project/
 | `data/output/` | Results you want to keep, share, or reuse. |
 | `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
-| `runtime/` | Optional runtime definition. The Python runtime uses `runtime/pyproject.toml`. |
+| `requirements/` | Optional definition of package dependencies and laguage version. The Python runtime uses `requirements/pyproject.toml`. |
 | `artifacts/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
-| `uptimely.toml` | Project defaults and runtime settings under `application`, `engine`, `paths`, and `params`. See [Configure a project](configuration.md). |
-| `pyproject.toml` | Project metadata and dependencies. It supplies the Python runtime metadata unless a runtime definition is present under `runtime/`. |
+| `uptimely.toml` | Project defaults and settings under `application`, `code`, `engine`, `paths`, and `params`. See [Configure a project](configuration.md). |
+| `pyproject.toml` | Project metadata and dependencies. It supplies Python runtime metadata unless another definition is selected or discovered under `requirements/`. |
 
 ## Source code
 
 The build makes the project root and selected source directory available for
-importing project code. Set `application.src_path` in config or use
+importing project code. Set `code.src` in config or use
 `--src-path` to select another directory for the build. The build copies the
 selected source into the build bundle. Runs always use this bundled copy,
 never the source directory in the project root.
@@ -74,8 +74,9 @@ independently importing different projects concurrently.
 
 ## Runtime
 
-The build extracts dependencies from the project root's `pyproject.toml` by
-default. A separate definition can be placed in `runtime/`.
+Set `code.requirements` to a requirements definition file. When unset, the build
+uses `requirements/pyproject.toml` if present or extracts dependencies from the
+project root's `pyproject.toml`.
 
 ## Spec profiles
 

@@ -1,5 +1,6 @@
 """Verify project-local imports during builds and runs."""
 
+import copy
 import pathlib
 import sys
 import types
@@ -8,6 +9,7 @@ import pytest
 
 from uptimely import application, engine
 from uptimely.cli import cli
+from uptimely.project import config as project_config
 from uptimely.project import python_imports
 
 
@@ -64,26 +66,51 @@ def test_build_and_run_use_configured_source_path(tmp_path: pathlib.Path) -> Non
     _write_project(root, 7)
     (root / "src").rename(root / "python")
 
-    bundle = application.build(root, src_path=pathlib.Path("python"))
+    bundle = application.build(root, code=project_config.CodeSettings(src="python"))
     loaded_bundle = application.load_build_bundle(root)
     result = engine.Engine(loaded_bundle).run()
 
-    assert bundle.manifest.src_path == "python"
-    assert loaded_bundle.manifest.src_path == "python"
+    assert set(bundle.manifest.model_dump()) == {
+        "build_version",
+        "uptimely_version",
+        "features",
+        "artifacts",
+        "spec_source",
+    }
+    assert loaded_bundle.manifest.artifacts.code.src == "packages/project"
     assert not result.failures
     assert result.datasets["values"].to_dict(as_series=False) == {"value": [7]}
 
 
-def test_run_uses_saved_source_path_instead_of_changed_config(tmp_path: pathlib.Path) -> None:
+def test_run_uses_bundled_source_instead_of_changed_config(tmp_path: pathlib.Path) -> None:
     root = tmp_path / "project"
     _write_project(root, 7)
     (root / "src").rename(root / "python")
-    application.build(root, src_path=pathlib.Path("python"))
-    (root / application.CONFIG_FILE).write_text(
-        '[application]\nsrc_path = "missing"\n', encoding="utf-8"
-    )
+    application.build(root, code=project_config.CodeSettings(src="python"))
+    (root / application.CONFIG_FILE).write_text('[code]\nsrc = "missing"\n', encoding="utf-8")
 
     result = application.Uptimely(root).run()
+
+    assert not result.failures
+    assert result.datasets["values"].to_dict(as_series=False) == {"value": [7]}
+
+
+def test_run_uses_configured_source_when_bundle_has_no_source(tmp_path: pathlib.Path) -> None:
+    root = tmp_path / "project"
+    _write_project(root, 7)
+    (root / "src").rename(root / "python")
+    (root / "uptimely.toml").write_text('[code]\nsrc = "python"\n', encoding="utf-8")
+    app = application.Uptimely(root)
+    bundle = app.build()
+    code = bundle.manifest.artifacts.code.model_copy(update={"src": None})
+    artifacts = bundle.manifest.artifacts.model_copy(update={"code": code})
+    bundle = copy.replace(
+        bundle,
+        source_path=None,
+        manifest=bundle.manifest.model_copy(update={"artifacts": artifacts}),
+    )
+
+    result = app.create_engine(bundle).run()
 
     assert not result.failures
     assert result.datasets["values"].to_dict(as_series=False) == {"value": [7]}
@@ -110,7 +137,7 @@ def test_cli_run_uses_configured_source_path(
     root = tmp_path / "project"
     _write_project(root, 9)
     (root / "src").rename(root / "python")
-    application.build(root, src_path=pathlib.Path("python"))
+    application.build(root, code=project_config.CodeSettings(src="python"))
     (root / "config").mkdir()
     (root / application.CONFIG_FILE).write_text("", encoding="utf-8")
     monkeypatch.setattr(

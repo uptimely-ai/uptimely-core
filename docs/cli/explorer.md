@@ -29,7 +29,7 @@ directory is used.
 | `PROJECT_ROOT` | — | Current working directory | Project root containing the active build. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | — | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--config CONFIG_OR_PATH` | — | Root `uptimely.toml`<br>Otherwise built-in defaults | Pass a config name such as `prod` to load `config/prod.toml`, recursively overriding root `uptimely.toml`. Pass a TOML path to load that file alone without merging root settings. Relative paths resolve from the current working directory. Used when `--build` is supplied. |
-| `--src-path PATH` | `application.src_path` | TOML setting if set<br>Otherwise the literal directory name `src` | Python source directory, relative to the project root or given as an absolute path. Used when `--build` is supplied. |
+| `--src-path PATH` | `code.src` | TOML setting if set<br>Otherwise the literal directory name `src` | Python source directory, relative to the project root or given as an absolute path. Used when `--build` is supplied. |
 | `--build` | — | Disabled | Build and publish the project bundle before serving. Uses the default full-project build options. |
 | `--host ADDRESS` | — | `127.0.0.1` | Address to bind. |
 | `--port PORT` | — | `8001` | TCP port. `0` selects an available port. |

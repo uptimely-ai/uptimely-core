@@ -16,7 +16,7 @@ directory is used.
 | --- | --- | --- | --- |
 | `PROJECT_ROOT` | — | Current working directory | Project root containing the active build and function entrypoints. May be passed as `--project-root PATH` instead. |
 | `--project-root PATH` | — | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
-| `--src-path PATH` | `application.src_path` | Bundled project source<br>If absent, the saved original source when available, then the configured value or `src` | Explicit Python source directory, relative to the project root or given as an absolute path. Overrides the default for this run. |
+| `--src-path PATH` | `code.src` | Bundled project source<br>If absent, the configured value or `src` | Explicit Python source directory, relative to the project root or given as an absolute path. Overrides the default for this run. |
 | `--build` | — | Disabled | Build and publish the project before execution, then run the newly published build. |
 | `--config CONFIG_OR_PATH` | — | Root `uptimely.toml`<br>Otherwise built-in defaults | Pass a config name such as `prod` to load `config/prod.toml`, recursively overriding root `uptimely.toml`. Pass a TOML path to load that file alone without merging root settings. Relative paths resolve from the current working directory. |
 | `--validate` | — | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |

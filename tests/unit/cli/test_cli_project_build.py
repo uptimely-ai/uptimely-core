@@ -137,8 +137,8 @@ def test_project_build_examples(
     }
     assert bundle.manifest.artifacts.execution_plan == "plan.json"
     project_metadata = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
-    assert bundle.runtime_path is not None
-    assert tomllib.loads(bundle.runtime_path.read_text(encoding="utf-8")) == {
+    assert bundle.requirements_file is not None
+    assert tomllib.loads(bundle.requirements_file.read_text(encoding="utf-8")) == {
         "project": {
             "requires-python": project_metadata["project"]["requires-python"],
             "dependencies": project_metadata["project"]["dependencies"],

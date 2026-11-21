@@ -10,8 +10,8 @@ The file supports these top-level tables:
 
 | Table | Contents |
 | --- | --- |
-| `[application]` | Optional specification source and source directory settings. |
-| `[runtime]` | Project runtime type and location of its dependency definition. |
+| `[application]` | Optional specification source settings. |
+| `[code]` | Project code language, source directory, and requirements definition location. |
 | `[engine]` | Engine settings, including the nested `[engine.backend]` table. |
 | `[paths]` | A flat table of path strings. |
 | `[params]` | A flat table of scalar values. |
@@ -24,9 +24,9 @@ Below is the full configuration file reference.
 | --- | --- | --- |
 | `application.python_spec` | String | Optional `MODULE:ATTRIBUTE` entrypoint. Mutually exclusive with `application.json_spec`. |
 | `application.json_spec` | String | Optional project-root-relative or absolute path. Mutually exclusive with `application.python_spec`. |
-| `application.src_path` | String | Optional project-root-relative or absolute source path used when building. The active build saves the resolved selection for later runs. |
-| `runtime.type` | String | Runtime type. Only `"python"` is supported and it is the default. |
-| `runtime.path` | String | Project-root-relative or absolute directory. Default: `"runtime"`. Overridden by the `runtime_path` argument to `Uptimely.build()`. |
+| `code.language` | String | Code language. Only `"python"` is supported and it is the default. |
+| `code.requirements` | String | Optional project-root-relative or absolute requirements definition file. If omitted, discover `requirements/pyproject.toml` or the project root's `pyproject.toml`. Overridden by the `requirements_file` argument to `Uptimely.build()`. |
+| `code.src` | String | Optional project-root-relative or absolute source path used when building. The selected source is copied into the active build. |
 | `engine.preview_rows` | Integer | Positive integer. Default: `5`. |
 | `engine.backend.type` | String | Default: `"python_venv"`. |
 | `engine.backend.definition` | String | Optional. |
@@ -38,3 +38,7 @@ Below is the full configuration file reference.
 
 For loading, precedence, and runtime behavior, see
 [Configure a project](../guides/configuration.md).
+
+Standalone build APIs accept a `uptimely.project.config.CodeSettings` object
+through their `code` argument. Set the code language, definition path, and source
+path on that object.

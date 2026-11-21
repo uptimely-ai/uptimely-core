@@ -16,19 +16,19 @@ artifacts/
         └── pyproject.toml
 ```
 
-## Package and runtime manifest
+## Code manifest
 
-Each direct subdirectory of `packages/` is a package. Its directory name is its ID.
-In `build.json`, `artifacts.packages` maps package IDs to directory paths.
-The `artifacts.runtime` describes one runtime shared by the project. Its type
-comes from the build's project configuration and its definition path is optional.
+The `artifacts.code` object describes the project's language and the paths of
+its bundled requirements definition and source directory. The paths are relative
+to the bundle and can be null when the corresponding artifact is absent.
 
 ```json
 {
-  "packages": {
-    "project": {"path": "packages/project"}
-  },
-  "runtime": {"type": "python", "path": "runtime/pyproject.toml"}
+  "code": {
+    "language": "python",
+    "requirements": "runtime/pyproject.toml",
+    "src": "packages/project"
+  }
 }
 ```
 
@@ -44,19 +44,18 @@ symlinks are not included. Built-in wheel packaging is not supported.
 
 ## Runtime requirements
 
-The project runtime type is configured with `[runtime].type` and defaults to
-`"python"`, the only supported type.
-The Python packager copies `pyproject.toml` from `[runtime].path`
-(default: `runtime/` relative to the project root), if present. An explicit
-runtime definition replaces the root project's metadata rather than merging with it.
+The project code language is configured with `code.language` and defaults to
+`"python"`, the only supported language. `code.requirements` selects a
+requirements definition file. If omitted, the Python packager discovers
+`requirements/pyproject.toml` when present. A separate definition replaces the
+root project's metadata rather than merging with it.
 
 Without an explicit definition, the bundle takes only static
 `[project].requires-python` and `[project].dependencies` from the root
 `pyproject.toml`. Dependency markers are preserved. Build-system settings, tool
 settings, and optional extras are not included. If neither field is present,
-the bundle records the runtime type with a null definition path. The example sets
-`[runtime].path = "."` to
-use its root `pyproject.toml` without maintaining a separate runtime file.
+the bundle records the code language with a null requirements path. The example
+sets `code.requirements = "pyproject.toml"` to use its root project metadata.
 
 Use the metadata to choose a compatible interpreter and install the listed
 dependencies in the target environment. The generated `pyproject.toml` is
@@ -66,12 +65,10 @@ for what the Engine checks before execution.
 
 ## Source paths and overrides
 
-`build.json` records the selected specification source and original Python
-source path. If the bundle has no project source package, runs look for the
-saved original source and then use the configured or default source directory.
-`--src-path` and the Python run API can explicitly override that selection.
-Original Python source paths under the project root are stored
-relative to that root. Source directories outside the project remain absolute.
+`build.json` records the selected specification source and bundled source
+directory. If the bundle has no project source, runs use the configured or
+default source directory. `--src-path` and the Python run API can explicitly
+override that selection.
 
 To run a copied bundle, place it under `artifacts/build/` in the target project
 and supply the runtime configuration and inputs the plan uses. With Uptimely
