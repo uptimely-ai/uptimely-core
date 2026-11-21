@@ -39,6 +39,10 @@ shows a complete project configuration.
 python_spec = "spec.spec:python_spec"
 src_path = "src"
 
+[runtime]
+type = "python"
+path = "runtime"
+
 [engine]
 preview_rows = 5
 

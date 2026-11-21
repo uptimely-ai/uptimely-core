@@ -10,6 +10,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Project configuration supports `[runtime].type`, defaulting to `python`.
 - The documentation website publishes a human-readable Allure report of the
   Python test suite at `/uptimely-core/tests/`.
 - Engine debug logs show the selected Python source directory and its origin.

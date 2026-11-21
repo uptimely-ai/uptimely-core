@@ -138,7 +138,9 @@ def test_bundle_loader_requires_declared_runtime_definition(tmp_path: pathlib.Pa
 @pytest.mark.parametrize("override", [False, True])
 def test_project_build_selects_runtime_path(tmp_path: pathlib.Path, override: bool) -> None:
     copy_project_spec(tmp_path)
-    (tmp_path / "uptimely.toml").write_text('[runtime]\npath = "worker-env"\n', encoding="utf-8")
+    (tmp_path / "uptimely.toml").write_text(
+        '[runtime]\ntype = "python"\npath = "worker-env"\n', encoding="utf-8"
+    )
     runtime = tmp_path / "worker-env"
     runtime.mkdir()
     (runtime / "pyproject.toml").write_bytes(b'[project]\ndependencies = ["polars>=1,<2"]\n')
@@ -148,6 +150,8 @@ def test_project_build_selects_runtime_path(tmp_path: pathlib.Path, override: bo
 
     build = application.Uptimely(tmp_path).build(runtime_path=alternate if override else None)
 
+    assert build.manifest.artifacts.runtime is not None
+    assert build.manifest.artifacts.runtime.type == "python"
     assert build.runtime_path == build.root / "runtime" / "pyproject.toml"
     expected_source = alternate if override else runtime
     assert build.runtime_path.read_bytes() == (expected_source / "pyproject.toml").read_bytes()
