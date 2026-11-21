@@ -74,10 +74,11 @@ class ProjectSettings(pydantic.BaseModel):
 
 
 class RuntimeSettings(pydantic.BaseModel):
-    """Location of the project runtime definition."""
+    """Project runtime type and definition location."""
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
 
+    type: typing.Literal["python"] = "python"
     path: str = pydantic.Field(default=packaging.RUNTIME_DIR, min_length=1)
 
 
