@@ -1,37 +1,35 @@
 # Engine
 
-The Engine executes the plan in a validated build bundle. It calls the Python
+An Engine executes a plan in a validated build bundle. It calls the Python
 functions named by the plan, supplies their resolved arguments and runtime
 data, and returns calculated outputs and execution details.
 
 Engine is responsible of the correctness of the analytical execution considering specification declarations are right.
 
-Engine does not compile or change the plan.
+Engine does not compile or change the plan, it just runs it.
 
-The same bundle can run with different runtime parameters
-and environment-specific resources.
+The same bundle can run with different runtime parameters and environment-specific resources.
 
 ## Engine's run environment
 
-The engine is piece of Python code and executes in whatever runtime environment it is ran.
+The engine is piece of Python code and executes in whatever runtime environment it is ran. Engine can be considered as an application of an execution worker.
 
-As of now, 1 Uptimely project = 1 runtime = 1 worker = 1 engine.
+As of now, engine has exactly 1 runtime where it runs in. Engine can be consider
 
-Engine runs in a single process. It is limited by memory, cpu and storage it runs on. At the moment the execution is not optimized.
+Engine runs in a single process. It is limited by memory, cpu and storage it runs on.
 
-## Invocation argument resolving
+## Plan argument resolving
 
 Compiler has already resolved binding arguments for feature and dimensions references.
 
-Engine still needs to resolve dataframe arguments, because those available on during the execution.
+Engine still needs to resolve dataframe arguments, because those are available only during the execution.
 
-## Invocation execution
+## Plan execution
 
 The plan groups function invocations into dependency-ordered stages. The
 current Engine processes stages and invocations sequentially.
 
-An invocation
-runs only after its prerequisites succeed. If one fails, execution stops,
+An invocation runs only after its prerequisites succeed. If one fails, execution stops,
 remaining invocations are marked skipped, and the result includes the failure.
 
 Configured read and write functions are ordinary function calls and may have

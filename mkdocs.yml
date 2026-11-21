@@ -63,8 +63,6 @@ markdown_extensions:
       permalink: true
       title: CONTENTS
 
-extra_javascript:
-  - assets/javascripts/mermaid.mjs
 
 extra_css:
   - assets/stylesheets/style.css
@@ -116,22 +114,20 @@ nav:
           - Multiple projects: guides/multiple-projects.md
           - Project template: guides/project-template.md
           - Configure a project: guides/configuration.md
-      - Spec:
+      - Basics:
           - Python authoring: guides/python-authoring.md
           - Python examples: guides/python-spec-document.md
-      - Build:
           - Build a project: guides/build.md
           - Compile in Python: guides/python-compilation.md
-      - Run:
           - Execute in Python: guides/python-execution.md
           - Validate execution: guides/runtime-validation.md
           - Preview results: guides/preview.md
           - Diagnostics: guides/logging.md
-      - Explore:
           - Browse explorer: guides/explorer.md
-      - Deployment:
+      - Scaling up:
           - Orchestration: guides/orchestration.md
-          - Invocation tasks: guides/orchestration-invocations.md
+          - Custom engine: guides/orchestration-invocations.md
+          - Scaling strategies: guides/scaling-strategies.md
       - Data science:
           - Data modeling: guides/data-science-data-modeling.md
           - Organize profiles: guides/organize-profiles.md
