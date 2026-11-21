@@ -61,7 +61,7 @@ class ProjectBuilder:
         json_spec: project_spec_source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
         src_path: pathlib.Path | None = None,
-        runtimes_path: str | pathlib.Path = packaging.RUNTIMES_DIR,
+        runtime_path: str | pathlib.Path = packaging.RUNTIME_DIR,
     ) -> models.BuildBundle:
         """Build and publish a spec, execution plan, and Explorer snapshot.
 
@@ -72,8 +72,8 @@ class ProjectBuilder:
             features: Optional output features to compile with their dependencies.
             src_path: Optional source directory, relative to the project root unless absolute.
                 Defaults to the project source path.
-            runtimes_path: Runtime definitions directory, relative to the project root unless
-                absolute. Defaults to ``runtimes``.
+            runtime_path: Runtime definition directory, relative to the project root unless
+                absolute. Defaults to ``runtime``.
 
         Returns:
             The validated newly published bundle.
@@ -107,7 +107,7 @@ class ProjectBuilder:
                     selected_features,
                     staging_root,
                     resolved_src_path,
-                    self.root / runtimes_path,
+                    self.root / runtime_path,
                 )
                 self._validate_staged_bundle(
                     staging_root,
@@ -192,7 +192,7 @@ class ProjectBuilder:
         selected_features: list[str] | None,
         staging_root: pathlib.Path,
         resolved_src_path: pathlib.Path,
-        runtimes_root: pathlib.Path,
+        runtime_root: pathlib.Path,
     ) -> packaging.StagedCode:
         """Stage portable inputs and the Explorer snapshot."""
         try:
@@ -201,7 +201,7 @@ class ProjectBuilder:
                 execution_plan, staging_root / paths.BUILD_EXECUTION_PLAN_FILE.name
             )
             code_artifacts = self._code_packager.stage(
-                self.root, resolved_src_path, staging_root, runtimes_root
+                self.root, resolved_src_path, staging_root, runtime_root
             )
             presentation_data = presentation.build_presentation_data(
                 spec_definition,
@@ -243,7 +243,7 @@ class ProjectBuilder:
                     execution_plan=paths.BUILD_EXECUTION_PLAN_FILE.name,
                     explorer="explorer.json",
                     packages=code_artifacts.packages,
-                    runtimes=code_artifacts.runtimes,
+                    runtime=code_artifacts.runtime,
                 ),
             )
             code_artifacts.validate_layout(staging_root)
@@ -288,7 +288,7 @@ def build(
     features: feature_selection.FeatureSelection = None,
     src_path: pathlib.Path | None = None,
     *,
-    runtimes_path: str | pathlib.Path = packaging.RUNTIMES_DIR,
+    runtime_path: str | pathlib.Path = packaging.RUNTIME_DIR,
 ) -> models.BuildBundle:
     """Build and publish project artifacts through a root-bound builder.
 
@@ -300,8 +300,8 @@ def build(
         features: Optional output features to compile with their dependencies.
         src_path: Optional source directory, relative to the project root unless absolute.
             Defaults to ``src``.
-        runtimes_path: Runtime definitions directory, relative to the project root unless
-            absolute. Defaults to ``runtimes``.
+        runtime_path: Runtime definition directory, relative to the project root unless
+            absolute. Defaults to ``runtime``.
 
     Returns:
         The validated newly published bundle.
@@ -315,5 +315,5 @@ def build(
         json_spec=json_spec,
         features=features,
         src_path=src_path,
-        runtimes_path=runtimes_path,
+        runtime_path=runtime_path,
     )

@@ -1,7 +1,7 @@
 [application]
 python_spec = "spec.spec:python_spec"
 
-[runtimes]
+[runtime]
 path = "."
 
 [engine]

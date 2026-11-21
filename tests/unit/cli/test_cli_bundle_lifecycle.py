@@ -11,7 +11,7 @@ from concurrent import futures
 import pytest
 from support import examples as example_support
 
-from uptimely import application, spec
+from uptimely import application, engine, spec
 from uptimely import plan as plan_module
 from uptimely.build import builder as project_build
 from uptimely.build import bundle, locking
@@ -87,7 +87,7 @@ def test_project_build_packages_python_source_and_runtime_definition(
     root = tmp_path / "project"
     example_support.copy_example_project(root)
     runtime = b'# Explicit runtime\n[project]\nrequires-python = ">=3.13"\n'
-    runtime_dir = root / "runtimes" / "python"
+    runtime_dir = root / "runtime"
     runtime_dir.mkdir(parents=True, exist_ok=True)
     (runtime_dir / "pyproject.toml").write_bytes(runtime)
     (root / "pyproject.toml").write_text(
@@ -98,12 +98,15 @@ def test_project_build_packages_python_source_and_runtime_definition(
     build = project_build.build(root)
 
     assert build.manifest.artifacts.model_dump()["packages"] == {
-        "project": {"path": "packages/project", "runtime": "python"}
+        "project": {"path": "packages/project"}
     }
-    assert build.manifest.artifacts.runtimes == {"python": "runtimes/python/pyproject.toml"}
+    assert build.manifest.artifacts.runtime == packaging.CodeRuntime(
+        type="python", path="runtime/pyproject.toml"
+    )
     source = build.package_paths["project"]
     assert (source / "pump_analytics.py").is_file()
-    assert build.runtime_paths["python"].read_bytes() == runtime
+    assert build.runtime_path is not None
+    assert build.runtime_path.read_bytes() == runtime
     assert not (build.root / "poetry.lock").exists()
     assert not (source / "__pycache__").exists()
 
@@ -125,18 +128,17 @@ def test_bundle_loader_requires_declared_runtime_definition(tmp_path: pathlib.Pa
         '[project]\nrequires-python = ">=3.13"\n', encoding="utf-8"
     )
     build = project_build.build(root)
-    build.runtime_paths["python"].unlink()
+    assert build.runtime_path is not None
+    build.runtime_path.unlink()
 
-    with pytest.raises(
-        application.BuildError, match=r"missing artifact runtimes/python/pyproject\.toml"
-    ):
+    with pytest.raises(application.BuildError, match=r"missing artifact runtime/pyproject\.toml"):
         application.load_build_bundle(root)
 
 
 @pytest.mark.parametrize("override", [False, True])
-def test_project_build_selects_runtimes_path(tmp_path: pathlib.Path, override: bool) -> None:
+def test_project_build_selects_runtime_path(tmp_path: pathlib.Path, override: bool) -> None:
     copy_project_spec(tmp_path)
-    (tmp_path / "uptimely.toml").write_text('[runtimes]\npath = "worker-env"\n', encoding="utf-8")
+    (tmp_path / "uptimely.toml").write_text('[runtime]\npath = "worker-env"\n', encoding="utf-8")
     runtime = tmp_path / "worker-env"
     runtime.mkdir()
     (runtime / "pyproject.toml").write_bytes(b'[project]\ndependencies = ["polars>=1,<2"]\n')
@@ -144,33 +146,40 @@ def test_project_build_selects_runtimes_path(tmp_path: pathlib.Path, override: b
     alternate.mkdir()
     (alternate / "pyproject.toml").write_bytes(b'[project]\ndependencies = ["polars==1.0.0"]\n')
 
-    build = application.Uptimely(tmp_path).build(runtimes_path=alternate if override else None)
+    build = application.Uptimely(tmp_path).build(runtime_path=alternate if override else None)
 
-    assert build.runtime_paths["python"] == build.root / "runtimes" / "python" / "pyproject.toml"
+    assert build.runtime_path == build.root / "runtime" / "pyproject.toml"
     expected_source = alternate if override else runtime
-    assert (
-        build.runtime_paths["python"].read_bytes()
-        == (expected_source / "pyproject.toml").read_bytes()
-    )
+    assert build.runtime_path.read_bytes() == (expected_source / "pyproject.toml").read_bytes()
 
 
-def test_bundle_loader_checks_code_runtime_reference(tmp_path: pathlib.Path) -> None:
+def test_project_build_reports_legacy_runtime_directory(tmp_path: pathlib.Path) -> None:
+    copy_project_spec(tmp_path)
+    legacy = tmp_path / "runtimes" / "python"
+    legacy.mkdir(parents=True)
+    (legacy / "pyproject.toml").write_text('[project]\nrequires-python = ">=3.13"\n')
+
+    with pytest.raises(application.ProjectBuildError, match="Move the Python runtime definition"):
+        project_build.build(tmp_path)
+
+
+def test_bundle_loader_checks_runtime_definition_path(tmp_path: pathlib.Path) -> None:
     root = tmp_path / "project"
     example_support.copy_example_project(root)
     build = project_build.build(root)
     manifest_path = root / application.BUILD_MANIFEST_FILE
     manifest = build.manifest.model_dump()
-    manifest["artifacts"]["packages"]["project"]["runtime"] = "missing"
+    manifest["artifacts"]["runtime"]["path"] = "other/pyproject.toml"
     manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
 
-    with pytest.raises(application.BuildError, match="refers to undeclared runtime 'missing'"):
+    with pytest.raises(application.BuildError, match="Runtime definition must be under runtime/"):
         application.load_build_bundle(root)
 
 
-@pytest.mark.parametrize("runtimes_path", [None, "."])
+@pytest.mark.parametrize("runtime_path", [None, "."])
 def test_project_build_exports_only_root_runtime_metadata(
     tmp_path: pathlib.Path,
-    runtimes_path: str | None,
+    runtime_path: str | None,
 ) -> None:
     copy_project_spec(tmp_path)
     dependency = "package[extra]>=1; sys_platform == 'win32'"
@@ -183,9 +192,10 @@ def test_project_build_exports_only_root_runtime_metadata(
         encoding="utf-8",
     )
 
-    build = application.Uptimely(tmp_path).build(runtimes_path=runtimes_path)
+    build = application.Uptimely(tmp_path).build(runtime_path=runtime_path)
 
-    assert tomllib.loads(build.runtime_paths["python"].read_text(encoding="utf-8")) == {
+    assert build.runtime_path is not None
+    assert tomllib.loads(build.runtime_path.read_text(encoding="utf-8")) == {
         "project": {"requires-python": ">=3.13,<4", "dependencies": [dependency]}
     }
 
@@ -219,22 +229,22 @@ def test_project_build_publishes_opaque_code_artifacts(tmp_path: pathlib.Path) -
             project_root: pathlib.Path,
             source: pathlib.Path,
             staging_root: pathlib.Path,
-            runtimes_root: pathlib.Path,
+            runtime_root: pathlib.Path,
         ) -> packaging.StagedCode:
             artifact = staging_root / "packages" / "bin" / "worker"
             artifact.parent.mkdir(parents=True)
             artifact.write_bytes(b"packaged implementation")
             other_package = staging_root / "packages" / "tools"
             other_package.mkdir()
-            runtime = staging_root / "runtimes" / "native" / "runtime.json"
+            runtime = staging_root / "runtime" / "runtime.json"
             runtime.parent.mkdir(parents=True)
             runtime.write_text("{}", encoding="utf-8")
             return packaging.StagedCode(
                 packages={
-                    "bin": packaging.CodePackage(path="packages/bin", runtime="native"),
-                    "tools": packaging.CodePackage(path="packages/tools", runtime="native"),
+                    "bin": packaging.CodePackage(path="packages/bin"),
+                    "tools": packaging.CodePackage(path="packages/tools"),
                 },
-                runtimes={"native": "runtimes/native/runtime.json"},
+                runtime=packaging.CodeRuntime(type="native", path="runtime/runtime.json"),
             )
 
     spec_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
@@ -244,26 +254,25 @@ def test_project_build_publishes_opaque_code_artifacts(tmp_path: pathlib.Path) -
 
     loaded = application.load_build_bundle(tmp_path)
     assert loaded.manifest.artifacts.model_dump()["packages"] == {
-        "bin": {"path": "packages/bin", "runtime": "native"},
-        "tools": {"path": "packages/tools", "runtime": "native"},
+        "bin": {"path": "packages/bin"},
+        "tools": {"path": "packages/tools"},
     }
-    assert set(loaded.runtime_paths) == {"native"}
+    assert loaded.runtime_path == loaded.root / "runtime" / "runtime.json"
     assert (loaded.package_paths["bin"] / "worker").read_bytes() == b"packaged implementation"
+    with pytest.raises(ValueError, match="Unsupported project runtime: native"):
+        engine.Engine(loaded).run()
 
 
-@pytest.mark.parametrize("directory", ["packages", "runtimes"])
-def test_project_build_rejects_loose_package_or_runtime_files(
-    tmp_path: pathlib.Path, directory: str
-) -> None:
+def test_project_build_rejects_loose_package_files(tmp_path: pathlib.Path) -> None:
     class Packager:
         def stage(
             self,
             project_root: pathlib.Path,
             source: pathlib.Path,
             staging_root: pathlib.Path,
-            runtimes_root: pathlib.Path,
+            runtime_root: pathlib.Path,
         ) -> packaging.StagedCode:
-            target = staging_root / directory
+            target = staging_root / "packages"
             target.mkdir()
             (target / "loose.txt").touch()
             return packaging.StagedCode()
@@ -271,7 +280,7 @@ def test_project_build_rejects_loose_package_or_runtime_files(
     copy_project_spec(tmp_path)
     with pytest.raises(
         application.ProjectBuildError,
-        match=f"{directory}/ must contain only declared ID directories",
+        match="packages/ must contain only declared ID directories",
     ):
         project_build.ProjectBuilder(tmp_path, code_packager=Packager()).build()
 

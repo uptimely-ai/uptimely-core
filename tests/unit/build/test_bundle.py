@@ -89,6 +89,35 @@ def test_build_manifest_accepts_source_path() -> None:
     assert manifest.src_path == "custom-src"
 
 
+def test_build_manifest_accepts_one_project_runtime() -> None:
+    data = _manifest_data()
+    data["artifacts"] = {
+        "spec": "spec.json",
+        "execution_plan": "execution_plan.json",
+        "runtime": {"type": "python", "path": "runtime/pyproject.toml"},
+    }
+
+    manifest = application.BuildManifest.model_validate(data)
+
+    assert manifest.artifacts.runtime is not None
+    assert manifest.artifacts.runtime.type == "python"
+
+
+def test_build_manifest_rejects_multiple_runtime_definitions() -> None:
+    data = _manifest_data()
+    data["artifacts"] = {
+        "spec": "spec.json",
+        "execution_plan": "execution_plan.json",
+        "runtime": [
+            {"type": "python", "path": "runtime/pyproject.toml"},
+            {"type": "native", "path": "runtime/runtime.json"},
+        ],
+    }
+
+    with pytest.raises(pydantic.ValidationError, match="runtime"):
+        application.BuildManifest.model_validate(data)
+
+
 def test_build_manifest_defaults_source_path_for_older_bundles() -> None:
     manifest = application.BuildManifest.model_validate(_manifest_data())
 
@@ -101,7 +130,7 @@ def test_build_manifest_defaults_spec_source_for_older_bundles() -> None:
     assert manifest.spec_source is None
 
 
-@pytest.mark.parametrize("version", [0, 3, "2", True])
+@pytest.mark.parametrize("version", [0, 2, 4, "3", True])
 def test_build_manifest_rejects_unsupported_or_noninteger_version(version: object) -> None:
     data = _manifest_data()
     data["build_version"] = version

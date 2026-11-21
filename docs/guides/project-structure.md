@@ -13,9 +13,8 @@ project/
 ├── data/
 │   ├── input/
 │   └── output/
-├── runtimes/ <-- optional runtime definitions
-│   └── python/
-│       └── pyproject.toml
+├── runtime/ <-- optional runtime definition
+│   └── pyproject.toml
 ├── src/
 │   └── project_functions/
 │       ├── __init__.py
@@ -52,10 +51,10 @@ project/
 | `data/output/` | Results you want to keep, share, or reuse. |
 | `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
-| `runtimes/` | Optional isolated runtime definitions. The Python runtime uses `runtimes/python/pyproject.toml`. |
+| `runtime/` | Optional runtime definition. The Python runtime uses `runtime/pyproject.toml`. |
 | `artifacts/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
 | `uptimely.toml` | Project defaults and runtime settings under `application`, `engine`, `paths`, and `params`. See [Configure a project](configuration.md). |
-| `pyproject.toml` | Project metadata and dependencies. It supplies the Python runtime metadata unless a runtime definition is present under `runtimes/`. |
+| `pyproject.toml` | Project metadata and dependencies. It supplies the Python runtime metadata unless a runtime definition is present under `runtime/`. |
 
 ## Source code
 
@@ -75,7 +74,8 @@ independently importing different projects concurrently.
 
 ## Runtime
 
-Build extracts dependencies from project root's `pyproject.toml` by default. Optionally that can be defined separately `runtimes` folder.
+The build extracts dependencies from the project root's `pyproject.toml` by
+default. A separate definition can be placed in `runtime/`.
 
 ## Spec profiles
 
