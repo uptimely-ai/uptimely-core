@@ -1,7 +1,7 @@
 
 # Organizing analytics projects
 
-## A standalone project
+## Start with a single standalone project
 
 Keep the organization's full analytical system in a single project and
 repository. This is simple to start with and keeps analytics easy to find and
@@ -10,26 +10,66 @@ projects.
 
 ## Multiple independent projects
 
-Keep multiple independent Uptimely projects in one or more repositories.
-Each project contains its independent spec definition and builds.
+### Full isolation
 
-For a small number of projects, some amount code repetition might win the overhead of maintaining centralized code packaging.
+Keep multiple Uptimely projects fully independent. Each project owns its
+specification, build, and runtime configuration. In a monorepo, projects share
+a repository while remaining isolated. In a multirepo layout, each project has
+its own repository.
 
-When the organization grows, share reusable Python functions through packages. Overriding per project is still possible. Keep each projects build bundle and execution results separate.
+<div class="project-layouts" role="img" aria-label="Monorepo and multirepo project layouts">
+  <section class="project-layout" aria-label="Monorepo">
+    <h4>Monorepo</h4>
+    <div class="project-layout-flow">
+      <div class="project-box">One repository</div>
+      <b aria-hidden="true">&#8594;</b>
+      <div class="project-boxes"><span>Project A</span><span>Project B</span></div>
+    </div>
+  </section>
+  <section class="project-layout" aria-label="Multirepo">
+    <h4>Multirepo</h4>
+    <div class="project-layout-flow">
+      <div class="project-boxes"><span>Repository A</span><span>Repository B</span></div>
+      <b aria-hidden="true">&#8594;</b>
+      <div class="project-boxes"><span>Project A</span><span>Project B</span></div>
+    </div>
+  </section>
+</div>
 
-## Consolidate multiple specs
+For a small number of projects, keeping them fully independent makes the setup simple.
 
-Each project or repository owns its analytical code and publishes a versioned JSON spec
-partial. In this setup, projects just author the spec without executing the code.
+Some amount of code repetition across independent projects is acceptable. When the organization grows, share reusable Python functions through packages.
 
-A master project combines the spec json partials into one big spec json, exposing
-cross-repository dependencies through agreed profile and feature identifiers.
-Validate the complete document after merging and reject conflicting definitions.
+### Consolidating artifacts
 
-Record contributing repositories and artifact versions alongside the assembled
-spec, rather than maintaining a hand-edited copy of every team's declarations.
-Publishing JSON does not require distributing implementation code, but executing
-the combined workflow still requires callable implementations or wrappers.
+In this approach builds from multiple independent projects are combined in deployment.
+If needed, the master project can combine build artifacts such as specs, plans or explorer data to a centralized database.
+
+Each project can build and publish its own artifacts.
+
+<div class="project-flow" role="img" aria-label="Projects publish builds to shared artifact storage">
+  <section class="project-box"><h4>Project A</h4><div class="calculation-box">Build A</div></section>
+  <b aria-hidden="true">&#8594;</b>
+  <div class="project-box">Shared artifact storage</div>
+  <b aria-hidden="true">&#8594;</b>
+  <section class="project-box"><h4>Project B</h4><div class="calculation-box">Build B</div></section>
+</div>
+
+Alternatively, the deployment pipeline can build artifacts on behalf of projects
+that grant it repository access.
+
+<div class="project-flow" role="img" aria-label="Deployment pipeline builds artifacts on behalf of projects">
+  <section class="project-box"><h4>Deployment</h4></section>
+  <b aria-hidden="true">&#8594;</b>
+  <div class="project-boxes">
+    <section class="project-box"><h4>Project A</h4><div class="calculation-box">Build A</div></section>
+    <section class="project-box"><h4>Project B</h4><div class="calculation-box">Build B</div></section>
+  </div>
+  <b aria-hidden="true">&#8594;</b>
+  <div class="project-box">Shared artifact storage</div>
+</div>
+
+At the moment Uptimely does not provide tooling to consolidate multiple projects, so this part is user's responsibility.
 
 
 ## Multiple dependent projects
@@ -48,7 +88,18 @@ Even if this sounds simple, Uptimely profiles might be helpful abstraction to ge
 
 One possible downside is time penalty from extra write and read to database compared to calculating in-memory. Depending on the setup, two separate processing pipelines might have delays in between.
 
-### Pattern 2: Share the spec
+<div class="project-flow project-flow-data" role="img" aria-label="Multiple projects consume maintenance results from a database">
+  <section class="project-box"><h4>Maintenance project</h4><div class="calculation-box">Maintenance detection</div></section>
+  <b aria-hidden="true">&#8594;</b>
+  <div class="project-box">Database</div>
+  <b aria-hidden="true">&#8594;</b>
+  <div class="project-boxes">
+    <section class="project-box"><h4>Data science project 1</h4><div class="calculation-box">Neural network</div></section>
+    <section class="project-box"><h4>Data science project 2</h4><div class="calculation-box">Clustering algorithm</div></section>
+  </div>
+</div>
+
+### Pattern 2: Reuse the build
 
 What if a data scientist needs to tweak the logic on maintenance detection to get their neural networks right? Or what if they notice that something smells wrong in the maintenance detection and need to verify without being dependent on other project or team?
 
@@ -57,6 +108,17 @@ In this case it is not enough to have just the maintenance detection results, bu
 If the maintenance detection was created by Uptimely, it could publish its build artifacts to shared file storage.
 
 Any other person or team can access the full chain of analytical operators and run it as they wish.
+
+<div class="project-flow project-flow-data" role="img" aria-label="Multiple projects reuse maintenance detection from a published build">
+  <section class="project-box"><h4>Maintenance project</h4><div class="calculation-box">Maintenance detection</div></section>
+  <b aria-hidden="true">&#8594;</b>
+  <div class="project-box">Published build</div>
+  <b aria-hidden="true">&#8594;</b>
+  <div class="project-boxes">
+    <section class="project-box"><h4>Data science project 1</h4><div class="calculation-box">Modified maintenance detection</div><div class="calculation-box">Neural network</div></section>
+    <section class="project-box"><h4>Data science project 2</h4><div class="calculation-box">Maintenance detection</div><div class="calculation-box">Clustering algorithm</div></section>
+  </div>
+</div>
 
 Save this maintenance detection specification as `spec/spec.py` in the shared
 project:

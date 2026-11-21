@@ -6,6 +6,8 @@ The goal is to free data science teams to focus on advanced analytics, mathemati
 
 Uptimely Core helps teams manage complex networks of analytical calculations, features, and dimensional hierarchies. Just as importantly, it makes dependencies on people, processes, and decisions easier to understand and manage.
 
+The framework has focus on making calculations understandable at logical level. Other tools take responsibility of orchestration and execution.
+
 Uptimely applies data-modeling best practices to organize data science into profiles. Each profile defines its dimensional grain, row scope, and set of features. Computational operators use profile metadata to define feature dependencies and bind functions, which are then used to materialize the resulting dataset.
 
 Author the data science workflow in Python. Build and run from command line. Explore from web browser.

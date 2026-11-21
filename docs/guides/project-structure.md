@@ -1,7 +1,7 @@
 # Project structure {#folder-structure}
 
 An Uptimely Core project brings together data, Python functions, a specification,
-and runtime configuration. The layout below keeps these easy to find and
+and runtime configuration without going into execution details. The layout below keeps these easy to find and
 separates them from generated files.
 
 ## Suggested structure
@@ -9,9 +9,13 @@ separates them from generated files.
 ```text
 project/
 ├── uptimely.toml
+├── pyproject.toml
 ├── data/
 │   ├── input/
 │   └── output/
+├── runtimes/ <-- optional runtime definitions
+│   └── python/
+│       └── pyproject.toml
 ├── src/
 │   └── project_functions/
 │       ├── __init__.py
@@ -39,13 +43,6 @@ project/
             └── <profile>.json
 ```
 
-The included cooling-pump example uses distinctively named Python files
-directly under `src/` instead of the package directory shown above. Both
-layouts work with project source imports.
-
-Keep a profile in one module while its declarations remain easy to navigate.
-For larger profiles, use a package to separate the profile, features, and
-related declarations while keeping a `profile.py` entrypoint.
 
 ## Folder responsibilities
 
@@ -55,23 +52,18 @@ related declarations while keeping a `profile.py` entrypoint.
 | `data/output/` | Results you want to keep, share, or reuse. |
 | `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
+| `runtimes/` | Optional isolated runtime definitions. The Python runtime uses `runtimes/python/pyproject.toml`. |
 | `artifacts/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
 | `uptimely.toml` | Project defaults and runtime settings under `application`, `engine`, `paths`, and `params`. See [Configure a project](configuration.md). |
+| `pyproject.toml` | Project metadata and dependencies. It supplies the Python runtime metadata unless a runtime definition is present under `runtimes/`. |
 
-## Files
+## Source code
 
-Put source files consumed by the workflow in `data/input/`. Store results you
-want to keep, share, or reuse in `data/output/`. Use `artifacts/` for disposable
-previews and debugging files. Each run replaces
-`artifacts/run/`, so it does not retain a history of earlier runs.
-
-## Python module imports
-
-Uptimely makes the project root and the selected source directory importable
-during builds and runs. Set `application.src_path` in config or use
-`--src-path` to select a different directory for a build. Later runs use the
-bundled copy by default. Pass `--src-path` to the run command to use a different
-source directory explicitly.
+The build makes the project root and selected source directory available for
+importing project code. Set `application.src_path` in config or use
+`--src-path` to select another directory for the build. The build copies the
+selected source into the build bundle. Runs always use this bundled copy,
+never the source directory in the project root.
 
 Use a distinctive module name under the source directory to avoid conflicts
 with dependencies and Python's standard library. The `uptimely` name is reserved
@@ -80,3 +72,20 @@ for the framework.
 Python import state is process-wide. Uptimely serializes its project imports, but
 other threads can see the active paths and modules. Use separate processes when
 independently importing different projects concurrently.
+
+## Runtime
+
+Build extracts dependencies from project root's `pyproject.toml` by default. Optionally that can be defined separately `runtimes` folder.
+
+## Spec profiles
+
+Keep a profile in one module while its declarations remain easy to navigate.
+For larger profiles, use a package to separate the profile, features, and
+related declarations while keeping a `profile.py` entrypoint.
+
+## Files
+
+Put source files consumed by the workflow in `data/input/`. Store results you
+want to keep, share, or reuse in `data/output/`. Use `artifacts/` for disposable
+previews and debugging files. Each run replaces
+`artifacts/run/`, so it does not retain a history of earlier runs.
