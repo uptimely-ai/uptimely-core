@@ -2,6 +2,7 @@
 python_spec = "spec.spec:python_spec"
 
 [runtime]
+type = "python"
 path = "."
 
 [engine]

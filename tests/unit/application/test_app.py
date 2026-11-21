@@ -89,6 +89,25 @@ def test_project_reports_legacy_runtime_configuration(tmp_path: pathlib.Path) ->
         application_module.Uptimely(tmp_path)
 
 
+@pytest.mark.parametrize("runtime_type", ["python", None])
+def test_project_accepts_python_runtime_type(
+    tmp_path: pathlib.Path, runtime_type: str | None
+) -> None:
+    if runtime_type is not None:
+        (tmp_path / "uptimely.toml").write_text(
+            f'[runtime]\ntype = "{runtime_type}"\n', encoding="utf-8"
+        )
+
+    assert application_module.Uptimely(tmp_path).config.runtime.type == "python"
+
+
+def test_project_reports_unsupported_runtime_type(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "uptimely.toml").write_text('[runtime]\ntype = "other"\n', encoding="utf-8")
+
+    with pytest.raises(pydantic.ValidationError, match="runtime.type"):
+        application_module.Uptimely(tmp_path)
+
+
 def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.Path) -> None:
     (tmp_path / "uptimely.toml").write_text(
         '[engine]\npreview_rows = 8\n[engine.backend]\ntype = "default"\nevaluation = "eager"\n'

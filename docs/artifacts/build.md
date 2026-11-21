@@ -43,6 +43,8 @@ symlinks are not included. Built-in wheel packaging is not supported.
 
 ## Runtime requirements
 
+The project runtime type is configured with `[runtime].type` and defaults to
+`"python"`, the only supported type.
 The Python packager copies `pyproject.toml` from `[runtime].path`
 (default: `runtime/` relative to the project root), if present. An explicit
 runtime definition replaces the root project's metadata rather than merging with it.
