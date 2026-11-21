@@ -130,7 +130,7 @@ def test_build_manifest_defaults_spec_source_for_older_bundles() -> None:
     assert manifest.spec_source is None
 
 
-@pytest.mark.parametrize("version", [0, 2, 4, "3", True])
+@pytest.mark.parametrize("version", [0, 2, 3, 5, "4", True])
 def test_build_manifest_rejects_unsupported_or_noninteger_version(version: object) -> None:
     data = _manifest_data()
     data["build_version"] = version

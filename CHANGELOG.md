@@ -18,6 +18,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Build manifests record the configured runtime type even when there is no
+  runtime definition file. Rebuild existing bundles.
 - Build bundles declare one project-wide runtime in `runtime/`. Rebuild existing
   bundles, rename `[runtimes]` to `[runtime]`, and move runtime definitions from
   `runtimes/python/` to `runtime/`.

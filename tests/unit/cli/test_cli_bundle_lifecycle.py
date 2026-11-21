@@ -214,6 +214,13 @@ def test_project_build_reports_invalid_dependency_metadata(tmp_path: pathlib.Pat
         project_build.build(tmp_path)
 
 
+def test_project_build_reports_mismatched_runtime_type(tmp_path: pathlib.Path) -> None:
+    copy_project_spec(tmp_path)
+
+    with pytest.raises(application.ProjectBuildError, match="does not match packaged runtime type"):
+        project_build.build(tmp_path, runtime_type="native")
+
+
 def test_bundle_loader_requires_declared_python_source(
     tmp_path: pathlib.Path,
 ) -> None:

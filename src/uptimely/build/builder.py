@@ -62,6 +62,7 @@ class ProjectBuilder:
         features: feature_selection.FeatureSelection = None,
         src_path: pathlib.Path | None = None,
         runtime_path: str | pathlib.Path = packaging.RUNTIME_DIR,
+        runtime_type: str | None = None,
     ) -> models.BuildBundle:
         """Build and publish a spec, execution plan, and Explorer snapshot.
 
@@ -74,6 +75,8 @@ class ProjectBuilder:
                 Defaults to the project source path.
             runtime_path: Runtime definition directory, relative to the project root unless
                 absolute. Defaults to ``runtime``.
+            runtime_type: Project runtime type. Defaults to the staged runtime type,
+                or Python if the packager does not provide one.
 
         Returns:
             The validated newly published bundle.
@@ -115,6 +118,7 @@ class ProjectBuilder:
                     resolved_src_path,
                     spec_source.display_name,
                     code_artifacts,
+                    runtime_type,
                 )
                 self._publish_bundle(staging_root)
             finally:
@@ -225,9 +229,27 @@ class ProjectBuilder:
         resolved_src_path: pathlib.Path,
         spec_source: str,
         code_artifacts: packaging.StagedCode,
+        runtime_type: str | None,
     ) -> None:
         """Write the bundle manifest and validate the staged spec and execution plan."""
         try:
+            staged_runtime = code_artifacts.runtime
+            if (
+                runtime_type is not None
+                and staged_runtime is not None
+                and runtime_type != staged_runtime.type
+            ):
+                raise ValueError(
+                    f"Configured runtime type {runtime_type!r} does not match "
+                    f"packaged runtime type {staged_runtime.type!r}"
+                )
+            selected_runtime_type = runtime_type
+            if selected_runtime_type is None:
+                selected_runtime_type = (
+                    staged_runtime.type
+                    if staged_runtime is not None
+                    else python_packaging.RUNTIME_TYPE
+                )
             try:
                 manifest_src_path = resolved_src_path.relative_to(self.root).as_posix()
             except ValueError:
@@ -243,7 +265,10 @@ class ProjectBuilder:
                     execution_plan=paths.BUILD_EXECUTION_PLAN_FILE.name,
                     explorer="explorer.json",
                     packages=code_artifacts.packages,
-                    runtime=code_artifacts.runtime,
+                    runtime=packaging.CodeRuntime(
+                        type=selected_runtime_type,
+                        path=staged_runtime.path if staged_runtime is not None else None,
+                    ),
                 ),
             )
             code_artifacts.validate_layout(staging_root)
@@ -289,6 +314,7 @@ def build(
     src_path: pathlib.Path | None = None,
     *,
     runtime_path: str | pathlib.Path = packaging.RUNTIME_DIR,
+    runtime_type: str | None = None,
 ) -> models.BuildBundle:
     """Build and publish project artifacts through a root-bound builder.
 
@@ -302,6 +328,8 @@ def build(
             Defaults to ``src``.
         runtime_path: Runtime definition directory, relative to the project root unless
             absolute. Defaults to ``runtime``.
+        runtime_type: Project runtime type. Defaults to the staged runtime type,
+            or Python if the packager does not provide one.
 
     Returns:
         The validated newly published bundle.
@@ -316,4 +344,5 @@ def build(
         features=features,
         src_path=src_path,
         runtime_path=runtime_path,
+        runtime_type=runtime_type,
     )
