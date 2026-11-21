@@ -82,43 +82,46 @@ def test_project_explicit_config_and_failures(tmp_path: pathlib.Path) -> None:
         application_module.Uptimely(tmp_path, config_path=override)
 
 
-def test_project_reports_legacy_runtime_configuration(tmp_path: pathlib.Path) -> None:
-    (tmp_path / "uptimely.toml").write_text('[runtimes]\npath = "."\n', encoding="utf-8")
+@pytest.mark.parametrize("table", ["runtime", "runtimes"])
+def test_project_reports_legacy_runtime_configuration(tmp_path: pathlib.Path, table: str) -> None:
+    (tmp_path / "uptimely.toml").write_text(f'[{table}]\npath = "."\n', encoding="utf-8")
 
-    with pytest.raises(pydantic.ValidationError, match=r"Use \[runtime\]"):
+    with pytest.raises(pydantic.ValidationError, match=r"Use \[code\]"):
         application_module.Uptimely(tmp_path)
 
 
-@pytest.mark.parametrize("runtime_type", ["python", None])
-def test_project_accepts_python_runtime_type(
-    tmp_path: pathlib.Path, runtime_type: str | None
-) -> None:
-    if runtime_type is not None:
+@pytest.mark.parametrize("language", ["python", None])
+def test_project_accepts_python_code_language(tmp_path: pathlib.Path, language: str | None) -> None:
+    if language is not None:
         (tmp_path / "uptimely.toml").write_text(
-            f'[runtime]\ntype = "{runtime_type}"\n', encoding="utf-8"
+            f'[code]\nlanguage = "{language}"\n', encoding="utf-8"
         )
 
-    assert application_module.Uptimely(tmp_path).config.runtime.type == "python"
+    assert application_module.Uptimely(tmp_path).config.code.language == "python"
 
 
-def test_project_reports_unsupported_runtime_type(tmp_path: pathlib.Path) -> None:
-    (tmp_path / "uptimely.toml").write_text('[runtime]\ntype = "other"\n', encoding="utf-8")
+def test_project_reports_unsupported_code_language(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "uptimely.toml").write_text('[code]\nlanguage = "other"\n', encoding="utf-8")
 
-    with pytest.raises(pydantic.ValidationError, match="runtime.type"):
+    with pytest.raises(pydantic.ValidationError, match="code.language"):
         application_module.Uptimely(tmp_path)
 
 
 def test_build_saves_configured_runtime_without_definition(
     app: application_module.Uptimely,
 ) -> None:
-    (app.root / "uptimely.toml").write_text('[runtime]\ntype = "python"\n', encoding="utf-8")
+    (app.root / "uptimely.toml").write_text('[code]\nlanguage = "python"\n', encoding="utf-8")
     app = application_module.Uptimely(app.root)
 
     build = app.build()
     manifest = json.loads((build.root / "build.json").read_text(encoding="utf-8"))
 
-    assert manifest["artifacts"]["runtime"] == {"type": app.config.runtime.type, "path": None}
-    assert application_module.load_build_bundle(app.root).runtime_path is None
+    assert manifest["artifacts"]["code"] == {
+        "language": app.config.code.language,
+        "requirements": None,
+        "src": None,
+    }
+    assert application_module.load_build_bundle(app.root).requirements_file is None
     assert not app.run().failures
 
 
@@ -126,7 +129,8 @@ def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.P
     (tmp_path / "uptimely.toml").write_text(
         '[engine]\npreview_rows = 8\n[engine.backend]\ntype = "default"\nevaluation = "eager"\n'
         '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 10\n'
-        '[application]\npython_spec = "spec.spec:python_spec"\n',
+        '[application]\npython_spec = "spec.spec:python_spec"\n'
+        '[code]\nlanguage = "python"\nrequirements = "worker-env/pyproject.toml"\n',
         encoding="utf-8",
     )
     profile_dir = tmp_path / application_module.CONFIG_DIR
@@ -134,7 +138,7 @@ def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.P
     (profile_dir / "prod.toml").write_text(
         '[engine]\npreview_rows = 12\n[engine.backend]\ntype = "production"\n'
         "[params]\nthreshold = 42\n"
-        '[application]\nsrc_path = "production-src"\n',
+        '[code]\nsrc = "production-src"\n',
         encoding="utf-8",
     )
 
@@ -147,7 +151,9 @@ def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.P
     assert app.config.paths.root == {"source": "data/source.csv"}
     assert app.config.params.root == {"threshold": 42}
     assert app.config.application.python_spec == "spec.spec:python_spec"
-    assert app.config.application.src_path == "production-src"
+    assert app.config.code.language == "python"
+    assert app.config.code.requirements == "worker-env/pyproject.toml"
+    assert app.config.code.src == "production-src"
 
 
 def test_project_build_uses_configured_source_and_cli_overrides(
@@ -162,7 +168,8 @@ def test_project_build_uses_configured_source_and_cli_overrides(
     override_spec.write_text('{"spec_version": 9, "name": "CLI source"}', encoding="utf-8")
     (tmp_path / "configured-src").mkdir()
     (tmp_path / "uptimely.toml").write_text(
-        '[application]\njson_spec = "spec/configured.json"\nsrc_path = "configured-src"\n'
+        '[application]\njson_spec = "spec/configured.json"\n'
+        '[code]\nsrc = "configured-src"\n'
         "[engine]\npreview_rows = 11\n",
         encoding="utf-8",
     )
@@ -286,7 +293,7 @@ def test_run_uses_project_preview_and_bundled_source_by_default(
     )
     (tmp_path / "custom-src").mkdir()
     (tmp_path / "uptimely.toml").write_text(
-        '[application]\nsrc_path = "custom-src"\n[engine]\npreview_rows = 12\n',
+        '[code]\nsrc = "custom-src"\n[engine]\npreview_rows = 12\n',
         encoding="utf-8",
     )
     app = application_module.Uptimely(tmp_path)
@@ -300,11 +307,8 @@ def test_run_uses_project_preview_and_bundled_source_by_default(
     ) as source_path:
         result = app.run()
 
-    source_path.assert_called_once_with(app.root, src_path=bundle.package_paths["project"])
-    assert (
-        f"Selected Python source directory (bundle): {bundle.package_paths['project']}"
-        in caplog.messages
-    )
+    source_path.assert_called_once_with(app.root, src_path=bundle.source_path)
+    assert f"Selected Python source directory (bundle): {bundle.source_path}" in caplog.messages
     assert not result.failures
     manifest_path = app.root / project_paths.RUN_MANIFEST_FILE
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -402,11 +406,39 @@ def test_project_build_forwards_source_and_feature_options(
         python_spec="spec.spec:python_spec",
         json_spec=source,
         features=["reading"],
-        src_path=None,
-        runtime_path="runtime",
-        runtime_type=app.config.runtime.type,
+        code=app.config.code,
     )
     assert result is builder_class.return_value.build.return_value
+
+
+def test_project_build_applies_requirements_file_override(
+    app: application_module.Uptimely, tmp_path: pathlib.Path
+) -> None:
+    (app.root / "uptimely.toml").write_text('[code]\nsrc = "custom-src"\n', encoding="utf-8")
+    app = application_module.Uptimely(app.root)
+    override = tmp_path / "custom-runtime.toml"
+    with mock.patch.object(builder, "ProjectBuilder", autospec=True) as builder_class:
+        app.build(requirements_file=override)
+
+    code = builder_class.return_value.build.call_args.kwargs["code"]
+    assert code.requirements == str(override)
+    assert code.language == app.config.code.language
+    assert code.src == "custom-src"
+    assert app.config.code.requirements is None
+
+
+def test_project_build_applies_source_and_dependency_overrides(
+    app: application_module.Uptimely, tmp_path: pathlib.Path
+) -> None:
+    source = tmp_path / "source"
+    requirements_file = tmp_path / "runtime-definition.toml"
+    with mock.patch.object(builder, "ProjectBuilder", autospec=True) as builder_class:
+        app.build(src_path=source, requirements_file=requirements_file)
+
+    code = builder_class.return_value.build.call_args.kwargs["code"]
+    assert code.src == str(source)
+    assert code.requirements == str(requirements_file)
+    assert app.config.code.src is None
 
 
 @pytest.mark.parametrize("validate", [False, True])

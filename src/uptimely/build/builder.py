@@ -17,6 +17,7 @@ from uptimely.codebase import packaging
 from uptimely.codebase.python import packaging as python_packaging
 from uptimely.explorer import presentation
 from uptimely.plan import serialization as plan_serialization
+from uptimely.project import config as project_config
 from uptimely.project import defaults, paths, python_imports
 from uptimely.project import spec_source as project_spec_source
 
@@ -60,9 +61,7 @@ class ProjectBuilder:
         python_spec: str | None = None,
         json_spec: project_spec_source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
-        src_path: pathlib.Path | None = None,
-        runtime_path: str | pathlib.Path = packaging.RUNTIME_DIR,
-        runtime_type: str | None = None,
+        code: project_config.CodeSettings | None = None,
     ) -> models.BuildBundle:
         """Build and publish a spec, execution plan, and Explorer snapshot.
 
@@ -71,12 +70,9 @@ class ProjectBuilder:
             json_spec: Optional explicit spec JSON path, relative to the project root
                 unless absolute.
             features: Optional output features to compile with their dependencies.
-            src_path: Optional source directory, relative to the project root unless absolute.
-                Defaults to the project source path.
-            runtime_path: Runtime definition directory, relative to the project root unless
-                absolute. Defaults to ``runtime``.
-            runtime_type: Project runtime type. Defaults to the staged runtime type,
-                or Python if the packager does not provide one.
+            code: Project code settings. If absent, the language comes from the
+                packager or defaults to Python, the runtime definition is discovered,
+                and the source path defaults to ``src``.
 
         Returns:
             The validated newly published bundle.
@@ -95,7 +91,14 @@ class ProjectBuilder:
             )
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
+        src_path = pathlib.Path(code.src) if code is not None and code.src else None
         resolved_src_path = python_imports.resolve_src_path(self.root, src_path)
+        requirements_file = (
+            self.root / code.requirements
+            if code is not None and code.requirements is not None
+            else None
+        )
+        runtime_type = code.language if code is not None else None
         with (
             locking.build_lock(self.root, exclusive=True, wait=False),
             python_imports.expose(self.root, src_path=src_path),
@@ -110,12 +113,11 @@ class ProjectBuilder:
                     selected_features,
                     staging_root,
                     resolved_src_path,
-                    self.root / runtime_path,
+                    requirements_file,
                 )
                 self._validate_staged_bundle(
                     staging_root,
                     selected_features,
-                    resolved_src_path,
                     spec_source.display_name,
                     code_artifacts,
                     runtime_type,
@@ -196,7 +198,7 @@ class ProjectBuilder:
         selected_features: list[str] | None,
         staging_root: pathlib.Path,
         resolved_src_path: pathlib.Path,
-        runtime_root: pathlib.Path,
+        requirements_file: pathlib.Path | None,
     ) -> packaging.StagedCode:
         """Stage portable inputs and the Explorer snapshot."""
         try:
@@ -205,7 +207,7 @@ class ProjectBuilder:
                 execution_plan, staging_root / paths.BUILD_EXECUTION_PLAN_FILE.name
             )
             code_artifacts = self._code_packager.stage(
-                self.root, resolved_src_path, staging_root, runtime_root
+                self.root, resolved_src_path, staging_root, requirements_file
             )
             presentation_data = presentation.build_presentation_data(
                 spec_definition,
@@ -226,48 +228,37 @@ class ProjectBuilder:
         self,
         staging_root: pathlib.Path,
         selected_features: list[str] | None,
-        resolved_src_path: pathlib.Path,
         spec_source: str,
         code_artifacts: packaging.StagedCode,
         runtime_type: str | None,
     ) -> None:
         """Write the bundle manifest and validate the staged spec and execution plan."""
         try:
-            staged_runtime = code_artifacts.runtime
             if (
                 runtime_type is not None
-                and staged_runtime is not None
-                and runtime_type != staged_runtime.type
+                and code_artifacts.language is not None
+                and runtime_type != code_artifacts.language
             ):
                 raise ValueError(
-                    f"Configured runtime type {runtime_type!r} does not match "
-                    f"packaged runtime type {staged_runtime.type!r}"
+                    f"Configured code language {runtime_type!r} does not match "
+                    f"packaged code language {code_artifacts.language!r}"
                 )
             selected_runtime_type = runtime_type
             if selected_runtime_type is None:
-                selected_runtime_type = (
-                    staged_runtime.type
-                    if staged_runtime is not None
-                    else python_packaging.RUNTIME_TYPE
-                )
-            try:
-                manifest_src_path = resolved_src_path.relative_to(self.root).as_posix()
-            except ValueError:
-                manifest_src_path = str(resolved_src_path)
+                selected_runtime_type = code_artifacts.language or python_packaging.RUNTIME_TYPE
             manifest = models.BuildManifest(
                 build_version=models.BUILD_VERSION,
                 uptimely_version=importlib.metadata.version("uptimely-core"),
                 features=selected_features,
-                src_path=manifest_src_path,
                 spec_source=spec_source,
                 artifacts=models.BuildArtifactPaths(
                     spec=paths.BUILD_SPEC_FILE.name,
                     execution_plan=paths.BUILD_EXECUTION_PLAN_FILE.name,
                     explorer="explorer.json",
-                    packages=code_artifacts.packages,
-                    runtime=packaging.CodeRuntime(
-                        type=selected_runtime_type,
-                        path=staged_runtime.path if staged_runtime is not None else None,
+                    code=packaging.CodeArtifacts(
+                        language=selected_runtime_type,
+                        requirements=code_artifacts.requirements,
+                        src=code_artifacts.src,
                     ),
                 ),
             )
@@ -311,10 +302,8 @@ def build(
     python_spec: str | None = None,
     json_spec: project_spec_source.JsonSourceInput = None,
     features: feature_selection.FeatureSelection = None,
-    src_path: pathlib.Path | None = None,
     *,
-    runtime_path: str | pathlib.Path = packaging.RUNTIME_DIR,
-    runtime_type: str | None = None,
+    code: project_config.CodeSettings | None = None,
 ) -> models.BuildBundle:
     """Build and publish project artifacts through a root-bound builder.
 
@@ -324,12 +313,9 @@ def build(
         json_spec: Optional explicit spec JSON path, relative to the project root
             unless absolute.
         features: Optional output features to compile with their dependencies.
-        src_path: Optional source directory, relative to the project root unless absolute.
-            Defaults to ``src``.
-        runtime_path: Runtime definition directory, relative to the project root unless
-            absolute. Defaults to ``runtime``.
-        runtime_type: Project runtime type. Defaults to the staged runtime type,
-            or Python if the packager does not provide one.
+        code: Project code settings. If absent, the language comes from the
+            packager or defaults to Python, the runtime definition is discovered,
+            and the source path defaults to ``src``.
 
     Returns:
         The validated newly published bundle.
@@ -342,7 +328,5 @@ def build(
         python_spec=python_spec,
         json_spec=json_spec,
         features=features,
-        src_path=src_path,
-        runtime_path=runtime_path,
-        runtime_type=runtime_type,
+        code=code,
     )

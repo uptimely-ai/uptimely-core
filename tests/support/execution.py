@@ -8,6 +8,7 @@ from uptimely import application as application_module
 from uptimely import engine as engine_module
 from uptimely import plan as execution_plan
 from uptimely import spec
+from uptimely.codebase import packaging
 from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
@@ -230,6 +231,7 @@ def bundle_for_plan(
             artifacts=application_module.BuildArtifactPaths(
                 spec="spec.json",
                 execution_plan="execution_plan.json",
+                code=packaging.CodeArtifacts(language="python"),
             ),
         ),
         spec_path=build_root / "spec.json",

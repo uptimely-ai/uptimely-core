@@ -12,51 +12,46 @@ PACKAGES_DIR = "packages"
 RUNTIME_DIR = "runtime"
 
 
-class CodePackage(pydantic.BaseModel):
-    """A bundled package directory."""
+class CodeArtifacts(pydantic.BaseModel):
+    """The project's language and optional bundled code and requirements paths."""
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    path: str
+    language: str = pydantic.Field(min_length=1)
+    requirements: str | None = None
+    src: str | None = None
 
-
-class CodeRuntime(pydantic.BaseModel):
-    """The project's runtime type and optional bundled definition file."""
-
-    model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
-
-    type: str = pydantic.Field(min_length=1)
-    path: str | None = None
-
-    @pydantic.field_validator("type")
+    @pydantic.field_validator("language")
     @classmethod
-    def validate_type(cls, value: str) -> str:
-        """Require a nonblank runtime type."""
+    def validate_language(cls, value: str) -> str:
+        """Require a nonblank code language."""
         if not value.strip():
-            raise ValueError("Runtime type must be nonblank")
+            raise ValueError("Code language must be nonblank")
         return value
 
 
 @dataclasses.dataclass
 class StagedCode:
-    """Relative paths for packages and the optional project runtime."""
+    """Relative paths for project code and its optional requirements definition."""
 
-    packages: dict[str, CodePackage] = dataclasses.field(default_factory=dict)
-    runtime: CodeRuntime | None = None
+    language: str | None = None
+    requirements: str | None = None
+    src: str | None = None
 
     def validate_layout(self, staging_root: pathlib.Path) -> None:
-        """Check that implementation files match their declared package IDs."""
+        """Check that staged directories match the declared code paths."""
         root = staging_root / PACKAGES_DIR
-        if root.exists() or root.is_symlink() or self.packages:
+        if root.exists() or root.is_symlink() or self.src is not None:
             if root.is_symlink() or not root.is_dir():
                 raise ValueError(f"Expected bundle directory {PACKAGES_DIR}/")
             entries = tuple(root.iterdir())
-            if {entry.name for entry in entries} != set(self.packages) or any(
+            expected = {pathlib.PurePosixPath(self.src).name} if self.src is not None else set()
+            if {entry.name for entry in entries} != expected or any(
                 entry.is_symlink() or not entry.is_dir() for entry in entries
             ):
-                raise ValueError(f"{PACKAGES_DIR}/ must contain only declared ID directories")
+                raise ValueError(f"{PACKAGES_DIR}/ must contain only the declared source directory")
         runtime_root = staging_root / RUNTIME_DIR
-        if self.runtime is None or self.runtime.path is None:
+        if self.requirements is None:
             if runtime_root.exists() or runtime_root.is_symlink():
                 raise ValueError("runtime/ must not exist without a declared runtime definition")
         elif runtime_root.is_symlink() or not runtime_root.is_dir():
@@ -71,7 +66,7 @@ class CodePackager(typing.Protocol):
         project_root: pathlib.Path,
         source: pathlib.Path,
         staging_root: pathlib.Path,
-        runtime_root: pathlib.Path,
+        requirements_file: pathlib.Path | None,
     ) -> StagedCode:
         """Stage implementation files and the project runtime definition."""
         ...

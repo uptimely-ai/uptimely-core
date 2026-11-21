@@ -48,6 +48,7 @@ def _manifest_data() -> dict[str, object]:
         "artifacts": {
             "spec": "spec.json",
             "execution_plan": "execution_plan.json",
+            "code": {"language": "python", "requirements": None, "src": None},
         },
     }
 
@@ -80,48 +81,46 @@ def test_build_manifest_normalizes_feature_selection() -> None:
     assert manifest.features == ["pressure", "temperature"]
 
 
-def test_build_manifest_accepts_source_path() -> None:
-    data = _manifest_data()
-    data["src_path"] = "custom-src"
-
-    manifest = application.BuildManifest.model_validate(data)
-
-    assert manifest.src_path == "custom-src"
-
-
-def test_build_manifest_accepts_one_project_runtime() -> None:
+def test_build_manifest_accepts_code_artifacts() -> None:
     data = _manifest_data()
     data["artifacts"] = {
         "spec": "spec.json",
         "execution_plan": "execution_plan.json",
-        "runtime": {"type": "python", "path": "runtime/pyproject.toml"},
+        "code": {
+            "language": "python",
+            "requirements": "runtime/pyproject.toml",
+            "src": "packages/project",
+        },
     }
 
     manifest = application.BuildManifest.model_validate(data)
 
-    assert manifest.artifacts.runtime is not None
-    assert manifest.artifacts.runtime.type == "python"
+    assert manifest.artifacts.code.model_dump() == {
+        "language": "python",
+        "requirements": "runtime/pyproject.toml",
+        "src": "packages/project",
+    }
 
 
-def test_build_manifest_rejects_multiple_runtime_definitions() -> None:
+@pytest.mark.parametrize(
+    ("field", "path"),
+    [
+        ("src", "../outside"),
+        ("src", "packages/project/nested"),
+        ("requirements", "../outside.toml"),
+        ("requirements", "packages/project/requirements.toml"),
+    ],
+)
+def test_build_manifest_validates_code_paths(field: str, path: str) -> None:
     data = _manifest_data()
     data["artifacts"] = {
         "spec": "spec.json",
         "execution_plan": "execution_plan.json",
-        "runtime": [
-            {"type": "python", "path": "runtime/pyproject.toml"},
-            {"type": "native", "path": "runtime/runtime.json"},
-        ],
+        "code": {"language": "python", "requirements": None, "src": None, field: path},
     }
 
-    with pytest.raises(pydantic.ValidationError, match="runtime"):
+    with pytest.raises(pydantic.ValidationError):
         application.BuildManifest.model_validate(data)
-
-
-def test_build_manifest_defaults_source_path_for_older_bundles() -> None:
-    manifest = application.BuildManifest.model_validate(_manifest_data())
-
-    assert manifest.src_path is None
 
 
 def test_build_manifest_defaults_spec_source_for_older_bundles() -> None:
@@ -130,7 +129,7 @@ def test_build_manifest_defaults_spec_source_for_older_bundles() -> None:
     assert manifest.spec_source is None
 
 
-@pytest.mark.parametrize("version", [0, 2, 3, 5, "4", True])
+@pytest.mark.parametrize("version", [0, 2, 3, 4, 5, 6, 8, "7", True])
 def test_build_manifest_rejects_unsupported_or_noninteger_version(version: object) -> None:
     data = _manifest_data()
     data["build_version"] = version
@@ -244,6 +243,7 @@ def test_build_manifest_rejects_paths_that_escape_the_bundle() -> None:
     manifest["artifacts"] = {
         "spec": "../spec.json",
         "execution_plan": "execution_plan.json",
+        "code": {"language": "python", "requirements": None, "src": None},
     }
 
     with pytest.raises(pydantic.ValidationError, match="stay within the build directory"):
@@ -272,7 +272,12 @@ def test_load_build_bundle_does_not_validate_unlisted_files(
 
     loaded_bundle = application.load_build_bundle(tmp_path)
 
-    assert set(loaded_bundle.manifest.artifacts.model_dump()) == {"spec", "execution_plan"}
+    assert set(loaded_bundle.manifest.artifacts.model_dump()) == {
+        "spec",
+        "execution_plan",
+        "explorer",
+        "code",
+    }
 
 
 def test_load_build_bundle_rejects_invalid_saved_plan(tmp_path: pathlib.Path) -> None:

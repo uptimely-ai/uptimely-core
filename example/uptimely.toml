@@ -1,9 +1,10 @@
 [application]
 python_spec = "spec.spec:python_spec"
 
-[runtime]
-type = "python"
-path = "."
+[code]
+language = "python"
+requirements = "pyproject.toml"
+src = "src"
 
 [engine]
 preview_rows = 5

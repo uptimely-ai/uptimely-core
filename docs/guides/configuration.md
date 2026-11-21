@@ -37,11 +37,11 @@ shows a complete project configuration.
 ```toml
 [application]
 python_spec = "spec.spec:python_spec"
-src_path = "src"
 
-[runtime]
-type = "python"
-path = "runtime"
+[code]
+language = "python"
+requirements = "pyproject.toml"
+src = "src"
 
 [engine]
 preview_rows = 5
@@ -67,7 +67,15 @@ entrypoint format. `json_spec` is a path relative to the project root unless it
 is absolute. See [Specification source discovery](build.md#specification-source-discovery)
 for automatic selection and ambiguous-source errors.
 
-`application.src_path` is a Python source directory, relative to the project
+### Code settings
+
+`code.language` identifies the project code language and defaults to `python`.
+`code.requirements` selects a requirements definition file relative to the project
+root unless absolute. The file must exist. If omitted, the build uses
+`requirements/pyproject.toml` when present, otherwise it extracts Python requirements
+from the project root's `pyproject.toml` if available.
+
+`code.src` is a Python source directory, relative to the project
 root unless absolute. If omitted, it defaults to `src`. CLI values for the
 specification source and source path override the corresponding settings. A
 CLI specification source overrides both configured source fields. Explicit

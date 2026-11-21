@@ -54,7 +54,7 @@ def configure_src_path_argument(parser: argparse.ArgumentParser) -> None:
         type=pathlib.Path,
         help=(
             "Python source directory (relative to the project root or absolute; "
-            f"default: application.src_path or {project_defaults.DEFAULT_SRC_PATH})"
+            f"default: code.src or {project_defaults.DEFAULT_SRC_PATH})"
         ),
     )
 
