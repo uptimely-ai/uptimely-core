@@ -105,6 +105,7 @@ class BundleStore:
         runtime_path = (
             self._load_artifact_path(bundle_root, manifest.artifacts.runtime.path, "file")
             if manifest.artifacts.runtime is not None
+            and manifest.artifacts.runtime.path is not None
             else None
         )
         explorer_path = (

@@ -13,7 +13,7 @@ from uptimely.codebase import packaging
 from uptimely.plan import models as plan_models
 from uptimely.spec import model as spec_models
 
-BUILD_VERSION = 3
+BUILD_VERSION = 4
 
 
 class BuildArtifactPaths(pydantic.BaseModel):
@@ -63,7 +63,7 @@ class BuildArtifactPaths(pydantic.BaseModel):
                 for package_id, entry in self.packages.items()
             },
         }
-        if self.runtime is not None:
+        if self.runtime is not None and self.runtime.path is not None:
             runtime_path = pathlib.PurePosixPath(self._validate_relative_path(self.runtime.path))
             if len(runtime_path.parts) < 2 or runtime_path.parts[0] != packaging.RUNTIME_DIR:
                 raise ValueError("Runtime definition must be under runtime/")

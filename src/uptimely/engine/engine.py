@@ -112,9 +112,10 @@ class Engine:
         if runtime is not None:
             if runtime.type != packaging.RUNTIME_TYPE:
                 raise ValueError(f"Unsupported project runtime: {runtime.type}")
-            if self.bundle.runtime_path is None:
-                raise ValueError("Project runtime definition is missing")
-            python_runtime.check_compatibility(self.bundle.runtime_path)
+            if runtime.path is not None:
+                if self.bundle.runtime_path is None:
+                    raise ValueError("Project runtime definition is missing")
+                python_runtime.check_compatibility(self.bundle.runtime_path)
         with (
             python_imports.expose(self.bundle.project_root, src_path=src_path),
             recording.RunRecorder(

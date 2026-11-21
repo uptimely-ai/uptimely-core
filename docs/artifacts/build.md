@@ -20,7 +20,8 @@ artifacts/
 
 Each direct subdirectory of `packages/` is a package. Its directory name is its ID.
 In `build.json`, `artifacts.packages` maps package IDs to directory paths.
-The optional `artifacts.runtime` describes one runtime shared by the project.
+The `artifacts.runtime` describes one runtime shared by the project. Its type
+comes from the build's project configuration and its definition path is optional.
 
 ```json
 {
@@ -53,7 +54,8 @@ Without an explicit definition, the bundle takes only static
 `[project].requires-python` and `[project].dependencies` from the root
 `pyproject.toml`. Dependency markers are preserved. Build-system settings, tool
 settings, and optional extras are not included. If neither field is present,
-the bundle omits runtime metadata. The example sets `[runtime].path = "."` to
+the bundle records the runtime type with a null definition path. The example sets
+`[runtime].path = "."` to
 use its root `pyproject.toml` without maintaining a separate runtime file.
 
 Use the metadata to choose a compatible interpreter and install the listed

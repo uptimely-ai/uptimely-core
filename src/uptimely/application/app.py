@@ -145,6 +145,7 @@ class Uptimely:
             features=features,
             src_path=src_path,
             runtime_path=self.config.runtime.path if runtime_path is None else runtime_path,
+            runtime_type=self.config.runtime.type,
         )
 
     def run(
