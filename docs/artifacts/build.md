@@ -12,32 +12,27 @@ artifacts/
     ├── packages/
     │   └── project/
     │       └── pump_analytics.py
-    └── runtimes/
-        └── python/
-            └── pyproject.toml
+    └── runtime/
+        └── pyproject.toml
 ```
 
 ## Package and runtime manifest
 
-Each direct subdirectory of `packages/` is a package, and each direct subdirectory
-of `runtimes/` is a runtime. Their directory names are their IDs. In `build.json`,
-`artifacts.packages` maps package IDs to directory paths (`path`) and optional
-runtime IDs (`runtime`). Multiple packages can reference the same runtime.
-`artifacts.runtimes` maps each runtime ID to its definition file.
+Each direct subdirectory of `packages/` is a package. Its directory name is its ID.
+In `build.json`, `artifacts.packages` maps package IDs to directory paths.
+The optional `artifacts.runtime` describes one runtime shared by the project.
 
 ```json
 {
   "packages": {
-    "project": {"path": "packages/project", "runtime": "python"}
+    "project": {"path": "packages/project"}
   },
-  "runtimes": {
-    "python": "runtimes/python/pyproject.toml"
-  }
+  "runtime": {"type": "python", "path": "runtime/pyproject.toml"}
 }
 ```
 
-The builder validates these paths and references. Runtime assignments are
-deployment metadata, not instructions to install packages or launch a worker.
+The builder validates these paths. Runtime metadata does not instruct Uptimely
+to install packages or launch a worker.
 
 ## Packaged source code
 
@@ -48,18 +43,16 @@ symlinks are not included. Built-in wheel packaging is not supported.
 
 ## Runtime requirements
 
-The Python packager copies `python/pyproject.toml` from `[runtimes].path`
-(default: `runtimes/` relative to the project root), or `pyproject.toml` directly
-in that directory if present. An explicit runtime definition replaces the root
-project's metadata rather than merging with it.
+The Python packager copies `pyproject.toml` from `[runtime].path`
+(default: `runtime/` relative to the project root), if present. An explicit
+runtime definition replaces the root project's metadata rather than merging with it.
 
 Without an explicit definition, the bundle takes only static
 `[project].requires-python` and `[project].dependencies` from the root
 `pyproject.toml`. Dependency markers are preserved. Build-system settings, tool
 settings, and optional extras are not included. If neither field is present,
-the bundle omits the Python runtime definition and its assignment.
-The example sets `[runtimes].path = "."` to use its root `pyproject.toml`
-without maintaining a separate runtime file.
+the bundle omits runtime metadata. The example sets `[runtime].path = "."` to
+use its root `pyproject.toml` without maintaining a separate runtime file.
 
 Use the metadata to choose a compatible interpreter and install the listed
 dependencies in the target environment. The generated `pyproject.toml` is

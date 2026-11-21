@@ -74,11 +74,11 @@ class ProjectSettings(pydantic.BaseModel):
 
 
 class RuntimeSettings(pydantic.BaseModel):
-    """Location of project runtime definitions."""
+    """Location of the project runtime definition."""
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
 
-    path: str = pydantic.Field(default=packaging.RUNTIMES_DIR, min_length=1)
+    path: str = pydantic.Field(default=packaging.RUNTIME_DIR, min_length=1)
 
 
 class ProjectConfig(pydantic.BaseModel):
@@ -90,4 +90,12 @@ class ProjectConfig(pydantic.BaseModel):
     engine: engine_config.EngineConfig = pydantic.Field(default_factory=engine_config.EngineConfig)
     params: Params = pydantic.Field(default_factory=lambda: Params(root={}))
     paths: Paths = pydantic.Field(default_factory=lambda: Paths(root={}))
-    runtimes: RuntimeSettings = pydantic.Field(default_factory=RuntimeSettings)
+    runtime: RuntimeSettings = pydantic.Field(default_factory=RuntimeSettings)
+
+    @pydantic.model_validator(mode="before")
+    @classmethod
+    def reject_legacy_runtimes(cls, value: object) -> object:
+        """Report the renamed runtime configuration instead of ignoring it."""
+        if isinstance(value, dict) and "runtimes" in value:
+            raise ValueError("Use [runtime] instead of [runtimes] in project configuration")
+        return value

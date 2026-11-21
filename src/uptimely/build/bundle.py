@@ -102,10 +102,11 @@ class BundleStore:
             package_id: self._load_artifact_path(bundle_root, entry.path, "directory")
             for package_id, entry in manifest.artifacts.packages.items()
         }
-        runtime_paths = {
-            runtime: self._load_artifact_path(bundle_root, path, "file")
-            for runtime, path in manifest.artifacts.runtimes.items()
-        }
+        runtime_path = (
+            self._load_artifact_path(bundle_root, manifest.artifacts.runtime.path, "file")
+            if manifest.artifacts.runtime is not None
+            else None
+        )
         explorer_path = (
             self._load_artifact_path(bundle_root, manifest.artifacts.explorer, "file")
             if manifest.artifacts.explorer is not None
@@ -125,7 +126,7 @@ class BundleStore:
             execution_plan_path=execution_plan_path,
             execution_plan=execution_plan,
             package_paths=package_paths,
-            runtime_paths=runtime_paths,
+            runtime_path=runtime_path,
             explorer_path=explorer_path,
         )
 

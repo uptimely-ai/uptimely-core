@@ -12,13 +12,14 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - The documentation website publishes a human-readable Allure report of the
   Python test suite at `/uptimely-core/tests/`.
-- Build bundles group implementation packages and runtimes in separate ID-named
-  directories and record their assignments in the manifest.
 - Engine debug logs show the selected Python source directory and its origin.
 - Runs check declared Python and dependency versions before executing operators.
 
 ### Changed
 
+- Build bundles declare one project-wide runtime in `runtime/`. Rebuild existing
+  bundles, rename `[runtimes]` to `[runtime]`, and move runtime definitions from
+  `runtimes/python/` to `runtime/`.
 - Python runtime definitions use `pyproject.toml` instead of `requirements.txt`
   and can record the supported Python versions as well as dependencies.
 

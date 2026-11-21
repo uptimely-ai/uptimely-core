@@ -108,9 +108,13 @@ class Engine:
         else:
             source_origin = "explicit override"
         plan = self.plan if operator is None else self.plan.for_operator(*operator)
-        runtime = self.bundle.runtime_paths.get(packaging.RUNTIME_ID)
-        if runtime is not None and runtime.suffix == ".toml":
-            python_runtime.check_compatibility(runtime)
+        runtime = self.bundle.manifest.artifacts.runtime
+        if runtime is not None:
+            if runtime.type != packaging.RUNTIME_TYPE:
+                raise ValueError(f"Unsupported project runtime: {runtime.type}")
+            if self.bundle.runtime_path is None:
+                raise ValueError("Project runtime definition is missing")
+            python_runtime.check_compatibility(self.bundle.runtime_path)
         with (
             python_imports.expose(self.bundle.project_root, src_path=src_path),
             recording.RunRecorder(

@@ -112,7 +112,7 @@ class Uptimely:
         json_spec: project_spec_source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
         src_path: pathlib.Path | None = None,
-        runtimes_path: str | pathlib.Path | None = None,
+        runtime_path: str | pathlib.Path | None = None,
     ) -> models.BuildBundle:
         """Build and publish the project's spec, plan, and Explorer snapshot.
 
@@ -124,8 +124,8 @@ class Uptimely:
             features: Optional output features to compile with their dependencies.
             src_path: Optional source directory, relative to the project root unless absolute.
                 Defaults to ``src``.
-            runtimes_path: Runtime definitions directory, relative to the project root unless
-                absolute. Defaults to the configured ``runtimes.path``.
+            runtime_path: Runtime definition directory, relative to the project root unless
+                absolute. Defaults to the configured ``runtime.path``.
 
         Returns:
             The validated newly published bundle.
@@ -144,7 +144,7 @@ class Uptimely:
             json_spec=json_spec,
             features=features,
             src_path=src_path,
-            runtimes_path=self.config.runtimes.path if runtimes_path is None else runtimes_path,
+            runtime_path=self.config.runtime.path if runtime_path is None else runtime_path,
         )
 
     def run(

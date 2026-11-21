@@ -9,48 +9,58 @@ import pydantic
 type ArtifactKind = typing.Literal["file", "directory"]
 
 PACKAGES_DIR = "packages"
-RUNTIMES_DIR = "runtimes"
+RUNTIME_DIR = "runtime"
 
 
 class CodePackage(pydantic.BaseModel):
-    """A bundled package directory and its optional runtime ID."""
+    """A bundled package directory."""
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
 
     path: str
-    runtime: str | None = None
+
+
+class CodeRuntime(pydantic.BaseModel):
+    """The project's runtime type and bundled definition file."""
+
+    model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    type: str = pydantic.Field(min_length=1)
+    path: str
+
+    @pydantic.field_validator("type")
+    @classmethod
+    def validate_type(cls, value: str) -> str:
+        """Require a nonblank runtime type."""
+        if not value.strip():
+            raise ValueError("Runtime type must be nonblank")
+        return value
 
 
 @dataclasses.dataclass
 class StagedCode:
-    """Relative paths for packages and runtimes, with their assignments."""
+    """Relative paths for packages and the optional project runtime."""
 
     packages: dict[str, CodePackage] = dataclasses.field(default_factory=dict)
-    runtimes: dict[str, str] = dataclasses.field(default_factory=dict)
+    runtime: CodeRuntime | None = None
 
     def validate_layout(self, staging_root: pathlib.Path) -> None:
-        """Check that the bundle groups implementation and runtime files by ID."""
-        for runtime, path in self.runtimes.items():
-            parts = pathlib.PurePosixPath(path).parts
-            if len(parts) < 3 or parts[:2] != (RUNTIMES_DIR, runtime):
-                raise ValueError(
-                    f"Runtime {runtime!r} must have its definition under runtimes/{runtime}/"
-                )
-
-        for directory, ids in (
-            (PACKAGES_DIR, set(self.packages)),
-            (RUNTIMES_DIR, set(self.runtimes)),
-        ):
-            root = staging_root / directory
-            if not root.exists() and not root.is_symlink() and not ids:
-                continue
+        """Check that implementation files match their declared package IDs."""
+        root = staging_root / PACKAGES_DIR
+        if root.exists() or root.is_symlink() or self.packages:
             if root.is_symlink() or not root.is_dir():
-                raise ValueError(f"Expected bundle directory {directory}/")
+                raise ValueError(f"Expected bundle directory {PACKAGES_DIR}/")
             entries = tuple(root.iterdir())
-            if {entry.name for entry in entries} != ids or any(
+            if {entry.name for entry in entries} != set(self.packages) or any(
                 entry.is_symlink() or not entry.is_dir() for entry in entries
             ):
-                raise ValueError(f"{directory}/ must contain only declared ID directories")
+                raise ValueError(f"{PACKAGES_DIR}/ must contain only declared ID directories")
+        runtime_root = staging_root / RUNTIME_DIR
+        if self.runtime is None:
+            if runtime_root.exists() or runtime_root.is_symlink():
+                raise ValueError("runtime/ must not exist without a declared runtime")
+        elif runtime_root.is_symlink() or not runtime_root.is_dir():
+            raise ValueError("Expected bundle directory runtime/")
 
 
 class CodePackager(typing.Protocol):
@@ -61,7 +71,7 @@ class CodePackager(typing.Protocol):
         project_root: pathlib.Path,
         source: pathlib.Path,
         staging_root: pathlib.Path,
-        runtimes_root: pathlib.Path,
+        runtime_root: pathlib.Path,
     ) -> StagedCode:
-        """Stage implementation and runtime files and describe their relationship."""
+        """Stage implementation files and the project runtime definition."""
         ...

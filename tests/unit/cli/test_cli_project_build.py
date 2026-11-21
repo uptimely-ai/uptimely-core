@@ -133,11 +133,12 @@ def test_project_build_examples(
         "packages/project/pump_io.py",
         "packages/project/pump_merge.py",
         "packages/project/pump_util.py",
-        "runtimes/python/pyproject.toml",
+        "runtime/pyproject.toml",
     }
     assert bundle.manifest.artifacts.execution_plan == "plan.json"
     project_metadata = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
-    assert tomllib.loads(bundle.runtime_paths["python"].read_text(encoding="utf-8")) == {
+    assert bundle.runtime_path is not None
+    assert tomllib.loads(bundle.runtime_path.read_text(encoding="utf-8")) == {
         "project": {
             "requires-python": project_metadata["project"]["requires-python"],
             "dependencies": project_metadata["project"]["dependencies"],
