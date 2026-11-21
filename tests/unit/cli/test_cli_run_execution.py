@@ -11,6 +11,7 @@ from uptimely import application as application_module
 from uptimely import engine as engine_module
 from uptimely import plan as execution_plan
 from uptimely.cli import cli
+from uptimely.codebase import packaging
 from uptimely.run import recording
 
 PROJECT = example_support.EXAMPLES_ROOT
@@ -56,6 +57,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
         artifacts=application_module.BuildArtifactPaths(
             spec="spec.json",
             execution_plan="execution_plan.json",
+            code=packaging.CodeArtifacts(language="python"),
         ),
     )
     (build_root / "build.json").write_text(json.dumps(manifest.model_dump()), encoding="utf-8")
@@ -199,7 +201,7 @@ def test_engine_cli_uses_project_preview_and_source_defaults(
     _write_empty_build(tmp_path)
     (tmp_path / "custom-src").mkdir()
     (tmp_path / "uptimely.toml").write_text(
-        '[application]\nsrc_path = "custom-src"\n[engine]\npreview_rows = 13\n',
+        '[code]\nsrc = "custom-src"\n[engine]\npreview_rows = 13\n',
         encoding="utf-8",
     )
     received: list[tuple[int, pathlib.Path | None]] = []
@@ -213,9 +215,7 @@ def test_engine_cli_uses_project_preview_and_source_defaults(
     ) -> engine_module.ExecutionResult:
         configured_preview = self.config.preview_rows if preview_rows is None else preview_rows
         configured_src = (
-            pathlib.Path(self.project_settings.src_path)
-            if self.project_settings.src_path is not None
-            else None
+            pathlib.Path(self.code_settings.src) if self.code_settings.src is not None else None
         )
         received.append((configured_preview, src_path or configured_src))
         return engine_module.ExecutionResult(

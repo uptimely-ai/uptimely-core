@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import itertools
 import pathlib
 import typing
 
@@ -13,7 +14,7 @@ from uptimely.codebase import packaging
 from uptimely.plan import models as plan_models
 from uptimely.spec import model as spec_models
 
-BUILD_VERSION = 4
+BUILD_VERSION = 5
 
 
 class BuildArtifactPaths(pydantic.BaseModel):
@@ -24,8 +25,7 @@ class BuildArtifactPaths(pydantic.BaseModel):
     spec: str
     execution_plan: str
     explorer: typing.Literal["explorer.json"] | None = None
-    packages: dict[str, packaging.CodePackage] = pydantic.Field(default_factory=dict)
-    runtime: packaging.CodeRuntime | None = None
+    code: packaging.CodeArtifacts
 
     @pydantic.field_validator("spec", "execution_plan")
     @classmethod
@@ -52,43 +52,43 @@ class BuildArtifactPaths(pydantic.BaseModel):
     @pydantic.model_validator(mode="after")
     def validate_distinct_paths(self) -> typing.Self:
         """Prevent required artifacts from colliding or containing one another."""
+        artifact_paths = self._declared_artifact_paths()
+        for (name, artifact_path), (other_name, other_path) in itertools.combinations(
+            artifact_paths.items(), 2
+        ):
+            if (
+                artifact_path == other_path
+                or artifact_path in other_path.parents
+                or other_path in artifact_path.parents
+            ):
+                raise ValueError(f"Build artifact paths {name!r} and {other_name!r} overlap")
+        return self
+
+    def _declared_artifact_paths(self) -> dict[str, pathlib.PurePosixPath]:
+        """Return all declared artifact paths as normalized POSIX paths."""
         artifact_paths = {
             "manifest": pathlib.PurePosixPath("build.json"),
             "spec": pathlib.PurePosixPath(self.spec),
             "execution_plan": pathlib.PurePosixPath(self.execution_plan),
-            **{
-                f"package:{package_id}": pathlib.PurePosixPath(
-                    self._validate_relative_path(entry.path)
-                )
-                for package_id, entry in self.packages.items()
-            },
         }
-        if self.runtime is not None and self.runtime.path is not None:
-            runtime_path = pathlib.PurePosixPath(self._validate_relative_path(self.runtime.path))
-            if len(runtime_path.parts) < 2 or runtime_path.parts[0] != packaging.RUNTIME_DIR:
+        if self.code.src is not None:
+            src = pathlib.PurePosixPath(self._validate_relative_path(self.code.src))
+            if len(src.parts) != 2 or src.parts[0] != packaging.PACKAGES_DIR:
+                raise ValueError("Code source must be a directory under packages/")
+            artifact_paths["code.src"] = src
+        if self.code.requirements is not None:
+            requirements_file = pathlib.PurePosixPath(
+                self._validate_relative_path(self.code.requirements)
+            )
+            if (
+                len(requirements_file.parts) < 2
+                or requirements_file.parts[0] != packaging.RUNTIME_DIR
+            ):
                 raise ValueError("Runtime definition must be under runtime/")
-            artifact_paths["runtime"] = runtime_path
+            artifact_paths["code.requirements"] = requirements_file
         if self.explorer is not None:
             artifact_paths["explorer"] = pathlib.PurePosixPath(self.explorer)
-        names = list(artifact_paths)
-        for index, name in enumerate(names):
-            for other_name in names[index + 1 :]:
-                artifact_path, other_path = artifact_paths[name], artifact_paths[other_name]
-                if (
-                    artifact_path == other_path
-                    or artifact_path in other_path.parents
-                    or other_path in artifact_path.parents
-                ):
-                    raise ValueError(f"Build artifact paths {name!r} and {other_name!r} overlap")
-        return self
-
-    @pydantic.model_validator(mode="after")
-    def validate_code_packages(self) -> typing.Self:
-        """Check package IDs against directory names."""
-        for package_id, entry in self.packages.items():
-            if pathlib.PurePosixPath(entry.path).parts != (packaging.PACKAGES_DIR, package_id):
-                raise ValueError(f"Code package {package_id!r} must match its directory name")
-        return self
+        return artifact_paths
 
 
 class BuildManifest(pydantic.BaseModel):
@@ -100,7 +100,6 @@ class BuildManifest(pydantic.BaseModel):
     uptimely_version: str
     features: list[str] | None
     artifacts: BuildArtifactPaths
-    src_path: str | None = pydantic.Field(default=None, min_length=1)
     spec_source: str | None = pydantic.Field(default=None, min_length=1)
 
     @pydantic.field_validator("build_version")
@@ -141,6 +140,6 @@ class BuildBundle:
     spec_definition: spec_models.Spec
     execution_plan_path: pathlib.Path
     execution_plan: plan_models.ExecutionPlan
-    package_paths: dict[str, pathlib.Path] = dataclasses.field(default_factory=dict)
-    runtime_path: pathlib.Path | None = None
+    source_path: pathlib.Path | None = None
+    requirements_file: pathlib.Path | None = None
     explorer_path: pathlib.Path | None = None

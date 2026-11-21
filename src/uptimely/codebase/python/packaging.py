@@ -14,6 +14,7 @@ from uptimely.project import paths
 PACKAGE_ID = "project"
 SOURCE_DIR = f"{packaging.PACKAGES_DIR}/{PACKAGE_ID}"
 RUNTIME_TYPE = "python"
+_REQUIREMENTS_DIR = "requirements"
 _PROJECT_METADATA_FILE = "pyproject.toml"
 
 
@@ -116,38 +117,51 @@ class PythonPackager:
         project_root: pathlib.Path,
         source: pathlib.Path,
         staging_root: pathlib.Path,
-        runtime_root: pathlib.Path,
+        requirements_file: pathlib.Path | None,
     ) -> packaging.StagedCode:
         """Stage Python source and its runtime definition."""
         artifacts = packaging.StagedCode()
-        runtime_path = self._stage_runtime(project_root, runtime_root, staging_root)
-        artifacts.runtime = packaging.CodeRuntime(type=RUNTIME_TYPE, path=runtime_path)
+        staged_runtime = self._stage_runtime(project_root, requirements_file, staging_root)
+        artifacts.language = RUNTIME_TYPE
+        artifacts.requirements = staged_runtime
         if source.is_dir():
             self._copy_source(source, staging_root / SOURCE_DIR)
-            artifacts.packages[PACKAGE_ID] = packaging.CodePackage(path=SOURCE_DIR)
+            artifacts.src = SOURCE_DIR
         return artifacts
 
     @staticmethod
     def _stage_runtime(
-        project_root: pathlib.Path, runtime_root: pathlib.Path, staging_root: pathlib.Path
+        project_root: pathlib.Path,
+        requirements_file: pathlib.Path | None,
+        staging_root: pathlib.Path,
     ) -> str | None:
         """Stage an explicit runtime definition or export root metadata."""
         relative_path = pathlib.PurePosixPath(packaging.RUNTIME_DIR, _PROJECT_METADATA_FILE)
         target = staging_root.joinpath(*relative_path.parts)
         metadata_path = project_root / _PROJECT_METADATA_FILE
-        if (
-            runtime_root == project_root / packaging.RUNTIME_DIR
-            and not (runtime_root / _PROJECT_METADATA_FILE).is_file()
-        ):
-            legacy_root = project_root / "runtimes"
-            if any(
-                (root / _PROJECT_METADATA_FILE).is_file()
-                for root in (legacy_root, legacy_root / RUNTIME_TYPE)
-            ):
-                raise ValueError("Move the Python runtime definition from runtimes/ to runtime/")
-        explicit_path = PythonPackager._find_explicit_runtime(metadata_path, runtime_root)
-        if explicit_path is not None:
-            contents = PythonPackager._read_valid_toml(explicit_path)
+        if requirements_file is None:
+            requirements_file = project_root / _REQUIREMENTS_DIR / _PROJECT_METADATA_FILE
+            if not requirements_file.is_file():
+                legacy_root = project_root / "runtimes"
+                if any(
+                    (root / _PROJECT_METADATA_FILE).is_file()
+                    for root in (
+                        project_root / "dependencies",
+                        project_root / "runtime",
+                        legacy_root,
+                        legacy_root / RUNTIME_TYPE,
+                    )
+                ):
+                    raise ValueError(
+                        "Move the Python runtime definition to requirements/ "
+                        "or configure code.requirements"
+                    )
+                requirements_file = metadata_path
+        elif not requirements_file.is_file():
+            raise ValueError(f"Requirements definition is not a file: {requirements_file}")
+
+        if requirements_file.is_file() and requirements_file.resolve() != metadata_path.resolve():
+            contents = PythonPackager._read_valid_toml(requirements_file)
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_bytes(contents)
             return relative_path.as_posix()
@@ -158,16 +172,6 @@ class PythonPackager:
         target.parent.mkdir(parents=True, exist_ok=True)
         target.write_text(definition.to_toml(), encoding="utf-8", newline="\n")
         return relative_path.as_posix()
-
-    @staticmethod
-    def _find_explicit_runtime(
-        project_metadata: pathlib.Path, runtime_root: pathlib.Path
-    ) -> pathlib.Path | None:
-        """Find a runtime definition outside root metadata."""
-        candidate = runtime_root / _PROJECT_METADATA_FILE
-        if candidate.is_file() and candidate.resolve() != project_metadata.resolve():
-            return candidate
-        return None
 
     @staticmethod
     def _read_valid_toml(path: pathlib.Path) -> bytes:

@@ -102,7 +102,7 @@ class Uptimely:
             self.config.engine,
             self.config.params.root,
             paths=self.config.paths.root,
-            project_settings=self.config.application,
+            code_settings=self.config.code,
         )
 
     def build(
@@ -112,7 +112,7 @@ class Uptimely:
         json_spec: project_spec_source.JsonSourceInput = None,
         features: feature_selection.FeatureSelection = None,
         src_path: pathlib.Path | None = None,
-        runtime_path: str | pathlib.Path | None = None,
+        requirements_file: str | pathlib.Path | None = None,
     ) -> models.BuildBundle:
         """Build and publish the project's spec, plan, and Explorer snapshot.
 
@@ -123,9 +123,9 @@ class Uptimely:
                 unless absolute. Defaults to the configured source or standard discovery.
             features: Optional output features to compile with their dependencies.
             src_path: Optional source directory, relative to the project root unless absolute.
-                Defaults to ``src``.
-            runtime_path: Runtime definition directory, relative to the project root unless
-                absolute. Defaults to the configured ``runtime.path``.
+                Defaults to the configured ``code.src`` or ``src``.
+            requirements_file: Requirements definition file, relative to the project root unless
+                absolute. Defaults to the configured ``code.requirements``.
 
         Returns:
             The validated newly published bundle.
@@ -137,15 +137,20 @@ class Uptimely:
         if python_spec is None and json_spec is None:
             python_spec = self.config.application.python_spec
             json_spec = self.config.application.json_spec
-        if src_path is None and self.config.application.src_path is not None:
-            src_path = pathlib.Path(self.config.application.src_path)
+        code = self.config.code
+        if requirements_file is not None or src_path is not None:
+            code = config_module.PythonCodeSettings(
+                language=code.language,
+                requirements=(
+                    str(requirements_file) if requirements_file is not None else code.requirements
+                ),
+                src=str(src_path) if src_path is not None else code.src,
+            )
         return builder.ProjectBuilder(self.root).build(
             python_spec=python_spec,
             json_spec=json_spec,
             features=features,
-            src_path=src_path,
-            runtime_path=self.config.runtime.path if runtime_path is None else runtime_path,
-            runtime_type=self.config.runtime.type,
+            code=code,
         )
 
     def run(

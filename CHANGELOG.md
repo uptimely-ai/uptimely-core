@@ -10,7 +10,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
-- Project configuration supports `[runtime].type`, defaulting to `python`.
+- Project configuration supports `code.language`, defaulting to `python`.
 - The documentation website publishes a human-readable Allure report of the
   Python test suite at `/uptimely-core/tests/`.
 - Engine debug logs show the selected Python source directory and its origin.
@@ -18,11 +18,19 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
-- Build manifests record the configured runtime type even when there is no
-  runtime definition file. Rebuild existing bundles.
+- Configure the project code under `[code]` instead of `[runtime]` or
+  `[runtimes]`, set the requirements definition file with `code.requirements`,
+  and set the source directory with `code.src` instead of `application.src_path`.
+- Standalone build APIs accept code settings through one `CodeSettings` object.
+  `Uptimely.build(requirements_file=...)` selects a file instead of the former
+  `runtime_path` directory.
+- Build manifests group the code language, requirements file, and single source
+  directory under `artifacts.code`. Custom packagers stage one source directory
+  and loaded bundles expose `source_path` and `requirements_file`. The original
+  source path is no longer saved as a run fallback. Rebuild existing bundles.
 - Build bundles declare one project-wide runtime in `runtime/`. Rebuild existing
-  bundles, rename `[runtimes]` to `[runtime]`, and move runtime definitions from
-  `runtimes/python/` to `runtime/`.
+  bundles, rename `[runtimes]` to `[code]`, and move project runtime definitions
+  from `runtime/`, `runtimes/python/`, or `dependencies/` to `requirements/`.
 - Python runtime definitions use `pyproject.toml` instead of `requirements.txt`
   and can record the supported Python versions as well as dependencies.
 
