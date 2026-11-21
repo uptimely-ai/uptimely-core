@@ -82,6 +82,13 @@ def test_project_explicit_config_and_failures(tmp_path: pathlib.Path) -> None:
         application_module.Uptimely(tmp_path, config_path=override)
 
 
+def test_project_reports_legacy_runtime_configuration(tmp_path: pathlib.Path) -> None:
+    (tmp_path / "uptimely.toml").write_text('[runtimes]\npath = "."\n', encoding="utf-8")
+
+    with pytest.raises(pydantic.ValidationError, match=r"Use \[runtime\]"):
+        application_module.Uptimely(tmp_path)
+
+
 def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.Path) -> None:
     (tmp_path / "uptimely.toml").write_text(
         '[engine]\npreview_rows = 8\n[engine.backend]\ntype = "default"\nevaluation = "eager"\n'
@@ -363,7 +370,7 @@ def test_project_build_forwards_source_and_feature_options(
         json_spec=source,
         features=["reading"],
         src_path=None,
-        runtimes_path="runtimes",
+        runtime_path="runtime",
     )
     assert result is builder_class.return_value.build.return_value
 

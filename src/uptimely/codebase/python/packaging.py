@@ -13,7 +13,7 @@ from uptimely.project import paths
 
 PACKAGE_ID = "project"
 SOURCE_DIR = f"{packaging.PACKAGES_DIR}/{PACKAGE_ID}"
-RUNTIME_ID = "python"
+RUNTIME_TYPE = "python"
 _PROJECT_METADATA_FILE = "pyproject.toml"
 
 
@@ -116,31 +116,37 @@ class PythonPackager:
         project_root: pathlib.Path,
         source: pathlib.Path,
         staging_root: pathlib.Path,
-        runtimes_root: pathlib.Path,
+        runtime_root: pathlib.Path,
     ) -> packaging.StagedCode:
         """Stage Python source and its runtime definition."""
         artifacts = packaging.StagedCode()
-        runtime_path = self._stage_runtime(project_root, runtimes_root, staging_root)
+        runtime_path = self._stage_runtime(project_root, runtime_root, staging_root)
         if runtime_path is not None:
-            artifacts.runtimes[RUNTIME_ID] = runtime_path
+            artifacts.runtime = packaging.CodeRuntime(type=RUNTIME_TYPE, path=runtime_path)
         if source.is_dir():
             self._copy_source(source, staging_root / SOURCE_DIR)
-            artifacts.packages[PACKAGE_ID] = packaging.CodePackage(
-                path=SOURCE_DIR, runtime=RUNTIME_ID if RUNTIME_ID in artifacts.runtimes else None
-            )
+            artifacts.packages[PACKAGE_ID] = packaging.CodePackage(path=SOURCE_DIR)
         return artifacts
 
     @staticmethod
     def _stage_runtime(
-        project_root: pathlib.Path, runtimes_root: pathlib.Path, staging_root: pathlib.Path
+        project_root: pathlib.Path, runtime_root: pathlib.Path, staging_root: pathlib.Path
     ) -> str | None:
         """Stage an explicit runtime definition or export root metadata."""
-        relative_path = pathlib.PurePosixPath(
-            packaging.RUNTIMES_DIR, RUNTIME_ID, _PROJECT_METADATA_FILE
-        )
+        relative_path = pathlib.PurePosixPath(packaging.RUNTIME_DIR, _PROJECT_METADATA_FILE)
         target = staging_root.joinpath(*relative_path.parts)
         metadata_path = project_root / _PROJECT_METADATA_FILE
-        explicit_path = PythonPackager._find_explicit_runtime(metadata_path, runtimes_root)
+        if (
+            runtime_root == project_root / packaging.RUNTIME_DIR
+            and not (runtime_root / _PROJECT_METADATA_FILE).is_file()
+        ):
+            legacy_root = project_root / "runtimes"
+            if any(
+                (root / _PROJECT_METADATA_FILE).is_file()
+                for root in (legacy_root, legacy_root / RUNTIME_TYPE)
+            ):
+                raise ValueError("Move the Python runtime definition from runtimes/ to runtime/")
+        explicit_path = PythonPackager._find_explicit_runtime(metadata_path, runtime_root)
         if explicit_path is not None:
             contents = PythonPackager._read_valid_toml(explicit_path)
             target.parent.mkdir(parents=True, exist_ok=True)
@@ -156,13 +162,12 @@ class PythonPackager:
 
     @staticmethod
     def _find_explicit_runtime(
-        project_metadata: pathlib.Path, runtimes_root: pathlib.Path
+        project_metadata: pathlib.Path, runtime_root: pathlib.Path
     ) -> pathlib.Path | None:
-        """Find the highest-precedence runtime definition outside root metadata."""
-        for root in (runtimes_root / RUNTIME_ID, runtimes_root):
-            candidate = root / _PROJECT_METADATA_FILE
-            if candidate.is_file() and candidate.resolve() != project_metadata.resolve():
-                return candidate
+        """Find a runtime definition outside root metadata."""
+        candidate = runtime_root / _PROJECT_METADATA_FILE
+        if candidate.is_file() and candidate.resolve() != project_metadata.resolve():
+            return candidate
         return None
 
     @staticmethod

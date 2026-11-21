@@ -13,7 +13,7 @@ from uptimely.codebase import packaging
 from uptimely.plan import models as plan_models
 from uptimely.spec import model as spec_models
 
-BUILD_VERSION = 2
+BUILD_VERSION = 3
 
 
 class BuildArtifactPaths(pydantic.BaseModel):
@@ -25,7 +25,7 @@ class BuildArtifactPaths(pydantic.BaseModel):
     execution_plan: str
     explorer: typing.Literal["explorer.json"] | None = None
     packages: dict[str, packaging.CodePackage] = pydantic.Field(default_factory=dict)
-    runtimes: dict[str, str] = pydantic.Field(default_factory=dict)
+    runtime: packaging.CodeRuntime | None = None
 
     @pydantic.field_validator("spec", "execution_plan")
     @classmethod
@@ -62,11 +62,12 @@ class BuildArtifactPaths(pydantic.BaseModel):
                 )
                 for package_id, entry in self.packages.items()
             },
-            **{
-                f"runtime:{runtime}": pathlib.PurePosixPath(self._validate_relative_path(path))
-                for runtime, path in self.runtimes.items()
-            },
         }
+        if self.runtime is not None:
+            runtime_path = pathlib.PurePosixPath(self._validate_relative_path(self.runtime.path))
+            if len(runtime_path.parts) < 2 or runtime_path.parts[0] != packaging.RUNTIME_DIR:
+                raise ValueError("Runtime definition must be under runtime/")
+            artifact_paths["runtime"] = runtime_path
         if self.explorer is not None:
             artifact_paths["explorer"] = pathlib.PurePosixPath(self.explorer)
         names = list(artifact_paths)
@@ -83,14 +84,10 @@ class BuildArtifactPaths(pydantic.BaseModel):
 
     @pydantic.model_validator(mode="after")
     def validate_code_packages(self) -> typing.Self:
-        """Check package IDs against directory names and validate runtime references."""
+        """Check package IDs against directory names."""
         for package_id, entry in self.packages.items():
             if pathlib.PurePosixPath(entry.path).parts != (packaging.PACKAGES_DIR, package_id):
                 raise ValueError(f"Code package {package_id!r} must match its directory name")
-            if entry.runtime is not None and entry.runtime not in self.runtimes:
-                raise ValueError(
-                    f"Code package {package_id!r} refers to undeclared runtime {entry.runtime!r}"
-                )
         return self
 
 
@@ -145,5 +142,5 @@ class BuildBundle:
     execution_plan_path: pathlib.Path
     execution_plan: plan_models.ExecutionPlan
     package_paths: dict[str, pathlib.Path] = dataclasses.field(default_factory=dict)
-    runtime_paths: dict[str, pathlib.Path] = dataclasses.field(default_factory=dict)
+    runtime_path: pathlib.Path | None = None
     explorer_path: pathlib.Path | None = None
