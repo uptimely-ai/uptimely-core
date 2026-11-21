@@ -126,6 +126,7 @@ nav:
           - Browse explorer: guides/explorer.md
       - Scaling up:
           - Orchestration: guides/orchestration.md
+          - Containers: guides/containers.md
           - Custom engine: guides/orchestration-invocations.md
           - Scaling strategies: guides/scaling-strategies.md
       - Data science:
