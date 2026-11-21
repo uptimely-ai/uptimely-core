@@ -178,6 +178,96 @@
 .cv-label-badge small { padding: 0 8px; border-radius: 999px; background: #162b46; color: #a5f3fc; font: 700 9px/1.9 sans-serif; letter-spacing: .1em; text-transform: uppercase; }
 .md-typeset .cv-label-line { margin-top: -.5em; margin-bottom: .4em; }
 .md-typeset .cv-label-line + .cv-function-subtitle { margin-top: 0; }
+.project-layouts,
+.project-flow {
+  display: grid;
+  gap: 16px;
+  margin: 1.5rem 0;
+  color: #162b46;
+}
+.project-layouts { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+.project-layout,
+.project-box {
+  padding: 16px;
+  border: 1px solid #d6e1ec;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+.project-layout h4,
+.project-box h4 {
+  margin: 0 0 12px;
+  color: #162b46;
+  font-size: 14px;
+}
+.project-layout-flow,
+.project-flow {
+  align-items: center;
+}
+.project-layout-flow,
+.project-flow {
+  display: flex;
+}
+.project-layout-flow {
+  gap: 10px;
+  justify-content: center;
+}
+.project-layout-flow > b,
+.project-flow > b {
+  flex: 0 0 auto;
+  color: #6087b2;
+  font-size: 24px;
+  font-weight: 400;
+}
+.project-boxes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 10px;
+  flex: 1 1 0;
+  min-width: 0;
+}
+.project-boxes > span {
+  padding: 10px;
+  border: 1px solid #bdccdf;
+  border-radius: 8px;
+  background: #eaf1fc;
+  color: #244f83;
+  text-align: center;
+}
+.project-flow {
+  grid-template-columns: none;
+  justify-content: center;
+  padding: 18px;
+  border: 1px solid #d6e1ec;
+  border-radius: 14px;
+  background: linear-gradient(135deg, #fff, #f6f9fc);
+}
+.project-flow > .project-box {
+  flex: 1 1 220px;
+  min-width: 160px;
+  text-align: center;
+}
+.project-flow .project-boxes {
+  flex: 2 1 360px;
+}
+.calculation-box {
+  margin-top: 8px;
+  padding: 8px;
+  border: 1px solid #9bb0c9;
+  border-radius: 8px;
+  background: #edf2f8;
+  color: #274365;
+  font-size: 12px;
+  text-align: center;
+}
+@media (max-width: 760px) {
+  .project-layouts { grid-template-columns: 1fr; }
+  .project-layout-flow,
+  .project-flow { flex-direction: column; }
+  .project-layout-flow > b,
+  .project-flow > b { transform: rotate(90deg); }
+  .project-flow > .project-box,
+  .project-flow .project-boxes { width: 100%; }
+}
 .cv-label-note { display: flex; align-items: flex-start; gap: 16px; padding: 16px 20px; border: 1px dashed #bdccdf; border-radius: 12px; background: #f6f9fc; }
 .cv-label-note .cv-label-badge { flex-shrink: 0; margin-top: 2px; }
 .concepts-visual .cv-label-note p { margin: 0; color: var(--cv-muted); font-size: 13px; }
