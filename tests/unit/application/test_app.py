@@ -108,6 +108,20 @@ def test_project_reports_unsupported_runtime_type(tmp_path: pathlib.Path) -> Non
         application_module.Uptimely(tmp_path)
 
 
+def test_build_saves_configured_runtime_without_definition(
+    app: application_module.Uptimely,
+) -> None:
+    (app.root / "uptimely.toml").write_text('[runtime]\ntype = "python"\n', encoding="utf-8")
+    app = application_module.Uptimely(app.root)
+
+    build = app.build()
+    manifest = json.loads((build.root / "build.json").read_text(encoding="utf-8"))
+
+    assert manifest["artifacts"]["runtime"] == {"type": app.config.runtime.type, "path": None}
+    assert application_module.load_build_bundle(app.root).runtime_path is None
+    assert not app.run().failures
+
+
 def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.Path) -> None:
     (tmp_path / "uptimely.toml").write_text(
         '[engine]\npreview_rows = 8\n[engine.backend]\ntype = "default"\nevaluation = "eager"\n'
@@ -390,6 +404,7 @@ def test_project_build_forwards_source_and_feature_options(
         features=["reading"],
         src_path=None,
         runtime_path="runtime",
+        runtime_type=app.config.runtime.type,
     )
     assert result is builder_class.return_value.build.return_value
 

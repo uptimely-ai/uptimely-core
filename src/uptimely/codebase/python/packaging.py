@@ -121,8 +121,7 @@ class PythonPackager:
         """Stage Python source and its runtime definition."""
         artifacts = packaging.StagedCode()
         runtime_path = self._stage_runtime(project_root, runtime_root, staging_root)
-        if runtime_path is not None:
-            artifacts.runtime = packaging.CodeRuntime(type=RUNTIME_TYPE, path=runtime_path)
+        artifacts.runtime = packaging.CodeRuntime(type=RUNTIME_TYPE, path=runtime_path)
         if source.is_dir():
             self._copy_source(source, staging_root / SOURCE_DIR)
             artifacts.packages[PACKAGE_ID] = packaging.CodePackage(path=SOURCE_DIR)

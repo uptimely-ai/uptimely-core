@@ -9,7 +9,7 @@ and reports missing or incompatible dependencies together with any Python
 version mismatch.
 
 The Engine does not install dependencies or verify transitive dependencies,
-extras, or direct URL provenance. Bundles without TOML runtime metadata skip
+extras, or direct URL provenance. Bundles without a runtime definition skip
 this check. See [Build bundle runtime requirements](../artifacts/build.md#runtime-requirements)
 for how the metadata is generated.
 

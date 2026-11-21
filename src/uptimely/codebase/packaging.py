@@ -21,12 +21,12 @@ class CodePackage(pydantic.BaseModel):
 
 
 class CodeRuntime(pydantic.BaseModel):
-    """The project's runtime type and bundled definition file."""
+    """The project's runtime type and optional bundled definition file."""
 
     model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
 
     type: str = pydantic.Field(min_length=1)
-    path: str
+    path: str | None = None
 
     @pydantic.field_validator("type")
     @classmethod
@@ -56,9 +56,9 @@ class StagedCode:
             ):
                 raise ValueError(f"{PACKAGES_DIR}/ must contain only declared ID directories")
         runtime_root = staging_root / RUNTIME_DIR
-        if self.runtime is None:
+        if self.runtime is None or self.runtime.path is None:
             if runtime_root.exists() or runtime_root.is_symlink():
-                raise ValueError("runtime/ must not exist without a declared runtime")
+                raise ValueError("runtime/ must not exist without a declared runtime definition")
         elif runtime_root.is_symlink() or not runtime_root.is_dir():
             raise ValueError("Expected bundle directory runtime/")
 
