@@ -88,6 +88,7 @@ nav:
       - Quick start: intro/index.md
       - Example project: intro/example-project.md
       - Explorer demo: intro/explorer-demo.md
+      - About Uptimely: intro/uptimely.md
   - Concepts:
       - Architecture:
           - Application: concepts/application.md
@@ -218,7 +219,7 @@ nav:
               - Operators: artifacts/spec-operators.md
               - Selectors: artifacts/spec-selectors.md
   - Project:
-      - Background: project/background.md
+      - The problem: project/background.md
       - Tests: https://uptimely-ai.github.io/uptimely-core/tests/
       - Research: project/research.md
       - Comparisons: project/comparisons-platforms.md
