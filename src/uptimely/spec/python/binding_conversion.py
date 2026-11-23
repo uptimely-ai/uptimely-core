@@ -18,10 +18,8 @@ def resource_reference(
     if isinstance(value, (references.Reference, references.Params, references.Paths)):
         return value
     if isinstance(value, feature.Feature):
-        return references.InputReference(
-            kind="feature",
-            value=f"{selectors.FEATURE_PREFIX}{value.id}",
-            role="input",
+        raise TypeError(
+            "Bind arguments cannot be Feature instances; use ref.input() or ref.output()"
         )
     if isinstance(value, dimension.Dimension):
         return references.DimensionReference(

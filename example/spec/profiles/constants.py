@@ -41,17 +41,16 @@ class Constants(Profile):
                 source=ref.paths("constants_source"),
                 schema={"gravity": "float", "room_temperature": "float"},
                 rename={
-                    "gravity": features.gravity,
-                    "room_temperature": features.room_temperature,
+                    "gravity": ref.output("gravity"),
+                    "room_temperature": ref.output("room_temperature"),
                 },
             ),
         ),
         Operator(
-            outputs=[],
             compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
-                features=[features.gravity, features.room_temperature],
+                features=[ref.input("gravity"), ref.input("room_temperature")],
                 output=ref.paths("constants_output"),
             ),
         ),

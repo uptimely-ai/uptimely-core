@@ -37,10 +37,19 @@ def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
     assert template.args["value"].type == arg_types.STRING
 
 
-def test_binding_converts_features_and_preserves_output_references() -> None:
+def test_binding_rejects_features_and_preserves_input_and_output_references() -> None:
+    with pytest.raises(
+        TypeError,
+        match="Bind arguments cannot be Feature instances; use ref.input\\(\\) or ref.output\\(\\)",
+    ):
+        assembly.Bind(
+            ref.function("calculation:calculate", returns="dataframe"),
+            source=feature.Feature(id="source"),
+        ).to_model()
+
     binding = assembly.Bind(
         ref.function("calculation:calculate", returns="dataframe"),
-        source=feature.Feature(id="source"),
+        source=ref.input("source"),
         output=ref.output("result").id,
     )
 
@@ -48,6 +57,7 @@ def test_binding_converts_features_and_preserves_output_references() -> None:
 
     assert model.args["source"].root == "$features.source"
     assert model.args["output"].root == "$features.result.id"
+    assert model.inferred_feature_inputs == ("source",)
     assert model.inferred_feature_outputs == ("result",)
 
 
