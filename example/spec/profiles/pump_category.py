@@ -47,7 +47,7 @@ class PumpCategory(Profile):
             ),
         ),
         Operator(
-            inputs=[ref.feature("bearing_temperature")],
+            inputs=[ref.input("bearing_temperature")],
             outputs=[features.bearing_temperature_max],
             compute=Bind(
                 analytics.aggregate,

@@ -88,28 +88,28 @@ class Pump(Profile):
             ),
         ),
         Operator(
-            inputs=[ref.feature("max_capacity_series")],
+            inputs=[ref.input("max_capacity_series")],
             outputs=[features.series_max_capacity],
             compute=Bind(
                 analytics.select_columns,
                 dataset=ref.dataset("pump_series"),
                 columns=[
                     dimension.MACHINE_DIMENSION.resolution("machine_series").key,
-                    ref.feature("max_capacity_series"),
+                    ref.input("max_capacity_series"),
                 ],
                 rename={"max_capacity_series": features.series_max_capacity},
             ),
             merge=merge.default(),
         ),
         Operator(
-            inputs=[ref.feature("max_capacity_category")],
+            inputs=[ref.input("max_capacity_category")],
             outputs=[features.category_max_capacity],
             compute=Bind(
                 analytics.select_columns,
                 dataset=ref.dataset("pump_category"),
                 columns=[
                     dimension.MACHINE_DIMENSION.resolution("machine_category").key,
-                    ref.feature("max_capacity_category"),
+                    ref.input("max_capacity_category"),
                 ],
                 rename={"max_capacity_category": features.category_max_capacity},
             ),
@@ -135,7 +135,7 @@ class Pump(Profile):
         ),
         Operator(
             id="bearing_temperature_by_pump",
-            inputs=[ref.feature("bearing_temperature")],
+            inputs=[ref.input("bearing_temperature")],
             outputs=[features.bearing_temperature_max],
             compute=Bind(
                 analytics.aggregate,

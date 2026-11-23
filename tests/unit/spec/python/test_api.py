@@ -42,8 +42,8 @@ def test_root_authoring_api_compiles_and_executes(
                 compute=up.Bind(
                     double,
                     dataset=up.ref.dataset(),
-                    value=up.ref.feature("value"),
-                    output=up.ref.feature("doubled"),
+                    value=up.ref.input("value"),
+                    output=up.ref.output("doubled"),
                 ),
             ),
         ]
@@ -76,11 +76,22 @@ def test_dataframe_helper_matches_existing_selectors(name: str | None) -> None:
     assert binding_conversion.argument_definition(up.ref.dataset(name)) == {"type": "dataframe"}
 
 
-def test_feature_reference_defaults_to_id_binding() -> None:
-    assert up.ref.feature("value") == ref.feature("value")
-    output = up.ref.feature("result")
+def test_input_reference_defaults_to_id_binding() -> None:
+    assert isinstance(up.ref.input("value"), up.ref.InputReference)
+    assert isinstance(ref.input("value"), ref.InputReference)
+    assert up.ref.input("value") == ref.input("value")
+    output = up.ref.output("result")
     assert output.to_model() == "$features.result"
     assert binding_conversion.argument_definition(output) == {"type": "string"}
+
+
+def test_output_reference_defaults_to_id_binding() -> None:
+    assert up.ref.output("value") == ref.output("value")
+    returned = up.ref.output("result")
+    assert returned.to_model() == "$features.result"
+    assert returned.id.to_model() == "$features.result.id"
+    assert returned.unit.to_model() == "$features.result.unit"
+    assert binding_conversion.argument_definition(returned) == {"type": "string"}
 
 
 def test_global_parameter_and_feature_authoring() -> None:
@@ -128,7 +139,7 @@ def test_feature_set_preserves_explicit_feature_id() -> None:
 def test_feature_roles_follow_operator_inputs_in_nested_arguments(
     shape: str, declared: bool
 ) -> None:
-    output = up.ref.feature("result")
+    output = up.ref.output("result")
     shapes: dict[str, typing.Any] = {
         "direct": output,
         "list": [output],
@@ -149,7 +160,7 @@ def test_feature_roles_follow_operator_inputs_in_nested_arguments(
         )
 
     operator = create_operator()
-    assert operator.to_model().input_features == ([] if declared else ["result"])
+    assert operator.to_model().input_features == []
     assert operator.to_model().output_features == (["result"] if declared else [])
 
 
@@ -159,8 +170,8 @@ def test_mutated_outputs_update_inferred_input_roles() -> None:
         outputs=[up.Feature(id="result")],
         compute=up.Bind(
             ref.function("external:calculate", returns="dataframe"),
-            output=up.ref.feature("result"),
+            output=up.ref.output("result"),
         ),
     )
     operator.outputs.clear()
-    assert operator.to_model().input_features == ["result"]
+    assert operator.to_model().input_features == []

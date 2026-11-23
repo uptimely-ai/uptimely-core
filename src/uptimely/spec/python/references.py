@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import dataclasses
+import typing
 
 from uptimely.spec import arg_types, selectors
 
@@ -13,6 +14,7 @@ class Reference:
 
     kind: str
     value: str
+    role: typing.Literal["input", "output"] | None = None
 
     def to_model(self) -> str:
         """Return the document selector."""
@@ -27,7 +29,7 @@ class Reference:
         return self._attribute("id")
 
 
-class FeatureReference(Reference):
+class InputReference(Reference):
     """A feature ID by default, or explicit feature metadata."""
 
     @property
@@ -49,6 +51,44 @@ class FeatureReference(Reference):
     def type(self) -> Reference:
         """Select the logical feature type."""
         return self._attribute("type")
+
+
+class OutputReference(Reference):
+    """A feature returned by an operator."""
+
+    def __post_init__(self) -> None:
+        object.__setattr__(self, "role", "output")
+
+    def to_model(self) -> str:
+        """Return the portable feature selector."""
+        return self.value
+
+    @property
+    def name(self) -> Reference:
+        """Select the display name."""
+        return self._attribute("name")
+
+    @property
+    def unit(self) -> Reference:
+        """Select the measurement unit."""
+        return self._attribute("unit")
+
+    @property
+    def description(self) -> Reference:
+        """Select the description."""
+        return self._attribute("description")
+
+    @property
+    def type(self) -> Reference:
+        """Select the logical feature type."""
+        return self._attribute("type")
+
+    def _attribute(self, name: str) -> OutputReference:
+        return OutputReference(
+            kind=arg_types.STRING,
+            value=f"{self.value}.{name}",
+            role="output",
+        )
 
 
 class DimensionReference(Reference):

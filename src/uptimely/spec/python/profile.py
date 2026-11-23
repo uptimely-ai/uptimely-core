@@ -200,7 +200,7 @@ class Profile:
             if not isinstance(operator, assembly.Operator):
                 raise TypeError(f"Profile '{self.id}' assembly must contain Operators")
             if (
-                operator.outputs
+                operator.output_ids
                 and operator.reference.returns == "none"
                 and not operator.to_model().is_workflow
             ):
@@ -330,7 +330,12 @@ class Profile:
         features: dict[str, spec_model.Feature] = {}
         producers: dict[str, str] = {}
         for name, declaration in self._assembly_by_id.items():
-            for metadata in declaration.outputs:
+            metadata_items = (
+                declaration.outputs
+                if declaration.outputs is not None
+                else [feature.Feature(id=identifier) for identifier in declaration.output_ids]
+            )
+            for metadata in metadata_items:
                 identifier = metadata.id
                 if identifier in producers:
                     raise ValueError(

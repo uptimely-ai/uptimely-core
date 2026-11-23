@@ -56,13 +56,13 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
                     ),
                     assembly.Operator(
                         id="result",
-                        inputs=[ref.feature("temperature")],
+                        inputs=[ref.input("temperature")],
                         outputs=[feature.Feature(id="result", type="integer")],
                         compute=assembly.Bind(
                             ref.function(calculate),
                             dataset=ref.profile().dataset,
-                            column=ref.feature("temperature").id,
-                            output=ref.feature("result").id,
+                            column=ref.input("temperature").id,
+                            output=ref.output("result").id,
                             configuration={"windows": ["8h", "24h"]},
                         ),
                         row_context=context,

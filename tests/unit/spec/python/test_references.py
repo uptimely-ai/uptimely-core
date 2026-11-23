@@ -63,7 +63,7 @@ def test_output_reference_logging_is_one_counted_summary(
                     outputs=[feature.Feature(id=f"value_{operator}")],
                     compute=assembly.Bind(
                         ref.function("reader:read", returns="dataframe"),
-                        column=ref.feature(f"value_{operator}"),
+                        column=ref.input(f"value_{operator}"),
                     ),
                 )
                 for operator in range(count)
@@ -93,7 +93,7 @@ def test_foreign_feature_inputs_are_independent_of_merge(explicit: bool, staged:
     )
     binding = assembly.Bind(
         ref.function("reader:copy", returns="dataframe"),
-        value=ref.feature("value"),
+        value=ref.input("value"),
     )
     target = profile.Profile(
         id="target",

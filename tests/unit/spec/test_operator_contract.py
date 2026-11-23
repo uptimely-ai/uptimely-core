@@ -46,7 +46,7 @@ def test_feature_id_binding_orders_producer_before_consumer(
                         outputs=[feature.Feature(id="result")],
                         compute=assembly.Bind(
                             ref.function(finish_workflow_with_feature, returns="none"),
-                            identifier=ref.feature("intermediate").id,
+                            identifier=ref.input("intermediate").id,
                         ),
                     ),
                 ],
@@ -76,7 +76,7 @@ def test_workflow_logical_features_order_execution_without_dataframes(
                     ),
                     assembly.Operator(
                         id="finish",
-                        inputs=[ref.feature("intermediate")],
+                        inputs=[ref.input("intermediate")],
                         outputs=[feature.Feature(id="result")],
                         compute=assembly.Bind(ref.function(finish_workflow, returns="none")),
                     ),
@@ -190,22 +190,22 @@ def _spec() -> spec.Spec:
                     ),
                     assembly.Operator(
                         id="result",
-                        inputs=[ref.feature("value")],
+                        inputs=[ref.input("value")],
                         outputs=[feature.Feature(id="result", type="integer")],
                         compute=assembly.Bind(
                             ref.function(add_one),
                             dataset=ref.profile().dataset,
-                            output=ref.feature("result").id,
+                            output=ref.output("result").id,
                         ),
                     ),
                     assembly.Operator(
                         id="metadata",
-                        inputs=[ref.feature("value")],
+                        inputs=[ref.input("value")],
                         outputs=[feature.Feature(id="metadata", type="integer")],
                         compute=assembly.Bind(
                             ref.function(metadata_only),
                             dataset=ref.profile().dataset,
-                            identifier=ref.feature("result").id,
+                            identifier=ref.input("result").id,
                         ),
                     ),
                 ],
@@ -447,7 +447,7 @@ def test_dimensional_operator_schedules_only_its_foreign_dataframe_dependency(
                     ),
                     assembly.Operator(
                         id="copied",
-                        inputs=[ref.feature("value")],
+                        inputs=[ref.input("value")],
                         outputs=[
                             feature.Feature(id="copied", type="integer" if dataframe else "string")
                         ],
@@ -457,7 +457,7 @@ def test_dimensional_operator_schedules_only_its_foreign_dataframe_dependency(
                             ),
                             **{
                                 "dataset": source_reference.dataset,
-                                "output": ref.feature("copied").id,
+                                "output": ref.output("copied").id,
                                 **({} if dataframe else {"identifier": source_reference.id}),
                             },
                         ),

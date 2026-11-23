@@ -341,11 +341,11 @@ def test_python_inference_uses_argument_facts_and_keeps_explicit_inputs_authorit
     binding = assembly.Bind(
         ref.function("calculation:calculate", returns="dataframe"),
         config=[
-            ref.feature("pressure"),
+            ref.input("pressure"),
             "$features.temperature",
-            ref.feature("pressure").id,
-            ref.feature("output"),
-            ref.feature("@"),
+            ref.input("pressure").id,
+            ref.output("output"),
+            ref.input("@"),
         ],
     )
     inferred = assembly.Operator(
@@ -353,7 +353,7 @@ def test_python_inference_uses_argument_facts_and_keeps_explicit_inputs_authorit
         outputs=[],
         compute=binding,
     )
-    assert inferred.to_model().input_features == ["pressure", "temperature", "output"]
+    assert inferred.to_model().input_features == ["pressure", "temperature"]
     explicit = assembly.Operator(
         id="calculate",
         inputs=[],

@@ -280,8 +280,8 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
                 outputs=[authoring.Feature(id="result", type="float")],
                 compute=authoring.Bind(
                     must_not_execute,
-                    values=[ref.feature("temperature"), ref.feature("temperature")],
-                    output=ref.feature("result").id,
+                    values=[ref.input("temperature"), ref.input("temperature")],
+                    output=ref.output("result").id,
                 ),
             )
         ]
@@ -293,8 +293,8 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
     assert model.id == "result"
     assert model.input_features == ["temperature"]
     assert operator.compute.arguments == {
-        "values": [ref.feature("temperature"), ref.feature("temperature")],
-        "output": ref.feature("result").id,
+        "values": [ref.input("temperature"), ref.input("temperature")],
+        "output": ref.output("result").id,
     }
     assert operator.bound_arguments() == operator.compute.arguments
     assert model.compute.args["output"].root == "$features.result.id"
@@ -335,7 +335,7 @@ def test_duplicate_producers_are_rejected(identifier: str) -> None:
                 outputs=[authoring.Feature(id=identifier, type="float")],
                 compute=authoring.Bind(
                     ref.function("test_declarative_authoring:implementation", returns="dataframe"),
-                    output=ref.feature(identifier).id,
+                    output=ref.output(identifier).id,
                 ),
             )
         ]

@@ -163,12 +163,12 @@ class MyAnalyticalProfile(up.Profile):
             compute=up.Bind(
                 double,
                 dataset=up.ref.dataset(),
-                value=up.ref.feature("value"),
-                output=up.ref.feature("doubled").id,
+                value=up.ref.input("value"),
+                output=up.ref.output("doubled").id,
             ),
         ),
         up.Operator(
-            inputs=[up.ref.feature("doubled")],
+            inputs=[up.ref.input("doubled")],
             compute=up.Bind(print_results, dataset=up.ref.dataset()),
         ),
     ]

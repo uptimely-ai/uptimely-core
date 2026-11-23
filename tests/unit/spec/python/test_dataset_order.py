@@ -255,12 +255,12 @@ def test_profile_order_does_not_change_plan_or_sort_engine_rows(
             ),
             python_spec.Operator(
                 id="sum",
-                inputs=[python_spec.ref.feature("input_1"), python_spec.ref.feature("input_2")],
+                inputs=[python_spec.ref.input("input_1"), python_spec.ref.input("input_2")],
                 outputs=[python_spec.feature.Feature(id="sum")],
                 compute=python_spec.Bind(
                     python_spec.ref.function(_sum_order_features),
-                    left_feature=python_spec.ref.feature("input_1"),
-                    right_feature=python_spec.ref.feature("input_2"),
+                    left_feature=python_spec.ref.input("input_1"),
+                    right_feature=python_spec.ref.input("input_2"),
                     output="sum",
                     dataset=python_spec.ref.profile().dataset,
                 ),

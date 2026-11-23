@@ -169,7 +169,7 @@ class Telemetry(up.Profile):
             compute=up.Bind(
                 intermediate_step,
                 dataset=up.ref.dataset(),
-                output=up.ref.feature("intermediate_result"),
+                output=up.ref.output("intermediate_result"),
             ),
         ),
         up.Operator(
@@ -178,8 +178,8 @@ class Telemetry(up.Profile):
             compute=up.Bind(
                 derive_maintenance,
                 dataset=up.ref.dataset(),
-                intermediate=up.ref.feature("intermediate_result"),
-                output=up.ref.feature("is_maintenance"),
+                intermediate=up.ref.input("intermediate_result"),
+                output=up.ref.output("is_maintenance"),
             ),
         ),
     ]

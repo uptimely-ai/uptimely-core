@@ -47,13 +47,13 @@ def _declaration(
                 if is_dimensional
                 else {}
             ),
-            "columns": [ref.feature("temperature")],
+            "columns": [ref.input("temperature")],
         },
     )
     declarations = [
         assembly.Operator(
             id=f"{identifier}_mapping",
-            inputs=[ref.feature("temperature")] if is_dimensional else [],
+            inputs=[ref.input("temperature")] if is_dimensional else [],
             outputs=[],
             compute=binding,
             merge=merge.default() if is_dimensional else None,

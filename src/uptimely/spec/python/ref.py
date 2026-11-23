@@ -6,13 +6,16 @@ from uptimely.spec import arg_types, selectors
 
 from . import references
 from .function_reference import FunctionReference, function
-from .references import ProfileGrainReference, Reference
+from .references import InputReference, OutputReference, ProfileGrainReference, Reference
 
 __all__ = [
     "FunctionReference",
     "Reference",
+    "InputReference",
     "ProfileGrainReference",
-    "feature",
+    "OutputReference",
+    "input",
+    "output",
     "dimension",
     "profile",
     "dataset",
@@ -24,9 +27,22 @@ __all__ = [
 ]
 
 
-def feature(name: str) -> references.FeatureReference:
-    """Reference a feature by ID, defaulting to its column identifier."""
-    return references.FeatureReference(kind="feature", value=f"{selectors.FEATURE_PREFIX}{name}")
+def input(name: str) -> references.InputReference:
+    """Reference an input feature by ID, defaulting to its column identifier."""
+    return references.InputReference(
+        kind="feature",
+        value=f"{selectors.FEATURE_PREFIX}{name}",
+        role="input",
+    )
+
+
+def output(name: str) -> references.OutputReference:
+    """Reference a feature returned by an operator."""
+    return references.OutputReference(
+        kind="feature",
+        value=f"{selectors.FEATURE_PREFIX}{name}",
+        role="output",
+    )
 
 
 def dimension(name: str) -> references.DimensionReference:

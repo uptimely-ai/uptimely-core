@@ -153,7 +153,7 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
         assembly=[
             assembly.Operator(
                 id="compute",
-                inputs=[python_ref.feature("missing")],
+                inputs=[python_ref.input("missing")],
                 outputs=[python_feature.Feature(id="result")],
                 compute=assembly.Bind(
                     python_ref.function("external:compute", returns="dataframe"),

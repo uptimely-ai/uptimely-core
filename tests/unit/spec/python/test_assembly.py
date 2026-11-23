@@ -6,6 +6,7 @@ import polars as pl
 import pytest
 
 from uptimely.spec import arg_types
+from uptimely.spec import model as spec_model
 from uptimely.spec.python import assembly, feature, functions, ref, row_context
 
 
@@ -21,7 +22,7 @@ def calculate_named_arguments(function: str, arguments: str) -> str:
 
 
 def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
-    binding = assembly.Bind(calculate, value=ref.feature("source"))
+    binding = assembly.Bind(calculate, value=ref.input("source"))
     operator = assembly.Operator(id="calculate", compute=binding)
 
     assert binding.reference == operator.reference == ref.function(calculate)
@@ -34,6 +35,20 @@ def test_binding_and_operator_share_function_metadata_and_conversion() -> None:
     assert template.description == "Calculate a value."
     assert template.entrypoint == binding.reference.entrypoint
     assert template.args["value"].type == arg_types.STRING
+
+
+def test_binding_converts_features_and_preserves_output_references() -> None:
+    binding = assembly.Bind(
+        ref.function("calculation:calculate", returns="dataframe"),
+        source=feature.Feature(id="source"),
+        output=ref.output("result").id,
+    )
+
+    model = binding.to_model()
+
+    assert model.args["source"].root == "$features.source"
+    assert model.args["output"].root == "$features.result.id"
+    assert model.inferred_feature_outputs == ("result",)
 
 
 def test_compute_binding_supports_read_and_write_signatures() -> None:
@@ -192,7 +207,7 @@ def test_operator_owns_input_selection_and_output_exclusion(explicit: bool) -> N
         outputs=[feature.Feature(id="result")],
         compute=assembly.Bind(
             "unavailable_assembly_test_package:calculate",
-            values=[ref.feature("second").id, ref.feature("first"), ref.feature("result").id],
+            values=[ref.input("second").id, ref.input("first"), ref.input("result").id],
         ),
     )
     model = operator.to_model()
@@ -201,8 +216,88 @@ def test_operator_owns_input_selection_and_output_exclusion(explicit: bool) -> N
     assert model.output_features == operator.output_ids == ["result"]
 
 
+def test_operator_infers_outputs_and_excludes_them_from_inputs() -> None:
+    operator = assembly.Operator(
+        compute=assembly.Bind(
+            ref.function("calculation:calculate", returns="dataframe"),
+            source=ref.input("source"),
+            returned=ref.output("result"),
+        ),
+    )
+
+    model = operator.to_model()
+    assert operator.outputs is None
+    assert operator.output_ids == ["result"]
+    assert model.input_features == ["source"]
+    assert model.output_features == ["result"]
+
+
+def test_operator_inferred_input_and_output_helpers_use_the_same_shape() -> None:
+    compute = assembly.Bind(
+        ref.function("calculation:calculate", returns="dataframe"),
+        source=ref.input("source"),
+        returned=ref.output("result"),
+    )
+    operator = assembly.Operator(compute=compute)
+
+    assert operator._inferred_input_ids(compute, None, output_ids=["result"]) == ["source"]
+    assert operator._inferred_output_ids(compute, None) == ["result"]
+
+
+def test_binding_aggregates_inferred_output_facts_with_input_facts() -> None:
+    binding = assembly.Bind(
+        ref.function("calculation:calculate", returns="dataframe"),
+        source=ref.input("source"),
+        returned=ref.output("result").id,
+    )
+
+    model = binding.to_model()
+    assert model.inferred_feature_inputs == ("source",)
+    assert model.inferred_feature_outputs == ("result",)
+
+
+def test_document_binding_accepts_python_output_references() -> None:
+    model = spec_model.Binding(
+        function="calculate",
+        args={
+            "source": ref.input("source"),
+            "returned": ref.output("result").id,
+        },
+    )
+
+    assert model.inferred_feature_inputs == ("source",)
+    assert model.inferred_feature_outputs == ("result",)
+
+
+def test_explicit_empty_outputs_disable_output_inference() -> None:
+    operator = assembly.Operator(
+        outputs=[],
+        compute=assembly.Bind(
+            ref.function("calculation:calculate", returns="dataframe"),
+            returned=ref.output("result"),
+        ),
+    )
+
+    model = operator.to_model()
+    assert operator.output_ids == []
+    assert model.output_features == []
+    assert model.input_features == []
+
+
+def test_output_metadata_does_not_infer_a_returned_feature() -> None:
+    operator = assembly.Operator(
+        compute=assembly.Bind(
+            ref.function("calculation:calculate", returns="dataframe"),
+            unit=ref.output("result").unit,
+        ),
+    )
+
+    assert operator.output_ids == []
+    assert operator.to_model().output_features == []
+
+
 def test_operator_normalizes_explicit_inputs_and_copies_collections() -> None:
-    inputs = [feature.Feature(id="first"), ref.feature("second"), "$features.third", "fourth"]
+    inputs = [feature.Feature(id="first"), ref.input("second"), "$features.third", "fourth"]
     outputs = [feature.Feature(id="result")]
     operator = assembly.Operator(
         inputs=inputs,
@@ -229,7 +324,7 @@ def test_operator_rejects_duplicate_outputs_at_construction() -> None:
 @pytest.mark.parametrize(
     ("inputs", "message"),
     [
-        ([ref.feature("source"), "$features.source"], "input feature IDs must not repeat"),
+        ([ref.input("source"), "$features.source"], "input feature IDs must not repeat"),
         ([ref.dataset()], "Operator input must reference a feature"),
         (["$features.source.value"], "Invalid operator feature ID"),
         (["@"], "Invalid operator feature ID"),
@@ -272,7 +367,7 @@ def test_operator_validates_outputs_at_construction(
 def test_operator_combines_binding_contracts_but_only_stage_row_context() -> None:
     stage = assembly.Bind(
         ref.function("unavailable_assembly_test_package:calculate", returns="dataframe"),
-        value=row_context.rows(ref.feature("source"), before=2),
+        value=row_context.rows(ref.input("source"), before=2),
     )
     merge = assembly.Bind(
         ref.function(
