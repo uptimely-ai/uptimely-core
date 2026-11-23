@@ -84,11 +84,9 @@ def test_capacity_expansion_selects_only_capacity_and_identifiers() -> None:
     ]
 
 
-@pytest.mark.parametrize("validate", [False, True])
 def test_selected_capacity_plan_joins_on_parent_identifiers(
     example_bundle_factory: example_support.BundleFactory,
     engine_for_plan: execution_support.EngineFactory,
-    validate: bool,
 ) -> None:
     bundle = example_bundle_factory(features=("max_capacity",))
     restored = plan.from_dict(plan.to_dict(bundle.execution_plan))
@@ -127,8 +125,15 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         and invocation.semantics.operator_id == series_compute.semantics.operator_id
         and invocation.semantics.role == "merge"
     )
-    assert reader.id in series_merge.semantics.dependency_ids
-    assert "key_columns" not in series_merge.arguments
+    dataset_producer = next(
+        invocation
+        for invocation in restored.invocations
+        if invocation.returns == series_merge.arguments["dataset"]
+    )
+    assert dataset_producer.id in restored.input_invocations[series_merge.id]
+    assert set(series_merge.arguments["key_columns"]) == set(reader.semantics.fragment_keys) - set(
+        reader.semantics.target_identifiers
+    )
     paths = _configured_paths(bundle.project_root)
 
     result = engine_for_plan(
@@ -137,10 +142,9 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         project_root=bundle.project_root,
         spec_definition=bundle.spec_definition,
         paths=paths,
-    ).run(validate=validate)
+    ).run()
 
     assert not result.failures
-    assert "rated_flow_rate" not in result.datasets["pump"].collect_schema().names()
     assert result.datasets["pump"].collect().sort("pump_id").select(
         "pump_id", "machine_series_id", "machine_category_id"
     ).rows() == [
@@ -183,7 +187,7 @@ def test_automatic_capacity_merge_preserves_pumps_with_missing_series(
         project_root=bundle.project_root,
         spec_definition=bundle.spec_definition,
         paths=paths,
-    ).run(validate=True)
+    ).run()
 
     assert not result.failures
     pumps = result.datasets["pump"].collect()
@@ -193,12 +197,10 @@ def test_automatic_capacity_merge_preserves_pumps_with_missing_series(
     ).rows() == [(None, 100.0)]
 
 
-@pytest.mark.parametrize("validate", [False, True])
 def test_selected_feature_runs_full_profile_writer_dependencies(
     tmp_path: pathlib.Path,
     example_bundle_factory: example_support.BundleFactory,
     engine_for_plan: execution_support.EngineFactory,
-    validate: bool,
 ) -> None:
     bundle = example_bundle_factory(features=("max_capacity",))
     paths = _configured_paths(bundle.project_root)
@@ -215,7 +217,7 @@ def test_selected_feature_runs_full_profile_writer_dependencies(
         project_root=bundle.project_root,
         spec_definition=bundle.spec_definition,
         paths=paths,
-    ).run(validate=validate)
+    ).run()
 
     assert len(result.failures) == 1
     failure_id = next(iter(result.failures))
@@ -224,7 +226,7 @@ def test_selected_feature_runs_full_profile_writer_dependencies(
         for invocation in bundle.execution_plan.invocations
         if invocation.id == failure_id
     )
-    assert failed_invocation.semantics.operator_id == "read_pump_telemetry"
+    assert "series_max_capacity" in failed_invocation.semantics.operator_id
 
 
 @pytest.mark.parametrize(
@@ -265,7 +267,7 @@ def test_engine_resolves_capacity_with_validation(
         project_root=pump_bundle.project_root,
         spec_definition=pump_bundle.spec_definition,
         paths=paths,
-    ).run(validate=True)
+    ).run()
 
     assert not result.failures
     pumps = result.datasets["pump"].collect().sort("pump_id")

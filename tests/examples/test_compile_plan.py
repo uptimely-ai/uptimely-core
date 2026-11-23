@@ -266,6 +266,7 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "required_backend",
         "invocations",
         "stages",
+        "datasets",
     }
     assert metadata["plan_version"] == execution_plan.PLAN_VERSION
     assert all(
@@ -282,12 +283,14 @@ def test_compiled_plan_export_omits_generated_timestamp(
     )
     assert "entity_id" not in collapse_invocation
     assert collapse_invocation["entrypoint"].endswith(":aggregate")
-    assert collapse_invocation["arguments"] == {
+    arguments = collapse_invocation["arguments"]
+    assert {key: value for key, value in arguments.items() if key != "dataset"} == {
         "aggregations": {"bearing_temperature": "max"},
-        "dataset": "pump_telemetry",
         "dimensions": ["pump_id"],
         "rename": {"bearing_temperature": "bearing_temperature_max"},
     }
+    dataset_reference = arguments["dataset"]
+    assert any(invocation["returns"] == dataset_reference for invocation in metadata["invocations"])
     assert collapse_invocation["semantics"]["output_features"] == ["bearing_temperature_max"]
 
 
@@ -301,6 +304,7 @@ def test_build_plan_contains_calls_and_nested_invocation_semantics(
         "required_backend",
         "invocations",
         "stages",
+        "datasets",
     }
     assert [list(stage) for stage in plan_data["stages"]] == [
         stage.invocation_ids for stage in pump_bundle.execution_plan.stages
@@ -309,18 +313,19 @@ def test_build_plan_contains_calls_and_nested_invocation_semantics(
         set(invocation) == {"id", "entrypoint", "arguments", "returns", "semantics"}
         for invocation in plan_data["invocations"]
     )
-    assert all(
-        invocation["returns"]
-        == (
-            invocation["semantics"]["profile_id"]
-            if (
-                invocation["semantics"]["role"] == "merge"
-                or invocation["semantics"]["result"] == "target"
-            )
-            else None
+    for invocation in plan_data["invocations"]:
+        result = invocation["semantics"]["result"]
+        if result == "none":
+            assert invocation["returns"] is None
+            continue
+        prefix = {
+            "merge": "$dataset",
+            "fragment": "$fragments",
+            "target": "$datasets",
+        }[invocation["semantics"]["role"] if invocation["semantics"]["role"] == "merge" else result]
+        assert invocation["returns"].startswith(
+            f"{prefix}.{invocation['semantics']['profile_id']}."
         )
-        for invocation in plan_data["invocations"]
-    )
     assert all(
         "target_identifiers" in invocation["semantics"]
         and "column_types" in invocation["semantics"]

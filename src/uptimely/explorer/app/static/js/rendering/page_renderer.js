@@ -100,7 +100,7 @@ export function lineage(data, topology) {
         <span class="lineage-legend-count">${profileCount} ${profileCount === 1 ? "profile" : "profiles"}</span>
         <i class="lineage-legend-chevron" data-lucide="chevron-down" aria-hidden="true"></i></summary>
         <div class="legend" aria-label="Graph legend">
-        <p class="lineage-legend-note">Colors show profiles, not run status. Arrows show dependencies.</p>
+        <p class="lineage-legend-note">Colors show profiles, not run status. ${topology ? "Arrows show compiler dependencies, not every dataframe reference." : "Arrows show dependencies."}</p>
         <h3 class="legend-heading">${topology ? "Binding roles" : "Nodes"}</h3>
         <div class="lineage-legend-kinds">${topology
           ? roles.map(role => `<span class="lineage-legend-item">${icon(role === "merge" ? "merge" : "compute")}<span>${escape(role)}</span></span>`).join("")

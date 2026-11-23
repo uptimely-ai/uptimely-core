@@ -2,10 +2,13 @@
 
 ## Dataframes and merge functions
 
-`Dataset` stores a profile's accumulated dataframe. `Fragment` represents the
-data returned by a calculation. `Merge` combines a fragment with the dataset.
-`merge_by_grain` is the built-in Polars merge function; provide a custom merge
+`Dataset`, `Fragment`, and `Merge` are dataframe helpers. The Engine's plan
+runner does not use them to prepare or dispatch calls.
+`merge_by_grain` is the built-in Polars merge function. Provide a custom merge
 function when the built-in behavior does not fit.
+Compiled calls to the built-in merge include the target profile's declared
+relation keys in `key_columns`, so lower-grain fragments join on shared keys
+instead of becoming Cartesian products.
 
 ::: uptimely.engine.dataframe.dataset
     options:

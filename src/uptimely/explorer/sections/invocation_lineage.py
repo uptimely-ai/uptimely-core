@@ -2,8 +2,8 @@
 
 import typing
 
+from uptimely import compiler, spec
 from uptimely import plan as plan_module
-from uptimely import spec
 from uptimely.explorer import common
 from uptimely.spec.model import base
 
@@ -16,12 +16,12 @@ def invocation_lineage_payload(
     """Build invocation nodes and links for a compiled plan.
 
     Args:
-        plan: Compiled invocations and dependency stages.
+        plan: Compiled invocations and ordered stages.
         spec_definition: Declarations used to resolve display metadata.
         feature_labels: Optional prebuilt feature-label index shared with plan cards.
 
     Returns:
-        Invocation nodes and directed dependency links.
+        Invocation nodes and compiler dependency links.
     """
     if spec_definition is None:
         raise ValueError("spec_definition is required to prepare invocation lineage")
@@ -32,6 +32,38 @@ def invocation_lineage_payload(
     }
     if feature_labels is None:
         feature_labels = common.feature_labels(spec_definition)
+    graph = compiler.Compiler.invocation_graph(spec_definition)
+    graph_nodes = {
+        (
+            node.semantics.profile_id,
+            node.semantics.operator_id,
+            node.semantics.role,
+            node.semantics.function_id,
+        ): node
+        for node in graph.invocations
+    }
+    invocations_by_key = {}
+    for invocation in plan.invocations:
+        semantics = invocation.semantics
+        if semantics is None:
+            raise ValueError(f"Invocation {invocation.id} requires semantics for topology")
+        key = (semantics.profile_id, semantics.operator_id, semantics.role, semantics.function_id)
+        if key not in graph_nodes:
+            raise ValueError(f"Invocation {invocation.id} does not match a Spec binding")
+        if key in invocations_by_key:
+            raise ValueError(f"Multiple invocations match the same Spec binding: {key}")
+        invocations_by_key[key] = invocation
+    plan_ids = {
+        graph_nodes[key].node_id: invocation.id for key, invocation in invocations_by_key.items()
+    }
+    dependencies = {
+        invocation.id: [
+            plan_ids[dependency.node_id]
+            for dependency in graph.dependencies(graph_nodes[key])
+            if dependency.node_id in plan_ids
+        ]
+        for key, invocation in invocations_by_key.items()
+    }
     nodes: list[dict[str, typing.Any]] = []
     invocations_by_id = plan.invocations_by_id
     for invocation in sorted(plan.invocations, key=lambda item: item.id):
@@ -91,18 +123,17 @@ def invocation_lineage_payload(
                 ),
                 "input_features": invocation.semantics.input_features,
                 "output_features": invocation.semantics.output_features,
-                "dependency_ids": sorted(invocation.semantics.dependency_ids),
+                "dependency_ids": sorted(dependencies[invocation.id]),
             }
         )
     links = []
     for invocation in plan.invocations:
-        for dependency_id in invocation.semantics.dependency_ids:
+        for dependency_id in dependencies[invocation.id]:
             dependency = invocations_by_id[dependency_id]
             dependency_type = (
                 "fragment"
-                if invocation.semantics.role == "merge"
-                and dependency.semantics.operator_id == invocation.semantics.operator_id
-                and dependency.semantics.profile_id == invocation.semantics.profile_id
+                if dependency.returns is not None
+                and dependency.returns.startswith(plan_module.Variable.FRAGMENT)
                 else "feature"
             )
             links.append(

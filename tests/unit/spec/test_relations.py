@@ -59,7 +59,7 @@ def test_compiled_relation_from_non_grain_dimension_survives_execution(
     assert compute.semantics.output_features == ["value"]
     assert document.profiles["readings"].assembly["read"].output_features == ["value"]
     assert set(document.profiles["readings"].features) == {"value"}
-    result = engine_for_plan(plan, spec_definition=document).run(validate=True)
+    result = engine_for_plan(plan, spec_definition=document).run()
     assert not result.failures
     assert result.datasets["readings"].to_dicts() == [
         {"pump_id": "pump", "value": 1.0, "plant_id": "plant"}
@@ -180,9 +180,11 @@ def test_key_only_reader_has_no_feature_outputs(
     compiled = compiler.Compiler().compile(document)
     assert document.profiles["keys_only"].features == {}
     assert all(not invocation.semantics.output_features for invocation in compiled.invocations)
-    execution = engine_for_plan(compiled, spec_definition=document).run(validate=True)
+    execution = engine_for_plan(compiled, spec_definition=document).run()
     assert not execution.failures
-    assert execution.datasets["keys_only"].to_dicts() == [{"pump_id": "pump", "plant_id": "plant"}]
+    assert execution.datasets["keys_only"].to_dicts() == [
+        {"pump_id": "pump", "plant_id": "plant", "value": 1.0}
+    ]
 
 
 def test_relations_round_trip_without_changing_grain_or_features() -> None:

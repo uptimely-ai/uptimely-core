@@ -5,7 +5,6 @@ import pathlib
 import time
 from collections import abc
 
-from uptimely import plan as plan_module
 from uptimely.application import config as project_config
 from uptimely.build import models as build_models
 from uptimely.codebase.python import codebase, entrypoint, packaging
@@ -77,35 +76,35 @@ class Engine:
         """Execute the plan and overwrite the project's latest-run artifacts.
 
         Args:
-            validate: Validate inputs and dataframe contracts at every step.
-                Lazy value checks may execute upstream queries repeatedly.
+            validate: Request analytical validation, which is not yet supported.
             preview_rows: Positive maximum sample size per profile. Defaults to the
                 Engine config value. Lazy previews execute bounded queries after
                 execution; timing excludes previews.
-            operator: Optional (profile ID, operator ID) selecting an operator
-                and its saved prerequisites, without downstream sinks. An
-                explicitly selected sink still runs. Unselected invocations
-                are recorded as skipped.
+            operator: Request targeted execution, which is not yet supported.
             src_path: Optional source directory, relative to the project root unless absolute.
                 Defaults to bundled source, then configured or default project source.
 
         Returns:
-            Main dataframes, invocation results, execution duration, collected
-            preview frames, and separately reported preview failures.
+            Dataset aliases, invocation statuses, execution duration, collected
+            preview frames, and separately reported preview failures. Calculated
+            feature outputs are unavailable and reported as None.
 
         Raises:
+            NotImplementedError: Validation or targeted execution was requested.
             OSError: Run artifacts cannot be persisted.
             ValueError: The preview row limit is invalid.
-                The requested operator is absent from the saved execution scope.
                 The Python runtime requirements are invalid or not satisfied.
         """
+        if validate:
+            raise NotImplementedError("Analytical runtime validation is not yet supported")
+        if operator is not None:
+            raise NotImplementedError("Targeted execution is not yet supported")
         if preview_rows is None:
             preview_rows = self.config.preview_rows
         if src_path is None:
             src_path, source_origin = self._default_source()
         else:
             source_origin = "explicit override"
-        plan = self.plan if operator is None else self.plan.for_operator(*operator)
         code = self.bundle.manifest.artifacts.code
         if code.language != packaging.RUNTIME_TYPE:
             raise ValueError(f"Unsupported project runtime: {code.language}")
@@ -125,7 +124,7 @@ class Engine:
                     source_origin,
                     python_imports.resolve_src_path(self.bundle.project_root, src_path),
                 )
-            return recorder.finish(self._execute(validate=validate, plan=plan))
+            return recorder.finish(self._execute())
 
     def _default_source(self) -> tuple[pathlib.Path | None, str]:
         """Return the default Python source path and its origin for logging."""
@@ -135,46 +134,41 @@ class Engine:
             return pathlib.Path(self.code_settings.src), "project configuration"
         return None, "default project source"
 
-    def _execute(
-        self, *, validate: bool, plan: plan_module.ExecutionPlan | None = None
-    ) -> result.ExecutionResult:
+    def _execute(self) -> result.ExecutionResult:
         """Execute invocations without coupling runtime state to artifact storage."""
-        plan = self.plan if plan is None else plan
+        plan = self.plan
         state = state_module.RuntimeState()
         python_codebase = codebase.Codebase.from_locations(
             plan.entrypoints,
             entrypoint_type=entrypoint.Entrypoint,
         )
         invocation_executor = execution.InvocationExecutor(
-            self.backend,
             python_codebase.entrypoints_index,
             self.parameters,
             state,
             paths=self.paths,
             project_root=self.bundle.project_root,
-            validate=validate,
         )
         statuses: dict[str, result.InvocationStatus] = {}
         durations: dict[str, float] = {}
         failures: dict[str, str] = {}
 
         logger.debug(
-            "Executing plan with %d stages (runtime validation %s)",
+            "Executing plan with %d stages",
             len(plan.execution_stages),
-            "enabled" if validate else "disabled",
         )
         for invocation in plan.execution_invocations:
             started = time.perf_counter()
             try:
                 logger.debug(
-                    "Executing operator %s, function %s (role=%s, result=%s)",
-                    invocation.semantics.operator_id,
-                    invocation.semantics.function_id,
-                    invocation.semantics.role,
-                    invocation.semantics.result,
+                    "Executing invocation %s (%s)",
+                    invocation.id,
+                    invocation.entrypoint,
                     extra={
                         "invocation_id": invocation.id,
-                        "profile_id": invocation.semantics.profile_id,
+                        "profile_id": (
+                            invocation.semantics.profile_id if invocation.semantics else None
+                        ),
                     },
                 )
                 invocation_executor.execute(invocation)
@@ -189,7 +183,9 @@ class Engine:
                     exc_info=True,
                     extra={
                         "invocation_id": invocation.id,
-                        "profile_id": invocation.semantics.profile_id,
+                        "profile_id": (
+                            invocation.semantics.profile_id if invocation.semantics else None
+                        ),
                     },
                 )
                 break
@@ -200,8 +196,12 @@ class Engine:
             statuses.setdefault(invocation.id, result.INVOCATION_STATUS_SKIPPED)
 
         return result.ExecutionResult(
-            datasets={key: frame.dataframe for key, frame in state.datasets.items()},
-            calculated_outputs=dict(state.calculated_outputs),
+            datasets={
+                name: state.values[reference]
+                for name, reference in plan.datasets.items()
+                if reference in state.values
+            },
+            calculated_outputs=None,
             invocation_statuses=statuses,
             durations=durations,
             failures=failures,

@@ -19,8 +19,8 @@ directory is used.
 | `--src-path PATH` | `code.src` | Bundled project source<br>If absent, the configured value or `src` | Explicit Python source directory, relative to the project root or given as an absolute path. Overrides the default for this run. |
 | `--build` | — | Disabled | Build and publish the project before execution, then run the newly published build. |
 | `--config CONFIG_OR_PATH` | — | Root `uptimely.toml`<br>Otherwise built-in defaults | Pass a config name such as `prod` to load `config/prod.toml`, recursively overriding root `uptimely.toml`. Pass a TOML path to load that file alone without merging root settings. Relative paths resolve from the current working directory. |
-| `--validate` | — | Disabled | Validate declared inputs and dataframe contracts at every execution step, including eager and lazy frames. Lazy value checks can repeatedly execute upstream queries. |
-| `--log-level LEVEL` | — | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details and validation traces. Replaces `--verbose`. |
+| `--validate` | — | Disabled | Request analytical runtime validation. Currently unsupported and fails before execution. |
+| `--log-level LEVEL` | — | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes execution details. Replaces `--verbose`. |
 | `--preview [ROWS]` | `engine.preview_rows` | No console preview by default<br>Bare `--preview` uses `engine.preview_rows` (default `5`) | Set the saved preview row limit and log those rows from each final profile after successful execution at info level. Without this option, saved previews use `engine.preview_rows`. |
 
 Console display reuses the saved sample rather than executing the lazy query again.

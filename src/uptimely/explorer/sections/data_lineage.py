@@ -100,9 +100,8 @@ class _DataLineageBuilder:
 
     def __init__(self, definition: spec.Spec, plan: plan_module.ExecutionPlan) -> None:
         self.definition = definition
-        self.ordered_stages = [
-            sorted(stage, key=lambda invocation: invocation.id) for stage in plan.execution_stages
-        ]
+        self.ordered_stages = plan.execution_stages
+        self.input_invocations = plan.input_invocations
         invocations = plan.invocations
         self.numbers = {
             invocation.id: number
@@ -314,7 +313,7 @@ class _DataLineageBuilder:
             color=self.colors[invocation.id],
             columns=columns,
             dependencies=sorted(
-                self.numbers[dependency] for dependency in invocation.semantics.dependency_ids
+                self.numbers[dependency] for dependency in self.input_invocations[invocation.id]
             ),
             input_tables=self._input_tables(invocation, profile, columns),
             main_columns=self._main_columns(invocation, columns),

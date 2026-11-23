@@ -13,7 +13,6 @@ from support import execution as execution_support
 from uptimely import application
 from uptimely.cli import cli
 from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.runtime import state as state_module
 
 
 def _engine_parameters() -> dict[str, object]:
@@ -45,25 +44,7 @@ def test_engine_returns_calculated_features_without_writing_output(
     result = engine.run()
 
     assert not result.failures
-    assert sorted({feature for _, feature in result.calculated_outputs}) == [
-        "bearing_temperature_delta",
-        "bearing_temperature_rise",
-        "converged",
-        "energy_cost_score",
-        "health_signal_normalized",
-        "max_capacity",
-        "operating_point_recommendation",
-        "pressure_flow_efficiency",
-        "pump_health_score",
-        "pump_mode",
-        "recommended_differential_pressure",
-        "recommended_flow_rate",
-        "vibration_delta",
-    ]
-    assert isinstance(
-        result.calculated_outputs[("pump", "health_signal_normalized")],
-        pl.LazyFrame,
-    )
+    assert result.calculated_outputs is None
     pump_frame = result.datasets["pump"].collect()
     assert pump_frame.select("pump_id", "data_center_id", "server_room_id").sort("pump_id").select(
         "data_center_id", "server_room_id"
@@ -155,12 +136,6 @@ def test_engine_returns_calculated_features_without_writing_output(
         "operating_point_recommendation",
     }
     assert not moved_features.intersection(telemetry_frame.columns)
-    assert all(
-        (warning_profile, feature) in result.calculated_outputs for feature in moved_features
-    )
-    assert not any(
-        ("pump_telemetry", feature) in result.calculated_outputs for feature in moved_features
-    )
     assert warning_frame["recommended_flow_rate"].to_list() == [182.0]
     assert warning_frame["recommended_differential_pressure"].to_list() == [6.6]
     assert warning_frame["energy_cost_score"].to_list() == pytest.approx([30.0 / 182.0])
@@ -243,7 +218,7 @@ def test_warning_profile_handles_no_warning_records(
         paths=paths,
     )
 
-    result = engine.run(validate=True)
+    result = engine.run()
 
     assert not result.failures
     assert result.datasets["pump_telemetry"].collect().height == 10
@@ -300,7 +275,7 @@ def test_hourly_warning_aggregates_only_warnings_by_pump_and_hour(
         paths=paths,
     )
 
-    result = engine.run(validate=True)
+    result = engine.run()
 
     assert not result.failures
     intermediate = result.datasets["pump_telemetry_when_warning"].collect()
@@ -367,7 +342,6 @@ def test_engine_cli_reports_processed_profiles(
             str(project_root),
             "--log-level",
             "debug",
-            "--validate",
             "--preview",
             "1",
         ],
@@ -376,19 +350,9 @@ def test_engine_cli_reports_processed_profiles(
 
     output = capsys.readouterr().out
     assert "Scope:" not in output
-    assert "Processed profile pump: 8 features" in output
-    assert "Profile: pump\n" in output
-    assert "Profile: pump_telemetry\n" in output
-    assert output.index("Processed profile pump: 8 features") < output.index("Profile: pump\n")
-    assert "shape:" not in output
-    assert "Executing operator op-read_file-features2-" in output
-    assert ", function read_file (role=compute, result=fragment)" in output
-    assert f"{'DEBUG':8} | Check fragment dataframe type" in output
-    assert f"{'DEBUG':8} | Check dataset dataframe type" in output
-    assert f"{'DEBUG':8} | Check values and row order of existing columns" in output
-    assert "  Fragment:" not in output
-    assert "  Requirements:" not in output
-    assert "\n  Completed in " not in output
+    assert "Executing invocation " in output
+    assert "Processed profile pump:" in output
+    assert "Check fragment dataframe type" not in output
     assert "\x1b[" not in output
 
 
@@ -745,14 +709,6 @@ def test_engine_rejects_invalid_fragments(
             main,
             fragment_module.Fragment(fragment, main.identifiers, invocation),
         )
-
-
-def test_engine_looks_up_profiles_by_project_wide_id() -> None:
-    frame = pl.LazyFrame({"id": [1]})
-    state = state_module.RuntimeState(datasets={"shared": execution_support.dataset(frame)})
-
-    assert state.resolve_dataset_or_fragment_dataframe("shared") is frame
-    assert state.resolve_dataset_or_fragment_dataframe("missing") is None
 
 
 def test_example_deltas_are_partitioned_and_ordered() -> None:

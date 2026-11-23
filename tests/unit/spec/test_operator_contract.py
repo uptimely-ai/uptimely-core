@@ -50,13 +50,20 @@ def test_workflow_logical_features_order_execution_without_dataframes(
     restored = spec.Spec.model_validate(document.model_dump())
     plan = compiler.Compiler().compile(restored, features=["result"])
     invocations = {item.semantics.operator_id: item for item in plan.invocations}
-    assert invocations["start"].id in invocations["finish"].semantics.dependency_ids
+    stage_by_invocation = {
+        invocation_id: index
+        for index, stage in enumerate(plan.stages)
+        for invocation_id in stage.invocation_ids
+    }
+    assert (
+        stage_by_invocation[invocations["start"].id] < stage_by_invocation[invocations["finish"].id]
+    )
     assert invocations["finish"].arguments == {}
-    result = engine_for_plan(plan, spec_definition=restored).run(validate=True)
+    result = engine_for_plan(plan, spec_definition=restored).run()
     assert workflow_events == ["start", "finish"]
     assert result.failures == {}
     assert result.datasets == {}
-    assert result.calculated_outputs == {}
+    assert result.calculated_outputs is None
 
 
 def test_feature_graph_contains_workflow_without_logical_features() -> None:
@@ -192,11 +199,10 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     metadata_invocation = next(
         item for item in metadata.invocations if item.semantics.operator_id == "metadata"
     )
-    assert {
-        dependency.semantics.operator_id
-        for dependency in metadata.invocations
-        if dependency.id in metadata_invocation.semantics.dependency_ids
-    } == {"read_values"}
+    read_values_invocation = next(
+        item for item in metadata.invocations if item.semantics.operator_id == "read_values"
+    )
+    assert read_values_invocation.id in metadata.input_invocations[metadata_invocation.id]
 
 
 def test_compute_can_merge_a_fragment_from_the_current_dataset(
@@ -212,7 +218,7 @@ def test_compute_can_merge_a_fragment_from_the_current_dataset(
         if invocation.semantics.operator_id == "result" and invocation.semantics.role == "compute"
     )
     assert computed.semantics.result == "fragment"
-    execution = engine_for_plan(compiled, spec_definition=document).run(validate=True)
+    execution = engine_for_plan(compiled, spec_definition=document).run()
     assert execution.failures == {}
     assert execution.datasets["observations"].sort("id").select("id", "value", "result").rows() == [
         (1, 10, 11),
@@ -242,69 +248,15 @@ def test_opaque_compute_orders_foreign_features_without_a_merge(
     producer = next(
         item for item in compiled.invocations if item.semantics.operator_id == "read_values"
     )
-    assert producer.id in publisher.semantics.dependency_ids
-    execution = engine_for_plan(compiled, spec_definition=document).run(validate=True)
+    stage_by_invocation = {
+        invocation_id: index
+        for index, stage in enumerate(compiled.stages)
+        for invocation_id in stage.invocation_ids
+    }
+    assert stage_by_invocation[producer.id] < stage_by_invocation[publisher.id]
+    execution = engine_for_plan(compiled, spec_definition=document).run()
     assert execution.failures == {}
     assert workflow_events == ["finish"]
-
-
-@pytest.mark.parametrize(
-    ("shape", "message"),
-    [
-        ("missing", "missing output columns: result"),
-        ("keys", "missing identifier columns: id"),
-        ("rows", "must preserve existing column values and row order"),
-        ("type", "Output column result has type String; expected integer"),
-        ("scalar", "must be a Polars DataFrame or LazyFrame"),
-    ],
-)
-def test_dataframe_returns_are_validated(
-    monkeypatch: pytest.MonkeyPatch,
-    shape: str,
-    message: str,
-    engine_for_plan: execution_support.EngineFactory,
-) -> None:
-    spec_definition = _spec()
-    compiled = compiler.Compiler().compile(spec_definition, features=["result"])
-
-    def invalid(dataset: pl.DataFrame, output: str) -> object:
-        if shape == "missing":
-            return dataset
-        if shape == "keys":
-            return dataset.select(pl.col("value").alias(output))
-        if shape == "rows":
-            return dataset.with_columns((pl.col("id") + 100).alias("id")).with_columns(
-                pl.lit(1).alias(output)
-            )
-        if shape == "type":
-            return dataset.with_columns(pl.lit("one").alias(output))
-        return 1
-
-    monkeypatch.setattr(f"{__name__}.add_one", invalid)
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run(validate=True)
-    assert message in next(iter(execution.failures.values()))
-    assert ("observations", "result") not in execution.calculated_outputs
-
-
-def test_vectorize_rejects_reordered_existing_rows(
-    monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
-) -> None:
-    spec_definition = _spec()
-    compiled = compiler.Compiler().compile(spec_definition, features=["result"])
-
-    def reversed_result(dataset: pl.DataFrame, output: str) -> pl.DataFrame:
-        return dataset.with_columns((pl.col("value") + 1).alias(output)).reverse()
-
-    monkeypatch.setattr(f"{__name__}.add_one", reversed_result)
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run(validate=True)
-    assert "must preserve existing column values and row order" in next(
-        iter(execution.failures.values())
-    )
-    assert execution.datasets["observations"].select("id", "value").rows() == [
-        (2, 20),
-        (1, 10),
-    ]
-    assert "result" not in execution.datasets["observations"].columns
 
 
 def test_merge_binding_contract_is_validated_by_json_and_python_authoring(
@@ -369,33 +321,13 @@ def test_selector_and_argument_type_must_agree(tmp_path: pathlib.Path) -> None:
 
 def test_nested_arguments_preserve_literals_and_resolve_dataframes() -> None:
     frame = read_values()
-    state = state_module.RuntimeState(datasets={"observations": execution_support.dataset(frame)})
+    state = state_module.RuntimeState(values={"$datasets.observations.read": frame})
     bindings = bindings_module.RuntimeBindings(state, {})
     assert bindings.resolve_value([None, 1]) == [None, 1]
-    resolved = bindings.resolve_value({"frames": ["observations"]}, "object{str: array[dataframe]}")
+    resolved = bindings.resolve_value({"frames": ["$datasets.observations.read"]})
     assert resolved["frames"][0] is frame
-    with pytest.raises(ValueError, match="dataframe is unavailable"):
-        bindings.resolve_value("missing", "dataframe")
-
-
-def test_implicit_dimensions_have_runtime_type_validation(
-    monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
-) -> None:
-    spec_definition = _spec()
-    source = next(iter(spec_definition.profiles["observations"].assembly.values()))
-    source.interface.outputs = ["$features.value"]
-    compiled = compiler.Compiler().compile(spec_definition, features=["result"])
-
-    def wrong_dimension() -> pl.DataFrame:
-        return read_values_original().with_columns(pl.col("id").cast(pl.String))
-
-    read_values_original = read_values
-    monkeypatch.setattr(f"{__name__}.read_values", wrong_dimension)
-    execution = engine_for_plan(compiled, spec_definition=spec_definition).run(validate=True)
-    assert "Output column id has type String; expected integer" in next(
-        iter(execution.failures.values())
-    )
-    assert not execution.datasets
+    with pytest.raises(ValueError, match="Return is unavailable"):
+        bindings.resolve_value("$datasets.observations.missing")
 
 
 @pytest.mark.parametrize("with_sink", [False, True])
@@ -505,6 +437,6 @@ def test_dimensional_operator_schedules_only_its_foreign_dataframe_dependency(
         for item in compiled.invocations
         if item.semantics.operator_id == "read_lower_grain" and item.semantics.result == "target"
     )
-    assert source_merge.id in expand.semantics.dependency_ids
+    assert source_merge.id in compiled.input_invocations[expand.id]
     assert expand.semantics.input_features == ["value"]
-    assert expand.arguments["dataset"] == "source"
+    assert expand.arguments["dataset"] == source_merge.returns

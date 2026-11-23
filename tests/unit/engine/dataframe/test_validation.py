@@ -10,8 +10,6 @@ from uptimely.engine.dataframe import backend as backend_module
 from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import merge as merge_module
-from uptimely.engine.runtime import execution as execution_module
-from uptimely.engine.runtime import state as state_module
 
 
 def _invocation(
@@ -28,6 +26,12 @@ def _invocation(
     return plan_module.Invocation(
         id="invocation",
         entrypoint="test:calculate",
+        arguments={},
+        returns=(
+            "$dataset.dataset.calculate"
+            if dataframe_input_scope == "target"
+            else "$fragments.dataset.calculate"
+        ),
         semantics=plan_module.InvocationSemantics(
             role="compute",
             result="target" if dataframe_input_scope == "target" else "fragment",
@@ -352,167 +356,6 @@ def test_merge_skips_optional_checks_when_disabled(
     monkeypatch.setattr(backend, "is_duplicated", unexpected_check)
     monkeypatch.setattr(backend, "validate_types", unexpected_check)
     merge_module.Merge(dataset, fragment).validate_result(result)
-
-
-def test_executor_checks_target_transform_contract_and_preservation(
-    caplog: pytest.LogCaptureFixture,
-) -> None:
-    caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
-    invocation = _invocation(
-        output_features=["new"],
-        column_types={"key": "string", "new": "integer"},
-        dataframe_input_scope="target",
-        row_count_relation="same",
-        key_relation="identical",
-        row_order_relation="preserve",
-        existing_data_relation="preserve",
-    )
-    backend = backend_module.PolarsBackend()
-    executor = execution_module.InvocationExecutor(
-        backend,
-        {},
-        {},
-        state_module.RuntimeState(),
-    )
-    dataset = dataset_module.Dataset(
-        backend,
-        ["key"],
-        pl.DataFrame({"key": ["A"], "value": [1]}),
-    )
-    comparison = dataset.dataframe
-
-    with pytest.raises(ValueError, match="must preserve existing column values and row order"):
-        executor._validate_target_transform_result(
-            pl.DataFrame({"key": ["A"], "value": [9], "new": [2]}),
-            invocation,
-            comparison,
-            preserve_data=True,
-        )
-    assert executor._validate_target_transform_result(
-        pl.DataFrame({"key": ["A"], "value": [1], "new": [2]}),
-        invocation,
-        comparison,
-        preserve_data=True,
-    ) == ["new"]
-    context = (
-        "target transform result from operator calculate, function calculate, "
-        "invocation invocation, profile dataset"
-    )
-    assert all(context in message for message in caplog.messages)
-    assert f"Check required identifier columns ['key'] for {context}" in caplog.messages
-    assert f"Check declared output columns ['new'] exist in {context}" in caplog.messages
-    assert (
-        "Check output columns ['new'] do not replace existing feature columns ['value'] "
-        f"in {context}" in caplog.messages
-    )
-    assert f"Check existing columns ['key', 'value'] remain present in {context}" in caplog.messages
-    assert (
-        f"Check {context} contains no columns outside existing and declared outputs "
-        "['key', 'new', 'value']" in caplog.messages
-    )
-    assert (
-        "Check declared types of dimension and output columns "
-        f"{{'key': 'string', 'new': 'integer'}} in {context}" in caplog.messages
-    )
-
-
-def test_target_transform_validation_skips_content_comparison_when_disabled(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
-    invocation = _invocation(
-        output_features=["new"],
-        dataframe_input_scope="target",
-        row_count_relation="same",
-        key_relation="identical",
-        row_order_relation="preserve",
-        existing_data_relation="preserve",
-    )
-    backend = backend_module.PolarsBackend()
-    dataset = dataset_module.Dataset(
-        backend,
-        ["key"],
-        pl.DataFrame({"key": ["A"]}),
-    )
-    executor = execution_module.InvocationExecutor(
-        backend,
-        {},
-        {},
-        state_module.RuntimeState(),
-    )
-    monkeypatch.setattr(
-        backend,
-        "same_data",
-        lambda *_args, **_kwargs: pytest.fail("Content comparison should be skipped"),
-    )
-
-    assert executor._validate_target_transform_result(
-        pl.DataFrame({"key": ["A"], "new": [2]}),
-        invocation,
-        dataset.dataframe,
-        preserve_data=False,
-    ) == ["new"]
-
-
-@pytest.mark.parametrize(
-    ("frame", "outputs", "comparison", "message"),
-    [
-        (
-            pl.DataFrame({"value": [1]}),
-            ["new"],
-            pl.DataFrame({"key": ["A"]}),
-            "missing identifier columns: key",
-        ),
-        (
-            pl.DataFrame({"key": ["A"]}),
-            ["new"],
-            pl.DataFrame({"key": ["A"]}),
-            "missing output columns: new",
-        ),
-        (
-            pl.DataFrame({"key": ["A"], "new": [1]}),
-            ["new"],
-            pl.DataFrame({"key": ["A"], "new": [2]}),
-            "cannot replace existing columns: new",
-        ),
-        (
-            pl.DataFrame({"key": ["A"], "new": [1]}),
-            ["new"],
-            pl.DataFrame({"key": ["A"], "value": [2]}),
-            "must preserve existing columns: value",
-        ),
-        (
-            pl.DataFrame({"key": ["A"], "new": [1], "extra": [2]}),
-            ["new"],
-            pl.DataFrame({"key": ["A"]}),
-            "returned undeclared columns: extra",
-        ),
-    ],
-)
-def test_executor_rejects_invalid_target_transform_schema(
-    frame: pl.DataFrame,
-    outputs: list[str],
-    comparison: pl.DataFrame,
-    message: str,
-) -> None:
-    invocation = _invocation(
-        output_features=outputs,
-        dataframe_input_scope="target",
-        row_count_relation="same",
-        key_relation="identical",
-        row_order_relation="preserve",
-        existing_data_relation="preserve",
-    )
-    executor = execution_module.InvocationExecutor(
-        backend_module.PolarsBackend(),
-        {},
-        {},
-        state_module.RuntimeState(),
-    )
-
-    with pytest.raises(ValueError, match=message):
-        executor._validate_target_transform_result(
-            frame, invocation, comparison, preserve_data=False
-        )
 
 
 def test_owner_validation_logs_checks(caplog: pytest.LogCaptureFixture) -> None:

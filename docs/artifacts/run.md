@@ -13,8 +13,8 @@ write a run format-version field.
 | `artifacts/run/log.jsonl` | Structured execution log. |
 | `artifacts/run/preview/<profile>.json` | Saved sample for a profile. |
 
-Failed invocations still produce a run with any available partial profile
-results. Invalid configuration or build errors before execution leave the
+Failed invocations still produce a run with dataset aliases whose named results
+were produced. Invalid configuration or build errors before execution leave the
 previous run unchanged.
 
 ### Manifest

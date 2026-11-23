@@ -5,7 +5,7 @@
     Contents of this page requires further validation.
 
 Connect Uptimely to an MCP-compatible AI application to explore your analytics
-project and run calculations. The application provides the chat and model.
+project. The application provides the chat and model.
 The Uptimely server does not need a model API key.
 
 ## 1. Install and build
@@ -100,25 +100,19 @@ The current server supports local stdio connections, not an HTTP endpoint.
 
 ## 3. Ask questions
 
-Start by exploring the model, then ask for the calculation you want:
+Explore the model and inspect saved runs:
 
 | Ask | What the assistant can do |
 | --- | --- |
 | "How many features does my spec have?" | Count features and summarize profiles. |
 | "Which calculations are available for cooling pumps?" | List operators, functions, inputs, and outputs. |
 | "What does the cooling-pump health score depend on?" | Explain its inputs and earlier calculations. |
-| "Show three cooling-pump operating-point recommendations." | Run the illustrative recommendation and its dependencies. |
-| "Run the hydraulic-efficiency proxy for the cooling-pump telemetry profile." | Run `pressure_flow_efficiency`, which uses the `ratio` function. |
 | "Which warnings were logged in the last engine run?" | Read warnings without starting another run. |
 | "Which calculation failed in the last run?" | Inspect saved failures and logs. |
 | "I rebuilt the project. Reload it and list the calculations." | Refresh the server's saved build. |
 
-When a function is reused, name the profile or operator to select the intended
-calculation.
-
 To verify the connection, ask for `describe_spec` and check its returned tool
-result. Then request one row from `pressure_flow_efficiency` to check data
-access and execution.
+result.
 
 For a local startup check:
 
@@ -139,8 +133,8 @@ See the [tool reference](../ai/tools.md) for arguments and descriptions of every
 | Tools are missing or disabled | Check server status, trust approval, and enabled tools in the client. |
 | Build is missing or incompatible | Build the project, then reload or restart the server. |
 | Imports or data files cannot be found | Check function dependencies, working directory, and data paths. |
-| No saved run exists | Run a calculation before requesting run diagnostics. |
-| Results are not available as rows | The function must return a dataframe through its operator, not only write results internally. |
+| No saved run exists | Run the project before requesting run diagnostics. |
+| Execution tools cannot return rows | Targeted execution and calculated-feature summaries are not currently supported. |
 
 Restart after changing configuration or server code. Changes to Spec
 declarations require a rebuild and reload. Every execution replaces the
@@ -148,8 +142,6 @@ latest-run logs and previews, so inspect earlier warnings before starting
 another run.
 
 The server does not apply a "today" filter or guarantee data freshness.
-The example operating-point recommendation is illustrative, not a production
-optimizer. The sample data and health-score thresholds are synthetic.
 
 Only connect trusted projects. Tools execute project code and may read or write
 data. Standard output is reserved for MCP messages, so analytical functions

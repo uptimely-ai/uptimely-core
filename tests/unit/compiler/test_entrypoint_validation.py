@@ -66,7 +66,7 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     assert set(compute_by_operator) >= set(merges_by_operator)
     for operator_key, merge in merges_by_operator.items():
         compute = compute_by_operator[operator_key]
-        assert compute.id in merge.semantics.dependency_ids
+        assert compute.id in compiled.input_invocations[merge.id]
         profile_key = specification.profile_keys[compute.semantics.profile_id]
         assert (
             compute.semantics.target_identifiers
@@ -107,32 +107,19 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
         for producers in compiled.features.values()
     )
 
-    feature_producers = {
-        feature: invocation
+    selected_feature = next(
+        feature
         for invocation in compiled.invocations
         if invocation.semantics.role == "compute"
         for feature in invocation.semantics.output_features
-    }
-    for invocation in compiled.invocations:
-        if invocation.semantics.role == "merge":
-            continue
-        for feature in invocation.semantics.input_features:
-            producer = feature_producers.get(feature)
-            if (
-                producer is None
-                or producer.semantics.operator_id == invocation.semantics.operator_id
-            ):
-                continue
-            publication = merges_by_operator.get(
-                (producer.semantics.profile_id, producer.semantics.operator_id), producer
-            )
-            assert publication.id in invocation.semantics.dependency_ids
-
-    selected_feature = next(
-        feature for feature in feature_producers if feature not in specification.identifier_ids
+        if feature not in specification.identifier_ids
     )
     selected = compiler.Compiler().compile(specification, features=[selected_feature])
-    selected_producer = feature_producers[selected_feature]
+    selected_producer = next(
+        invocation
+        for invocation in compiled.invocations
+        if selected_feature in invocation.semantics.output_features
+    )
     selected_merge = merges_by_operator.get(
         (selected_producer.semantics.profile_id, selected_producer.semantics.operator_id)
     )
@@ -183,7 +170,6 @@ def test_compiler_summarizes_invocation_checks_once(
     for check in (
         "Validate function entrypoint declarations",
         "Select unique functions for implementation checks",
-        "Create portable invocations",
     ):
         assert caplog.messages.count(check) == (1 if level == logging.DEBUG else 0)
     assert not any(message.startswith("\nCompiler operator:") for message in caplog.messages)
@@ -231,7 +217,9 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
     assert {node.id for node in compiled.invocations} == set(baseline_invocations)
     for actual in compiled.invocations:
         expected = baseline_invocations[actual.id]
-        assert set(actual.semantics.dependency_ids) == set(expected.semantics.dependency_ids)
+        assert set(compiled.input_invocations[actual.id]) == set(
+            baseline.input_invocations[expected.id]
+        )
         assert actual.semantics.input_features == expected.semantics.input_features
         assert actual.semantics.output_features == expected.semantics.output_features
         if actual.semantics.function_id == function.id:
@@ -274,6 +262,22 @@ def test_compiler_instance_can_compile_independent_specs_and_selections() -> Non
         "health_signal_normalized" in invocation.semantics.output_features
         for invocation in selected.invocations
     )
+
+
+@pytest.mark.parametrize("features", [None, ["health_signal_normalized"], []])
+def test_invocation_graph_matches_compiled_selection(features: list[str] | None) -> None:
+    definition = spec.load_spec(SPEC_PATH)
+    graph = compiler.Compiler.invocation_graph(definition, features)
+    compiled = compiler.Compiler().compile(definition, features)
+
+    assert [[node.node_id for node in stage] for stage in graph.topology()] == [
+        stage.invocation_ids for stage in compiled.stages
+    ]
+
+
+def test_invocation_graph_rejects_string_feature_selection() -> None:
+    with pytest.raises(ValueError, match="features must be a collection"):
+        compiler.Compiler.invocation_graph(spec.load_spec(SPEC_PATH), "health_signal_normalized")
 
 
 @pytest.mark.parametrize("validate_signature", [False, True])

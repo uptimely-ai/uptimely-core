@@ -37,7 +37,11 @@ class ExecutionResponse:
         datasets, output_failures = cls._datasets(bundle, result, outputs, preview_failures)
         succeeded = cls._succeeded(bundle, result, operator)
         status = "ok" if succeeded and not (preview_failures or output_failures) else "failed"
-        payload: dict[str, object] = {"status": status, "datasets": datasets}
+        payload: dict[str, object] = {
+            "status": status,
+            "datasets": datasets,
+            "output_summary_available": result.calculated_outputs is not None,
+        }
         if operator is not None:
             payload["target"] = {"profile": operator[0], "operator": operator[1]}
         if result.failures:
@@ -63,6 +67,8 @@ class ExecutionResponse:
             features = declaration.output_features
             return {profile_id: sorted(features)} if features else {}
         outputs: dict[str, list[str]] = {}
+        if result.calculated_outputs is None:
+            return outputs
         for profile_id, feature_id in sorted(result.calculated_outputs):
             outputs.setdefault(profile_id, []).append(feature_id)
         return outputs
@@ -75,6 +81,8 @@ class ExecutionResponse:
     ) -> bool:
         """Preserve full-build warning policy and stricter targeted-run status."""
         if operator is not None:
+            return not result.failures
+        if result.calculated_outputs is None:
             return not result.failures
         producers = bundle.spec_definition.calculated_feature_producers
         expected = {(profile_id, feature) for feature, (profile_id, _) in producers.items()}

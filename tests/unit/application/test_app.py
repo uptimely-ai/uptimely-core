@@ -385,10 +385,10 @@ def test_build_and_run_use_project_paths(
     app = uptimely.Uptimely(root)
     app.build(features=["health_signal_normalized"])
 
-    result = app.run(validate=True, preview_rows=2)
+    result = app.run(preview_rows=2)
 
     assert not result.failures
-    assert ("pump", "health_signal_normalized") in result.calculated_outputs
+    assert result.calculated_outputs is None
     assert result.preview_frames["pump"].height == 2
 
 

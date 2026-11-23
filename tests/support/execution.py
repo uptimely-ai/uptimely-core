@@ -37,6 +37,8 @@ def merge_fragment(
     invocation = fragment.invocation or execution_plan.Invocation(
         id="standalone",
         entrypoint="test:read",
+        arguments={},
+        returns=None,
         semantics=execution_plan.InvocationSemantics(
             role="compute",
             result="fragment",

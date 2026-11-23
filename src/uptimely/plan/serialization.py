@@ -18,56 +18,6 @@ def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     """Load a plan from a decoded JSON object."""
     if not isinstance(payload, dict):
         raise ValueError("Plan artifact must contain a JSON object")
-    if "plan_version" in payload:
-        models._validate_plan_version(payload["plan_version"])
-    required = {
-        "plan_version",
-        "required_backend",
-        "invocations",
-        "stages",
-    }
-    missing = sorted(required - payload.keys())
-    if missing:
-        raise ValueError("Plan is missing required fields: " + ", ".join(missing))
-    unexpected = sorted(payload.keys() - required)
-    if unexpected:
-        raise ValueError("Plan contains unknown fields: " + ", ".join(unexpected))
-    invocations = payload["invocations"]
-    if not isinstance(invocations, list):
-        raise ValueError("Plan invocations must be a list")
-    identifiers: set[str] = set()
-    for invocation in invocations:
-        if not isinstance(invocation, dict):
-            raise ValueError("Plan invocations must be objects")
-        invocation_fields = {"id", "entrypoint", "arguments", "returns", "semantics"}
-        required_invocation_fields = {"id", "entrypoint", "arguments", "semantics"}
-        missing_invocation_fields = sorted(required_invocation_fields - invocation.keys())
-        unexpected_invocation_fields = sorted(invocation.keys() - invocation_fields)
-        if missing_invocation_fields:
-            raise ValueError(
-                "Plan invocation is missing fields: " + ", ".join(missing_invocation_fields)
-            )
-        if unexpected_invocation_fields:
-            raise ValueError(
-                "Plan invocation contains unknown fields: "
-                + ", ".join(unexpected_invocation_fields)
-            )
-        invocation_id = invocation["id"]
-        if not isinstance(invocation_id, str) or invocation_id in identifiers:
-            raise ValueError(
-                f"Plan contains an invalid or duplicate invocation ID: {invocation_id!r}"
-            )
-        identifiers.add(invocation_id)
-        semantic_data = invocation["semantics"]
-        if not isinstance(semantic_data, dict):
-            raise ValueError(f"Invocation {invocation_id} semantics must be an object")
-        missing_semantics = models._REQUIRED_SEMANTICS_FIELDS - semantic_data.keys()
-        if missing_semantics:
-            raise ValueError(
-                f"Invocation {invocation_id} is missing runtime metadata: "
-                + ", ".join(sorted(missing_semantics))
-                + ". Recompile the project build."
-            )
     return models.ExecutionPlan.model_validate(payload)
 
 

@@ -158,12 +158,15 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
 
     plan = compiler.Compiler().compile(restored_spec)
     invocation = next(item for item in plan.invocations if item.semantics.row_context is not None)
+    source = next(
+        item for item in plan.invocations if item.semantics.operator_id == "read_observations"
+    )
     assert invocation.semantics.row_context == context
     assert all(
         item.semantics.row_context is None for item in plan.invocations if item is not invocation
     )
     assert invocation.arguments == {
-        "dataset": "observations",
+        "dataset": source.returns,
         "column": "temperature",
         "output": "result",
         "configuration": {"windows": ["8h", "24h"]},
@@ -255,10 +258,16 @@ def test_collapse_functions_execute_without_row_context(
     )
     plan = compiler.Compiler().compile(spec_definition)
     invocation = next(item for item in plan.invocations if item.entrypoint.endswith(":maximum"))
+    source_invocation = next(
+        item
+        for item in plan.invocations
+        if item.semantics.profile_id == "observations"
+        and item.semantics.operator_id == "read_observations"
+    )
     assert invocation.semantics.row_context is None
     assert invocation.entrypoint.endswith(":maximum")
     assert invocation.arguments == {
-        "dataset": "observations",
+        "dataset": source_invocation.returns,
         "column": "temperature",
         "output": "temperature_max",
     }

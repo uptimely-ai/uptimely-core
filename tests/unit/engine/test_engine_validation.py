@@ -17,6 +17,7 @@ def test_engine_checks_matching_backend(
         required_backend="polars",
         invocations=[],
         stages=[],
+        datasets={},
     )
     engine = engine_for_plan(plan)
 
@@ -35,6 +36,7 @@ def test_engine_rejects_mismatched_backend(
         required_backend="pandas",
         invocations=[],
         stages=[],
+        datasets={},
     )
 
     with pytest.raises(ValueError, match=r"Unsupported plan backend: pandas\. Expected polars\."):

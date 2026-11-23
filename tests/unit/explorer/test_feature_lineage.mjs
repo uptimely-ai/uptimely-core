@@ -457,6 +457,22 @@ test("direct-neighbor highlighting excludes transitive paths and handles mutable
   assert.equal(full.isNodeHighlighted(data.nodes[0]), true);
 });
 
+test("selection highlights all direct inputs and outputs equally", () => {
+  const data = {
+    nodes: ["ratio", "delta-a", "delta-b", "score", "consumer"].map(id => ({ id })),
+    links: [
+      { source: "ratio", target: "score" },
+      { source: "delta-a", target: "score" },
+      { source: "delta-b", target: "score" },
+      { source: "score", target: "consumer" },
+    ],
+  };
+  const highlight = ExplorerLineage.createLineageHighlight(data);
+  highlight.select(data.nodes.find(node => node.id === "score"));
+  assert.ok(data.links.every(highlight.isLinkHighlighted));
+  assert.ok(data.links.every(highlight.isLinkDirect));
+});
+
 test("quiet topology draws highlighted links after dimmed links and keeps cards on top", t => {
   const original = globalThis.ForceGraph;
   t.after(() => {

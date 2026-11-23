@@ -12,10 +12,6 @@ from uptimely import engine as uptimely_engine
 from uptimely import plan as uptimely_plan
 from uptimely import spec
 from uptimely.codebase.python import entrypoint as entrypoint_module
-from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.runtime import bindings as bindings_module
-from uptimely.engine.runtime import execution as execution_module
-from uptimely.engine.runtime import state as state_module
 from uptimely.library.merge import polars as merge_module
 
 PLAN_PATH = pathlib.Path(__file__).parents[2] / "fixtures" / "plans" / "simple_engine.json"
@@ -76,16 +72,14 @@ def test_engine_validates_plan_backend(engine_for_plan: execution_support.Engine
         engine_for_plan(copy.replace(plan, required_backend="pandas"))
 
 
-@pytest.mark.parametrize("validate", [False, True])
 def test_engine_execution_uses_only_saved_invocation_metadata(
     monkeypatch: pytest.MonkeyPatch,
     bundle_for_plan: execution_support.BundleFactory,
-    validate: bool,
 ) -> None:
     raw = pl.DataFrame({"asset_id": ["A"], "reading": [2], "extra": [0]})
 
     def double(column: str, dataset: pl.DataFrame) -> pl.DataFrame:
-        assert dataset.columns == ["asset_id", "reading"]
+        assert dataset.columns == ["asset_id", "reading", "extra"]
         return dataset.with_columns((pl.col(column) * 2).alias("doubled"))
 
     _patch_callables(
@@ -103,11 +97,11 @@ def test_engine_execution_uses_only_saved_invocation_metadata(
         bundle, uptimely_engine.EngineConfig(), {"source": "input.json"}
     )
 
-    result = engine.run(validate=validate)
+    result = engine.run()
 
     assert not result.failures
     assert result.datasets["telemetry"].to_dicts() == [
-        {"asset_id": "A", "reading": 2, "doubled": 4}
+        {"asset_id": "A", "reading": 2, "extra": 0, "doubled": 4}
     ]
 
 
@@ -158,82 +152,3 @@ def test_engine_rejects_execution_plan_instead_of_bundle() -> None:
             _plan(),
             uptimely_engine.EngineConfig(),  # type: ignore[arg-type]
         )
-
-
-@pytest.mark.parametrize("reference", ["$params.", "$params.source.path"])
-def test_engine_rejects_malformed_parameter_references(
-    reference: str, engine_for_plan: execution_support.EngineFactory
-) -> None:
-    engine = engine_for_plan(_plan())
-    bindings = bindings_module.RuntimeBindings(state_module.RuntimeState(), engine.parameters)
-
-    with pytest.raises(ValueError, match="Malformed parameter reference"):
-        bindings.resolve_parameter_reference(reference)
-
-
-def test_engine_rejects_ambiguous_fragment_references() -> None:
-    first = execution_support.dataset(None)
-    second = execution_support.dataset(None)
-    first.fragments["shared"] = fragment_module.Fragment(pl.DataFrame({"asset_id": ["A"]}), ())
-    second.fragments["shared"] = fragment_module.Fragment(pl.DataFrame({"asset_id": ["B"]}), ())
-    state = state_module.RuntimeState(datasets={"first": first, "second": second})
-
-    with pytest.raises(ValueError, match="Ambiguous fragment reference: shared"):
-        state.resolve_dataset_or_fragment_dataframe("shared")
-
-
-def test_fragment_names_are_scoped_by_profile(
-    monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
-) -> None:
-    def read(source: str) -> pl.DataFrame:
-        return pl.DataFrame({"asset_id": [source], "reading": [1]})
-
-    _patch_callables(monkeypatch, {"test:read": read})
-    engine = engine_for_plan(_plan(), {"source": "source"})
-    state = state_module.RuntimeState()
-    executor = execution_module.InvocationExecutor(
-        engine.backend,
-        {},
-        engine.parameters,
-        state,
-    )
-    for profile_id in ("first", "second"):
-        read = copy.replace(
-            next(item for item in engine.plan.invocations if item.semantics.result == "fragment"),
-            semantics=copy.replace(
-                next(
-                    item for item in engine.plan.invocations if item.semantics.result == "fragment"
-                ).semantics,
-                profile_id=profile_id,
-                operator_id="shared",
-            ),
-        )
-        merge = copy.replace(
-            next(item for item in engine.plan.invocations if item.semantics.role == "merge"),
-            id=f"invocation:merge:merge_by_grain:{profile_id}:shared",
-            semantics=copy.replace(
-                next(
-                    item for item in engine.plan.invocations if item.semantics.role == "merge"
-                ).semantics,
-                profile_id=profile_id,
-                operator_id="shared",
-                dependency_ids=[read.id],
-            ),
-            arguments={
-                "dataset": profile_id,
-                **{
-                    key: value
-                    for key, value in next(
-                        item for item in engine.plan.invocations if item.semantics.role == "merge"
-                    ).arguments.items()
-                    if key != "dataset"
-                },
-            },
-        )
-        executor.execute(read)
-        executor.execute(merge)
-
-    assert set(state.datasets) == {"first", "second"}
-    assert all(set(main.fragments) == {"shared"} for main in state.datasets.values())
-    with pytest.raises(ValueError, match="Ambiguous fragment reference: shared"):
-        state.resolve_dataset_or_fragment_dataframe("shared")

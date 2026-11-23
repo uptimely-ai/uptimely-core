@@ -86,8 +86,9 @@ project directory or `--project-root` selects it. If neither is given,
 Uptimely uses the current working directory. The root is needed to locate the
 configuration file in the first place.
 
-Feature selection, runtime validation, build-before-run, and log level remain
-command-specific options rather than project settings.
+Feature selection, build-before-run, and log level are command-specific options
+rather than project settings. Analytical runtime validation is not currently
+supported.
 
 ### Runtime values
 
@@ -114,5 +115,5 @@ not currently change evaluation or data access behavior.
 
 The backend must be compatible with the saved execution plan. An incompatible
 configuration causes execution to fail rather than changing how the plan is
-interpreted. Backend compatibility and configuration checks run regardless
-of runtime validation mode.
+interpreted. Backend compatibility and configuration are checked before
+execution.
