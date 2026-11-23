@@ -7,7 +7,6 @@ import typing
 from collections import abc
 
 from uptimely.spec import model as spec_model
-from uptimely.spec import selectors
 from uptimely.spec.model import base as model_base
 
 from . import assembly, feature, references
@@ -345,14 +344,7 @@ class Profile:
     def _operator_model(self, name: str, declaration: assembly.Operator) -> spec_model.Operator:
         """Convert an operator and add its profile location to declaration errors."""
         try:
-            operator = declaration.to_model()
-            if declaration.inputs is None:
-                operator.interface.inputs = [
-                    reference
-                    for reference in operator.interface.inputs
-                    if reference.removeprefix(selectors.FEATURE_PREFIX) not in self.keys
-                ]
-            return operator
+            return declaration.to_model()
         except TypeError as error:
             raise TypeError(f"Profile '{self.id}', operator '{name}': {error}") from error
         except ValueError as error:

@@ -180,16 +180,28 @@ def _is_collapse_compute(
 def validate_feature_reference(spec: spec_model.Spec) -> None:
     """Require a structural feature reference to be declared."""
     logger.debug("Check spec operator feature selectors name declared features or current")
-    feature_names = spec.key_ids | spec.feature_owners.keys()
-    for (target_profile_id, _), operator in spec.operator_items:
-        for feature in operator.feature_selectors:
+    feature_names = spec.feature_owners.keys()
+    dimension_keys = {
+        resolution.key
+        for dimension in spec.dimensions.values()
+        for resolution in dimension.resolutions.values()
+    }
+    for key, operator in spec.operator_items:
+        for feature, path in operator.compute.references_by_prefix[selectors.FEATURE_PREFIX]:
             logger.debug(
                 "Check feature selector %s for spec operator %s in target profile %s",
                 "current feature (@)" if feature == selectors.CURRENT_ID else feature,
                 operator.id,
-                target_profile_id,
+                key[0],
             )
             if feature != selectors.CURRENT_ID and feature not in feature_names:
+                if feature in dimension_keys:
+                    raise errors.SpecError(
+                        f"Operator {operator.id} references dimension key {feature!r} as a "
+                        "feature. Use a dimension resolution key selector instead",
+                        code="dimension_key_feature_selector",
+                        path=(*spec.declaration_paths[key], "compute", "args", *path),
+                    )
                 raise ValueError(f"Operator {operator.id} references unknown feature: {feature}")
 
 

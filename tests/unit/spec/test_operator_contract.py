@@ -349,7 +349,10 @@ def test_identifier_binding_needs_no_interface_or_feature_metadata(
             "interface": {"inputs": ["$features.value"], "outputs": []},
             "compute": {
                 "function": "write_ids",
-                "args": {"dataset": "$profiles.@.dataset", "column": "$features.id.id"},
+                "args": {
+                    "dataset": "$profiles.@.dataset",
+                    "column": "$dimensions.id.resolutions.id.key",
+                },
             },
         }
     path.write_text(json.dumps(configuration))

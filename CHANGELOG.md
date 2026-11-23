@@ -21,6 +21,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Feature selectors must reference declared features. Use dimension resolution
+  key selectors instead of feature selectors for dimension keys.
 - `from_python` and Python declaration conversion accept sequences of Python
   profiles instead of mappings, arbitrary iterators, or document-model profiles.
   The `conversion.Profiles` alias and `profile.to_models` have been removed.
