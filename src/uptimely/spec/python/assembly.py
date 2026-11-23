@@ -293,23 +293,23 @@ class Operator:
 
     def function_catalog(self) -> spec_model.FunctionCatalog:
         """Build the reusable function contract declared by this operator."""
-        bindings: list[tuple[operator_bindings.BindingKind, Bind]] = [("compute", self.compute)]
+        bindings: list[tuple[operator_bindings.BindingKind, Bind]] = [
+            (operator_bindings.COMPUTE, self.compute)
+        ]
         if self.merge is not None:
-            bindings.append(("merge", self.merge))
+            bindings.append((operator_bindings.MERGE, self.merge))
         catalogs = []
         for role, binding in bindings:
             template = binding.to_function_template(row_context=self.row_context)
-            dataframe_count = sum(
-                arg_types.is_dataframe(argument.type) for argument in template.args.values()
-            )
-            if (role == "compute" and dataframe_count > 1) or (
-                role == "merge" and dataframe_count != 2
-            ):
+            dataframe_count = template.dataframe_argument_count
+            if dataframe_count not in operator_bindings.OPERATOR_BINDINGS[role].dataframe_inputs:
                 raise ValueError(
                     f"Operator {self.id} {role} binding has invalid dataframe arity: "
                     f"{dataframe_count}"
                 )
-            if (role == "merge" or self.merge is not None) and template.returns != "dataframe":
+            if (
+                role == operator_bindings.MERGE or self.merge is not None
+            ) and template.returns != arg_types.DATAFRAME:
                 raise ValueError(
                     f"Operator {self.id} {role} binding must return a dataframe when merging"
                 )

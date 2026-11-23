@@ -10,6 +10,7 @@ from uptimely.codebase.python import codebase, entrypoint
 from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
+from uptimely.spec.model import profile as profile_module
 
 from . import graph as invocation_graph
 from . import semantics as semantics_module
@@ -46,7 +47,8 @@ class Compiler:
             spec_definition: The Spec document to compile.
             features: Optional collection of output feature identifiers.
             signatures: Optional return signatures inspected before compilation.
-            validate_spec: Whether to validate the Spec during compilation.
+            validate_spec: Whether to validate the Spec during compilation. If false,
+                the caller must provide an already validated Spec.
 
         Returns:
             A portable execution plan for the selected invocation graph.
@@ -141,13 +143,22 @@ class Compiler:
 
         for node in invocations:
             semantics = semantics_by_id[node.node_id]
-            if semantics.role == "merge" or semantics.result == "target":
+            if (
+                semantics.role == profile_module.OperatorBindingRole.MERGE
+                or semantics.result == plan.InvocationResultKind.TARGET
+            ):
                 dataset_publishers.setdefault(semantics.profile_id, []).append(node)
-            if semantics.role != "compute":
+            if semantics.role != profile_module.OperatorBindingRole.COMPUTE:
                 continue
             producer = node
-            if semantics.result == "fragment":
-                merge_node = by_binding.get((semantics.profile_id, semantics.operator_id, "merge"))
+            if semantics.result == plan.InvocationResultKind.FRAGMENT:
+                merge_node = by_binding.get(
+                    (
+                        semantics.profile_id,
+                        semantics.operator_id,
+                        profile_module.OperatorBindingRole.MERGE,
+                    )
+                )
                 if merge_node is not None:
                     dependencies[merge_node.node_id].add(node.node_id)
                     producer = merge_node
@@ -157,7 +168,7 @@ class Compiler:
 
         for node in invocations:
             semantics = semantics_by_id[node.node_id]
-            if semantics.role != "compute":
+            if semantics.role != profile_module.OperatorBindingRole.COMPUTE:
                 continue
             for feature in semantics.input_features:
                 producer = feature_producers.get(feature)
@@ -169,12 +180,14 @@ class Compiler:
             profile = spec_definition.profiles[semantics.profile_id]
             if profile.seed is None or semantics.operator_id == profile.seed:
                 continue
-            seed = by_binding[(semantics.profile_id, profile.seed, "compute")]
+            seed = by_binding[
+                (semantics.profile_id, profile.seed, profile_module.OperatorBindingRole.COMPUTE)
+            ]
             if (
-                semantics.role == "merge"
-                or semantics.result == "target"
+                semantics.role == profile_module.OperatorBindingRole.MERGE
+                or semantics.result == plan.InvocationResultKind.TARGET
                 or semantics.is_sink
-                or semantics.dataframe_input_scope == "target"
+                or semantics.dataframe_input_scope == profile_module.DataFrameInputScope.TARGET
             ):
                 dependencies[node.node_id].add(seed.node_id)
 
@@ -185,7 +198,7 @@ class Compiler:
                 if node is None:
                     continue
                 function = spec_definition.functions[binding.function]
-                if role != "compute" or operator.input_features:
+                if role != profile_module.OperatorBindingRole.COMPUTE or operator.input_features:
                     continue
                 dataframe_arguments = function.arguments_by_type.get(arg_types.DATAFRAME, {})
                 for argument_name in dataframe_arguments:
@@ -230,7 +243,7 @@ class Compiler:
         for node in invocations:
             semantics = semantics_by_id[node.node_id]
             if (
-                semantics.role == "compute"
+                semantics.role == profile_module.OperatorBindingRole.COMPUTE
                 and semantics.is_sink
                 and semantics.profile_id in selected_profiles
             ):

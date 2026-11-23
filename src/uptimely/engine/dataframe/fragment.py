@@ -7,6 +7,7 @@ import logging
 from collections import abc
 
 from uptimely import plan
+from uptimely.spec.model import profile as profile_module
 
 from . import backend as backend_module
 
@@ -82,11 +83,17 @@ class Fragment:
             ValueError: The invocation does not declare a fragment result or
                 validation rejects the invocation result.
         """
-        if invocation.semantics.role != "compute" or invocation.semantics.result != "fragment":
+        if (
+            invocation.semantics.role != profile_module.OperatorBindingRole.COMPUTE
+            or invocation.semantics.result != plan.InvocationResultKind.FRAGMENT
+        ):
             raise ValueError(
                 f"Invocation {invocation.id} must declare a fragment-producing compute result"
             )
-        if invocation.semantics.fragment_dimensions == "not_applicable":
+        if (
+            invocation.semantics.fragment_dimensions
+            == profile_module.FragmentDimensions.NOT_APPLICABLE
+        ):
             raise ValueError(
                 f"Fragment invocation {invocation.id} must declare fragment dimensions"
             )
@@ -100,8 +107,9 @@ class Fragment:
         identifiers = tuple(invocation.semantics.target_identifiers)
         available_keys = dict.fromkeys([*identifiers, *invocation.semantics.fragment_keys])
         keys = tuple(column for column in available_keys if column in columns)
-        if invocation.semantics.fragment_dimensions == "subset" and not set(identifiers).issubset(
-            columns
+        if (
+            invocation.semantics.fragment_dimensions == profile_module.FragmentDimensions.SUBSET
+            and not set(identifiers).issubset(columns)
         ):
             identifiers = keys
         relations = tuple(column for column in keys if column not in identifiers)
@@ -167,7 +175,7 @@ class Fragment:
             return
 
         self._validate_dimensionless_row_count(backend, invocation)
-        if invocation.semantics.row_count_relation == "same":
+        if invocation.semantics.row_count_relation == profile_module.RowCountRelation.SAME:
             _log_validation(invocation, "Check fragment row-count preservation")
             if comparison_frame is None or backend.row_count(comparison_frame) != backend.row_count(
                 self.dataframe
@@ -187,7 +195,7 @@ class Fragment:
             invocation,
             [*self.identifiers, *expected_outputs],
         )
-        if invocation.semantics.key_relation == "identical":
+        if invocation.semantics.key_relation == profile_module.KeyRelation.IDENTICAL:
             _log_validation(
                 invocation,
                 "Check fragment identifier preservation for columns %s",

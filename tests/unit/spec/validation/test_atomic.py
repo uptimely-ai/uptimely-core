@@ -250,11 +250,17 @@ def test_merge_binding_requires_two_dataframe_argument_slots(document: spec.Spec
     assert error.value.code == "invalid_binding_arity"
 
 
-def test_compute_dataframe_arity_counts_slots_not_profile_ids(document: spec.Spec) -> None:
+@pytest.mark.parametrize("second_type", ["dataframe", "dataframe | null"])
+def test_compute_dataframe_arity_counts_slots_not_profile_ids(
+    document: spec.Spec, second_type: str
+) -> None:
     key, operator = document.operator_items[0]
     function = document.functions[operator.compute.function]
+    function.validate_signature = False
+    _ = function.arguments_by_type
     function.args = {
-        name: spec.model.Argument(id=name, type="dataframe") for name in ("first", "second")
+        "first": spec.model.Argument(id="first", type="dataframe"),
+        "second": spec.model.Argument(id="second", type=second_type),
     }
     operator.compute.args = {
         name: spec.model.BindingArgument("$profiles.target.dataset") for name in ("first", "second")

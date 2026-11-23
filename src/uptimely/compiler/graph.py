@@ -6,12 +6,12 @@ import dataclasses
 import hashlib
 import json
 import re
-import typing
 from collections.abc import Collection
 
 import graphable as graphable_
 
 from uptimely.spec import model as spec_model
+from uptimely.spec.model import profile as profile_module
 
 INVOCATION_LABEL_MAX_LENGTH = 24
 INVOCATION_HASH_LENGTH = 10
@@ -26,7 +26,7 @@ class InvocationNode:
     function_id: str
     profile_id: str
     operator_id: str
-    role: typing.Literal["compute", "merge"]
+    role: profile_module.OperatorBindingRole.Value
     arguments: dict[str, spec_model.BindingArgument] = dataclasses.field(
         default_factory=dict, compare=False, hash=False
     )

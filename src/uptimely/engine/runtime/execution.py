@@ -13,6 +13,7 @@ from uptimely.engine.dataframe import dataset as dataset_module
 from uptimely.engine.dataframe import fragment as fragment_module
 from uptimely.engine.dataframe import merge
 from uptimely.spec import arg_types
+from uptimely.spec.model import profile as profile_module
 
 from . import bindings
 from . import state as state_module
@@ -48,22 +49,28 @@ class InvocationExecutor:
 
     def execute(self, invocation: plan.Invocation) -> None:
         """Execute one invocation, validating before side effects and state updates."""
-        if invocation.semantics.role == "merge":
+        if invocation.semantics.role == profile_module.OperatorBindingRole.MERGE:
             self._execute_merge(invocation)
             return
         if (
             self.validate
             and not invocation.semantics.is_workflow
-            and (invocation.semantics.result != "none" or invocation.semantics.is_sink)
+            and (
+                invocation.semantics.result != plan.InvocationResultKind.NONE
+                or invocation.semantics.is_sink
+            )
         ):
             self.check_input_requirements(invocation)
-        if invocation.semantics.result == "none":
+        if invocation.semantics.result == plan.InvocationResultKind.NONE:
             self._invoke(invocation)
             return
-        if invocation.semantics.result == "fragment":
+        if invocation.semantics.result == plan.InvocationResultKind.FRAGMENT:
             self._execute_dataframe_operator(invocation)
-        elif invocation.semantics.result == "target":
-            if invocation.semantics.dataframe_input_scope == "target":
+        elif invocation.semantics.result == plan.InvocationResultKind.TARGET:
+            if (
+                invocation.semantics.dataframe_input_scope
+                == profile_module.DataFrameInputScope.TARGET
+            ):
                 self._execute_target_transform(invocation)
             else:
                 self._execute_target_operator(invocation)
@@ -75,7 +82,7 @@ class InvocationExecutor:
             ValueError: A source reference is invalid or required features are
                 unavailable or ambiguous.
         """
-        if invocation.semantics.dataframe_input_scope == "foreign":
+        if invocation.semantics.dataframe_input_scope == profile_module.DataFrameInputScope.FOREIGN:
             argument_name = self._check_foreign_dataframe_argument(invocation)
             source_id = self._check_foreign_source_reference(invocation, argument_name)
             source = self._check_foreign_source_available(source_id)
@@ -406,8 +413,9 @@ class InvocationExecutor:
 
         if preserve_data:
             if (
-                invocation.semantics.row_order_relation == "preserve"
-                or invocation.semantics.existing_data_relation == "preserve"
+                invocation.semantics.row_order_relation == profile_module.RowOrderRelation.PRESERVE
+                or invocation.semantics.existing_data_relation
+                == profile_module.ExistingDataRelation.PRESERVE
             ):
                 existing_names = self.backend.column_names(comparison_frame)
                 logger.debug(

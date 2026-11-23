@@ -1,6 +1,14 @@
 """Portable execution-plan models and serialization."""
 
-from .models import PLAN_VERSION, ExecutionPlan, Invocation, InvocationSemantics, Package, Stage
+from .models import (
+    PLAN_VERSION,
+    ExecutionPlan,
+    Invocation,
+    InvocationResultKind,
+    InvocationSemantics,
+    Package,
+    Stage,
+)
 from .serialization import (
     export_json,
     from_dict,
@@ -11,6 +19,7 @@ from .serialization import (
 __all__ = [
     "PLAN_VERSION",
     "Invocation",
+    "InvocationResultKind",
     "InvocationSemantics",
     "Package",
     "Stage",

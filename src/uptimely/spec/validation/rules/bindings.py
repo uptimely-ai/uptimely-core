@@ -4,7 +4,7 @@ from __future__ import annotations
 
 import logging
 
-from uptimely.spec import arg_types
+from uptimely.spec import arg_types, operator_bindings
 from uptimely.spec import model as spec_model
 from uptimely.spec.model import merge
 from uptimely.spec.validation import errors
@@ -70,9 +70,7 @@ def validate_binding_contracts(spec: spec_model.Spec) -> None:
             function = spec.functions.get(binding.function)
             if function is None:
                 continue
-            dataframe_count = sum(
-                arg_types.is_dataframe(argument.type) for argument in function.args.values()
-            )
+            dataframe_count = function.dataframe_argument_count
             for value, path in binding.references_with_paths:
                 if value.is_profile_dataframe_reference and len(path) != 1:
                     raise errors.SpecError(
@@ -81,12 +79,11 @@ def validate_binding_contracts(spec: spec_model.Spec) -> None:
                         code="invalid_binding_arity",
                         path=(*spec.declaration_paths[key], role, "args", *path),
                     )
-            if (role == "compute" and dataframe_count > 1) or (
-                role == "merge" and dataframe_count != 2
-            ):
+            if dataframe_count not in operator_bindings.OPERATOR_BINDINGS[role].dataframe_inputs:
                 raise errors.SpecError(
                     f"Operator {key[1]} {role} binding has invalid dataframe arity: "
-                    f"{dataframe_count}; expected {'zero or one' if role == 'compute' else 'two'}",
+                    f"{dataframe_count}; expected "
+                    f"{'zero or one' if role == operator_bindings.COMPUTE else 'two'}",
                     code="invalid_binding_arity",
                     path=(*spec.declaration_paths[key], role, "args"),
                 )

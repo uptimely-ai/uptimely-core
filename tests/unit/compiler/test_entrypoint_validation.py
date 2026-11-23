@@ -66,6 +66,12 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
         assert merge.semantics.role == "merge"
         assert merge.semantics.output_features == []
         assert merge.semantics.output_types == {}
+        assert merge.semantics.dataframe_input_scope == "unrestricted"
+        assert merge.semantics.fragment_dimensions == "not_applicable"
+        assert merge.semantics.row_count_relation == "unrestricted"
+        assert merge.semantics.key_relation == "unrestricted"
+        assert merge.semantics.row_order_relation == "unrestricted"
+        assert merge.semantics.existing_data_relation == "unrestricted"
         assert compute.semantics.result == "fragment"
         assert compute.semantics.output_features
     target_transform = next(

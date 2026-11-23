@@ -16,6 +16,15 @@ PLAN_VERSION = 16
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
+class InvocationResultKind:
+    """How an invocation's result is used."""
+
+    Value = typing.Literal["none", "target", "fragment"]
+    NONE: typing.Final = "none"
+    TARGET: typing.Final = "target"
+    FRAGMENT: typing.Final = "fragment"
+
+
 class _PlanModel(pydantic.BaseModel):
     """Strict immutable base for portable plan metadata."""
 
@@ -55,7 +64,7 @@ class _InvocationNode(typing.Protocol):
     function_id: str
     profile_id: str
     operator_id: str
-    role: typing.Literal["compute", "merge"]
+    role: profile_module.OperatorBindingRole.Value
 
     @property
     def node_id(self) -> str: ...
@@ -64,18 +73,28 @@ class _InvocationNode(typing.Protocol):
 class InvocationSemantics(_PlanModel):
     """Runtime contract and Spec provenance for one function invocation."""
 
-    role: typing.Literal["compute", "merge"]
-    result: typing.Literal["none", "target", "fragment"]
+    role: profile_module.OperatorBindingRole.Value
+    result: InvocationResultKind.Value
     produces_features: bool = False
     is_sink: bool = False
     is_workflow: bool = False
     is_seed: bool = False
-    dataframe_input_scope: profile_module.DataFrameInputScope = "unrestricted"
-    fragment_dimensions: profile_module.FragmentDimensions = "not_applicable"
-    row_count_relation: profile_module.RowCountRelation = "unrestricted"
-    key_relation: profile_module.KeyRelation = "unrestricted"
-    row_order_relation: profile_module.RowOrderRelation = "unrestricted"
-    existing_data_relation: profile_module.ExistingDataRelation = "unrestricted"
+    dataframe_input_scope: profile_module.DataFrameInputScope.Value = (
+        profile_module.DataFrameInputScope.UNRESTRICTED
+    )
+    fragment_dimensions: profile_module.FragmentDimensions.Value = (
+        profile_module.FragmentDimensions.NOT_APPLICABLE
+    )
+    row_count_relation: profile_module.RowCountRelation.Value = (
+        profile_module.RowCountRelation.UNRESTRICTED
+    )
+    key_relation: profile_module.KeyRelation.Value = profile_module.KeyRelation.UNRESTRICTED
+    row_order_relation: profile_module.RowOrderRelation.Value = (
+        profile_module.RowOrderRelation.UNRESTRICTED
+    )
+    existing_data_relation: profile_module.ExistingDataRelation.Value = (
+        profile_module.ExistingDataRelation.UNRESTRICTED
+    )
     function_id: NonEmptyString
     operator_id: NonEmptyString
     profile_id: NonEmptyString | None
@@ -125,15 +144,24 @@ class InvocationSemantics(_PlanModel):
             raise ValueError("Invocation output_features must be unique")
         if len(set(self.fragment_keys)) != len(self.fragment_keys):
             raise ValueError("Invocation fragment_keys must be unique")
-        if self.role == "merge" and self.result != "target":
+        if (
+            self.role == profile_module.OperatorBindingRole.MERGE
+            and self.result != InvocationResultKind.TARGET
+        ):
             raise ValueError("Merge invocations must have result='target'")
-        if self.result == "fragment" and self.role != "compute":
+        if (
+            self.result == InvocationResultKind.FRAGMENT
+            and self.role != profile_module.OperatorBindingRole.COMPUTE
+        ):
             raise ValueError("Only compute invocations may have result='fragment'")
-        if self.result == "fragment" and self.fragment_dimensions == "not_applicable":
+        if (
+            self.result == InvocationResultKind.FRAGMENT
+            and self.fragment_dimensions == profile_module.FragmentDimensions.NOT_APPLICABLE
+        ):
             raise ValueError("Fragment invocations must declare fragment dimensions")
         if self.is_workflow and (
-            self.role != "compute"
-            or self.result != "none"
+            self.role != profile_module.OperatorBindingRole.COMPUTE
+            or self.result != InvocationResultKind.NONE
             or not self.is_sink
             or any(arg_types.is_dataframe(value) for value in self.argument_types.values())
         ):
@@ -199,7 +227,7 @@ class Invocation(_PlanModel):
             raise ValueError(f"Missing profile for function {function_id}")
         operator = spec_definition.profiles[profile_id].assembly[operator_id]
         feature_id = None
-        if role == "compute":
+        if role == profile_module.OperatorBindingRole.COMPUTE:
             output_features = [
                 feature
                 for feature in operator.output_features
@@ -218,7 +246,12 @@ class Invocation(_PlanModel):
             id=node.node_id,
             entrypoint=function.entrypoint,
             arguments=arguments,
-            returns=(profile_id if role == "merge" or semantics.result == "target" else None),
+            returns=(
+                profile_id
+                if role == profile_module.OperatorBindingRole.MERGE
+                or semantics.result == InvocationResultKind.TARGET
+                else None
+            ),
             semantics=semantics,
         )
 
@@ -263,14 +296,16 @@ class ExecutionPlan(_PlanModel):
         """Require every computed fragment to be consumed by one merge invocation."""
         merge_dependencies: dict[str, list[str]] = {}
         for invocation in self.invocations:
-            if invocation.semantics.role != "merge":
+            if invocation.semantics.role != profile_module.OperatorBindingRole.MERGE:
                 continue
             fragment_dependencies = [
                 dependency_id
                 for dependency_id in invocation.semantics.dependency_ids
                 if dependency_id in invocations_by_id
-                and invocations_by_id[dependency_id].semantics.role == "compute"
-                and invocations_by_id[dependency_id].semantics.result == "fragment"
+                and invocations_by_id[dependency_id].semantics.role
+                == profile_module.OperatorBindingRole.COMPUTE
+                and invocations_by_id[dependency_id].semantics.result
+                == InvocationResultKind.FRAGMENT
             ]
             if len(fragment_dependencies) != 1:
                 raise ValueError(
@@ -281,7 +316,7 @@ class ExecutionPlan(_PlanModel):
 
         for invocation in self.invocations:
             if (
-                invocation.semantics.result == "fragment"
+                invocation.semantics.result == InvocationResultKind.FRAGMENT
                 and len(merge_dependencies.get(invocation.id, [])) != 1
             ):
                 raise ValueError(
@@ -431,9 +466,11 @@ class ExecutionPlan(_PlanModel):
         return features
 
     @functools.cached_property
-    def invocations_by_role(self) -> dict[typing.Literal["compute", "merge"], list[Invocation]]:
+    def invocations_by_role(
+        self,
+    ) -> dict[profile_module.OperatorBindingRole.Value, list[Invocation]]:
         """Return invocations grouped by their compute or merge binding role."""
-        grouped: dict[typing.Literal["compute", "merge"], list[Invocation]] = {}
+        grouped: dict[profile_module.OperatorBindingRole.Value, list[Invocation]] = {}
         for invocation in self.invocations:
             grouped.setdefault(invocation.semantics.role, []).append(invocation)
         return grouped
@@ -444,7 +481,7 @@ class ExecutionPlan(_PlanModel):
         return {
             feature
             for invocation in self.invocations_by_role.get("compute", [])
-            if invocation.semantics.result == "target"
+            if invocation.semantics.result == InvocationResultKind.TARGET
             for feature in invocation.semantics.output_features
         }
 
@@ -454,7 +491,7 @@ class ExecutionPlan(_PlanModel):
         return dict.fromkeys(invocation.entrypoint for invocation in self.invocations)
 
     @functools.cached_property
-    def count_per_role(self) -> dict[typing.Literal["compute", "merge"], int]:
+    def count_per_role(self) -> dict[profile_module.OperatorBindingRole.Value, int]:
         """Return invocation counts keyed by binding role, sorted by role."""
         return {
             role: len(invocations) for role, invocations in sorted(self.invocations_by_role.items())
