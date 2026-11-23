@@ -1,34 +1,37 @@
 """Compact invocation identity and collision handling."""
 
-import dataclasses
 import hashlib
 import re
-from unittest import mock
 
 import pytest
 
 from uptimely import spec
-from uptimely.compiler import graph
-from uptimely.compiler.semantics import InvocationSemanticsBuilder
+from uptimely.compiler import compiler, graph
 from uptimely.spec import model as spec_model
 
 
-def _node(operator_id: str = "bearing_temperature_delta") -> graph.InvocationNode:
-    return graph.InvocationNode(
-        function_id="delta",
-        profile_id="pump_telemetry",
+def _invocation_id(
+    operator_id: str = "bearing_temperature_delta",
+    *,
+    function_id: str = "delta",
+    profile_id: str = "pump_telemetry",
+    role: spec_model.profile.OperatorBindingRole.Value = "compute",
+) -> str:
+    return graph.InvocationNode.create_id(
+        function_id=function_id,
+        profile_id=profile_id,
         operator_id=operator_id,
-        role="compute",
+        role=role,
     )
 
 
 def test_invocation_id_uses_operator_label_and_canonical_fingerprint() -> None:
-    node = _node()
+    invocation_id = _invocation_id()
     identity = b'["delta","pump_telemetry","bearing_temperature_delta","compute"]'
     fingerprint = hashlib.sha256(identity).hexdigest()[:10]
 
-    assert node.node_id == f"bearing-temperature-delt--{fingerprint}"
-    assert dataclasses.replace(node).node_id == node.node_id
+    assert invocation_id == f"bearing-temperature-delt--{fingerprint}"
+    assert _invocation_id() == invocation_id
 
 
 @pytest.mark.parametrize(
@@ -45,7 +48,7 @@ def test_invocation_id_uses_operator_label_and_canonical_fingerprint() -> None:
 def test_invocation_labels_are_bounded_ascii_with_single_dashes(
     operator_id: str, label: str
 ) -> None:
-    identifier = _node(operator_id).node_id
+    identifier = _invocation_id(operator_id)
 
     assert identifier.split("--")[0] == label
     assert len(identifier) <= 36
@@ -53,12 +56,12 @@ def test_invocation_labels_are_bounded_ascii_with_single_dashes(
 
 
 def test_compute_and_merge_roles_have_distinct_invocation_ids() -> None:
-    compute = _node()
-    merge = dataclasses.replace(compute, role="merge")
+    compute = _invocation_id()
+    merge = _invocation_id(role="merge")
 
-    assert merge.node_id.split("--")[0] == compute.node_id.split("--")[0]
-    assert len(merge.node_id) <= 36
-    assert merge.node_id != compute.node_id
+    assert merge.split("--")[0] == compute.split("--")[0]
+    assert len(merge) <= 36
+    assert merge != compute
 
 
 @pytest.mark.parametrize(
@@ -71,42 +74,38 @@ def test_compute_and_merge_roles_have_distinct_invocation_ids() -> None:
     ],
 )
 def test_fingerprint_distinguishes_each_identity_field(changes: dict[str, str]) -> None:
-    node = _node()
-    changed = dataclasses.replace(node, **changes)
+    original = _invocation_id()
+    changed = _invocation_id(**changes)
 
-    assert changed.node_id.rsplit("--", 1)[1] != node.node_id.rsplit("--", 1)[1]
+    assert changed.rsplit("--", 1)[1] != original.rsplit("--", 1)[1]
 
 
 def test_identity_serialization_preserves_field_boundaries() -> None:
-    original = _node()
-    first = dataclasses.replace(
-        original,
+    first = _invocation_id(
         function_id="delta:pump",
         profile_id="telemetry",
     )
-    second = dataclasses.replace(
-        original,
+    second = _invocation_id(
         function_id="delta",
         profile_id="pump:telemetry",
     )
 
-    assert first.node_id != second.node_id
+    assert first != second
 
 
-def test_invocation_id_does_not_depend_on_runtime_metadata() -> None:
-    node = _node()
-    changed = dataclasses.replace(
-        node,
-        arguments={"value": spec_model.BindingArgument(42)},
+def test_graph_orders_and_selects_identifier_only_nodes() -> None:
+    first, second, third = (
+        graph.InvocationNode(node_id=name) for name in ("first", "second", "third")
+    )
+    invocation_graph = graph.InvocationGraph(
+        [first, second, third],
+        {"first": set(), "second": {"first"}, "third": {"second"}},
     )
 
-    assert changed.node_id == node.node_id
-
-
-def test_invocation_id_does_not_serialize_inferred_operator_kind() -> None:
-    node = _node()
-
-    assert "operator_kind" not in dataclasses.asdict(node)
+    assert invocation_graph.topology() == [[first], [second], [third]]
+    assert invocation_graph.ancestors("third") == {first, second}
+    assert invocation_graph.dependencies(third) == [second]
+    assert invocation_graph.subset(["first", "second"]).topology() == [[first], [second]]
 
 
 def test_graph_rejects_id_collisions_before_overwriting_nodes(
@@ -130,9 +129,7 @@ def test_graph_rejects_id_collisions_before_overwriting_nodes(
             )
         },
     )
-    monkeypatch.setattr(
-        graph.InvocationNode, "node_id", mock.PropertyMock(return_value="same--0000000000")
-    )
+    monkeypatch.setattr(graph.InvocationNode, "create_id", lambda *args: "same--0000000000")
 
     with pytest.raises(ValueError, match=r"Invocation ID collision.*first.*second"):
-        InvocationSemanticsBuilder.create_nodes(specification)
+        compiler.Compiler().compile(specification, validate_spec=False)

@@ -199,7 +199,42 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(
     ]
 
 
+def test_forward_feature_references_resolve_to_merge_publishers(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    document = _spec()
+    configuration = document.model_dump()
+    configuration["profiles"] = dict(reversed(configuration["profiles"].items()))
+    for profile_definition in configuration["profiles"].values():
+        profile_definition["assembly"] = dict(reversed(profile_definition["assembly"].items()))
+    reordered = spec.Spec.model_validate(configuration)
+
+    original = compiler.Compiler().compile(document, features=["average"])
+    compiled = compiler.Compiler().compile(reordered, features=["average"])
+    assert {item.id: set(item.semantics.dependency_ids) for item in compiled.invocations} == {
+        item.id: set(item.semantics.dependency_ids) for item in original.invocations
+    }
+    compute = next(
+        item
+        for item in compiled.invocations
+        if item.semantics.operator_id == "read_values" and item.semantics.role == "compute"
+    )
+    merge_invocation = next(
+        item
+        for item in compiled.invocations
+        if item.semantics.operator_id == "read_values" and item.semantics.role == "merge"
+    )
+    consumer = next(item for item in compiled.invocations if item.semantics.operator_id == "double")
+    assert merge_invocation.semantics.dependency_ids == [compute.id]
+    assert merge_invocation.id in consumer.semantics.dependency_ids
+    result = engine_for_plan(compiled, spec_definition=reordered).run()
+    assert result.failures == {}
+    assert result.datasets["summary"].sort("group")["average"].to_list() == [6.0, 12.0]
+
+
+@pytest.mark.parametrize("featureless", [False, True])
 def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
+    featureless: bool,
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
     group = dimension.Dimension(
@@ -221,7 +256,7 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
             ),
             assembly.Operator(
                 id="conform_source",
-                inputs=[ref.feature("source_value")],
+                inputs=[] if featureless else [ref.feature("source_value")],
                 outputs=[feature.Feature(id="conformed_value")],
                 compute=assembly.Bind(
                     ref.function(conform_source),

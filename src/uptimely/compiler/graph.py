@@ -10,54 +10,36 @@ from collections.abc import Collection
 
 import graphable as graphable_
 
-from uptimely.spec import model as spec_model
-from uptimely.spec.model import profile as profile_module
+type GraphNode = graphable_.graphable.Graphable
 
 INVOCATION_LABEL_MAX_LENGTH = 24
 INVOCATION_HASH_LENGTH = 10
 
-type GraphNode = graphable_.graphable.Graphable
-
 
 @dataclasses.dataclass(frozen=True)
 class InvocationNode:
-    """Graph node with one source call and opaque graph ID."""
+    """Graph node identified by an opaque invocation ID."""
 
-    function_id: str
-    profile_id: str
-    operator_id: str
-    role: profile_module.OperatorBindingRole.Value
-    arguments: dict[str, spec_model.BindingArgument] = dataclasses.field(
-        default_factory=dict, compare=False, hash=False
-    )
-    _node_id: str = dataclasses.field(init=False, repr=False)
+    node_id: str
 
-    def __post_init__(self) -> None:
-        """Create a stable graph ID from the source call identity."""
-        identity = json.dumps(
-            (
-                self.function_id,
-                self.profile_id,
-                self.operator_id,
-                self.role,
-            ),
-            separators=(",", ":"),
-        )
+    @staticmethod
+    def create_id(function_id: str, profile_id: str, operator_id: str, role: str) -> str:
+        """Create a stable graph ID from the source call identity.
+
+        Args:
+            function_id: Bound function identifier.
+            profile_id: Profile containing the operator.
+            operator_id: Operator identifier.
+            role: Binding role within the operator.
+
+        Returns:
+            A deterministic opaque invocation ID.
+        """
+        identity = json.dumps((function_id, profile_id, operator_id, role), separators=(",", ":"))
         fingerprint = hashlib.sha256(identity.encode("utf-8")).hexdigest()[:INVOCATION_HASH_LENGTH]
-        label = re.sub(r"[^a-z0-9]+", "-", self.operator_id.lower()).strip("-") or "invocation"
+        label = re.sub(r"[^a-z0-9]+", "-", operator_id.lower()).strip("-") or "invocation"
         label = label[:INVOCATION_LABEL_MAX_LENGTH].rstrip("-")
-        object.__setattr__(self, "_node_id", f"{label}--{fingerprint}")
-
-    @property
-    def node_id(self) -> str:
-        """Return the deterministic opaque identifier used by the dependency graph."""
-        return self._node_id
-
-    def __str__(self) -> str:
-        return f"{self.role}:{self.function_id}({self.profile_id})"
-
-    def __repr__(self) -> str:
-        return f"{self.role}:{self.function_id}({self.profile_id})"
+        return f"{label}--{fingerprint}"
 
 
 class InvocationGraph:

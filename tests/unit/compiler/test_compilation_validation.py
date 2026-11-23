@@ -10,7 +10,6 @@ from uptimely import spec
 from uptimely.codebase.python import entrypoint
 from uptimely.compiler import compiler
 from uptimely.compiler import graph as invocation_graph
-from uptimely.compiler import semantics as semantics_module
 from uptimely.inspector import bindings as inspector
 from uptimely.spec import model as spec_model
 
@@ -20,7 +19,9 @@ from uptimely.spec import model as spec_model
     [
         None,
         "spec",
-        "nodes",
+        "create",
+        "publishers",
+        "dependencies",
         "graph",
         "selection",
         "topology",
@@ -40,12 +41,7 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
     specification = spec.Spec(functions={"calculate": function})
     graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     selected_graph = mock.Mock(spec=invocation_graph.InvocationGraph)
-    node = invocation_graph.InvocationNode(
-        function_id="calculate",
-        profile_id="entity",
-        operator_id="calculate",
-        role="compute",
-    )
+    node = invocation_graph.InvocationNode(node_id="calculate--1234567890")
     selected_graph.invocations = [node]
     selected_graph.dependencies.return_value = []
     emitted_invocation = execution_plan.Invocation(
@@ -61,34 +57,41 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
             package=execution_plan.Package(distribution=None, version=None),
         ),
     )
+    semantics = execution_plan.InvocationSemantics(
+        function_id="calculate",
+        profile_id="entity",
+        operator_id="calculate",
+        role="compute",
+        result="target",
+    )
+    operators = [
+        compiler._OperatorInvocations(
+            profile=spec_model.Profile(id="entity"),
+            operator=spec_model.Operator(
+                id="calculate", compute=spec_model.Binding(function="calculate")
+            ),
+            bindings={"compute": (node, semantics)},
+        )
+    ]
+    publishers = compiler._Publishers(features={}, datasets={}, seeds={})
     operations = {
         "spec": mock.Mock(),
-        "nodes": mock.Mock(
-            return_value=(
-                [node],
-                {
-                    node.node_id: execution_plan.InvocationSemantics(
-                        function_id="calculate",
-                        profile_id="entity",
-                        operator_id="calculate",
-                        role="compute",
-                        result="target",
-                    )
-                },
-            )
-        ),
-        "graph": mock.Mock(return_value=(graph, {})),
-        "selection": mock.Mock(return_value=selected_graph),
+        "create": mock.Mock(return_value=operators),
+        "publishers": mock.Mock(return_value=publishers),
+        "dependencies": mock.Mock(return_value={node.node_id: set()}),
+        "graph": mock.Mock(return_value=graph),
+        "selection": mock.Mock(return_value={node.node_id}),
         "topology": mock.Mock(return_value=[[node]]),
         "entrypoint": mock.Mock(),
         "package": mock.Mock(return_value=entrypoint.PackageOrigin(None, None)),
         "invocation": mock.Mock(return_value=emitted_invocation),
     }
-    semantics = operations["nodes"].return_value[1][node.node_id]
     implementation = mock.Mock()
     implementation.read_package = operations["package"]
     operations["entrypoint"].return_value = implementation
     selected_graph.topology = operations["topology"]
+    graph.ancestors.return_value = set()
+    graph.subset.return_value = selected_graph
     calls = mock.Mock()
     for name, step in operations.items():
         calls.attach_mock(step, name)
@@ -96,13 +99,11 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         operations[failure].side_effect = ValueError("invalid compilation")
 
     monkeypatch.setattr(compiler.spec_validation, "validate_spec", operations["spec"])
-    monkeypatch.setattr(
-        semantics_module.InvocationSemanticsBuilder,
-        "create_nodes",
-        operations["nodes"],
-    )
-    monkeypatch.setattr(compiler.Compiler, "_create_invocation_graph", operations["graph"])
+    monkeypatch.setattr(compiler.Compiler, "_create_invocations", operations["create"])
+    monkeypatch.setattr(compiler.Compiler, "_index_publishers", operations["publishers"])
+    monkeypatch.setattr(compiler.Compiler, "_resolve_dependencies", operations["dependencies"])
     monkeypatch.setattr(compiler.Compiler, "_select_invocations", operations["selection"])
+    monkeypatch.setattr(compiler.invocation_graph, "InvocationGraph", operations["graph"])
     monkeypatch.setattr(execution_plan.Invocation, "from_node", operations["invocation"])
     monkeypatch.setattr(compiler.entrypoint, "Entrypoint", operations["entrypoint"])
     compiler_instance = compiler.Compiler()
@@ -124,16 +125,11 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
 
     expected = [
         mock.call.spec(specification),
-        mock.call.nodes(specification),
-        mock.call.graph(specification, [node], {node.node_id: semantics}),
-        mock.call.selection(
-            specification,
-            graph,
-            [node],
-            {},
-            {node.node_id: semantics},
-            ["result"],
-        ),
+        mock.call.create(specification),
+        mock.call.publishers(operators),
+        mock.call.dependencies(specification, operators, publishers),
+        mock.call.graph([node], {node.node_id: set()}),
+        mock.call.selection(specification, {node.node_id: semantics}, {}, ["result", "result"]),
         mock.call.topology(),
         mock.call.entrypoint("module:calculate"),
         mock.call.package(),
@@ -195,47 +191,40 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     validate = mock.Mock()
     monkeypatch.setattr(compiler.entrypoint, "Entrypoint", parse_entrypoint)
     monkeypatch.setattr(inspector.BindingInspection, "inspect", validate)
-    nodes = [
-        invocation_graph.InvocationNode(
-            function_id=function_id,
-            profile_id="entity",
-            operator_id=operator,
-            role="compute",
-        )
-        for function_id, operator in [
-            ("calculate", "first"),
-            ("calculate", "second"),
-            ("disabled", "third"),
-        ]
-    ]
+    calls = [("calculate", "first"), ("calculate", "second"), ("disabled", "third")]
+    nodes = [invocation_graph.InvocationNode(node_id=operator) for _, operator in calls]
     graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     graph.topology.return_value = [nodes]
     graph.invocations = nodes
     graph.dependencies.return_value = []
-    monkeypatch.setattr(
-        semantics_module.InvocationSemanticsBuilder,
-        "create_nodes",
-        mock.Mock(
-            return_value=(
-                nodes,
-                {
-                    node.node_id: execution_plan.InvocationSemantics(
-                        function_id=node.function_id,
-                        profile_id=node.profile_id,
-                        operator_id=node.operator_id,
-                        role=node.role,
+    operators = [
+        compiler._OperatorInvocations(
+            profile=spec_model.Profile(id="entity"),
+            operator=spec_model.Operator(
+                id=operator, compute=spec_model.Binding(function=function_id)
+            ),
+            bindings={
+                "compute": (
+                    node,
+                    execution_plan.InvocationSemantics(
+                        function_id=function_id,
+                        profile_id="entity",
+                        operator_id=operator,
+                        role="compute",
                         result="target",
-                    )
-                    for node in nodes
-                },
-            )
-        ),
-    )
+                    ),
+                )
+            },
+        )
+        for node, (function_id, operator) in zip(nodes, calls, strict=True)
+    ]
+    monkeypatch.setattr(compiler.Compiler, "_create_invocations", mock.Mock(return_value=operators))
     monkeypatch.setattr(
         compiler.Compiler,
-        "_create_invocation_graph",
-        mock.Mock(return_value=(graph, {})),
+        "_resolve_dependencies",
+        mock.Mock(return_value={node.node_id: set() for node in nodes}),
     )
+    monkeypatch.setattr(compiler.invocation_graph, "InvocationGraph", mock.Mock(return_value=graph))
 
     def create_invocation(
         _specification: spec.Spec,
