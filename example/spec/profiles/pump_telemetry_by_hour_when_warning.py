@@ -97,8 +97,8 @@ class PumpTelemetryByHourWhenWarning(Profile):
                     "warning_vibration_rms": "max",
                 },
                 dimensions=[
-                    dimension.MACHINE_DIMENSION.resolution("machine").key,
-                    dimension.MACHINE_TIMESTAMP.resolution("hour").key,
+                    ref.key("pump_id"),
+                    ref.key("hour"),
                 ],
                 rename={
                     "warning_differential_pressure": (

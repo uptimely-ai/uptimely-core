@@ -92,7 +92,7 @@ class Pump(Profile):
                 analytics.select_columns,
                 dataset=ref.dataset("pump_series"),
                 columns=[
-                    dimension.MACHINE_DIMENSION.resolution("machine_series").key,
+                    ref.key("machine_series_id"),
                     ref.input("max_capacity_series"),
                 ],
                 rename={"max_capacity_series": ref.output("series_max_capacity")},
@@ -104,7 +104,7 @@ class Pump(Profile):
                 analytics.select_columns,
                 dataset=ref.dataset("pump_category"),
                 columns=[
-                    dimension.MACHINE_DIMENSION.resolution("machine_category").key,
+                    ref.key("machine_category_id"),
                     ref.input("max_capacity_category"),
                 ],
                 rename={"max_capacity_category": ref.output("category_max_capacity")},
@@ -162,9 +162,9 @@ class Pump(Profile):
                 dataset=ref.dataset(),
                 fragment=ref.fragment(),
                 dataset_identifiers=[
-                    dimension.MACHINE_DIMENSION.resolution("machine").key,
-                    dimension.FACILITY_DIMENSION.resolution("server_room").key,
-                    dimension.FACILITY_DIMENSION.resolution("data_center").key,
+                    ref.key("pump_id"),
+                    ref.key("server_room_id"),
+                    ref.key("data_center_id"),
                 ],
             ),
         ),

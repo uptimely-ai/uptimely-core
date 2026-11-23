@@ -40,8 +40,8 @@ class PumpTelemetryByHour(Profile):
                 dataset=ref.dataset("pump_telemetry"),
                 aggregations={"bearing_temperature": "max"},
                 dimensions=[
-                    dimension.MACHINE_DIMENSION.resolution("machine").key,
-                    dimension.MACHINE_TIMESTAMP.resolution("hour").key,
+                    ref.key("pump_id"),
+                    ref.key("hour"),
                 ],
                 rename={"bearing_temperature": ref.output("bearing_temperature_hour_max")},
             ),

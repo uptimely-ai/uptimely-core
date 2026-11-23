@@ -171,7 +171,7 @@ class MyAnalyticalProfile(Profile):
             id="read_values",
             compute=Bind(
                 functions.read_values,
-                dims=ref.profile().grain.ids,
+                dims=[ref.key("id")],
                 features=[ref.output("value")],
             ),
         ),
@@ -187,7 +187,7 @@ class MyAnalyticalProfile(Profile):
             compute=Bind(
                 functions.print_results,
                 dataset=ref.dataset(),
-                dims=ref.profile().grain.ids,
+                dims=[ref.key("id")],
                 features=[ref.input("doubled")],
             ),
         ),

@@ -94,6 +94,15 @@ def test_output_reference_defaults_to_id_binding() -> None:
     assert binding_conversion.argument_definition(returned) == {"type": "string"}
 
 
+def test_resolution_key_column_reference() -> None:
+    key = up.ref.key("pump_id")
+
+    assert isinstance(key, up.ref.Reference)
+    assert key.to_model() == "pump_id"
+    assert binding_conversion.argument_definition(key) == {"type": "string"}
+    assert binding_conversion.to_value(key) == "pump_id"
+
+
 def test_global_parameter_and_feature_authoring() -> None:
     parameter = up.ref.params("asset_limit")
     path = up.ref.paths("telemetry_source")

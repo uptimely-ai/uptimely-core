@@ -62,8 +62,10 @@ Selecting a dimension or resolution does not pass its dataframe key
 automatically. Use a key selector or pass the selected dataset keys as an
 explicit argument when the function needs them, such as for grouping or
 matching rows across dimensions. Use feature selectors only for declared
-features, not for dimension keys. In Python, select an individual key with
-`ref.dimension("machine").resolution("pump").key`.
+features, not for dimension keys. In Python, pass a known dataframe column ID
+directly with `ref.key("pump_id")`. The structural form
+`ref.dimension("machine").resolution("pump").key` remains available for
+selecting resolution metadata.
 
 ## Validation
 

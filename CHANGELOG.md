@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Python bindings can reference a resolution dataframe key directly with
+  `ref.key("<resolution column id>")`.
 - Project configuration supports `code.language`, defaulting to `python`.
 - The documentation website publishes a human-readable Allure report of the
   Python test suite at `/uptimely-core/tests/`.

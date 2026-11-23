@@ -52,7 +52,7 @@ class PumpCategory(Profile):
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry"),
                 aggregations={"bearing_temperature": "max"},
-                dimensions=[dimension.MACHINE_DIMENSION.resolution("machine_category").key],
+                dimensions=[ref.key("machine_category_id")],
                 rename={"bearing_temperature": ref.output("bearing_temperature_category_max")},
             ),
             merge=merge.default(),
