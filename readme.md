@@ -77,29 +77,27 @@ uv add uptimely-core
 
 ## Build and run
 
-Go to your project root. The following commands assume an active Python environment.
+**Go to your project root**.
 
-For Poetry use `poetry run uptimely <command>`.
-
-For uv use `uv run uptimely <command>`.
+Following commands assume `uv` Python environment. With Poetry use `poetry run uptimely <command>`. For other activated environment, just `uptimely <command>`.
 
 Download the example project's code into the current directory without setup files.
 The download does not overwrite existing files.
 
 ```sh
-uptimely example --no-setup --dir .
+uv run uptimely example --no-setup --dir .
 ```
 
 Create a build from the specification.
 
 ```sh
-uptimely build
+uv run uptimely build
 ```
 
 Run the data science pipeline using the build.
 
 ```sh
-uptimely run
+uv run uptimely run
 ```
 
 ## Explore the project
@@ -107,7 +105,7 @@ uptimely run
 Explore resources and results in the local web app:
 
 ```sh
-uptimely explore
+uv run uptimely explore
 ```
 
 Read more about [example project](https://uptimely-ai.github.io/uptimely-core/intro/example-project/) from the docs.
