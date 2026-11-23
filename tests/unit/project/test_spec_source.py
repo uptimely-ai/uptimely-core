@@ -193,7 +193,7 @@ def test_build_defers_source_semantic_validation_to_compiler(
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
         project_builder = builder.ProjectBuilder(tmp_path)
         source = project_spec_source.SpecSourceResolver(tmp_path).resolve(python_spec, json_spec)
-        document = project_builder._load_spec_definition(source)
+        document = project_spec_source.load_spec_source(source, validate=False)
         check.assert_not_called()
         project_builder._compile_plan(document, None)
         check.assert_called_once_with(document)
@@ -210,10 +210,27 @@ def test_build_reports_deferred_semantic_error_at_compilation(tmp_path: pathlib.
     )
     project_builder = builder.ProjectBuilder(tmp_path)
     source = project_spec_source.SpecSourceResolver(tmp_path).resolve(json_spec=path)
-    document = project_builder._load_spec_definition(source)
+    document = project_spec_source.load_spec_source(source, validate=False)
 
     with pytest.raises(application.ProjectBuildError, match="compilation.*unknown parent"):
         project_builder._compile_plan(document, None)
+
+
+@pytest.mark.parametrize("source_kind", ["json", "python"])
+def test_build_reports_source_loading_errors(tmp_path: pathlib.Path, source_kind: str) -> None:
+    if source_kind == "json":
+        source = tmp_path / "source.json"
+        source.write_text("{", encoding="utf-8")
+        options = {"json_spec": str(source)}
+    else:
+        (tmp_path / "invalid_declaration.py").write_text("python_spec = None\n", encoding="utf-8")
+        options = {"python_spec": "invalid_declaration:python_spec"}
+
+    with pytest.raises(application.ProjectBuildError) as error:
+        builder.ProjectBuilder(tmp_path).build(**options)
+
+    assert error.value.stage == "source loading"
+    assert isinstance(error.value.__cause__, (ValueError, TypeError))
 
 
 def test_complete_build_validates_spec_semantics_once(

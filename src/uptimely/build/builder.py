@@ -106,7 +106,10 @@ class ProjectBuilder:
             locking.build_lock(self.root, exclusive=True, wait=False),
             python_imports.expose(self.root, src_path=src_path),
         ):
-            spec_definition = self._load_spec_definition(spec_source)
+            try:
+                spec_definition = project_spec_source.load_spec_source(spec_source, validate=False)
+            except _SPEC_PROCESSING_ERRORS as error:
+                raise errors.ProjectBuildError("source loading", str(error)) from error
             staging_root = self._create_staging_root()
             try:
                 signatures = self._inspect_bindings(spec_definition)
@@ -181,14 +184,6 @@ class ProjectBuilder:
                     f"the new bundle was published, but the previous bundle at "
                     f"{backup_root} could not be removed: {error}",
                 ) from error
-
-    @staticmethod
-    def _load_spec_definition(source: project_spec_source.ResolvedSpecSource) -> spec.Spec:
-        """Load a resolved source, deferring semantic validation to build inspection."""
-        try:
-            return project_spec_source.load_spec_source(source, validate=False)
-        except _SPEC_PROCESSING_ERRORS as error:
-            raise errors.ProjectBuildError("source loading", str(error)) from error
 
     @staticmethod
     def _inspect_bindings(
