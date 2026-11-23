@@ -4,8 +4,8 @@ An Engine executes a plan in a validated build bundle. It calls the Python
 functions named by the plan, supplies their resolved arguments and runtime
 data, and returns dataset aliases and execution details.
 
-The Engine executes plans without analytical validation. Targeted
-execution and calculated-feature output summaries are not yet available.
+Analytical validation is optional. Targeted execution and calculated-feature
+output summaries are not yet available.
 `calculated_outputs` is `None` until those summaries are supported.
 
 Engine does not compile or change the plan, it just runs it.
@@ -44,8 +44,7 @@ external side effects.
 The Engine passes function returns unchanged to subsequent calls. Producers
 must return the intended columns, and merge bindings must explicitly supply
 any relation keys their merge functions need. The built-in default merge
-binding does not yet provide relation keys, so plans using it cannot yet
-perform relation-key broadcasts without an explicit binding.
+binding receives relation keys in its explicit arguments.
 
 ## Dataframe backend
 

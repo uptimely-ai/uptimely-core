@@ -15,12 +15,16 @@ While the version is `0.x`, minor releases may include breaking changes.
   Python test suite at `/uptimely-core/tests/`.
 - Engine debug logs show the selected Python source directory and its origin.
 - Runs check declared Python and dependency versions before executing operators.
+- Optional analytical runtime validation checks invocation inputs and results
+  with `uptimely run --validate` or `Engine.run(validate=True)`.
+- Engine info logs announce when analytical runtime validation is enabled.
 
 ### Changed
 
 - Execution plans use profile and operator result references.
-  The Engine executes explicit calls without analytical validation, targeted
-  execution, or calculated-feature output summaries.
+  The Engine executes explicit calls without targeted execution or
+  calculated-feature output summaries.
+- Removed the obsolete `Dataset`, `Fragment`, and `Merge` engine helpers.
 - Compiled calls to the built-in merge include profile relation keys in
   `key_columns` to preserve relational joins.
 - Explorer topology shows compiler dependencies, which can differ from

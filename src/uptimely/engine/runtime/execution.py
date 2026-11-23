@@ -1,4 +1,4 @@
-"""Execute explicit plan calls and store their named returns."""
+"""Resolve and execute explicit plan calls."""
 
 import pathlib
 from collections import abc
@@ -24,12 +24,12 @@ class InvocationExecutor:
     ) -> None:
         """Create an executor for one plan execution."""
         self.entrypoints = entrypoints
-        self.state = state
         self.bindings = bindings.RuntimeBindings(state, parameters, paths, project_root)
 
-    def execute(self, invocation: plan.Invocation) -> None:
-        """Call an entrypoint and store its result if it has a return name."""
-        arguments = self.bindings.resolve_args(invocation)
-        result = self.entrypoints[invocation.entrypoint].load()(**arguments)
-        if invocation.returns is not None:
-            self.state.store(invocation.returns, result)
+    def resolve_arguments(self, invocation: plan.Invocation) -> dict[str, object]:
+        """Resolve the arguments for one invocation."""
+        return self.bindings.resolve_args(invocation)
+
+    def execute(self, invocation: plan.Invocation, arguments: abc.Mapping[str, object]) -> object:
+        """Call the entrypoint with the resolved arguments."""
+        return self.entrypoints[invocation.entrypoint].load()(**arguments)

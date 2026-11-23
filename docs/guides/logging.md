@@ -64,8 +64,9 @@ log individual processed-profile details first, followed by
 After a successful run and any requested previews, an info log shows the
 `uptimely explore --project-root PATH` command for opening that project's Explorer.
 
-The log level applies to Uptimely loggers, not third-party dependency loggers.
-It does not enable analytical validation, which is not currently supported.
+When analytical validation is enabled, the Engine announces it at info level.
+The log level applies to Uptimely loggers, not third-party dependency loggers,
+and does not enable validation.
 Execution debug logs use flat messages with the logger's module name,
 rather than headers, indentation, or bullets. For example:
 

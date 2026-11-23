@@ -4,8 +4,8 @@ The execution plan is the versioned `plan.json` build artifact. It records
 function calls, their optional semantic metadata, and their execution order.
 It does not contain function implementations.
 
-The Engine executes explicit calls without analytical validation or targeted
-execution.
+The Engine executes explicit calls with optional analytical validation. Targeted
+execution is not currently supported.
 
 ## Structure
 
