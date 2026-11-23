@@ -192,7 +192,7 @@ def test_operator_owns_input_selection_and_output_exclusion(explicit: bool) -> N
         outputs=[feature.Feature(id="result")],
         compute=assembly.Bind(
             "unavailable_assembly_test_package:calculate",
-            values=[ref.feature("second"), ref.feature("first"), ref.feature("result")],
+            values=[ref.feature("second").id, ref.feature("first"), ref.feature("result").id],
         ),
     )
     model = operator.to_model()

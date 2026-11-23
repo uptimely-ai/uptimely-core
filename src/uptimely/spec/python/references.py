@@ -23,7 +23,7 @@ class Reference:
 
     @property
     def id(self) -> Reference:
-        """Select an identifier without introducing a data dependency."""
+        """Select a resource identifier."""
         return self._attribute("id")
 
 

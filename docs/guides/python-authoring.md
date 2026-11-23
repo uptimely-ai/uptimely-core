@@ -32,9 +32,10 @@ fragment must be integrated into the target dataset.
 ### References
 
 Use `ref` to refer to profile data, features, and other Spec values without
-loading data during authoring. `ref.feature("name")` passes a feature's
-identifier and declares an input dependency. Append `.id` to pass the identifier
-without adding an input dependency, such as for an output column name.
+loading data during authoring. Both `ref.feature("name")` and
+`ref.feature("name").id` pass the feature identifier and infer an input
+dependency unless the feature is an operator output. Explicit `inputs` override
+inference.
 
 Use `ref.paths("name")` for a file or directory configured in the project's
 `paths` map. Use `ref.params("name")` for a scalar configured in `params`.
@@ -87,16 +88,16 @@ def rolling_mean(dataset: pl.DataFrame, value: str, output: str, before: int) ->
     return dataset.with_columns(pl.col(value).rolling_mean(window_size=before + 1).alias(output))
 
 
-Operator(
+up.Operator(
     id="rolling_mean",
-    outputs=[Feature(id="mean")],
+    outputs=[up.Feature(id="mean")],
     row_context=RowContext(before=1),
-    compute=Bind(
+    compute=up.Bind(
         rolling_mean,
-        dataset=ref.dataset(),
-        value=ref.feature("value"),
-        output=ref.feature("mean").id,
-        before=ref.row_context("before"),
+        dataset=up.ref.dataset(),
+        value=up.ref.feature("value"),
+        output=up.ref.feature("mean").id,
+        before=up.ref.row_context("before"),
     ),
 )
 ```
