@@ -84,9 +84,11 @@ def test_capacity_expansion_selects_only_capacity_and_identifiers() -> None:
     ]
 
 
+@pytest.mark.parametrize("validate", [False, True])
 def test_selected_capacity_plan_joins_on_parent_identifiers(
     example_bundle_factory: example_support.BundleFactory,
     engine_for_plan: execution_support.EngineFactory,
+    validate: bool,
 ) -> None:
     bundle = example_bundle_factory(features=("max_capacity",))
     restored = plan.from_dict(plan.to_dict(bundle.execution_plan))
@@ -142,7 +144,7 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
         project_root=bundle.project_root,
         spec_definition=bundle.spec_definition,
         paths=paths,
-    ).run()
+    ).run(validate=validate)
 
     assert not result.failures
     assert result.datasets["pump"].collect().sort("pump_id").select(

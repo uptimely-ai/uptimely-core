@@ -63,7 +63,6 @@ def test_canonical_package_exports_preserve_object_identity() -> None:
     assert uptimely.ExecutionPlan is execution_plan.ExecutionPlan is ExecutionPlan
     assert execution_plan.Invocation is Invocation
     assert uptimely.Engine is engine.Engine is EngineImplementation
-    assert engine.Dataset.__module__ == "uptimely.engine.dataframe.dataset"
     assert engine.EngineConfig is EngineConfig
     assert uptimely.application.Params is Params
     assert uptimely.application.ProjectConfig is ProjectConfig

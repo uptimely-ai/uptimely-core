@@ -15,7 +15,7 @@ from uptimely.run import recording
 
 from . import config as config_module
 from .dataframe import backend
-from .runtime import execution, result
+from .runtime import execution, result, validation
 from .runtime import state as state_module
 
 logger = logging.getLogger(__name__)
@@ -76,7 +76,8 @@ class Engine:
         """Execute the plan and overwrite the project's latest-run artifacts.
 
         Args:
-            validate: Request analytical validation, which is not yet supported.
+            validate: Check invocation inputs and outputs against their analytical
+                contracts. Lazy checks may execute upstream queries repeatedly.
             preview_rows: Positive maximum sample size per profile. Defaults to the
                 Engine config value. Lazy previews execute bounded queries after
                 execution; timing excludes previews.
@@ -90,13 +91,11 @@ class Engine:
             feature outputs are unavailable and reported as None.
 
         Raises:
-            NotImplementedError: Validation or targeted execution was requested.
+            NotImplementedError: Targeted execution was requested.
             OSError: Run artifacts cannot be persisted.
             ValueError: The preview row limit is invalid.
                 The Python runtime requirements are invalid or not satisfied.
         """
-        if validate:
-            raise NotImplementedError("Analytical runtime validation is not yet supported")
         if operator is not None:
             raise NotImplementedError("Targeted execution is not yet supported")
         if preview_rows is None:
@@ -124,7 +123,7 @@ class Engine:
                     source_origin,
                     python_imports.resolve_src_path(self.bundle.project_root, src_path),
                 )
-            return recorder.finish(self._execute())
+            return recorder.finish(self._execute(validate=validate))
 
     def _default_source(self) -> tuple[pathlib.Path | None, str]:
         """Return the default Python source path and its origin for logging."""
@@ -134,7 +133,7 @@ class Engine:
             return pathlib.Path(self.code_settings.src), "project configuration"
         return None, "default project source"
 
-    def _execute(self) -> result.ExecutionResult:
+    def _execute(self, *, validate: bool) -> result.ExecutionResult:
         """Execute invocations without coupling runtime state to artifact storage."""
         plan = self.plan
         state = state_module.RuntimeState()
@@ -149,6 +148,7 @@ class Engine:
             paths=self.paths,
             project_root=self.bundle.project_root,
         )
+        validator = validation.InvocationValidator(self.backend) if validate else None
         statuses: dict[str, result.InvocationStatus] = {}
         durations: dict[str, float] = {}
         failures: dict[str, str] = {}
@@ -157,6 +157,8 @@ class Engine:
             "Executing plan with %d stages",
             len(plan.execution_stages),
         )
+        if validate:
+            logger.info("Analytical runtime validation enabled")
         for invocation in plan.execution_invocations:
             started = time.perf_counter()
             try:
@@ -171,7 +173,14 @@ class Engine:
                         ),
                     },
                 )
-                invocation_executor.execute(invocation)
+                arguments = invocation_executor.resolve_arguments(invocation)
+                context = validator.before(invocation, arguments) if validator is not None else None
+                value = invocation_executor.execute(invocation, arguments)
+                if validator is not None:
+                    assert context is not None
+                    validator.after(invocation, value, context)
+                if invocation.returns is not None:
+                    state.store(invocation.returns, value)
             except Exception as error:
                 statuses[invocation.id] = result.INVOCATION_STATUS_FAILED
                 failures[invocation.id] = str(error)

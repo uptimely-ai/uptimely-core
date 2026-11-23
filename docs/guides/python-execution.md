@@ -11,9 +11,9 @@ app = Uptimely()
 result = app.run()
 ```
 
-Analytical runtime validation and targeted operator execution are not currently
-supported. See [Run artifacts](../artifacts/run.md) for saved output and preview
-behavior.
+Pass `validate=True` to check analytical contracts during execution. Targeted
+operator execution is not currently supported. See [runtime validation](runtime-validation.md)
+and [run artifacts](../artifacts/run.md) for details.
 
 ## Read a saved run
 

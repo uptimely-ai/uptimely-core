@@ -310,14 +310,8 @@ def test_state_distinguishes_none_from_missing_and_prevents_overwrite() -> None:
         state.store("$datasets.pump.read", 1)
 
 
-@pytest.mark.parametrize(
-    ("options", "message"),
-    [({"validate": True}, "validation"), ({"operator": ("pump", "read")}, "Targeted")],
-)
-def test_unimplemented_options_fail_before_execution(
+def test_targeted_execution_fails_before_execution(
     bundle_for_plan: execution_support.BundleFactory,
-    options: dict[str, object],
-    message: str,
 ) -> None:
     saved = plan.from_dict(
         {
@@ -330,5 +324,5 @@ def test_unimplemented_options_fail_before_execution(
     )
     instance = engine.Engine(bundle_for_plan(saved, spec_definition=spec.Spec()))
 
-    with pytest.raises(NotImplementedError, match=message):
-        instance.run(**options)
+    with pytest.raises(NotImplementedError, match="Targeted"):
+        instance.run(operator=("pump", "read"))

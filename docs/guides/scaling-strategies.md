@@ -1,6 +1,6 @@
 # Scaling strategies
 
-Uptimely Engine runs functions defined in the execution plan and is not aware of where it runs. Analytical runtime validation is not currently supported.
+Uptimely Engine runs functions defined in the execution plan and is not aware of where it runs. Optional runtime validation may execute lazy queries multiple times.
 
 Even with this setup Uptimely gives plenty of opportunities to scale up from the basics.
 

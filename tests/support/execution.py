@@ -9,76 +9,7 @@ from uptimely import engine as engine_module
 from uptimely import plan as execution_plan
 from uptimely import spec
 from uptimely.codebase import packaging
-from uptimely.engine.dataframe import backend as backend_module
-from uptimely.engine.dataframe import dataset as dataset_module
-from uptimely.engine.dataframe import fragment as fragment_module
-from uptimely.engine.dataframe import merge as merge_module
 from uptimely.spec import model as spec_model
-
-
-def dataset(
-    dataframe: object | None,
-    identifiers: typing.Sequence[str] = (),
-    *,
-    backend: backend_module.DataFrameBackend | None = None,
-) -> dataset_module.Dataset:
-    """Create an independent physical accumulator for runtime tests."""
-    adapter = backend if backend is not None else backend_module.PolarsBackend()
-    return dataset_module.Dataset(adapter, identifiers, dataframe)
-
-
-def merge_fragment(
-    main: dataset_module.Dataset,
-    fragment: fragment_module.Fragment,
-    *,
-    dimension_types: typing.Mapping[str, str] | None = None,
-) -> fragment_module.Fragment:
-    """Exercise runtime validation and projection around a physical accumulator."""
-    invocation = fragment.invocation or execution_plan.Invocation(
-        id="standalone",
-        entrypoint="test:read",
-        arguments={},
-        returns=None,
-        semantics=execution_plan.InvocationSemantics(
-            role="compute",
-            result="fragment",
-            function_id="read",
-            operator_id="read",
-            profile_id="dataset",
-            target_identifiers=list(main.identifiers),
-            fragment_dimensions="target",
-            column_types=dict(dimension_types or {}),
-        ),
-    )
-    if fragment.invocation is not None:
-        fragment = fragment_module.Fragment.compute(
-            main.backend,
-            fragment.invocation,
-            lambda: fragment.dataframe,
-            validate=True,
-            comparison_frame=main.dataframe,
-        )
-    else:
-        fragment.validate_invocation_result(
-            main.backend,
-            invocation,
-            output_features=[],
-        )
-    if main.dataframe is not None:
-        main.validate_accumulated_frame(
-            description="Accumulated profile",
-            column_types=invocation.semantics.column_types,
-        )
-        merge_module.Merge(main, fragment).validate_input()
-    main.merge(
-        fragment,
-        fragment_id=fragment.invocation.semantics.operator_id
-        if fragment.invocation is not None
-        else None,
-        join_cardinality="1:1",
-        broadcast_cardinality="m:1",
-    )
-    return fragment
 
 
 def _return_contract_from_invocation(

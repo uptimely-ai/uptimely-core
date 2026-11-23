@@ -86,9 +86,8 @@ project directory or `--project-root` selects it. If neither is given,
 Uptimely uses the current working directory. The root is needed to locate the
 configuration file in the first place.
 
-Feature selection, build-before-run, and log level are command-specific options
-rather than project settings. Analytical runtime validation is not currently
-supported.
+Feature selection, build-before-run, log level, and analytical runtime validation
+are command-specific options rather than project settings.
 
 ### Runtime values
 

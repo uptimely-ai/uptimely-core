@@ -7,7 +7,6 @@ from collections import abc
 
 import polars as pl
 
-from uptimely.library.merge import polars
 from uptimely.spec import feature_types
 
 from .. import config as config_module
@@ -24,21 +23,9 @@ class DataFrameBackend(typing.Protocol):
 
     def select(self, frame: object, columns: abc.Sequence[str]) -> object: ...
 
-    def lazy(self, frame: object) -> object: ...
-
-    def join(
-        self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
-    ) -> object: ...
-
-    def left_join(
-        self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "m:1"
-    ) -> object: ...
-
-    def cross_join(self, left: object, right: object) -> object: ...
-
-    def collect(self, frame: object) -> object: ...
-
     def snapshot(self, frame: object) -> object: ...
+
+    def collect_pair(self, left: object, right: object) -> tuple[object, object]: ...
 
     def is_duplicated(self, frame: object) -> bool: ...
 
@@ -46,7 +33,14 @@ class DataFrameBackend(typing.Protocol):
 
     def same_keys(self, left: object, right: object, keys: abc.Sequence[str]) -> bool: ...
 
-    def same_data(self, left: object, right: object, columns: abc.Sequence[str]) -> bool: ...
+    def same_data(
+        self,
+        left: object,
+        right: object,
+        columns: abc.Sequence[str],
+        *,
+        sort_by: abc.Sequence[str] = (),
+    ) -> bool: ...
 
     def validate_types(self, frame: object, types: abc.Mapping[str, str]) -> None: ...
 
@@ -67,33 +61,20 @@ class PolarsBackend:
     def select(self, frame: object, columns: abc.Sequence[str]) -> object:
         return frame.select(*columns)
 
-    def lazy(self, frame: object) -> object:
-        return frame.lazy()
-
-    def join(
-        self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "1:1"
-    ) -> object:
-        """Full-join dataframes using the shared Polars merge implementation."""
-        return polars.full_join(left, right, keys, validate=validate)
-
-    def left_join(
-        self, left: object, right: object, keys: abc.Sequence[str], *, validate: str = "m:1"
-    ) -> object:
-        """Left-join dataframes using the shared Polars merge implementation."""
-        return polars.left_join(left, right, keys, validate=validate)
-
-    def cross_join(self, left: object, right: object) -> object:
-        """Return the Cartesian product using the shared Polars merge implementation."""
-        return polars.cross_join(left, right)
-
-    def collect(self, frame: object) -> object:
-        return frame.collect()
-
     def snapshot(self, frame: object) -> object:
-        """Materialize lazy input once while preserving its lazy dataframe interface."""
-        if isinstance(frame, pl.LazyFrame):
-            return frame.collect().lazy()
-        return frame
+        """Copy an input without changing its dataframe interface."""
+        return frame.clone()
+
+    def collect_pair(self, left: object, right: object) -> tuple[object, object]:
+        """Collect related lazy frames together so they can share upstream work."""
+        if isinstance(left, pl.LazyFrame) and isinstance(right, pl.LazyFrame):
+            first, second = pl.collect_all([left, right])
+            return first, second
+        if isinstance(left, pl.LazyFrame):
+            left = left.collect()
+        if isinstance(right, pl.LazyFrame):
+            right = right.collect()
+        return left, right
 
     def is_duplicated(self, frame: object) -> bool:
         if isinstance(frame, pl.LazyFrame):
@@ -119,10 +100,20 @@ class PolarsBackend:
             right_keys = right_keys.collect()
         return left_keys.sort(list(keys)).equals(right_keys.sort(list(keys)))
 
-    def same_data(self, left: object, right: object, columns: abc.Sequence[str]) -> bool:
-        """Compare selected rows and values in order, collecting lazy frames if needed."""
+    def same_data(
+        self,
+        left: object,
+        right: object,
+        columns: abc.Sequence[str],
+        *,
+        sort_by: abc.Sequence[str] = (),
+    ) -> bool:
+        """Compare selected rows and values, optionally in key order."""
         left_data = self.select(left, columns)
         right_data = self.select(right, columns)
+        if sort_by:
+            left_data = left_data.sort(list(sort_by))
+            right_data = right_data.sort(list(sort_by))
         if isinstance(left_data, pl.LazyFrame):
             left_data = left_data.collect()
         if isinstance(right_data, pl.LazyFrame):
