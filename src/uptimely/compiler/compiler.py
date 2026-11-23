@@ -12,6 +12,7 @@ from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
 
 from . import graph as invocation_graph
+from . import semantics as semantics_module
 
 logger = logging.getLogger(__name__)
 
@@ -60,8 +61,14 @@ class Compiler:
             raise ValueError("features must be a collection of feature identifiers")
         signatures = dict(signatures or {})
 
-        nodes = invocation_graph.InvocationBuilder.create_nodes(spec_definition)
-        graph, feature_producers = self._create_invocation_graph(spec_definition, nodes)
+        nodes, semantics_by_id = semantics_module.InvocationSemanticsBuilder.create_nodes(
+            spec_definition
+        )
+        graph, feature_producers = self._create_invocation_graph(
+            spec_definition,
+            nodes,
+            semantics_by_id,
+        )
         if features is not None:
             logger.debug("Selected features: %s", sorted(features))
             graph = self._select_invocations(
@@ -69,6 +76,7 @@ class Compiler:
                 graph,
                 nodes,
                 feature_producers,
+                semantics_by_id,
                 list(dict.fromkeys(features)),
             )
         else:
@@ -97,6 +105,7 @@ class Compiler:
             selected_functions,
             signatures,
             packages,
+            semantics_by_id,
         )
         stages = [[node.node_id for node in stage] for stage in execution_stages]
 
@@ -112,6 +121,7 @@ class Compiler:
     def _create_invocation_graph(
         spec_definition: spec.Spec,
         invocations: list[invocation_graph.InvocationNode],
+        semantics_by_id: dict[str, plan.InvocationSemantics],
     ) -> tuple[
         invocation_graph.InvocationGraph,
         dict[str, invocation_graph.InvocationNode],
@@ -119,9 +129,9 @@ class Compiler:
         """Resolve Spec feature and fragment relationships into graph edges."""
         by_binding = {
             (
-                node.semantics.profile_id,
-                node.semantics.operator_id,
-                node.semantics.role,
+                node.profile_id,
+                node.operator_id,
+                node.role,
             ): node
             for node in invocations
         }
@@ -130,7 +140,7 @@ class Compiler:
         dataset_publishers: dict[str, list[invocation_graph.InvocationNode]] = {}
 
         for node in invocations:
-            semantics = node.semantics
+            semantics = semantics_by_id[node.node_id]
             if semantics.role == "merge" or semantics.result == "target":
                 dataset_publishers.setdefault(semantics.profile_id, []).append(node)
             if semantics.role != "compute":
@@ -146,7 +156,7 @@ class Compiler:
                     feature_producers[feature] = producer
 
         for node in invocations:
-            semantics = node.semantics
+            semantics = semantics_by_id[node.node_id]
             if semantics.role != "compute":
                 continue
             for feature in semantics.input_features:
@@ -155,7 +165,7 @@ class Compiler:
                     dependencies[node.node_id].add(producer.node_id)
 
         for node in invocations:
-            semantics = node.semantics
+            semantics = semantics_by_id[node.node_id]
             profile = spec_definition.profiles[semantics.profile_id]
             if profile.seed is None or semantics.operator_id == profile.seed:
                 continue
@@ -201,6 +211,7 @@ class Compiler:
         graph: invocation_graph.InvocationGraph,
         invocations: list[invocation_graph.InvocationNode],
         feature_producers: dict[str, invocation_graph.InvocationNode],
+        semantics_by_id: dict[str, plan.InvocationSemantics],
         features: list[str],
     ) -> invocation_graph.InvocationGraph:
         """Select requested outputs, their prerequisites, and matching sinks."""
@@ -215,9 +226,9 @@ class Compiler:
         for node in tuple(selected_nodes):
             selected_nodes.update(graph.ancestors(node.node_id))
 
-        selected_profiles = {node.semantics.profile_id for node in requested_nodes}
+        selected_profiles = {node.profile_id for node in requested_nodes}
         for node in invocations:
-            semantics = node.semantics
+            semantics = semantics_by_id[node.node_id]
             if (
                 semantics.role == "compute"
                 and semantics.is_sink
@@ -237,12 +248,12 @@ class Compiler:
         logger.debug("Select unique functions for implementation checks")
         selected_functions: dict[str, spec_model.FunctionTemplate] = {}
         for node in nodes:
-            function_id = node.semantics.function_id
+            function_id = node.function_id
             function = spec_definition.functions.get(function_id)
             if function is None or not function.entrypoint:
                 raise ValueError(
                     f"Missing entrypoint for function {function_id} "
-                    f"used by operator {node.semantics.operator_id}"
+                    f"used by operator {node.operator_id}"
                 )
             selected_functions.setdefault(function_id, function)
         return selected_functions
@@ -275,23 +286,25 @@ class Compiler:
         selected_functions: dict[str, spec_model.FunctionTemplate],
         signatures: dict[str, entrypoint.Signature],
         packages: dict[str, plan.Package],
+        semantics_by_id: dict[str, plan.InvocationSemantics],
     ) -> list[plan.Invocation]:
         """Convert scheduled nodes to portable invocations with resolved metadata."""
         logger.debug("Create portable invocations")
         invocations: list[plan.Invocation] = []
         for node in nodes:
-            function = selected_functions[node.semantics.function_id]
+            function = selected_functions[node.function_id]
             invocations.append(
                 plan.Invocation.from_node(
                     spec_definition,
                     node,
                     dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
                     return_type=(
-                        signatures[node.semantics.function_id].display.returns
-                        if node.semantics.function_id in signatures
+                        signatures[node.function_id].display.returns
+                        if node.function_id in signatures
                         else None
                     ),
                     package=packages[function.entrypoint],
+                    semantics=semantics_by_id[node.node_id],
                 )
             )
         return invocations

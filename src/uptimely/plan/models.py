@@ -50,9 +50,12 @@ class Package(_PlanModel):
 
 
 class _InvocationNode(typing.Protocol):
-    """Compiler node carrying its resolved semantics and opaque graph ID."""
+    """Compiler node carrying source call identity and opaque graph ID."""
 
-    semantics: InvocationSemantics
+    function_id: str
+    profile_id: str
+    operator_id: str
+    role: typing.Literal["compute", "merge"]
 
     @property
     def node_id(self) -> str: ...
@@ -91,14 +94,14 @@ class InvocationSemantics(_PlanModel):
     @classmethod
     def from_node(
         cls,
-        node: _InvocationNode,
+        semantics: InvocationSemantics,
         *,
         dependency_ids: list[str],
         return_type: str | None,
         package: Package,
     ) -> typing.Self:
         """Complete a compiler-resolved contract with graph and runtime metadata."""
-        return node.semantics.__replace__(
+        return semantics.__replace__(
             dependency_ids=dependency_ids,
             return_type=return_type,
             package=package,
@@ -175,18 +178,18 @@ class Invocation(_PlanModel):
         dependency_ids: list[str],
         return_type: str | None,
         package: Package,
+        semantics: InvocationSemantics,
     ) -> typing.Self:
         """Create a portable invocation from a compiler node and resolved metadata."""
-        semantics = InvocationSemantics.from_node(
-            node,
+        semantics = semantics.__replace__(
             dependency_ids=dependency_ids,
             return_type=return_type,
             package=package,
         )
-        function_id = node.semantics.function_id
-        profile_id = node.semantics.profile_id
-        operator_id = node.semantics.operator_id
-        role = node.semantics.role
+        function_id = node.function_id
+        profile_id = node.profile_id
+        operator_id = node.operator_id
+        role = node.role
         function = spec_definition.functions.get(function_id)
         if function is None or not function.entrypoint:
             raise ValueError(

@@ -10,6 +10,7 @@ from uptimely import spec
 from uptimely.codebase.python import entrypoint
 from uptimely.compiler import compiler
 from uptimely.compiler import graph as invocation_graph
+from uptimely.compiler import semantics as semantics_module
 from uptimely.inspector import bindings as inspector
 from uptimely.spec import model as spec_model
 
@@ -40,13 +41,10 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
     graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     selected_graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     node = invocation_graph.InvocationNode(
-        semantics=execution_plan.InvocationSemantics(
-            function_id="calculate",
-            profile_id="entity",
-            operator_id="calculate",
-            role="compute",
-            result="target",
-        )
+        function_id="calculate",
+        profile_id="entity",
+        operator_id="calculate",
+        role="compute",
     )
     selected_graph.invocations = [node]
     selected_graph.dependencies.return_value = []
@@ -65,7 +63,20 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
     )
     operations = {
         "spec": mock.Mock(),
-        "nodes": mock.Mock(return_value=[node]),
+        "nodes": mock.Mock(
+            return_value=(
+                [node],
+                {
+                    node.node_id: execution_plan.InvocationSemantics(
+                        function_id="calculate",
+                        profile_id="entity",
+                        operator_id="calculate",
+                        role="compute",
+                        result="target",
+                    )
+                },
+            )
+        ),
         "graph": mock.Mock(return_value=(graph, {})),
         "selection": mock.Mock(return_value=selected_graph),
         "topology": mock.Mock(return_value=[[node]]),
@@ -73,6 +84,7 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         "package": mock.Mock(return_value=entrypoint.PackageOrigin(None, None)),
         "invocation": mock.Mock(return_value=emitted_invocation),
     }
+    semantics = operations["nodes"].return_value[1][node.node_id]
     implementation = mock.Mock()
     implementation.read_package = operations["package"]
     operations["entrypoint"].return_value = implementation
@@ -84,7 +96,11 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         operations[failure].side_effect = ValueError("invalid compilation")
 
     monkeypatch.setattr(compiler.spec_validation, "validate_spec", operations["spec"])
-    monkeypatch.setattr(invocation_graph.InvocationBuilder, "create_nodes", operations["nodes"])
+    monkeypatch.setattr(
+        semantics_module.InvocationSemanticsBuilder,
+        "create_nodes",
+        operations["nodes"],
+    )
     monkeypatch.setattr(compiler.Compiler, "_create_invocation_graph", operations["graph"])
     monkeypatch.setattr(compiler.Compiler, "_select_invocations", operations["selection"])
     monkeypatch.setattr(execution_plan.Invocation, "from_node", operations["invocation"])
@@ -109,8 +125,15 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
     expected = [
         mock.call.spec(specification),
         mock.call.nodes(specification),
-        mock.call.graph(specification, [node]),
-        mock.call.selection(specification, graph, [node], {}, ["result"]),
+        mock.call.graph(specification, [node], {node.node_id: semantics}),
+        mock.call.selection(
+            specification,
+            graph,
+            [node],
+            {},
+            {node.node_id: semantics},
+            ["result"],
+        ),
         mock.call.topology(),
         mock.call.entrypoint("module:calculate"),
         mock.call.package(),
@@ -120,6 +143,7 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
             dependency_ids=[],
             return_type="float",
             package=execution_plan.Package(distribution=None, version=None),
+            semantics=semantics,
         ),
     ]
     if failure is not None:
@@ -173,13 +197,10 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     monkeypatch.setattr(inspector.BindingInspection, "inspect", validate)
     nodes = [
         invocation_graph.InvocationNode(
-            semantics=execution_plan.InvocationSemantics(
-                function_id=function_id,
-                profile_id="entity",
-                operator_id=operator,
-                role="compute",
-                result="target",
-            )
+            function_id=function_id,
+            profile_id="entity",
+            operator_id=operator,
+            role="compute",
         )
         for function_id, operator in [
             ("calculate", "first"),
@@ -192,9 +213,23 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     graph.invocations = nodes
     graph.dependencies.return_value = []
     monkeypatch.setattr(
-        invocation_graph.InvocationBuilder,
+        semantics_module.InvocationSemanticsBuilder,
         "create_nodes",
-        mock.Mock(return_value=nodes),
+        mock.Mock(
+            return_value=(
+                nodes,
+                {
+                    node.node_id: execution_plan.InvocationSemantics(
+                        function_id=node.function_id,
+                        profile_id=node.profile_id,
+                        operator_id=node.operator_id,
+                        role=node.role,
+                        result="target",
+                    )
+                    for node in nodes
+                },
+            )
+        ),
     )
     monkeypatch.setattr(
         compiler.Compiler,
@@ -209,11 +244,12 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
         dependency_ids: list[str],
         return_type: str | None,
         package: execution_plan.Package,
+        semantics: execution_plan.InvocationSemantics,
     ) -> execution_plan.Invocation:
         return execution_plan.Invocation(
             id=node.node_id,
             entrypoint="module:calculate",
-            semantics=node.semantics.__replace__(
+            semantics=semantics.__replace__(
                 dependency_ids=dependency_ids,
                 return_type=return_type,
                 package=package,
