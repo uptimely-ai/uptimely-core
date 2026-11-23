@@ -131,9 +131,7 @@ def test_python_profile_scope_must_be_a_string() -> None:
         python_spec.Profile(id="values", scope=1)
 
 
-@pytest.mark.parametrize("canonical", [False, True])
-def test_python_conversion_rejects_duplicate_profile_ids(canonical: bool) -> None:
+def test_python_conversion_rejects_duplicate_profile_ids() -> None:
     declaration = python_spec.profile.Profile(id="duplicate")
-    profile = declaration.to_model() if canonical else declaration
     with pytest.raises(ValueError, match="Duplicate profile id duplicate"):
-        conversion.to_model(profiles=[profile, profile])
+        conversion.to_model(profiles=[declaration, declaration])

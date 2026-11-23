@@ -289,7 +289,7 @@ class Profile:
     def _selected_resolution(
         self, item: dimension_module.Resolution
     ) -> tuple[dimension_module.Dimension, dimension_module.Resolution]:
-        """Resolve a profile grain item to its owning dimension and declaration."""
+        """Resolve a grain or relation item to its owning dimension and declaration."""
         if not isinstance(item, dimension_module.Resolution):
             raise TypeError("Profile grain and relations must contain resolution declarations")
         if item.dimension is None:
@@ -381,21 +381,3 @@ class ProfileRegistry:
     def to_declarations(self) -> dict[str, Profile]:
         """Return registered profile declarations in composition order."""
         return self.profiles.copy()
-
-
-def to_models(
-    declarations: abc.Iterable[Profile | spec_model.Profile],
-) -> dict[str, spec_model.Profile]:
-    """Convert profiles to an ID-keyed registry without overwriting duplicates."""
-    models: dict[str, spec_model.Profile] = {}
-    for declaration in declarations:
-        if isinstance(declaration, Profile):
-            model = declaration.to_model()
-        elif isinstance(declaration, spec_model.Profile):
-            model = declaration
-        else:
-            raise TypeError("profiles must contain Profile declarations or canonical models")
-        if model.id in models:
-            raise ValueError(f"Duplicate profile id {model.id}")
-        models[model.id] = model
-    return models

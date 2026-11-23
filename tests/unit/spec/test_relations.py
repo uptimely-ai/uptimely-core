@@ -1,5 +1,7 @@
 """Profile relation declarations and their portable representation."""
 
+import typing
+
 import polars as pl
 import pytest
 from support import execution as execution_support
@@ -108,7 +110,7 @@ def _copy_related(
     return dataset.select(identifier, relation, pl.col(value).alias(output))
 
 
-def test_inferred_inputs_exclude_local_and_foreign_keys() -> None:
+def test_inferred_inputs_exclude_local_and_foreign_keys(monkeypatch: pytest.MonkeyPatch) -> None:
     machines = _dimension()
     source = profile.Profile(
         id="source",
@@ -142,7 +144,18 @@ def test_inferred_inputs_exclude_local_and_foreign_keys() -> None:
         ],
     )
     assert "pump_id" not in target.to_model().assembly["copy"].input_features
-    document = conversion.to_model([source, target])
+    original_validate = model.Spec.model_validate
+    validated_inputs: list[list[str]] = []
+
+    def capture_inputs(value: typing.Any, **kwargs: typing.Any) -> model.Spec:
+        validated_inputs.append(value["profiles"]["target"].assembly["copy"].interface.inputs[:])
+        return original_validate(value, **kwargs)
+
+    with monkeypatch.context() as patch:
+        patch.setattr(model.Spec, "model_validate", capture_inputs)
+        document = conversion.to_model([source, target])
+
+    assert validated_inputs == [["$features.value"]]
     validation.validate_spec(document)
     assert document.profiles["target"].assembly["copy"].input_features == ["value"]
     compiled = compiler.Compiler().compile(document, features=["copied"])
