@@ -326,7 +326,7 @@ def test_sources_and_transforms_python_spec() -> None:
                     dataset=python_spec.ref.profile("target").dataset,
                     aggregations={"input_2": "max"},
                     dimensions=python_spec.ref.profile().grain.ids,
-                    rename={"input_2": python_spec.ref.input("collapsed_feature").id},
+                    rename={"input_2": python_spec.ref.output("collapsed_feature").id},
                 ),
                 merge=python_spec.merge.default(),
             )

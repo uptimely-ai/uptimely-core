@@ -42,28 +42,29 @@ class PumpSeries(Profile):
             compute=Bind(
                 io.read_file,
                 source=ref.paths("pump_series_source"),
-                rename={"max_capacity": features.max_capacity},
+                rename={"max_capacity": ref.output("max_capacity_series")},
                 schema={"max_capacity": "float"},
             ),
         ),
         Operator(
             inputs=[ref.input("bearing_temperature")],
-            outputs=[features.bearing_temperature_max],
             compute=Bind(
                 analytics.aggregate,
                 dataset=ref.dataset("pump_telemetry"),
                 aggregations={"bearing_temperature": "max"},
                 dimensions=[dimension.MACHINE_DIMENSION.resolution("machine_series").key],
-                rename={"bearing_temperature": features.bearing_temperature_max},
+                rename={"bearing_temperature": ref.output("bearing_temperature_series_max")},
             ),
             merge=merge.default(),
         ),
         Operator(
-            outputs=[],
             compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
-                features=[features.bearing_temperature_max, features.max_capacity],
+                features=[
+                    ref.input("bearing_temperature_series_max"),
+                    ref.input("max_capacity_series"),
+                ],
                 output=ref.paths("pump_series_output"),
             ),
         ),

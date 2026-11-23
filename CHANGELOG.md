@@ -21,6 +21,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Python `Bind` arguments use `ref.input()` and `ref.output()` instead of
+  `Feature` instances for feature references.
 - Python bindings use `ref.input()` for input feature references. Input inference
   registers feature values and IDs without treating metadata as dependencies.
 - Python bindings use `ref.output()` for returned feature references. If

@@ -35,7 +35,9 @@ Use `ref` to refer to profile data, features, and other Spec values without
 loading data during authoring. Both `ref.input("name")` and
 `ref.input("name").id` pass the feature identifier and infer an input
 dependency unless the feature is an operator output. Explicit `inputs` override
-inference.
+inference. Bind arguments must use `ref.input()` or `ref.output()` for feature
+references. Declare `Feature` instances in `Operator.outputs`, not as argument
+values.
 
 Use `ref.paths("name")` for a file or directory configured in the project's
 `paths` map. Use `ref.params("name")` for a scalar configured in `params`.
@@ -90,7 +92,6 @@ def rolling_mean(dataset: pl.DataFrame, value: str, output: str, before: int) ->
 
 up.Operator(
     id="rolling_mean",
-    outputs=[up.Feature(id="mean")],
     row_context=RowContext(before=1),
     compute=up.Bind(
         rolling_mean,
