@@ -59,12 +59,7 @@ class Package(_PlanModel):
 
 
 class _InvocationNode(typing.Protocol):
-    """Compiler node carrying source call identity and opaque graph ID."""
-
-    function_id: str
-    profile_id: str
-    operator_id: str
-    role: profile_module.OperatorBindingRole.Value
+    """Compiler graph node carrying an opaque invocation ID."""
 
     @property
     def node_id(self) -> str: ...
@@ -209,15 +204,16 @@ class Invocation(_PlanModel):
         semantics: InvocationSemantics,
     ) -> typing.Self:
         """Create a portable invocation from a compiler node and resolved metadata."""
-        semantics = semantics.__replace__(
+        semantics = InvocationSemantics.from_node(
+            semantics,
             dependency_ids=dependency_ids,
             return_type=return_type,
             package=package,
         )
-        function_id = node.function_id
-        profile_id = node.profile_id
-        operator_id = node.operator_id
-        role = node.role
+        function_id = semantics.function_id
+        profile_id = semantics.profile_id
+        operator_id = semantics.operator_id
+        role = semantics.role
         function = spec_definition.functions.get(function_id)
         if function is None or not function.entrypoint:
             raise ValueError(

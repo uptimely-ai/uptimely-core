@@ -18,6 +18,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- `InvocationNode` now contains only its invocation ID. Invocation identity
+  and binding metadata are available in invocation semantics.
+- `InvocationSemanticsBuilder.build` derives contracts for one operator instead
+  of creating nodes for an entire Spec.
 - Spec bindings are inspected through `uptimely.inspector.BindingInspection`
   during builds, before compilation. The previous callable validation APIs have
   been removed.

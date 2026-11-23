@@ -7,60 +7,46 @@ from uptimely.spec import arg_types
 from uptimely.spec.model import profile as profile_module
 from uptimely.spec.model import spec as spec_module
 
-from . import graph as graph_module
-
 
 class InvocationSemanticsBuilder:
-    """Resolve Spec operators into graph nodes and invocation semantics."""
+    """Derive invocation contracts for an operator's bindings."""
 
     @classmethod
-    def create_nodes(
-        cls, spec_definition: spec.Spec
-    ) -> tuple[list[graph_module.InvocationNode], dict[str, plan.InvocationSemantics]]:
-        """Expand validated Spec operators into nodes and their semantic contracts."""
-        invocations: list[graph_module.InvocationNode] = []
-        nodes_by_id: dict[str, graph_module.InvocationNode] = {}
-        semantics_by_id: dict[str, plan.InvocationSemantics] = {}
+    def build(
+        cls, spec_definition: spec.Spec, key: spec_module.OperatorKey, operator: spec.Operator
+    ) -> dict[profile_module.OperatorBindingRole.Value, plan.InvocationSemantics]:
+        """Derive semantic contracts for one operator.
 
-        for key, operator in spec_definition.operator_items:
-            profile_id = spec_definition.profiles_by_key[key[0]].id
-            relationships = operator.grain_relationships(spec_definition, key)
-            for role, binding in operator.bindings.items():
-                node = graph_module.InvocationNode(
-                    function_id=binding.function,
-                    profile_id=profile_id,
-                    operator_id=operator.id,
-                    role=role,
-                    arguments=binding.args,
-                )
-                previous = nodes_by_id.get(node.node_id)
-                if previous is not None:
-                    raise ValueError(
-                        f"Invocation ID collision {node.node_id!r} between operators "
-                        f"{previous.profile_id!r}/{previous.operator_id!r} "
-                        f"({previous.role}:{previous.function_id}) and "
-                        f"{node.profile_id!r}/{node.operator_id!r} "
-                        f"({node.role}:{node.function_id})"
-                    )
-                invocations.append(node)
-                nodes_by_id[node.node_id] = node
-                semantics_by_id[node.node_id] = cls._create_semantics(
-                    spec_definition, key, operator, node, relationships
-                )
+        Args:
+            spec_definition: The validated Spec containing the operator.
+            key: The operator's profile and declaration keys.
+            operator: The operator to expand.
 
-        return invocations, semantics_by_id
+        Returns:
+            Invocation contracts keyed by binding role.
+        """
+        profile_id = spec_definition.profiles_by_key[key[0]].id
+        relationships = operator.grain_relationships(spec_definition, key)
+        return {
+            role: cls._create_semantics(
+                spec_definition, key, operator, binding, role, profile_id, relationships
+            )
+            for role, binding in operator.bindings.items()
+        }
 
     @staticmethod
     def _create_semantics(
         spec_definition: spec.Spec,
         key: spec_module.OperatorKey,
         operator: spec.Operator,
-        node: graph_module.InvocationNode,
+        binding: spec.Binding,
+        role: profile_module.OperatorBindingRole.Value,
+        profile_id: str,
         relationships: dict[spec_module.ProfileKey | None, profile_module.GrainRelationship.Value],
     ) -> plan.InvocationSemantics:
         """Derive one invocation contract from its operator and function declarations."""
-        function = spec_definition.functions[node.function_id]
-        is_compute = node.role == profile_module.OperatorBindingRole.COMPUTE
+        function = spec_definition.functions[binding.function]
+        is_compute = role == profile_module.OperatorBindingRole.COMPUTE
         contract = operator.execution_contract(
             returns=function.returns,
             target_profile=key[0],
@@ -71,7 +57,7 @@ class InvocationSemanticsBuilder:
                 if source is not None
             },
         )
-        if node.role == profile_module.OperatorBindingRole.MERGE:
+        if role == profile_module.OperatorBindingRole.MERGE:
             result = plan.InvocationResultKind.TARGET
         elif function.returns != arg_types.DATAFRAME:
             result = plan.InvocationResultKind.NONE
@@ -80,8 +66,8 @@ class InvocationSemanticsBuilder:
         else:
             result = plan.InvocationResultKind.TARGET
 
-        profile_key = spec_definition.profile_keys[node.profile_id]
-        profile = spec_definition.profiles[node.profile_id]
+        profile_key = spec_definition.profile_keys[profile_id]
+        profile = spec_definition.profiles[profile_id]
         key_types = spec_definition.key_types_by_profile[profile_key]
         column_types = (
             {
@@ -95,7 +81,7 @@ class InvocationSemanticsBuilder:
         output_features = operator.output_features if is_compute else []
 
         return plan.InvocationSemantics(
-            role=node.role,
+            role=role,
             result=result,
             produces_features=contract.produces_features if is_compute else False,
             is_sink=(contract.is_sink or operator.is_workflow) if is_compute else False,
@@ -129,9 +115,9 @@ class InvocationSemanticsBuilder:
                 if is_compute
                 else profile_module.ExistingDataRelation.UNRESTRICTED
             ),
-            function_id=node.function_id,
+            function_id=binding.function,
             operator_id=operator.id,
-            profile_id=node.profile_id,
+            profile_id=profile_id,
             output_features=list(output_features),
             input_features=list(operator.input_features) if is_compute else [],
             row_context=operator.row_context if is_compute else None,
