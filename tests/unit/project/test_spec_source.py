@@ -25,7 +25,8 @@ def test_spec_source_loads_explicit_json_without_default_source(tmp_path: pathli
     configured_path = tmp_path / "custom-spec.json"
     configured_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
-    loaded = project_spec_source.load_project_spec(None, tmp_path, json_spec=configured_path)
+    source = project_spec_source.SpecSourceResolver(tmp_path).resolve(json_spec=configured_path)
+    loaded = project_spec_source.load_spec_source(source)
 
     assert loaded == spec.load_spec(FIXTURE_SPEC)
 
@@ -55,7 +56,8 @@ def test_spec_source_discovers_conventional_json_source(tmp_path: pathlib.Path) 
     configured_path.parent.mkdir(parents=True)
     configured_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
-    loaded = project_spec_source.load_project_spec(None, tmp_path)
+    source = project_spec_source.SpecSourceResolver(tmp_path).resolve()
+    loaded = project_spec_source.load_spec_source(source)
 
     assert loaded == spec.load_spec(FIXTURE_SPEC)
 
@@ -120,14 +122,14 @@ def test_spec_source_rejects_ambiguous_discovered_sources(tmp_path: pathlib.Path
     json_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
     with pytest.raises(ValueError, match="Ambiguous spec sources") as error:
-        project_spec_source.load_project_spec(None, tmp_path)
+        project_spec_source.SpecSourceResolver(tmp_path).resolve()
     assert "--python-spec" not in str(error.value)
     assert "--json-spec" not in str(error.value)
 
 
 def test_spec_source_missing_source_error_is_not_cli_specific(tmp_path: pathlib.Path) -> None:
     with pytest.raises(FileNotFoundError, match="No spec source found") as error:
-        project_spec_source.load_project_spec(None, tmp_path)
+        project_spec_source.SpecSourceResolver(tmp_path).resolve()
 
     assert "--python-spec" not in str(error.value)
     assert "--json-spec" not in str(error.value)
@@ -153,11 +155,12 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
+    source = project_spec_source.SpecSourceResolver(tmp_path).resolve(
+        python_spec=f"{module_name}:python_spec"
+    )
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
-        loaded = project_spec_source.load_project_spec(
-            f"{module_name}:python_spec", tmp_path, validate=validate
-        )
+        loaded = project_spec_source.load_spec_source(source, validate=validate)
     assert check.call_count == int(validate)
 
     assert isinstance(loaded, spec.Spec)
@@ -167,8 +170,9 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
 
 @pytest.mark.parametrize("validate", [False, True])
 def test_json_source_forwards_validation_option(tmp_path: pathlib.Path, validate: bool) -> None:
+    source = project_spec_source.SpecSourceResolver(tmp_path).resolve(json_spec=FIXTURE_SPEC)
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
-        project_spec_source.load_project_spec(None, tmp_path, FIXTURE_SPEC, validate=validate)
+        project_spec_source.load_spec_source(source, validate=validate)
 
     assert check.call_count == int(validate)
 

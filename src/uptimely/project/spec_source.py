@@ -102,15 +102,3 @@ def load_spec_source(source: ResolvedSpecSource, *, validate: bool = True) -> sp
     if isinstance(source, PythonSpecSource):
         return spec.load_python_spec(source.entrypoint, validate=validate)
     return spec.load_spec(source.path, validate=validate)
-
-
-def load_project_spec(
-    python_spec: str | None,
-    project_root: pathlib.Path,
-    json_spec: JsonSourceInput = None,
-    *,
-    validate: bool = True,
-) -> spec.Spec:
-    """Resolve and load a project's explicit or discovered specification."""
-    source = SpecSourceResolver(project_root).resolve(python_spec, json_spec)
-    return load_spec_source(source, validate=validate)

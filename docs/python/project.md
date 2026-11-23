@@ -5,6 +5,9 @@ loading build or runtime configuration.
 
 ## Spec sources
 
+Use `SpecSourceResolver.resolve` to select a source, then `load_spec_source` to
+load it.
+
 ::: uptimely.project.spec_source
     options:
       heading_level: 3
@@ -14,7 +17,6 @@ loading build or runtime configuration.
         - JsonSpecSource
         - SpecSourceResolver
         - load_spec_source
-        - load_project_spec
 
 ## Python imports
 

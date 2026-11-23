@@ -25,7 +25,6 @@ from .spec_source import (
     PythonSpecSource,
     ResolvedSpecSource,
     SpecSourceResolver,
-    load_project_spec,
     load_spec_source,
 )
 
@@ -53,7 +52,6 @@ __all__ = [
     "SPEC_PYTHON_ENTRY_FILE",
     "SPEC_SOURCE_DIR",
     "SpecSourceResolver",
-    "load_project_spec",
     "load_spec_source",
     "expose",
 ]
