@@ -1,4 +1,4 @@
-"""Compiler checks for callable compatibility with declared function contracts."""
+"""Inspector checks for callable compatibility with declared function contracts."""
 
 import functools
 import inspect
