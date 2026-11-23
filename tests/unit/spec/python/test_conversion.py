@@ -26,10 +26,10 @@ def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
     )
 
 
-@pytest.mark.parametrize("keyed", [False, True])
-def test_auto_catalog_converts_profile_sequences_and_mappings(keyed: bool) -> None:
+@pytest.mark.parametrize("as_tuple", [False, True])
+def test_auto_catalog_converts_profile_sequences(as_tuple: bool) -> None:
     declarations = [_profile("first"), _profile("second")]
-    inputs = {resource.id: resource for resource in declarations} if keyed else declarations
+    inputs = tuple(declarations) if as_tuple else declarations
 
     payload = conversion.to_dict(profiles=inputs)
 
@@ -66,11 +66,8 @@ def test_auto_catalog_rejects_conflicting_entrypoints() -> None:
         conversion.to_dict(profiles=declarations)
 
 
-@pytest.mark.parametrize("canonical_profile", [False, True])
 @pytest.mark.parametrize("catalog_form", ["model", "dict", "dict_of_models"])
-def test_explicit_catalog_preserves_argument_metadata(
-    catalog_form: str, canonical_profile: bool
-) -> None:
+def test_explicit_catalog_preserves_argument_metadata(catalog_form: str) -> None:
     declaration = _profile("readings")
     catalog = spec_model.FunctionCatalog(
         root={
@@ -92,7 +89,7 @@ def test_explicit_catalog_preserves_argument_metadata(
         "dict_of_models": {"source": catalog["source"]},
     }[catalog_form]
     payload = conversion.to_dict(
-        profiles=[declaration.to_model() if canonical_profile else declaration],
+        profiles=[declaration],
         functions=functions,
         name="Readings",
     )
@@ -117,7 +114,7 @@ def test_explicit_catalog_preserves_argument_metadata(
 
 def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_functions() -> None:
     payload = conversion.to_dict(
-        profiles=[_profile("readings").to_model()],
+        profiles=[_profile("readings")],
         functions={
             "configured": {
                 "returns": "dataframe",
@@ -143,7 +140,6 @@ def test_explicit_catalog_defaults_missing_argument_type_and_skips_unregistered_
     ("kwargs", "error_type", "message"),
     [
         ({"profiles": []}, ValueError, "At least one profile is required"),
-        ({"profiles": {}}, ValueError, "At least one profile is required"),
         ({}, ValueError, "At least one profile is required"),
         (
             {"profiles": [_profile("readings")], "dimensions": []},

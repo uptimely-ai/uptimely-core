@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import pathlib
+from collections import abc
 
 from uptimely.codebase.python import entrypoint
 
 from . import model, serialization, validation
-from .python import conversion
+from .python import conversion, profile
 from .python import spec as python_spec
 
 
@@ -60,7 +61,7 @@ def load_spec(
 
 
 def from_python(
-    profiles: conversion.Profiles | None = None,
+    profiles: abc.Sequence[profile.Profile] | None = None,
     functions: conversion.Functions | None = None,
     name: str | None = None,
     *,
@@ -69,7 +70,7 @@ def from_python(
     """Convert Python declarations, optionally validating the model's semantics.
 
     Args:
-        profiles: Profile declarations keyed by their globally unique IDs.
+        profiles: A sequence of Python profile declarations with globally unique IDs.
         functions: Explicit catalog, or infer it from Python declarations.
         name: Optional spec name.
         validate: Run semantic checks. Declaration and structural checks always run.

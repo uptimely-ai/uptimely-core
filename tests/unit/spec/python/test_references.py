@@ -72,7 +72,7 @@ def test_output_reference_logging_is_one_counted_summary(
         for index, count in enumerate([2, 1])
     ]
 
-    conversion.to_model(profiles=iter(declarations))
+    conversion.to_model(profiles=tuple(declarations))
 
     assert caplog.messages == (
         ["Collected feature interfaces for 3 operators"] if level == logging.DEBUG else []

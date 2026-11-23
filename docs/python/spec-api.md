@@ -3,6 +3,8 @@
 `uptimely.spec.api` provides functions to load a Spec or convert Python
 declarations.
 
+`from_python` accepts a sequence of Python profile declarations.
+
 For loading and compilation examples, see
 [Work with Spec documents](../guides/python-spec-document.md#loading-and-conversion).
 

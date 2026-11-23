@@ -21,6 +21,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- `from_python` and Python declaration conversion accept sequences of Python
+  profiles instead of mappings, arbitrary iterators, or document-model profiles.
+  The `conversion.Profiles` alias and `profile.to_models` have been removed.
 - `uptimely.project.load_project_spec` has been removed. Resolve a source with
   `SpecSourceResolver` and load it with `load_spec_source` instead.
 - Execution plans use profile and operator result references.
