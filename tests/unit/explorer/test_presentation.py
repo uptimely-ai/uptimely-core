@@ -8,8 +8,7 @@ import pump_analytics as analytics
 import pytest
 from support import examples as example_support
 
-from uptimely import application
-from uptimely.build import builder
+from uptimely import application, spec
 from uptimely.explorer import presentation
 from uptimely.spec import operator_bindings
 
@@ -277,11 +276,10 @@ def test_project_build_persists_source_origin(
     pump_bundle.spec_definition.functions[
         "ratio"
     ].entrypoint = "source_provenance_fixture:calculate"
-    monkeypatch.setattr(
-        builder.ProjectBuilder, "_load_spec_definition", lambda *args: pump_bundle.spec_definition
-    )
+    source = tmp_path / "source.json"
+    spec.write_document(pump_bundle.spec_definition, source)
 
-    application.build(tmp_path, json_spec=tmp_path / "source.json")
+    application.build(tmp_path, json_spec=source)
 
     snapshot = json.loads((tmp_path / application.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert snapshot["catalogs"]["configuration"]["functions"]["ratio"]["source_origin"] == "project"
