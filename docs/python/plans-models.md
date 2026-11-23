@@ -8,4 +8,4 @@ contract.
     options:
       heading_level: 2
       show_root_heading: false
-      members: [ExecutionPlan, Invocation, InvocationSemantics, Package, Stage, PLAN_VERSION]
+      members: [ExecutionPlan, Invocation, InvocationSemantics, Stage, PLAN_VERSION]

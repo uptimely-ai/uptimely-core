@@ -18,6 +18,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Execution plans no longer record entrypoint package provenance. Rebuild
+  existing bundles.
+- `Entrypoint` and `Codebase.from_locations` no longer accept saved package
+  provenance.
 - `InvocationNode` carries invocation semantics alongside its ID. Node equality
   and hashing use the ID.
 - `Invocation.from_spec` accepts an invocation ID instead of a graph node.

@@ -89,7 +89,6 @@ def test_project_build_examples(
         assert result.out.count("Resolve structural argument references") == 1
         assert result.out.count("Create portable invocations") == 1
         assert result.out.count("Parse ") == 2
-        assert result.out.count("Resolve package ownership for ") == 1
         assert result.out.count("Inspect callable signatures for ") == 1
         assert "\nCompiler function:" not in result.out
         assert result.out.index("Build summary\n+") > result.out.index(

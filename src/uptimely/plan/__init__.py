@@ -6,7 +6,6 @@ from .models import (
     Invocation,
     InvocationResultKind,
     InvocationSemantics,
-    Package,
     Stage,
 )
 from .serialization import (
@@ -21,7 +20,6 @@ __all__ = [
     "Invocation",
     "InvocationResultKind",
     "InvocationSemantics",
-    "Package",
     "Stage",
     "ExecutionPlan",
     "export_json",

@@ -29,7 +29,6 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                     column_types={"plant": "string", "pump": "string", "pressure": "float"},
                     argument_types={"dataset": "dataframe"},
                     return_type="DataFrame",
-                    package=uptimely_plan.Package(distribution="example-package", version="1.0"),
                 ),
             ),
             uptimely_plan.Invocation(
@@ -115,12 +114,10 @@ def test_plan_cached_views_are_independent() -> None:
     assert uptimely_plan.to_dict(plan) == uptimely_plan.to_dict(original)
 
 
-def test_plan_keeps_signature_and_package_metadata_on_invocations() -> None:
+def test_plan_keeps_signature_metadata_on_invocations() -> None:
     original = _sample_plan()
     invocation = original.invocations[0]
     assert invocation.semantics.return_type == "DataFrame"
-    assert invocation.semantics.package is not None
-    assert invocation.semantics.package.distribution == "example-package"
 
 
 def test_plan_rejects_function_ids_with_multiple_entrypoints() -> None:
@@ -150,7 +147,6 @@ def test_plan_rejects_conflicting_return_types_for_function() -> None:
             original.invocations[1].semantics,
             function_id=original.invocations[0].semantics.function_id,
             return_type="int",
-            package=original.invocations[0].semantics.package,
         ),
     )
 

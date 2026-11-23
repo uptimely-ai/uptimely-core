@@ -8,7 +8,6 @@ from collections import abc
 import pytest
 
 from uptimely.codebase.python import entrypoint as shared_entrypoint
-from uptimely.codebase.python import origin
 from uptimely.spec.python import ref
 
 pytestmark = pytest.mark.usefixtures("example_projects")
@@ -221,36 +220,16 @@ def test_entrypoint_load_does_not_inspect_packages_on_success(
     assert shared_entrypoint.Entrypoint("math:ceil").load()(1.2) == 2
 
 
-def test_entrypoint_keeps_its_own_saved_package_provenance() -> None:
-    package = shared_entrypoint.PackageOrigin("recorded-package", "1.0")
-    implementation = shared_entrypoint.Entrypoint("math:ceil", package=package)
-    other = shared_entrypoint.Entrypoint("math:floor")
-
-    assert implementation.package is package
-    assert other.package is None
-    assert implementation.load()(1.2) == 2
-
-
-@pytest.mark.parametrize(
-    "metadata_error",
-    [
-        ValueError("Ambiguous installed package namespace: package-a, package-b"),
-        origin.importlib.metadata.PackageNotFoundError("missing-package"),
-    ],
-)
-def test_entrypoint_resolution_preserves_original_error_when_metadata_fails(
-    monkeypatch: pytest.MonkeyPatch, metadata_error: Exception
+def test_entrypoint_resolution_reports_original_error_without_package_lookup(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     def fail_metadata(module_path: str) -> shared_entrypoint.PackageOrigin:
-        raise metadata_error
+        pytest.fail("Resolution errors must not depend on package metadata")
 
     monkeypatch.setattr(shared_entrypoint.PackageOrigin, "read", fail_metadata)
-    recorded = shared_entrypoint.PackageOrigin("recorded-package", "1.0")
-    implementation = shared_entrypoint.Entrypoint("math:pi", package=recorded)
+    implementation = shared_entrypoint.Entrypoint("math:pi")
 
     with pytest.raises(ValueError, match="math:pi.*not callable") as caught:
         implementation.load()
 
     assert isinstance(caught.value.__cause__, TypeError)
-    assert "recorded-package==1.0" in str(caught.value)
-    assert f"available runtime package: unresolved ({metadata_error})" in str(caught.value)

@@ -7,7 +7,7 @@ import logging
 from collections import abc
 
 from uptimely import plan, spec
-from uptimely.codebase.python import codebase, entrypoint
+from uptimely.codebase.python import entrypoint
 from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
@@ -114,19 +114,14 @@ class Compiler:
             function.entrypoint for function in selected_functions.values() if function.entrypoint
         )
         logger.debug("Parse %d unique entrypoints", len(locations))
-        python_codebase = codebase.Codebase.from_locations(
-            locations, entrypoint_type=entrypoint.Entrypoint
-        )
-        entrypoints = python_codebase.entrypoints_index
-        packages = self._read_plan_packages(entrypoints)
+        for location in locations:
+            entrypoint.Entrypoint(location)
         logger.debug("Resolve structural argument references")
         invocations = self._create_plan_invocations(
             spec_definition,
             graph,
             nodes,
-            selected_functions,
             signatures,
-            packages,
         )
         stages = [[node.node_id for node in stage] for stage in execution_stages]
 
@@ -314,40 +309,17 @@ class Compiler:
         return selected_functions
 
     @staticmethod
-    def _read_plan_packages(
-        entrypoints: abc.Mapping[str, entrypoint.Entrypoint],
-    ) -> dict[str, plan.Package]:
-        """Read portable package provenance once per entrypoint."""
-        logger.debug("Resolve package ownership for %d unique entrypoints", len(entrypoints))
-        packages: dict[str, plan.Package] = {}
-        for location, implementation in entrypoints.items():
-            try:
-                provenance = implementation.read_package()
-            except (ImportError, ValueError) as error:
-                raise ValueError(
-                    f"Could not read package provenance for entrypoint {location}: {error}"
-                ) from error
-            packages[location] = plan.Package(
-                distribution=provenance.distribution,
-                version=provenance.version,
-            )
-        return packages
-
-    @staticmethod
     def _create_plan_invocations(
         spec_definition: spec.Spec,
         graph: invocation_graph.InvocationGraph,
         nodes: list[invocation_graph.InvocationNode],
-        selected_functions: dict[str, spec_model.FunctionTemplate],
         signatures: dict[str, entrypoint.Signature],
-        packages: dict[str, plan.Package],
     ) -> list[plan.Invocation]:
         """Convert scheduled nodes to portable invocations with resolved metadata."""
         logger.debug("Create portable invocations")
         invocations: list[plan.Invocation] = []
         for node in nodes:
             semantics = node.semantics
-            function = selected_functions[semantics.function_id]
             invocations.append(
                 plan.Invocation.from_spec(
                     spec_definition,
@@ -358,7 +330,6 @@ class Compiler:
                         if semantics.function_id in signatures
                         else None
                     ),
-                    package=packages[function.entrypoint],
                     semantics=semantics,
                 )
             )

@@ -1,5 +1,5 @@
 {
-  "plan_version": 16,
+  "plan_version": 17,
   "required_backend": "polars",
   "invocations": [
     {
@@ -22,7 +22,6 @@
           "source": "string"
         },
         "return_type": null,
-        "package": null,
         "output_features": [
           "reading"
         ],
@@ -67,7 +66,6 @@
           "dataset": "dataframe"
         },
         "return_type": null,
-        "package": null,
         "input_features": [
           "reading"
         ],
@@ -121,7 +119,6 @@
           "dataset_identifiers": "array[string]"
         },
         "return_type": null,
-        "package": null,
         "dependency_ids": [
           "invocation:read:load:telemetry:reading"
         ],
@@ -165,7 +162,6 @@
           "features": "array[string]"
         },
         "return_type": null,
-        "package": null,
         "dependency_ids": [
           "invocation:vectorize:double:telemetry:doubled"
         ],

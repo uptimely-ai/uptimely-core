@@ -355,49 +355,6 @@ def test_saved_plan_executes_without_compiler(
     assert result.datasets["telemetry"]["doubled"].to_list() == [4, 6]
 
 
-def test_engine_reports_package_provenance_without_enforcing_versions(
-    monkeypatch: pytest.MonkeyPatch, engine_for_plan: execution_support.EngineFactory
-) -> None:
-    engine = engine_for_plan(_plan())
-    runtime_package = entrypoint_module.PackageOrigin("runtime-package", "2.0")
-    monkeypatch.setattr(
-        entrypoint_module.PackageOrigin,
-        "read",
-        lambda _module: runtime_package,
-    )
-    executor = execution_module.InvocationExecutor(
-        engine.backend,
-        {
-            location: entrypoint_module.Entrypoint(
-                location,
-                package=entrypoint_module.PackageOrigin("recorded-package", "1.0"),
-            )
-            for location in (
-                "uptimely.codebase.python.entrypoint:PackageOrigin",
-                "math:pi",
-            )
-        },
-        engine.parameters,
-        state_module.RuntimeState(),
-    )
-
-    invocation = copy.replace(
-        engine.plan.invocations[0],
-        entrypoint="uptimely.codebase.python.entrypoint:PackageOrigin",
-        arguments={"distribution": "recorded-package", "version": "1.0"},
-    )
-
-    assert executor._invoke(invocation) == entrypoint_module.PackageOrigin(
-        "recorded-package", "1.0"
-    )
-    incompatible = copy.replace(invocation, entrypoint="math:pi", arguments={})
-    with pytest.raises(
-        ValueError,
-        match="recorded-package.*available runtime package: runtime-package==2.0",
-    ):
-        executor._invoke(incompatible)
-
-
 def test_executor_validates_inputs_against_current_runtime_state(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -445,35 +402,16 @@ def test_executor_validates_inputs_against_current_runtime_state(
     assert caplog.messages == ["Check declared input features"] * 5
 
 
-def test_engine_entrypoints_include_saved_package_provenance(
+def test_engine_reports_unresolved_entrypoint(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
-    original = _plan()
-    saved_plan = copy.replace(
-        original,
-        invocations=[
-            copy.replace(
-                original.invocations[0],
-                semantics=copy.replace(
-                    original.invocations[0].semantics,
-                    package=uptimely_plan.Package(
-                        distribution="recorded-package",
-                        version="1.0",
-                    ),
-                ),
-            ),
-            *original.invocations[1:],
-        ],
-    )
+    saved_plan = _plan()
     engine = engine_for_plan(saved_plan, {"source": "/tmp/input.parquet"})
 
     result = engine.run()
 
     assert result.invocation_statuses[saved_plan.invocations[0].id] == "failed"
-    assert (
-        "recorded package provenance: recorded-package==1.0"
-        in result.failures[saved_plan.invocations[0].id]
-    )
+    assert "test:read" in result.failures[saved_plan.invocations[0].id]
 
 
 def test_repeated_execution_does_not_leak_runtime_state(

@@ -13,7 +13,7 @@ The versioned JSON object groups calls by execution stage:
 
 ```json
 {
-  "plan_version": 16,
+  "plan_version": 17,
   "required_backend": "polars",
   "invocations": [
     {
@@ -46,11 +46,7 @@ The versioned JSON object groups calls by execution stage:
         "output_types": {},
         "column_types": {"pump_id": "string"},
         "argument_types": {},
-        "return_type": "pandas.DataFrame",
-        "package": {
-          "distribution": "pump-package",
-          "version": "1.0.0"
-        }
+        "return_type": "pandas.DataFrame"
       }
     }
   ],
@@ -137,7 +133,6 @@ provenance and validation.
 | `column_types` | Available target and key column names mapped to declared data types. |
 | `argument_types` | Invocation argument names mapped to their declared function argument types. |
 | `return_type` | Declared Python return annotation, or `null` when no annotation is available. |
-| `package` | Installed package provenance for the entrypoint, containing `distribution` and `version`, or `null` when provenance is unavailable. |
 
 The fields `dependency_ids` and `stages` both constrain scheduling:
 `dependency_ids` records the graph, while `stages` is the resolved execution

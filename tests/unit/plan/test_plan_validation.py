@@ -29,7 +29,6 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                     column_types={"plant": "string", "pump": "string", "pressure": "float"},
                     argument_types={"dataset": "dataframe"},
                     return_type="DataFrame",
-                    package=uptimely_plan.Package(distribution="example-package", version="1.0"),
                 ),
             ),
             uptimely_plan.Invocation(

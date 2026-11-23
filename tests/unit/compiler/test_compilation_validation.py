@@ -27,7 +27,6 @@ from uptimely.spec import model as spec_model
         "topology",
         "invocation",
         "entrypoint",
-        "package",
     ],
 )
 def test_compiler_runs_explicit_steps_in_fail_fast_order(
@@ -61,7 +60,6 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
             operator_id="calculate",
             profile_id="entity",
             return_type="float",
-            package=execution_plan.Package(distribution=None, version=None),
         ),
     )
     operators = [
@@ -83,11 +81,9 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         "selection": mock.Mock(return_value={node.node_id}),
         "topology": mock.Mock(return_value=[[node]]),
         "entrypoint": mock.Mock(),
-        "package": mock.Mock(return_value=entrypoint.PackageOrigin(None, None)),
         "invocation": mock.Mock(return_value=emitted_invocation),
     }
     implementation = mock.Mock()
-    implementation.read_package = operations["package"]
     operations["entrypoint"].return_value = implementation
     selected_graph.topology = operations["topology"]
     graph.ancestors.return_value = set()
@@ -132,13 +128,11 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         mock.call.selection(specification, [node], {}, ["result", "result"]),
         mock.call.topology(),
         mock.call.entrypoint("module:calculate"),
-        mock.call.package(),
         mock.call.invocation(
             specification,
             node.node_id,
             dependency_ids=[],
             return_type="float",
-            package=execution_plan.Package(distribution=None, version=None),
             semantics=semantics,
         ),
     ]
@@ -150,10 +144,6 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         assert plan.invocations[0].id == emitted_invocation.id
         assert [stage.invocation_ids for stage in plan.stages] == [[node.node_id]]
         assert plan.invocations[0].semantics.return_type == "float"
-        assert plan.invocations[0].semantics.package == execution_plan.Package(
-            distribution=None,
-            version=None,
-        )
         assert calls.mock_calls == expected
 
 
@@ -185,7 +175,6 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     monkeypatch.setattr(compiler.spec_validation, "validate_spec", mock.Mock())
     signature = entrypoint.Signature(return_annotation=float)
     implementation = mock.Mock()
-    implementation.read_package.return_value = entrypoint.PackageOrigin(None, None)
     implementation.read_signature.return_value = signature
     parse_entrypoint = mock.Mock(return_value=implementation)
     validate = mock.Mock()
@@ -233,7 +222,6 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
         *,
         dependency_ids: list[str],
         return_type: str | None,
-        package: execution_plan.Package,
         semantics: execution_plan.InvocationSemantics,
     ) -> execution_plan.Invocation:
         return execution_plan.Invocation(
@@ -242,7 +230,6 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
             semantics=semantics.__replace__(
                 dependency_ids=dependency_ids,
                 return_type=return_type,
-                package=package,
             ),
         )
 
@@ -258,7 +245,6 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     )
 
     assert parse_entrypoint.call_count == 1
-    implementation.read_package.assert_called_once_with()
     assert [invocation.semantics.return_type for invocation in plan.invocations] == [
         "float",
         "float",
@@ -325,7 +311,6 @@ def test_compiler_logs_feature_and_graph_checks_before_failure(
     else:
         assert "Validate dependency graph ordering" in caplog.messages
         assert "Parse 0 unique entrypoints" in caplog.messages
-        assert "Resolve package ownership for 0 unique entrypoints" in caplog.messages
         assert caplog.messages[-1] == (
             "Validate invocation IDs, dependencies, and execution stages"
         )

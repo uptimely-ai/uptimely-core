@@ -94,27 +94,6 @@ class InstalledImportsTest(unittest.TestCase):
         self.assertTrue((frontend / "css" / "lineage.css").is_file())
         plan = json.loads((build / "plan.json").read_text(encoding="utf-8"))
         self.assertTrue(plan["invocations"])
-        packages = {
-            invocation["entrypoint"]: invocation["semantics"]["package"]
-            for invocation in plan["invocations"]
-        }
-        for entrypoint, package in packages.items():
-            top_level_package = entrypoint.partition(":")[0].partition(".")[0]
-            expected_distribution = {
-                "pump_analytics": None,
-                "pump_io": None,
-                "pump_merge": None,
-                "pump_util": None,
-                "polars": "polars",
-                "uptimely": "uptimely-core",
-            }[top_level_package]
-            self.assertEqual(package["distribution"], expected_distribution)
-            expected_version = (
-                importlib.metadata.version(expected_distribution)
-                if expected_distribution is not None
-                else None
-            )
-            self.assertEqual(package["version"], expected_version)
         deployment = self.root / "deployed-pump-analytics"
         shutil.copytree(build, deployment / "artifacts" / "build")
         shutil.copytree(project / "data" / "input", deployment / "data" / "input")
@@ -133,15 +112,9 @@ class InstalledImportsTest(unittest.TestCase):
         build = project / "artifacts" / "build"
         plan = json.loads((build / "plan.json").read_text(encoding="utf-8"))
         self.assertEqual(
+            {invocation["entrypoint"] for invocation in plan["invocations"]},
             {
-                invocation["entrypoint"]: invocation["semantics"]["package"]
-                for invocation in plan["invocations"]
-            },
-            {
-                "installed_analytics.functions:Readers.values": {
-                    "distribution": "uptimely-import-fixture",
-                    "version": "1.2.3",
-                },
+                "installed_analytics.functions:Readers.values",
             },
         )
         config = project / "uptimely.toml"
@@ -197,8 +170,7 @@ class InstalledImportsTest(unittest.TestCase):
         config.write_text("", encoding="utf-8")
         result = self.command("run", str(project), "--config", str(config), succeeds=False)
         self.assertIn("uptimely_missing_runtime_dependency", result.stderr)
-        self.assertIn("recorded package provenance: uptimely-import-fixture==1.2.3", result.stderr)
-        self.assertIn("available runtime package: uptimely-import-fixture==1.2.3", result.stderr)
+        self.assertIn("installed_analytics.unavailable:read", result.stderr)
         self.assertNotIn("Engine processed", result.stdout)
 
         function["validate_signature"] = True
@@ -207,10 +179,7 @@ class InstalledImportsTest(unittest.TestCase):
             "build", str(project), "--json-spec", str(source_path), succeeds=False
         )
         self.assertIn("uptimely_missing_runtime_dependency", result.stderr)
-        self.assertIn(
-            "available build package: distribution='uptimely-import-fixture' version='1.2.3'",
-            result.stderr,
-        )
+        self.assertIn("installed_analytics.unavailable:read", result.stderr)
 
 
 if __name__ == "__main__":

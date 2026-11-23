@@ -32,6 +32,19 @@ def test_compiler_rejects_string_feature_selection() -> None:
         compiler.Compiler().compile(spec.load_spec(SPEC_PATH), features="health_signal_normalized")
 
 
+def test_compiler_does_not_depend_on_installed_package_metadata(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    def fail_package_lookup(self: shared_entrypoint.Entrypoint) -> shared_entrypoint.PackageOrigin:
+        pytest.fail("Compilation must not inspect entrypoint package metadata")
+
+    monkeypatch.setattr(shared_entrypoint.Entrypoint, "read_package", fail_package_lookup)
+    compiled = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
+
+    assert compiled.invocations
+    assert plan.from_dict(plan.to_dict(compiled)) == compiled
+
+
 def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     specification = spec.load_spec(SPEC_PATH)
     compiled = compiler.Compiler().compile(specification)
@@ -176,21 +189,6 @@ def test_compiler_summarizes_invocation_checks_once(
     assert not any(message.startswith("\nCompiler operator:") for message in caplog.messages)
     assert all("\n" not in message and message == message.lstrip() for message in caplog.messages)
     assert not any(message.startswith("\nCompiler function:") for message in caplog.messages)
-    package_summaries = [
-        message for message in caplog.messages if "Resolve package ownership for " in message
-    ]
-    assert package_summaries == (
-        [
-            "Resolve package ownership for "
-            f"{len({invocation.entrypoint for invocation in compiled.invocations})} "
-            "unique entrypoints"
-        ]
-        if level == logging.DEBUG
-        else []
-    )
-    assert not any(
-        "checking entrypoint package ownership:" in message for message in caplog.messages
-    )
 
 
 def test_inspector_reports_unreadable_function_signatures() -> None:
@@ -244,7 +242,6 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
         assert set(actual.semantics.dependency_ids) == set(expected.semantics.dependency_ids)
         assert actual.semantics.input_features == expected.semantics.input_features
         assert actual.semantics.output_features == expected.semantics.output_features
-        assert actual.semantics.package == expected.semantics.package
         if actual.semantics.function_id == function.id:
             assert actual.entrypoint == function.entrypoint
             assert actual.semantics.return_type is None
@@ -257,7 +254,6 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
     message = str(exc_info.value)
     assert "Could not read signature" in message
     assert "uptimely_test_missing_dependency" in message
-    assert "available build package: distribution=None version=None" in message
 
 
 def test_inspector_still_checks_other_functions_when_a_signature_is_disabled() -> None:
@@ -407,6 +403,3 @@ def test_inspector_inspects_each_distinct_entrypoint_once(
     assert {node.entrypoint for node in restored.invocations} == {
         node.entrypoint for node in compiled.invocations
     }
-    assert [node.semantics.package for node in restored.invocations] == [
-        node.semantics.package for node in compiled.invocations
-    ]

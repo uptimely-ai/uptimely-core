@@ -141,20 +141,8 @@ class Engine:
         """Execute invocations without coupling runtime state to artifact storage."""
         plan = self.plan if plan is None else plan
         state = state_module.RuntimeState()
-        invocation_by_entrypoint = {
-            invocation.entrypoint: invocation for invocation in plan.invocations
-        }
-        packages: dict[str, entrypoint.PackageOrigin] = {}
-        for location, invocation in invocation_by_entrypoint.items():
-            package = invocation.semantics.package
-            if package is not None:
-                packages[location] = entrypoint.PackageOrigin(
-                    distribution=package.distribution,
-                    version=package.version,
-                )
         python_codebase = codebase.Codebase.from_locations(
-            invocation_by_entrypoint,
-            packages,
+            plan.entrypoints,
             entrypoint_type=entrypoint.Entrypoint,
         )
         invocation_executor = execution.InvocationExecutor(
