@@ -107,7 +107,7 @@ def test_explorer_serves_packaged_frontend_without_building(
         assert host == "127.0.0.1"
         assert port == 0
 
-    monkeypatch.setattr(spec_source, "load_project_spec", fail)
+    monkeypatch.setattr(spec_source, "load_spec_source", fail)
     monkeypatch.setattr(compiler.Compiler, "compile", fail)
     monkeypatch.setattr(explorer_server.uvicorn, "run", serve_and_check_assets)
     monkeypatch.setattr(

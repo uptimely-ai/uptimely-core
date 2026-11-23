@@ -21,6 +21,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- `uptimely.project.load_project_spec` has been removed. Resolve a source with
+  `SpecSourceResolver` and load it with `load_spec_source` instead.
 - Execution plans use profile and operator result references.
   The Engine executes explicit calls without targeted execution or
   calculated-feature output summaries.
