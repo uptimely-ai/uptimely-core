@@ -1,7 +1,5 @@
 """Profile relation declarations and their portable representation."""
 
-import typing
-
 import polars as pl
 import pytest
 from support import execution as execution_support
@@ -110,7 +108,7 @@ def _copy_related(
     return dataset.select(identifier, relation, pl.col(value).alias(output))
 
 
-def test_inferred_inputs_exclude_local_and_foreign_keys(monkeypatch: pytest.MonkeyPatch) -> None:
+def test_dimension_keys_and_cross_profile_features_in_bindings() -> None:
     machines = _dimension()
     source = profile.Profile(
         id="source",
@@ -134,8 +132,8 @@ def test_inferred_inputs_exclude_local_and_foreign_keys(monkeypatch: pytest.Monk
                 compute=assembly.Bind(
                     ref.function(_copy_related),
                     dataset=source.dataset,
-                    identifier=ref.feature("pump_id"),
-                    relation=ref.feature("series_id"),
+                    identifier=ref.dimension("machine").resolution("pump").key,
+                    relation=ref.dimension("machine").resolution("series").key,
                     value=ref.feature("value"),
                     output=ref.feature("copied").id,
                 ),
@@ -143,19 +141,7 @@ def test_inferred_inputs_exclude_local_and_foreign_keys(monkeypatch: pytest.Monk
             )
         ],
     )
-    assert "pump_id" not in target.to_model().assembly["copy"].input_features
-    original_validate = model.Spec.model_validate
-    validated_inputs: list[list[str]] = []
-
-    def capture_inputs(value: typing.Any, **kwargs: typing.Any) -> model.Spec:
-        validated_inputs.append(value["profiles"]["target"].assembly["copy"].interface.inputs[:])
-        return original_validate(value, **kwargs)
-
-    with monkeypatch.context() as patch:
-        patch.setattr(model.Spec, "model_validate", capture_inputs)
-        document = conversion.to_model([source, target])
-
-    assert validated_inputs == [["$features.value"]]
+    document = conversion.to_model([source, target])
     validation.validate_spec(document)
     assert document.profiles["target"].assembly["copy"].input_features == ["value"]
     compiled = compiler.Compiler().compile(document, features=["copied"])
@@ -164,6 +150,52 @@ def test_inferred_inputs_exclude_local_and_foreign_keys(monkeypatch: pytest.Monk
     assert invocation.semantics.output_features == ["copied"]
     assert invocation.arguments["identifier"] == "pump_id"
     assert invocation.arguments["relation"] == "series_id"
+
+
+@pytest.mark.parametrize("column", ["pump_id", "series_id"])
+@pytest.mark.parametrize("metadata", [False, True])
+@pytest.mark.parametrize("explicit_inputs", [False, True])
+@pytest.mark.parametrize("nested", [False, True])
+def test_dimension_keys_cannot_be_selected_as_features(
+    column: str, metadata: bool, explicit_inputs: bool, nested: bool
+) -> None:
+    machines = _dimension()
+    selected = ref.feature(column)
+    argument = selected.id if metadata else selected
+    source = profile.Profile(id="source", grain=[machines.resolution("series")])
+    target = profile.Profile(
+        id="target",
+        grain=[machines.resolution("pump")],
+        assembly=[
+            assembly.Operator(
+                id="copy",
+                inputs=[] if explicit_inputs else None,
+                outputs=[feature.Feature(id="copied")],
+                compute=assembly.Bind(
+                    ref.function("reader:copy", returns="dataframe"),
+                    identifier=[argument] if nested else argument,
+                ),
+            )
+        ],
+    )
+    document = conversion.to_model([source, target])
+    if not metadata and not explicit_inputs:
+        assert target.to_model().assembly["copy"].input_features == [column]
+        assert document.profiles["target"].assembly["copy"].input_features == [column]
+    restored = model.Spec.model_validate(serialization.to_document(document))
+
+    with pytest.raises(errors.SpecError, match="Use a dimension resolution key selector") as caught:
+        validation.validate_spec(restored)
+    assert caught.value.code == "dimension_key_feature_selector"
+    assert caught.value.path == (
+        "profiles",
+        "target",
+        "assembly",
+        "copy",
+        "compute",
+        "args",
+        "identifier",
+    ) + ((0,) if nested else ())
 
 
 @pytest.mark.parametrize("staged", [False, True])

@@ -7,7 +7,7 @@ import typing
 from collections import abc
 
 from .. import model as spec_model
-from .. import selectors, serialization
+from .. import serialization
 from . import profile as profile_module
 
 logger = logging.getLogger(__name__)
@@ -49,28 +49,6 @@ def _dimension_registry(
             if existing != dimension_model:
                 raise ValueError(f"Conflicting metadata for dimension '{dimension_model.id}'")
     return dimensions
-
-
-def _remove_key_inputs(
-    profiles: abc.Sequence[profile_module.Profile],
-    profile_models: abc.Mapping[str, spec_model.Profile],
-    dimensions: abc.Mapping[str, spec_model.Dimension],
-) -> None:
-    """Remove inferred feature inputs whose names match Spec keys.
-
-    This handles key columns passed through ``ref.feature``. Dimension
-    resolution key selectors do not create inferred feature inputs.
-    """
-    key_ids = {key for profile in profile_models.values() for key in profile.keys(dimensions)}
-    for profile in profiles:
-        for operator in profile._assembly_by_id.values():
-            if operator.inputs is None:
-                interface = profile_models[profile.id].assembly[operator.id].interface
-                interface.inputs = [
-                    reference
-                    for reference in interface.inputs
-                    if reference.removeprefix(selectors.FEATURE_PREFIX) not in key_ids
-                ]
 
 
 def to_dict(
@@ -119,7 +97,6 @@ def to_model(
     elif not isinstance(functions, (spec_model.FunctionCatalog, dict)):
         raise TypeError("functions must be a FunctionCatalog or dictionary")
 
-    _remove_key_inputs(profiles, profile_values, dimension_values)
     return spec_model.Spec.model_validate(
         {
             "name": name,
