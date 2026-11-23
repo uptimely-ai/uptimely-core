@@ -63,7 +63,8 @@ def run_plan(plan: dict) -> dict[str, str]:
     futures = {}
     for invocation in plan["invocations"]:
         dependencies = {
-            dependency_id: futures[dependency_id] for dependency_id in invocation["dependency_ids"]
+            dependency_id: futures[dependency_id]
+            for dependency_id in invocation["semantics"]["dependency_ids"]
         }
         futures[invocation["id"]] = invoke.submit(
             invocation,

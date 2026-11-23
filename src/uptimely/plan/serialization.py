@@ -39,8 +39,9 @@ def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     for invocation in invocations:
         if not isinstance(invocation, dict):
             raise ValueError("Plan invocations must be objects")
-        invocation_fields = {"id", "entrypoint", "arguments", "semantics"}
-        missing_invocation_fields = sorted(invocation_fields - invocation.keys())
+        invocation_fields = {"id", "entrypoint", "arguments", "returns", "semantics"}
+        required_invocation_fields = {"id", "entrypoint", "arguments", "semantics"}
+        missing_invocation_fields = sorted(required_invocation_fields - invocation.keys())
         unexpected_invocation_fields = sorted(invocation.keys() - invocation_fields)
         if missing_invocation_fields:
             raise ValueError(

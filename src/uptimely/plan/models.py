@@ -163,6 +163,7 @@ class Invocation(_PlanModel):
     id: NonEmptyString
     entrypoint: NonEmptyString
     arguments: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
+    returns: NonEmptyString | None = None
     semantics: InvocationSemantics
 
     @classmethod
@@ -214,6 +215,7 @@ class Invocation(_PlanModel):
             id=node.node_id,
             entrypoint=function.entrypoint,
             arguments=arguments,
+            returns=(profile_id if role == "merge" or semantics.result == "target" else None),
             semantics=semantics,
         )
 

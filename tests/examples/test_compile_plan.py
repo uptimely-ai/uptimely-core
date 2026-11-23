@@ -242,7 +242,7 @@ def test_project_build_cli_exports_complete_bundle(
     saved_plan = json.loads((bundle / "plan.json").read_text(encoding="utf-8"))
     assert saved_plan["invocations"]
     assert all(
-        set(invocation) == {"id", "entrypoint", "arguments", "semantics"}
+        set(invocation) == {"id", "entrypoint", "arguments", "returns", "semantics"}
         for invocation in saved_plan["invocations"]
     )
     assert not (bundle / "explorer").exists()
@@ -306,7 +306,19 @@ def test_build_plan_contains_calls_and_nested_invocation_semantics(
         stage.invocation_ids for stage in pump_bundle.execution_plan.stages
     ]
     assert all(
-        set(invocation) == {"id", "entrypoint", "arguments", "semantics"}
+        set(invocation) == {"id", "entrypoint", "arguments", "returns", "semantics"}
+        for invocation in plan_data["invocations"]
+    )
+    assert all(
+        invocation["returns"]
+        == (
+            invocation["semantics"]["profile_id"]
+            if (
+                invocation["semantics"]["role"] == "merge"
+                or invocation["semantics"]["result"] == "target"
+            )
+            else None
+        )
         for invocation in plan_data["invocations"]
     )
     assert all(

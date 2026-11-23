@@ -13,6 +13,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 id="opaque-read",
                 entrypoint="example.src:load",
                 arguments={"dataset": {"type": "literal", "value": "pump_profile"}},
+                returns="pump_profile",
                 semantics=uptimely_plan.InvocationSemantics(
                     role="compute",
                     result="target",
@@ -34,6 +35,7 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                 id="opaque-collapse",
                 entrypoint="example.src:maximum",
                 arguments={"feature": "pressure"},
+                returns="pump_profile",
                 semantics=uptimely_plan.InvocationSemantics(
                     role="compute",
                     result="target",
@@ -72,6 +74,9 @@ def test_operator_selection_preserves_dependencies_and_saved_order() -> None:
 
     selected = original.for_operator("pump_profile", "pressure_by_pump")
 
+    assert original.invocations_by_id["opaque-read"].returns == "pump_profile"
+    assert original.invocations_by_id["opaque-collapse"].returns == "pump_profile"
+    assert original.invocations_by_id["opaque-write"].returns is None
     assert list(selected.invocations_by_id) == ["opaque-read", "opaque-collapse"]
     assert [stage.root for stage in selected.stages] == [["opaque-read"], ["opaque-collapse"]]
     assert selected.invocations[1].semantics.dependency_ids == ["opaque-read"]
