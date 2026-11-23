@@ -43,9 +43,14 @@ class FunctionTemplate(base.StrictModel):
         """Return dataframe input and output counts, or unknown for a workflow."""
         if self.returns == "any":
             return (None, None)
-        dataframe_inputs = len(self.arguments_by_type.get(arg_types.DATAFRAME, {}))
+        dataframe_inputs = self.dataframe_argument_count
         dataframe_outputs = int(self.returns == "dataframe")
         return dataframe_inputs, dataframe_outputs
+
+    @property
+    def dataframe_argument_count(self) -> int:
+        """Return the number of declared dataframe argument slots."""
+        return sum(arg_types.is_dataframe(argument.type) for argument in self.args.values())
 
     def check_return_contract(self) -> None:
         """Require a supported independent return contract."""

@@ -3,6 +3,7 @@ import copy
 import pytest
 
 from uptimely import plan as uptimely_plan
+from uptimely.spec.model import profile as profile_module
 
 
 def _sample_plan() -> uptimely_plan.ExecutionPlan:
@@ -219,3 +220,23 @@ def test_plan_preserves_runtime_contract_fields() -> None:
     plan = uptimely_plan.from_dict(payload)
 
     assert plan.invocations[1].semantics.row_count_relation == "same"
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("dataframe_input_scope", profile_module.DataFrameInputScope.FOREIGN),
+        ("fragment_dimensions", profile_module.FragmentDimensions.SUBSET),
+        ("row_count_relation", profile_module.RowCountRelation.SAME),
+        ("key_relation", profile_module.KeyRelation.IDENTICAL),
+        ("row_order_relation", profile_module.RowOrderRelation.PRESERVE),
+        ("existing_data_relation", profile_module.ExistingDataRelation.PRESERVE),
+    ],
+)
+def test_semantic_relation_values_round_trip_as_plain_strings(field: str, value: str) -> None:
+    semantics = copy.replace(_sample_plan().invocations[0].semantics, **{field: value})
+
+    restored = uptimely_plan.InvocationSemantics.model_validate_json(semantics.model_dump_json())
+
+    assert restored.model_dump()[field] == value
+    assert type(getattr(restored, field)) is str

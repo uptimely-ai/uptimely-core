@@ -10,7 +10,7 @@ import types
 import typing
 
 from uptimely.codebase.python import codebase, entrypoint
-from uptimely.spec import arg_types
+from uptimely.spec import arg_types, operator_bindings
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
@@ -189,10 +189,11 @@ class BindingInspection:
 
     def inspect_dataframe_contract(self) -> None:
         """Reject declarations with too many dataframe arguments."""
-        dataframe_inputs = sum(
-            arg_types.is_dataframe(argument.type) for argument in self.function.args.values()
+        max_dataframe_inputs = max(
+            max(contract.dataframe_inputs)
+            for contract in operator_bindings.OPERATOR_BINDINGS.values()
         )
-        if dataframe_inputs > 2:
+        if self.function.dataframe_argument_count > max_dataframe_inputs:
             raise errors.SpecError(
                 "Callable contracts support at most two dataframe argument slots",
                 code="invalid_implementation_signature",
