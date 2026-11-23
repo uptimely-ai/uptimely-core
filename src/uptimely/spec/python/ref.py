@@ -16,6 +16,7 @@ __all__ = [
     "OutputReference",
     "input",
     "output",
+    "key",
     "dimension",
     "profile",
     "dataset",
@@ -43,6 +44,11 @@ def output(name: str) -> references.OutputReference:
         value=f"{selectors.FEATURE_PREFIX}{name}",
         role="output",
     )
+
+
+def key(column_id: str) -> references.Reference:
+    """Reference a dataframe key column by its resolution column ID."""
+    return references.Reference(kind=arg_types.STRING, value=column_id)
 
 
 def dimension(name: str) -> references.DimensionReference:
