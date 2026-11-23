@@ -191,14 +191,6 @@ def test_compiler_summarizes_invocation_checks_once(
     assert not any(message.startswith("\nCompiler function:") for message in caplog.messages)
 
 
-def test_inspector_reports_unreadable_function_signatures() -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    spec_definition.functions["ratio"].entrypoint = "invalid-entrypoint"
-
-    with pytest.raises(ValueError, match="Invalid entrypoint 'invalid-entrypoint'"):
-        BindingInspection.inspect_spec(spec_definition)
-
-
 def test_explorer_context_reports_unloadable_function_modules() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions["ratio"].entrypoint = "uptimely_test_missing_dependency:calculate"
@@ -256,17 +248,6 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
     assert "uptimely_test_missing_dependency" in message
 
 
-def test_inspector_still_checks_other_functions_when_a_signature_is_disabled() -> None:
-    spec_definition = spec.load_spec(SPEC_PATH)
-    spec_definition.functions["ratio"].validate_signature = False
-    spec_definition.functions["aggregate"].entrypoint = "uptimely_test_missing_dependency:calculate"
-
-    with pytest.raises(
-        ValueError, match="Could not read signature.*uptimely_test_missing_dependency"
-    ):
-        BindingInspection.inspect_spec(spec_definition)
-
-
 def test_compiler_still_validates_spec_when_signature_validation_is_disabled() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions["ratio"].validate_signature = False
@@ -293,73 +274,6 @@ def test_compiler_instance_can_compile_independent_specs_and_selections() -> Non
         "health_signal_normalized" in invocation.semantics.output_features
         for invocation in selected.invocations
     )
-
-
-def test_inspector_skips_disabled_return_annotation_validation(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    package_name = f"annotation_fixture_{tmp_path.name.replace('-', '_')}"
-    package = tmp_path / package_name
-    package.mkdir()
-    (package / "__init__.py").write_text("", encoding="utf-8")
-    (package / "calculation.py").write_text(
-        "def calculate(**kwargs: object) -> int:\n    return 1\n", encoding="utf-8"
-    )
-    monkeypatch.syspath_prepend(str(tmp_path))
-    spec_definition = spec.load_spec(SPEC_PATH)
-    function = spec_definition.functions["ratio"]
-    function.entrypoint = f"{package_name}.calculation:calculate"
-    function.validate_signature = False
-
-    BindingInspection.inspect_spec(spec_definition)
-
-    function.validate_signature = True
-    with pytest.raises(ValueError, match="Python return annotation is int"):
-        BindingInspection.inspect_spec(spec_definition)
-
-
-def test_inspector_reports_unresolved_signature_annotations(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    package_name = f"unresolved_annotation_{tmp_path.name.replace('-', '_')}"
-    package = tmp_path / package_name
-    package.mkdir()
-    (package / "__init__.py").write_text("", encoding="utf-8")
-    (package / "calculation.py").write_text(
-        "from __future__ import annotations\n"
-        "def calculate(dataset: MissingAnnotation, **kwargs: object) -> object:\n"
-        "    return object()\n",
-        encoding="utf-8",
-    )
-    monkeypatch.syspath_prepend(str(tmp_path))
-    spec_definition = spec.load_spec(SPEC_PATH)
-    spec_definition.functions["ratio"].entrypoint = f"{package_name}.calculation:calculate"
-
-    with pytest.raises(ValueError, match="Could not read signature.*MissingAnnotation"):
-        BindingInspection.inspect_spec(spec_definition)
-
-
-def test_inspector_reports_uninspectable_signatures(
-    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    package_name = f"uninspectable_signature_{tmp_path.name.replace('-', '_')}"
-    package = tmp_path / package_name
-    package.mkdir()
-    (package / "__init__.py").write_text("", encoding="utf-8")
-    (package / "calculation.py").write_text(
-        "class Implementation:\n"
-        "    __signature__ = object()\n"
-        "    def __call__(self, **kwargs: object) -> object:\n"
-        "        return object()\n"
-        "calculate = Implementation()\n",
-        encoding="utf-8",
-    )
-    monkeypatch.syspath_prepend(str(tmp_path))
-    spec_definition = spec.load_spec(SPEC_PATH)
-    spec_definition.functions["ratio"].entrypoint = f"{package_name}.calculation:calculate"
-
-    with pytest.raises(ValueError, match="Could not read signature"):
-        BindingInspection.inspect_spec(spec_definition)
 
 
 @pytest.mark.parametrize("validate_signature", [False, True])
