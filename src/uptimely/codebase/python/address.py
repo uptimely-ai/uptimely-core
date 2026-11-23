@@ -148,15 +148,14 @@ class Function:
 class Entrypoint:
     """Parse and expose the module and function addressed by an entrypoint."""
 
-    def __init__(self, entrypoint: str, package: origin.PackageOrigin | None = None) -> None:
-        """Create an entrypoint with optional package provenance from a saved build."""
+    def __init__(self, entrypoint: str) -> None:
+        """Create an entrypoint from a module and function address."""
         module_path, function_name = self._split_entrypoint(entrypoint)
         self._validate_module_path(module_path)
         self._validate_function_entrypoint(entrypoint, function_name)
 
         self._module_path = module_path
         self._function_name = function_name
-        self.package = package
 
     def read_package(self) -> origin.PackageOrigin:
         """Read package provenance for this entrypoint without importing its module."""
@@ -184,14 +183,8 @@ class Entrypoint:
         try:
             return self.function.read_signature()
         except (ImportError, AttributeError, ValueError, TypeError, NameError) as error:
-            try:
-                package = self.read_package()
-                available = f"distribution={package.distribution!r} version={package.version!r}"
-            except (ImportError, ValueError) as package_error:
-                available = f"unresolved ({package_error})"
             raise ValueError(
-                f"Could not read signature of {self._module_path}:{self._function_name}; "
-                f"available build package: {available}: {error}"
+                f"Could not read signature of {self._module_path}:{self._function_name}: {error}"
             ) from error
 
     @classmethod
@@ -224,7 +217,7 @@ class Entrypoint:
         return self.function.resolve()
 
     def load(self) -> typing.Callable[..., typing.Any]:
-        """Load the callable and include package provenance in resolution errors.
+        """Load the callable and identify the entrypoint in resolution errors.
 
         Returns:
             The resolved Python callable, without enforcing a package version.
@@ -240,14 +233,8 @@ class Entrypoint:
                 )
             return typing.cast(typing.Callable[..., typing.Any], function)
         except (ImportError, AttributeError, TypeError) as error:
-            try:
-                available = str(self.module.read_package())
-            except (ImportError, ValueError) as package_error:
-                available = f"unresolved ({package_error})"
             raise ValueError(
-                f"Could not resolve callable {self._module_path}:{self._function_name}: {error}; "
-                f"recorded package provenance: {self.package or 'unavailable'}; "
-                f"available runtime package: {available}"
+                f"Could not resolve callable {self._module_path}:{self._function_name}: {error}"
             ) from error
 
     @staticmethod

@@ -100,9 +100,6 @@ def test_compilation_preserves_the_saved_plan() -> None:
         invocation["id"]: invocation["semantics"]["return_type"]
         for invocation in expected["invocations"]
     }
-    assert all(
-        invocation["semantics"]["package"] is not None for invocation in actual["invocations"]
-    )
     assert {
         item["id"]: item
         | {

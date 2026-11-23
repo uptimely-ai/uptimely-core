@@ -16,12 +16,9 @@ def isolate_package_index() -> abc.Iterator[None]:
     shared_entrypoint.PackageOrigin.invalidate_cache()
 
 
-def test_python_codebase_indexes_unique_entrypoints_with_package_origins() -> None:
-    package = shared_entrypoint.PackageOrigin("example-package", "1.2.3")
-
+def test_python_codebase_indexes_unique_entrypoints() -> None:
     codebase = codebase_module.Codebase.from_locations(
         ["math:ceil", "math:floor", "math:ceil"],
-        {"math:ceil": package},
     )
 
     assert list(codebase.entrypoints_index) == ["math:ceil", "math:floor"]
@@ -29,7 +26,5 @@ def test_python_codebase_indexes_unique_entrypoints_with_package_origins() -> No
         isinstance(implementation, shared_entrypoint.Entrypoint)
         for implementation in codebase.entrypoints_index.values()
     )
-    assert codebase.entrypoints_index["math:ceil"].package is package
-    assert codebase.entrypoints_index["math:floor"].package is None
     with pytest.raises(TypeError):
         codebase.entrypoints_index["other:call"] = shared_entrypoint.Entrypoint("other:call")  # type: ignore[index]

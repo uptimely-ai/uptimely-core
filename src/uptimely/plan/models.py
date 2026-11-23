@@ -12,7 +12,7 @@ from uptimely.spec import arg_types
 from uptimely.spec import row_context as row_context_module
 from uptimely.spec.model import profile as profile_module
 
-PLAN_VERSION = 16
+PLAN_VERSION = 17
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
@@ -49,13 +49,6 @@ class Stage(pydantic.RootModel[list[NonEmptyString]]):
     def __iter__(self) -> typing.Iterator[str]:
         """Iterate through invocation identifiers in stage order."""
         return iter(self.root)
-
-
-class Package(_PlanModel):
-    """Portable installed-package provenance for an invocation entrypoint."""
-
-    distribution: str | None
-    version: str | None
 
 
 class InvocationSemantics(_PlanModel):
@@ -96,7 +89,6 @@ class InvocationSemantics(_PlanModel):
     column_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     argument_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     return_type: str | None = None
-    package: Package | None = None
 
     @classmethod
     def from_node(
@@ -105,13 +97,11 @@ class InvocationSemantics(_PlanModel):
         *,
         dependency_ids: list[str],
         return_type: str | None,
-        package: Package,
     ) -> typing.Self:
         """Complete a compiler-resolved contract with graph and runtime metadata."""
         return semantics.__replace__(
             dependency_ids=dependency_ids,
             return_type=return_type,
-            package=package,
         )
 
     @pydantic.field_validator("function_id", "operator_id", mode="before")
@@ -172,7 +162,6 @@ _REQUIRED_SEMANTICS_FIELDS = {
     "column_types",
     "argument_types",
     "return_type",
-    "package",
 }
 
 
@@ -193,7 +182,6 @@ class Invocation(_PlanModel):
         *,
         dependency_ids: list[str],
         return_type: str | None,
-        package: Package,
         semantics: InvocationSemantics,
     ) -> typing.Self:
         """Create a portable invocation from a Spec and resolved metadata."""
@@ -201,7 +189,6 @@ class Invocation(_PlanModel):
             semantics,
             dependency_ids=dependency_ids,
             return_type=return_type,
-            package=package,
         )
         function_id = semantics.function_id
         profile_id = semantics.profile_id
@@ -256,7 +243,7 @@ class Invocation(_PlanModel):
 class ExecutionPlan(_PlanModel):
     """Portable invocations and the compiler-selected execution schedule."""
 
-    plan_version: typing.Literal[16]
+    plan_version: typing.Literal[17]
     required_backend: NonEmptyString
     invocations: list[Invocation]
     stages: list[Stage]
@@ -313,9 +300,8 @@ class ExecutionPlan(_PlanModel):
                 )
 
     def _validate_invocation_metadata(self) -> None:
-        """Require consistent entrypoints, return types, and packages."""
+        """Require consistent entrypoints and return types."""
         entrypoint_and_return_by_function: dict[str, tuple[str, str | None]] = {}
-        packages_by_entrypoint: dict[str, Package | None] = {}
         for invocation in self.invocations:
             metadata = (invocation.entrypoint, invocation.semantics.return_type)
             previous = entrypoint_and_return_by_function.setdefault(
@@ -330,14 +316,6 @@ class ExecutionPlan(_PlanModel):
                 raise ValueError(
                     f"Plan has conflicting return annotations for function "
                     f"{invocation.semantics.function_id!r}"
-                )
-            previous_package = packages_by_entrypoint.setdefault(
-                invocation.entrypoint, invocation.semantics.package
-            )
-            if previous_package != invocation.semantics.package:
-                raise ValueError(
-                    f"Plan has conflicting package provenance for entrypoint "
-                    f"{invocation.entrypoint!r}"
                 )
 
     def _validate_execution_order(self, invocation_ids: set[str]) -> None:

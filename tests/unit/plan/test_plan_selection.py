@@ -28,7 +28,6 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
                     column_types={"plant": "string", "pump": "string", "pressure": "float"},
                     argument_types={"dataset": "dataframe"},
                     return_type="DataFrame",
-                    package=uptimely_plan.Package(distribution="example-package", version="1.0"),
                 ),
             ),
             uptimely_plan.Invocation(
@@ -214,7 +213,6 @@ def test_plan_round_trip_preserves_read_key_columns() -> None:
         "column_types",
         "argument_types",
         "return_type",
-        "package",
     ],
 )
 def test_plan_requires_runtime_metadata_in_saved_invocations(field: str) -> None:
@@ -264,10 +262,6 @@ def test_execution_plan_serializes_only_the_portable_plan() -> None:
     assert payload["invocations"][0]["semantics"]["role"] == "compute"
     assert payload["invocations"][0]["semantics"]["result"] == "target"
     assert payload["invocations"][0]["semantics"]["return_type"] == "DataFrame"
-    assert payload["invocations"][0]["semantics"]["package"] == {
-        "distribution": "example-package",
-        "version": "1.0",
-    }
 
 
 def test_plan_json_helpers_round_trip(tmp_path) -> None:
