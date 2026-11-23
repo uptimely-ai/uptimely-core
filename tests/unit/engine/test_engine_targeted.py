@@ -159,8 +159,9 @@ def test_execute_runs_stages_and_returns_runtime_outputs(
         message for message in caplog.messages if message.startswith("Executing operator ")
     ]
     assert executions == [
-        f"Executing operator {invocation.operator_id}, "
-        f"function {invocation.function_id} (role={invocation.role}, result={invocation.result})"
+        f"Executing operator {invocation.semantics.operator_id}, "
+        f"function {invocation.semantics.function_id} "
+        f"(role={invocation.semantics.role}, result={invocation.semantics.result})"
         for invocation in engine.plan.execution_invocations
     ]
     assert caplog.messages.count("Merging into profile telemetry") == 1
@@ -216,27 +217,31 @@ def test_custom_merges_receive_computed_fragment_and_publish_only_on_success(
     reads = [
         uptimely_plan.Invocation(
             id=read_first_id,
-            role="compute",
-            result="fragment",
-            fragment_dimensions="target",
             entrypoint="test:read_first",
-            function_id="read_first",
-            operator_id="first",
-            profile_id="telemetry",
-            output_features=["id", "first"],
-            target_identifiers=["id"],
+            semantics=uptimely_plan.InvocationSemantics(
+                role="compute",
+                result="fragment",
+                fragment_dimensions="target",
+                function_id="read_first",
+                operator_id="first",
+                profile_id="telemetry",
+                output_features=["id", "first"],
+                target_identifiers=["id"],
+            ),
         ),
         uptimely_plan.Invocation(
             id=read_second_id,
-            role="compute",
-            result="fragment",
-            fragment_dimensions="target",
             entrypoint="test:read_second",
-            function_id="read_second",
-            operator_id="second",
-            profile_id="telemetry",
-            output_features=["id", "second"],
-            target_identifiers=["id"],
+            semantics=uptimely_plan.InvocationSemantics(
+                role="compute",
+                result="fragment",
+                fragment_dimensions="target",
+                function_id="read_second",
+                operator_id="second",
+                profile_id="telemetry",
+                output_features=["id", "second"],
+                target_identifiers=["id"],
+            ),
         ),
     ]
 
@@ -245,39 +250,43 @@ def test_custom_merges_receive_computed_fragment_and_publish_only_on_success(
     ) -> uptimely_plan.Invocation:
         return uptimely_plan.Invocation(
             id=invocation_id,
-            role="merge",
-            result="target",
             entrypoint="test:custom_merge",
-            function_id="custom_merge",
-            operator_id=operator_id,
-            profile_id="telemetry",
             arguments={
                 "dataset": "telemetry",
                 "fragment": "$operators.@.fragment",
                 "dataset_identifiers": ["id"],
             },
-            dependency_ids=[compute_id, *dependencies],
-            target_identifiers=["id"],
-            argument_types={
-                "dataset": "dataframe | null",
-                "fragment": "dataframe",
-                "dataset_identifiers": "array[string]",
-            },
+            semantics=uptimely_plan.InvocationSemantics(
+                role="merge",
+                result="target",
+                function_id="custom_merge",
+                operator_id=operator_id,
+                profile_id="telemetry",
+                dependency_ids=[compute_id, *dependencies],
+                target_identifiers=["id"],
+                argument_types={
+                    "dataset": "dataframe | null",
+                    "fragment": "dataframe",
+                    "dataset_identifiers": "array[string]",
+                },
+            ),
         )
 
     first_merge = merge_invocation(merge_first_id, "first", read_first_id, [])
     second_merge = merge_invocation(merge_second_id, "second", read_second_id, [merge_first_id])
     writer = uptimely_plan.Invocation(
         id=write_id,
-        role="compute",
-        result="none",
         entrypoint="test:write",
-        function_id="write",
-        operator_id="write",
-        profile_id="telemetry",
         arguments={"dataset": "telemetry"},
-        dependency_ids=[merge_second_id],
-        argument_types={"dataset": "dataframe"},
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="none",
+            function_id="write",
+            operator_id="write",
+            profile_id="telemetry",
+            dependency_ids=[merge_second_id],
+            argument_types={"dataset": "dataframe"},
+        ),
     )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=uptimely_plan.PLAN_VERSION,

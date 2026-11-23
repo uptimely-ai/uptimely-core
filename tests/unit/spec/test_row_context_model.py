@@ -143,7 +143,7 @@ def test_row_context_reference_is_validated_and_resolved_during_compilation() ->
 
     declaration = spec.Spec.model_validate(configuration)
     plan = compiler.Compiler().compile(declaration)
-    invocation = next(item for item in plan.invocations if item.row_context is not None)
+    invocation = next(item for item in plan.invocations if item.semantics.row_context is not None)
 
     assert invocation.arguments["configuration"] == {"windows": [2]}
 

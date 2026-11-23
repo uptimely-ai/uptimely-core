@@ -92,7 +92,11 @@ def test_input_validation_reads_each_dataset_schema_once(
         engine.backend, {}, engine.parameters, state, validate=True
     )
     invocation = copy.replace(
-        engine.plan.invocations[1], input_features=["asset_id", "reading", "other"]
+        engine.plan.invocations[1],
+        semantics=copy.replace(
+            engine.plan.invocations[1].semantics,
+            input_features=["asset_id", "reading", "other"],
+        ),
     )
 
     executor.check_input_requirements(invocation)
@@ -123,23 +127,26 @@ def test_foreign_input_validation_runs_atomic_checks_in_fail_fast_order(
     caplog.set_level(logging.DEBUG, logger=execution_module.__name__)
     invocation = copy.replace(
         _plan().invocations[1],
-        dataframe_input_scope="foreign",
-        argument_types={"source": "dataframe"},
+        semantics=copy.replace(
+            _plan().invocations[1].semantics,
+            dataframe_input_scope="foreign",
+            argument_types={"source": "dataframe"},
+            input_features=["reading"],
+        ),
         arguments={"source": "source"},
-        input_features=["reading"],
     )
     if invalid == "no_argument":
-        invocation.argument_types.clear()
+        invocation.semantics.argument_types.clear()
     elif invalid == "multiple_arguments":
-        invocation.argument_types["other"] = "dataframe"
+        invocation.semantics.argument_types["other"] = "dataframe"
     elif invalid == "non_reference":
         invocation.arguments["source"] = 1
     elif invalid == "target_reference":
-        invocation.arguments["source"] = invocation.profile_id
+        invocation.arguments["source"] = invocation.semantics.profile_id
     elif invalid == "missing_source":
         invocation.arguments["source"] = "missing"
     elif invalid == "missing_feature":
-        invocation.input_features[:] = ["missing"]
+        invocation.semantics.input_features[:] = ["missing"]
     state = state_module.RuntimeState(
         datasets={"source": execution_support.dataset(pl.DataFrame({"reading": [1]}))}
     )
@@ -210,13 +217,15 @@ def test_vectorize_requires_an_accumulated_target() -> None:
     )
     invocation = uptimely_plan.Invocation(
         id="vectorize",
-        role="compute",
-        result="target",
-        dataframe_input_scope="target",
         entrypoint="test:calculate",
-        function_id="calculate",
-        operator_id="calculate",
-        profile_id="telemetry",
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="target",
+            dataframe_input_scope="target",
+            function_id="calculate",
+            operator_id="calculate",
+            profile_id="telemetry",
+        ),
     )
 
     with pytest.raises(ValueError, match="Profile dataframe is unavailable: telemetry"):
@@ -233,14 +242,16 @@ def test_column_projection_failure_preserves_published_state(
     executor = execution_module.InvocationExecutor(adapter, {}, {}, state)
     invocation = uptimely_plan.Invocation(
         id="vectorize",
-        role="compute",
-        result="target",
-        dataframe_input_scope="target",
         entrypoint="test:calculate",
-        function_id="calculate",
-        operator_id="calculate",
-        profile_id="telemetry",
-        output_features=["first", "second"],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="target",
+            dataframe_input_scope="target",
+            function_id="calculate",
+            operator_id="calculate",
+            profile_id="telemetry",
+            output_features=["first", "second"],
+        ),
     )
     result = original.with_columns(pl.lit(4).alias("first"), pl.lit(6).alias("second"))
 
@@ -304,19 +315,21 @@ def test_vectorize_validation_uses_one_lazy_input_snapshot(
     _patch_callables(monkeypatch, {"test:calculate": calculate})
     invocation = uptimely_plan.Invocation(
         id="vectorize",
-        role="compute",
-        result="target",
-        dataframe_input_scope="target",
         entrypoint="test:calculate",
-        function_id="calculate",
-        operator_id="calculate",
-        profile_id="dataset",
-        target_identifiers=["key"],
-        output_features=["doubled"],
-        row_order_relation="preserve",
-        existing_data_relation="preserve",
         arguments={"dataset": "dataset"},
-        argument_types={"dataset": "dataframe"},
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="target",
+            dataframe_input_scope="target",
+            function_id="calculate",
+            operator_id="calculate",
+            profile_id="dataset",
+            target_identifiers=["key"],
+            output_features=["doubled"],
+            row_order_relation="preserve",
+            existing_data_relation="preserve",
+            argument_types={"dataset": "dataframe"},
+        ),
     )
 
     if validate and reverse:
@@ -374,7 +387,7 @@ def test_vectorize_operator_emits_multiple_features_with_one_call(
     merge_by_grain = merge_module.merge_by_grain
 
     def compute_spy(backend: object, invocation: object, load: object, **kwargs: object) -> object:
-        computed_function_ids.append(invocation.function_id)
+        computed_function_ids.append(invocation.semantics.function_id)
         return compute_fragment(backend, invocation, load, **kwargs)
 
     def merge_spy(*args: object, **kwargs: object) -> object:
@@ -384,52 +397,58 @@ def test_vectorize_operator_emits_multiple_features_with_one_call(
 
     read_invocation = uptimely_plan.Invocation(
         id="invocation:read:load:asset:telemetry:load",
-        role="compute",
-        result="fragment",
-        fragment_dimensions="target",
         entrypoint="test:read",
-        function_id="load",
-        operator_id="load",
-        profile_id="telemetry",
-        output_features=["asset_id", "reading"],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="fragment",
+            fragment_dimensions="target",
+            function_id="load",
+            operator_id="load",
+            profile_id="telemetry",
+            output_features=["asset_id", "reading"],
+        ),
     )
     merge_invocation = uptimely_plan.Invocation(
         id="invocation:merge:merge_by_grain:asset:telemetry:load",
-        role="merge",
-        result="target",
         entrypoint="uptimely.library.merge.polars:merge_by_grain",
-        function_id="merge_by_grain",
-        operator_id="load",
-        profile_id="telemetry",
-        output_features=[],
-        input_features=[],
         arguments={
             "dataset": "telemetry",
             "fragment": "$operators.@.fragment",
             "dataset_identifiers": ["asset_id"],
         },
-        dependency_ids=[read_invocation.id],
-        target_identifiers=["asset_id"],
-        column_types={},
-        argument_types={
-            "dataset": "dataframe | null",
-            "fragment": "dataframe",
-            "dataset_identifiers": "array[string]",
-        },
+        semantics=uptimely_plan.InvocationSemantics(
+            role="merge",
+            result="target",
+            function_id="merge_by_grain",
+            operator_id="load",
+            profile_id="telemetry",
+            output_features=[],
+            input_features=[],
+            dependency_ids=[read_invocation.id],
+            target_identifiers=["asset_id"],
+            column_types={},
+            argument_types={
+                "dataset": "dataframe | null",
+                "fragment": "dataframe",
+                "dataset_identifiers": "array[string]",
+            },
+        ),
     )
     vectorize_invocation = uptimely_plan.Invocation(
         id="invocation:vectorize:calculate:asset:telemetry:reading_plus_one",
-        role="compute",
-        result="target",
-        dataframe_input_scope="target",
         entrypoint="test:calculate",
-        function_id="calculate",
-        operator_id="reading_plus_one",
-        profile_id="telemetry",
-        output_features=["reading_plus_one", "reading_times_two"],
         arguments={"dataset": "telemetry"},
-        argument_types={"dataset": "dataframe"},
-        dependency_ids=[merge_invocation.id],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="target",
+            dataframe_input_scope="target",
+            function_id="calculate",
+            operator_id="reading_plus_one",
+            profile_id="telemetry",
+            output_features=["reading_plus_one", "reading_times_two"],
+            argument_types={"dataset": "dataframe"},
+            dependency_ids=[merge_invocation.id],
+        ),
     )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=uptimely_plan.PLAN_VERSION,

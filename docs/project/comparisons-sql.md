@@ -139,7 +139,8 @@ prerequisites.
 
 ## Validation and deployment
 
-Uptimely checks specification declarations and function contracts during compilation.
+Uptimely checks specification declarations during build validation and inspects
+function implementations against their declarations in the binding inspector.
 Runtime validation can additionally check declared inputs and dataframe
 contracts, including keys and preservation requirements. It is opt-in and
 does not establish that a formula is scientifically correct or that a

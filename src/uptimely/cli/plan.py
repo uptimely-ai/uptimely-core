@@ -15,14 +15,14 @@ def log_stages(plan: plan_module.ExecutionPlan) -> None:
         logger.info("Stage %d", stage_number)
         for invocation in stage:
             dependencies = [
-                invocations_by_id[dependency_id].function_id
-                for dependency_id in invocation.dependency_ids
+                invocations_by_id[dependency_id].semantics.function_id
+                for dependency_id in invocation.semantics.dependency_ids
             ]
             suffix = f" <- [{', '.join(dependencies)}]" if dependencies else ""
             logger.info(
                 "%s(%s) -> %s%s",
-                invocation.function_id,
-                invocation.profile_id,
-                ", ".join(invocation.output_features) or invocation.operator_id,
+                invocation.semantics.function_id,
+                invocation.semantics.profile_id,
+                ", ".join(invocation.semantics.output_features) or invocation.semantics.operator_id,
                 suffix,
             )

@@ -14,7 +14,7 @@ from uptimely.codebase import packaging
 from uptimely.plan import models as plan_models
 from uptimely.spec import model as spec_models
 
-BUILD_VERSION = 5
+BUILD_VERSION = 6
 
 
 class BuildArtifactPaths(pydantic.BaseModel):

@@ -1,6 +1,7 @@
 import uptimely
 import uptimely.compiler as compiler
 import uptimely.engine as engine
+import uptimely.inspector as inspector
 import uptimely.plan as execution_plan
 import uptimely.spec as spec
 from uptimely.application import Params, ProjectConfig
@@ -14,6 +15,7 @@ from uptimely.compiler.graph import (
 from uptimely.engine.config import EngineConfig
 from uptimely.engine.engine import Engine as EngineImplementation
 from uptimely.explorer import graph_style
+from uptimely.inspector import bindings as binding_inspector
 from uptimely.plan.models import ExecutionPlan, Invocation
 from uptimely.spec import feature_graph
 from uptimely.spec import model as spec_model
@@ -39,6 +41,7 @@ from uptimely.spec.model import spec as document
 
 
 def test_canonical_package_exports_preserve_object_identity() -> None:
+    assert inspector.BindingInspection is binding_inspector.BindingInspection
     assert spec.Spec is SpecModel
     assert spec.Profile is ProfileModel
     assert spec.model.Profile is ProfileModel

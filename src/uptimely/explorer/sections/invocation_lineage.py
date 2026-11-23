@@ -35,9 +35,9 @@ def invocation_lineage_payload(
     nodes: list[dict[str, typing.Any]] = []
     invocations_by_id = plan.invocations_by_id
     for invocation in sorted(plan.invocations, key=lambda item: item.id):
-        function = spec_definition.functions[invocation.function_id]
-        is_merge = invocation.role == "merge"
-        key = (invocation.profile_id, invocation.operator_id)
+        function = spec_definition.functions[invocation.semantics.function_id]
+        is_merge = invocation.semantics.role == "merge"
+        key = (invocation.semantics.profile_id, invocation.semantics.operator_id)
         operator = spec_definition.operators_by_key[key]
         grain_relationships = [
             {
@@ -49,10 +49,14 @@ def invocation_lineage_payload(
             for source, relationship in operator.grain_relationships(spec_definition, key).items()
         ]
         profile = (
-            spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
+            spec_definition.profiles.get(invocation.semantics.profile_id)
+            if invocation.semantics.profile_id
+            else None
         )
-        function_name = function.name or invocation.function_id
-        profile_name = profile.name or profile.id if profile is not None else invocation.profile_id
+        function_name = function.name or invocation.semantics.function_id
+        profile_name = (
+            profile.name or profile.id if profile is not None else invocation.semantics.profile_id
+        )
         nodes.append(
             {
                 "id": invocation.id,
@@ -61,44 +65,44 @@ def invocation_lineage_payload(
                 "binding_roles": list(operator.binding_roles),
                 "grain_relationships": grain_relationships,
                 "function_returns": function.returns,
-                "role": invocation.role,
-                "result": invocation.result,
+                "role": invocation.semantics.role,
+                "result": invocation.semantics.result,
                 "stage": stage_by_invocation[invocation.id],
                 "label": function_name,
                 "label_lines": [function_name],
-                "function_id": invocation.function_id,
+                "function_id": invocation.semantics.function_id,
                 "function_name": function_name,
                 "arguments": invocation.arguments,
                 "merge_dataset": invocation.arguments.get("dataset") if is_merge else None,
                 "fragment_source": invocation.arguments.get("fragment") if is_merge else None,
                 "merge_keys": invocation.arguments.get("dataset_identifiers") if is_merge else None,
-                "operator_id": invocation.operator_id,
-                "operator_name": base.humanize_identifier(invocation.operator_id),
-                "profile": invocation.profile_id,
-                "profile_id": invocation.profile_id,
+                "operator_id": invocation.semantics.operator_id,
+                "operator_name": base.humanize_identifier(invocation.semantics.operator_id),
+                "profile": invocation.semantics.profile_id,
+                "profile_id": invocation.semantics.profile_id,
                 "profile_name": profile_name,
                 "feature": (
                     ", ".join(
                         feature_labels.get(feature, feature)
-                        for feature in invocation.output_features
+                        for feature in invocation.semantics.output_features
                     )
-                    if invocation.output_features
+                    if invocation.semantics.output_features
                     else None
                 ),
-                "input_features": invocation.input_features,
-                "output_features": invocation.output_features,
-                "dependency_ids": sorted(invocation.dependency_ids),
+                "input_features": invocation.semantics.input_features,
+                "output_features": invocation.semantics.output_features,
+                "dependency_ids": sorted(invocation.semantics.dependency_ids),
             }
         )
     links = []
     for invocation in plan.invocations:
-        for dependency_id in invocation.dependency_ids:
+        for dependency_id in invocation.semantics.dependency_ids:
             dependency = invocations_by_id[dependency_id]
             dependency_type = (
                 "fragment"
-                if invocation.role == "merge"
-                and dependency.operator_id == invocation.operator_id
-                and dependency.profile_id == invocation.profile_id
+                if invocation.semantics.role == "merge"
+                and dependency.semantics.operator_id == invocation.semantics.operator_id
+                and dependency.semantics.profile_id == invocation.semantics.profile_id
                 else "feature"
             )
             links.append(

@@ -18,6 +18,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Spec bindings are inspected through `uptimely.inspector.BindingInspection`
+  during builds, before compilation. The previous callable validation APIs have
+  been removed.
+- Build bundles store invocation calls and their nested semantics in
+  `plan.json`. Rebuild existing bundles.
 - Configure the project code under `[code]` instead of `[runtime]` or
   `[runtimes]`, set the requirements definition file with `code.requirements`,
   and set the source directory with `code.src` instead of `application.src_path`.

@@ -31,7 +31,8 @@ def test_default_spec_attribute() -> None:
         (application.BUILD_OUTPUT_DIR, "artifacts/build"),
         (application.BUILD_MANIFEST_FILE, "artifacts/build/build.json"),
         (application.BUILD_SPEC_FILE, "artifacts/build/spec.json"),
-        (application.BUILD_EXECUTION_PLAN_FILE, "artifacts/build/execution_plan.json"),
+        (application.BUILD_EXECUTION_PLAN_FILE, "artifacts/build/plan.json"),
+        (application.BUILD_VALIDATION_FILE, "artifacts/build/validation.json"),
     ],
 )
 def test_standard_paths(path: pathlib.Path, expected: str) -> None:
@@ -47,7 +48,8 @@ def _manifest_data() -> dict[str, object]:
         "features": None,
         "artifacts": {
             "spec": "spec.json",
-            "execution_plan": "execution_plan.json",
+            "execution_plan": "plan.json",
+            "validation": "validation.json",
             "code": {"language": "python", "requirements": None, "src": None},
         },
     }
@@ -57,15 +59,18 @@ def _write_bundle(project_root: pathlib.Path) -> pathlib.Path:
     build_root = project_root / application.BUILD_OUTPUT_DIR
     build_root.mkdir(parents=True)
     (build_root / "spec.json").write_text("{}", encoding="utf-8")
-    (build_root / "execution_plan.json").write_text(
+    (build_root / "plan.json").write_text(
         json.dumps(
             {
                 "plan_version": plan_module.PLAN_VERSION,
                 "required_backend": "polars",
-                "invocations": [],
                 "stages": [],
             }
         ),
+        encoding="utf-8",
+    )
+    (build_root / "validation.json").write_text(
+        json.dumps({"validation_version": plan_module.VALIDATION_VERSION, "invocations": []}),
         encoding="utf-8",
     )
     (build_root / "build.json").write_text(json.dumps(_manifest_data()), encoding="utf-8")
@@ -85,7 +90,8 @@ def test_build_manifest_accepts_code_artifacts() -> None:
     data = _manifest_data()
     data["artifacts"] = {
         "spec": "spec.json",
-        "execution_plan": "execution_plan.json",
+        "execution_plan": "plan.json",
+        "validation": "validation.json",
         "code": {
             "language": "python",
             "requirements": "runtime/pyproject.toml",
@@ -115,7 +121,8 @@ def test_build_manifest_validates_code_paths(field: str, path: str) -> None:
     data = _manifest_data()
     data["artifacts"] = {
         "spec": "spec.json",
-        "execution_plan": "execution_plan.json",
+        "execution_plan": "plan.json",
+        "validation": "validation.json",
         "code": {"language": "python", "requirements": None, "src": None, field: path},
     }
 
@@ -129,7 +136,7 @@ def test_build_manifest_defaults_spec_source_for_older_bundles() -> None:
     assert manifest.spec_source is None
 
 
-@pytest.mark.parametrize("version", [0, 2, 3, 4, 5, 6, 8, "7", True])
+@pytest.mark.parametrize("version", [0, 2, 3, 4, 5, 7, 8, "6", True])
 def test_build_manifest_rejects_unsupported_or_noninteger_version(version: object) -> None:
     data = _manifest_data()
     data["build_version"] = version
@@ -158,7 +165,8 @@ def test_load_build_bundle_validates_and_loads_all_declared_artifacts(
     assert bundle.manifest.features is None
     assert bundle.spec_path == bundle.root / "spec.json"
     assert bundle.spec_definition.spec_version == 9
-    assert bundle.execution_plan_path == bundle.root / "execution_plan.json"
+    assert bundle.execution_plan_path == bundle.root / "plan.json"
+    assert bundle.validation_path == bundle.root / "validation.json"
     assert bundle.execution_plan.invocations == []
 
 
@@ -189,7 +197,7 @@ def test_bundle_spec_semantic_validation_is_optional(
             )
 
 
-@pytest.mark.parametrize("artifact", ["spec.json", "execution_plan.json", "build.json"])
+@pytest.mark.parametrize("artifact", ["spec.json", "plan.json", "validation.json", "build.json"])
 def test_bundle_validation_opt_out_preserves_structure_checks(
     tmp_path: pathlib.Path, artifact: str
 ) -> None:
@@ -230,11 +238,14 @@ def test_load_build_bundle_rejects_unsupported_schema(tmp_path: pathlib.Path) ->
         application.load_build_bundle(tmp_path)
 
 
-def test_load_build_bundle_reports_missing_required_artifact(tmp_path: pathlib.Path) -> None:
+@pytest.mark.parametrize("artifact", ["spec.json", "plan.json", "validation.json"])
+def test_load_build_bundle_reports_missing_required_artifact(
+    tmp_path: pathlib.Path, artifact: str
+) -> None:
     build_root = _write_bundle(tmp_path)
-    (build_root / "spec.json").unlink()
+    (build_root / artifact).unlink()
 
-    with pytest.raises(application.BuildError, match="incomplete.*missing artifact spec.json"):
+    with pytest.raises(application.BuildError, match=f"incomplete.*missing artifact {artifact}"):
         application.load_build_bundle(tmp_path)
 
 
@@ -242,7 +253,8 @@ def test_build_manifest_rejects_paths_that_escape_the_bundle() -> None:
     manifest = _manifest_data()
     manifest["artifacts"] = {
         "spec": "../spec.json",
-        "execution_plan": "execution_plan.json",
+        "execution_plan": "plan.json",
+        "validation": "validation.json",
         "code": {"language": "python", "requirements": None, "src": None},
     }
 
@@ -275,6 +287,7 @@ def test_load_build_bundle_does_not_validate_unlisted_files(
     assert set(loaded_bundle.manifest.artifacts.model_dump()) == {
         "spec",
         "execution_plan",
+        "validation",
         "explorer",
         "code",
     }
@@ -282,7 +295,44 @@ def test_load_build_bundle_does_not_validate_unlisted_files(
 
 def test_load_build_bundle_rejects_invalid_saved_plan(tmp_path: pathlib.Path) -> None:
     build_root = _write_bundle(tmp_path)
-    (build_root / "execution_plan.json").write_text('{"invocations": []}', encoding="utf-8")
+    (build_root / "plan.json").write_text('{"invocations": []}', encoding="utf-8")
 
     with pytest.raises(application.BuildError, match="invalid.*cannot load execution plan"):
+        application.load_build_bundle(tmp_path)
+
+
+def test_load_build_bundle_rejects_mismatched_validation_invocations(
+    tmp_path: pathlib.Path,
+) -> None:
+    build_root = _write_bundle(tmp_path)
+    (build_root / "plan.json").write_text(
+        json.dumps(
+            {
+                "plan_version": plan_module.PLAN_VERSION,
+                "required_backend": "polars",
+                "stages": [[{"id": "call", "entrypoint": "module:function", "arguments": {}}]],
+            }
+        ),
+        encoding="utf-8",
+    )
+    (build_root / "validation.json").write_text(
+        json.dumps({"validation_version": plan_module.VALIDATION_VERSION, "invocations": []}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(application.BuildError, match="invocations do not match"):
+        application.load_build_bundle(tmp_path)
+
+
+@pytest.mark.parametrize("validation_version", [0, 2, "1", True])
+def test_load_build_bundle_rejects_unsupported_validation_version(
+    tmp_path: pathlib.Path, validation_version: object
+) -> None:
+    build_root = _write_bundle(tmp_path)
+    (build_root / "validation.json").write_text(
+        json.dumps({"validation_version": validation_version, "invocations": []}),
+        encoding="utf-8",
+    )
+
+    with pytest.raises(application.BuildError, match="Unsupported validation version"):
         application.load_build_bundle(tmp_path)

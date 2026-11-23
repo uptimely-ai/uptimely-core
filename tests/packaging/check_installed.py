@@ -95,7 +95,8 @@ class InstalledImportsTest(unittest.TestCase):
         plan = json.loads((build / "plan.json").read_text(encoding="utf-8"))
         self.assertTrue(plan["invocations"])
         packages = {
-            invocation["entrypoint"]: invocation["package"] for invocation in plan["invocations"]
+            invocation["entrypoint"]: invocation["semantics"]["package"]
+            for invocation in plan["invocations"]
         }
         for entrypoint, package in packages.items():
             top_level_package = entrypoint.partition(":")[0].partition(".")[0]
@@ -132,7 +133,10 @@ class InstalledImportsTest(unittest.TestCase):
         build = project / "artifacts" / "build"
         plan = json.loads((build / "plan.json").read_text(encoding="utf-8"))
         self.assertEqual(
-            {invocation["entrypoint"]: invocation["package"] for invocation in plan["invocations"]},
+            {
+                invocation["entrypoint"]: invocation["semantics"]["package"]
+                for invocation in plan["invocations"]
+            },
             {
                 "installed_analytics.functions:Readers.values": {
                     "distribution": "uptimely-import-fixture",

@@ -53,22 +53,6 @@ class FunctionTemplate(base.StrictModel):
         if self.returns not in function_contracts.RETURN_ROLES:
             raise ValueError(f"Unsupported return contract: {self.returns}")
 
-    def check_dataframe_input_contract(self) -> None:
-        """Require a reusable contract to fit a compute or merge binding."""
-        logger.debug("Check function dataframe argument count: %s", self.id)
-        dataframe_inputs = sum(
-            arg_types.is_dataframe(argument.type) for argument in self.args.values()
-        )
-        if dataframe_inputs > 2:
-            raise ValueError("Callable contracts support at most two dataframe argument slots")
-
-    def check_argument_contracts(self) -> None:
-        """Validate argument rules that depend only on this function declaration."""
-        logger.debug("Check function argument contracts: %s", self.id)
-        for name in self.args:
-            if not name or not name.isidentifier():
-                raise ValueError(f"Invalid argument name: {name!r}")
-
     @pydantic.model_validator(mode="after")
     def generate_name(self) -> typing.Self:
         """Generate a display name from the function ID when one is not supplied."""

@@ -132,7 +132,10 @@ def test_runtime_bindings_resolve_computed_fragment_argument() -> None:
     invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"fragment": "$operators.@.fragment"},
-        argument_types={"fragment": "dataframe"},
+        semantics=copy.replace(
+            PLAN.invocations[0].semantics,
+            argument_types={"fragment": "dataframe"},
+        ),
     )
 
     assert _bindings().resolve_args(invocation, computed_fragment=computed) == {
@@ -144,7 +147,10 @@ def test_runtime_bindings_reject_computed_fragment_without_merge_context() -> No
     invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"fragment": "$operators.@.fragment"},
-        argument_types={"fragment": "dataframe"},
+        semantics=copy.replace(
+            PLAN.invocations[0].semantics,
+            argument_types={"fragment": "dataframe"},
+        ),
     )
 
     with pytest.raises(ValueError, match="Computed fragment is unavailable"):
@@ -155,7 +161,10 @@ def test_runtime_bindings_reject_computed_fragment_with_incompatible_type() -> N
     invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"fragment": "$operators.@.fragment"},
-        argument_types={"fragment": "string"},
+        semantics=copy.replace(
+            PLAN.invocations[0].semantics,
+            argument_types={"fragment": "string"},
+        ),
     )
 
     with pytest.raises(ValueError, match="Merge fragment argument must have dataframe type"):
@@ -193,7 +202,10 @@ def test_runtime_bindings_resolve_nested_parameter_references() -> None:
     read_invocation = copy.replace(
         PLAN.invocations[0],
         arguments={"source": ["$params.source"]},
-        argument_types={"source": "array[string]"},
+        semantics=copy.replace(
+            PLAN.invocations[0].semantics,
+            argument_types={"source": "array[string]"},
+        ),
     )
     bindings = _bindings(
         parameters={"source": "/override/input.parquet"},

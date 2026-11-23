@@ -85,7 +85,7 @@ def test_build_presentation_data_returns_versioned_json_structures(
     assert merge_steps
     assert merge_nodes
     assert len(merge_steps) == sum(
-        invocation.role == "merge" for invocation in bundle.execution_plan.invocations
+        invocation.semantics.role == "merge" for invocation in bundle.execution_plan.invocations
     )
     assert all(step["merge_dataset"] and step["fragment_source"] for step in merge_steps)
     assert all(node["merge_keys"] is not None for node in merge_nodes)

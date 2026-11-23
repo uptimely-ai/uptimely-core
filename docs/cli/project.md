@@ -45,10 +45,10 @@ for progress messages and debug summaries.
 
 ### Build behavior
 
-Building may import Python declarations and inspect function signatures, but it
-does not execute workflow functions or sinks. Python module-level code still
-runs when a declaration or function module is imported. Build only trusted
-project sources. A successful full or scoped build replaces the previous
+Building validates the Spec, imports Python declarations and function entrypoints
+for signature inspection, and compiles the execution plan. It does not execute
+workflow functions or sinks. Python module-level code still runs when a
+declaration or function module is imported. Build only trusted project sources. A successful full or scoped build replaces the previous
 active bundle. Source edits do not change an existing build. Rebuild explicitly
 to publish updated artifacts. If building fails, the last successful bundle
 remains active.

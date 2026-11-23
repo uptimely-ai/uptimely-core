@@ -90,27 +90,21 @@ def test_ambiguous_return_annotations_require_explicit_role_when_bound(
         operator.function_catalog()
 
 
-def test_explicit_return_role_is_checked_against_annotation() -> None:
+def test_explicit_return_role_is_deferred_to_binding_inspection() -> None:
     assert ref.function(scalar_result, returns="any").returns == "any"
-    with pytest.raises(ValueError, match="contradicts return annotation"):
-        ref.function(scalar_result, returns="dataframe")
+    assert ref.function(scalar_result, returns="dataframe").returns == "dataframe"
 
 
-def test_reference_captures_signature_and_checks_argument_names_at_authoring() -> None:
+def test_reference_captures_signature_and_defers_argument_binding_validation() -> None:
     reference = ref.function(dataframe)
     assert reference.signature is not None
     assert tuple(reference.signature.parameters) == ("value",)
-
-    with pytest.raises(TypeError, match="unexpected keyword argument"):
-        authoring.Bind(
-            reference,
-            value=pl.DataFrame(),
-            other=pl.DataFrame(),
-        ).to_model()
-    with pytest.raises(TypeError, match="missing a required argument"):
-        authoring.Bind(
-            reference,
-        ).to_model()
+    bound = authoring.Bind(
+        reference,
+        value=pl.DataFrame(),
+        other=pl.DataFrame(),
+    ).bound_arguments()
+    assert set(bound) == {"value", "other"}
 
 
 def test_direct_callable_and_callable_reference_share_the_same_contract() -> None:

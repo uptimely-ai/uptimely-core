@@ -9,36 +9,11 @@ import pydantic
 
 from uptimely import spec
 from uptimely.spec import arg_types
-from uptimely.spec import row_context as uptimely_row_context
+from uptimely.spec import row_context as row_context_module
 from uptimely.spec.model import profile as profile_module
 
-PLAN_VERSION = 14
+PLAN_VERSION = 16
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
-
-
-class _InvocationNode(typing.Protocol):
-    """Compiler node fields needed to create its portable representation."""
-
-    function_id: str
-    profile_id: str
-    operator_id: str
-    role: typing.Literal["compute", "merge"]
-    result: typing.Literal["none", "target", "fragment"]
-    produces_features: bool
-    is_sink: bool
-    is_workflow: bool
-    dataframe_input_scope: profile_module.DataFrameInputScope
-    fragment_dimensions: profile_module.FragmentDimensions
-    row_count_relation: profile_module.RowCountRelation
-    key_relation: profile_module.KeyRelation
-    row_order_relation: profile_module.RowOrderRelation
-    existing_data_relation: profile_module.ExistingDataRelation
-    output_features: tuple[str, ...]
-    input_features: tuple[str, ...]
-    row_context: uptimely_row_context.RowContext | None
-
-    @property
-    def node_id(self) -> str: ...
 
 
 class _PlanModel(pydantic.BaseModel):
@@ -50,13 +25,6 @@ class _PlanModel(pydantic.BaseModel):
         """Return a revalidated copy with selected fields replaced."""
         values = {name: getattr(self, name) for name in type(self).model_fields}
         return type(self).model_validate({**values, **changes})
-
-
-class Package(_PlanModel):
-    """Portable installed-package provenance for a module entrypoint."""
-
-    distribution: str | None
-    version: str | None
 
 
 class Stage(pydantic.RootModel[list[NonEmptyString]]):
@@ -74,10 +42,25 @@ class Stage(pydantic.RootModel[list[NonEmptyString]]):
         return iter(self.root)
 
 
-class Invocation(_PlanModel):
-    """Portable representation of one compiler-created executable invocation."""
+class Package(_PlanModel):
+    """Portable installed-package provenance for an invocation entrypoint."""
 
-    id: NonEmptyString
+    distribution: str | None
+    version: str | None
+
+
+class _InvocationNode(typing.Protocol):
+    """Compiler node carrying its resolved semantics and opaque graph ID."""
+
+    semantics: InvocationSemantics
+
+    @property
+    def node_id(self) -> str: ...
+
+
+class InvocationSemantics(_PlanModel):
+    """Runtime contract and Spec provenance for one function invocation."""
+
     role: typing.Literal["compute", "merge"]
     result: typing.Literal["none", "target", "fragment"]
     produces_features: bool = False
@@ -90,15 +73,13 @@ class Invocation(_PlanModel):
     key_relation: profile_module.KeyRelation = "unrestricted"
     row_order_relation: profile_module.RowOrderRelation = "unrestricted"
     existing_data_relation: profile_module.ExistingDataRelation = "unrestricted"
-    entrypoint: NonEmptyString
     function_id: NonEmptyString
     operator_id: NonEmptyString
     profile_id: NonEmptyString | None
-    arguments: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
     dependency_ids: list[NonEmptyString] = pydantic.Field(default_factory=list)
     output_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     input_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
-    row_context: uptimely_row_context.RowContext | None = None
+    row_context: row_context_module.RowContext | None = None
     target_identifiers: list[NonEmptyString] = pydantic.Field(default_factory=list)
     fragment_keys: list[NonEmptyString] = pydantic.Field(default_factory=list)
     output_types: dict[NonEmptyString, NonEmptyString | None] = pydantic.Field(default_factory=dict)
@@ -110,114 +91,32 @@ class Invocation(_PlanModel):
     @classmethod
     def from_node(
         cls,
-        spec_definition: spec.Spec,
         node: _InvocationNode,
         *,
         dependency_ids: list[str],
         return_type: str | None,
         package: Package,
     ) -> typing.Self:
-        """Create a portable invocation from a compiler node and resolved metadata.
-
-        The compiler supplies dependency IDs, signature metadata, and package
-        provenance. This factory resolves the node's Spec-backed arguments and
-        copies its declared invocation data; it does not determine graph edges
-        or execution order.
-
-        Args:
-            spec_definition: The validated source Spec.
-            node: Compiler-created node to represent in the plan.
-            dependency_ids: IDs of the node's direct prerequisites.
-            return_type: Portable return annotation, if signature validation is enabled.
-            package: Portable package provenance for the node's entrypoint.
-
-        Returns:
-            The portable invocation corresponding to the compiler node.
-
-        Raises:
-            ValueError: If the node's function does not declare an entrypoint.
-        """
-        function = spec_definition.functions.get(node.function_id)
-        if function is None or not function.entrypoint:
-            raise ValueError(
-                f"Missing entrypoint for function {node.function_id} "
-                f"used by operator {node.operator_id}"
-            )
-        profile_key = spec_definition.profile_keys[node.profile_id]
-        target_identifiers = spec_definition.identifiers_by_profile[profile_key]
-        operator = spec_definition.profiles[node.profile_id].assembly[node.operator_id]
-        feature_id = None
-        if node.role == "compute":
-            output_features = [
-                feature for feature in operator.output_features if feature not in target_identifiers
-            ]
-            feature_id = output_features[0] if len(output_features) == 1 else None
-        arguments = operator.resolve_args(
-            function_id=node.function_id,
-            profile_id=node.profile_id,
-            identifiers_by_profile=spec_definition.identifiers_by_profile,
-            resources=spec_definition.binding_resources,
-            role=node.role,
-            feature_id=feature_id,
-        )
-        profile = spec_definition.profiles[node.profile_id]
-        column_types = {
-            feature_id: feature.type
-            for feature_id, feature in profile.features.items()
-            if feature.type is not None
-        } | spec_definition.identifier_types_by_profile[profile_key]
-        key_types = spec_definition.key_types_by_profile[profile_key]
-        column_types |= key_types
-        output_types = {
-            feature_id: column_types.get(feature_id) for feature_id in node.output_features
-        }
-        return cls(
-            id=node.node_id,
-            role=node.role,
-            result=node.result,
-            produces_features=node.produces_features,
-            is_sink=node.is_sink,
-            is_workflow=node.is_workflow,
-            is_seed=node.role == "compute" and profile.seed == node.operator_id,
-            dataframe_input_scope=node.dataframe_input_scope,
-            fragment_dimensions=node.fragment_dimensions,
-            row_count_relation=node.row_count_relation,
-            key_relation=node.key_relation,
-            row_order_relation=node.row_order_relation,
-            existing_data_relation=node.existing_data_relation,
-            entrypoint=function.entrypoint,
-            function_id=node.function_id,
-            operator_id=node.operator_id,
-            profile_id=node.profile_id,
-            output_features=list(node.output_features),
-            input_features=list(node.input_features),
-            arguments=arguments,
+        """Complete a compiler-resolved contract with graph and runtime metadata."""
+        return node.semantics.__replace__(
             dependency_ids=dependency_ids,
-            row_context=node.row_context,
-            target_identifiers=list(target_identifiers),
-            fragment_keys=list(key_types),
-            output_types=output_types,
-            column_types=column_types,
-            argument_types={key: argument.type for key, argument in function.args.items()},
             return_type=return_type,
             package=package,
         )
 
-    @pydantic.field_validator("entrypoint", "function_id", "operator_id", mode="before")
+    @pydantic.field_validator("function_id", "operator_id", mode="before")
     @classmethod
     def require_declared_identifier(cls, value: object, info: pydantic.ValidationInfo) -> object:
         """Keep declaration-specific errors clear for required invocation strings."""
         if not isinstance(value, str) or not value:
-            field_name = {
-                "entrypoint": "an entrypoint",
-                "function_id": "a function_id",
-                "operator_id": "an operator_id",
-            }[info.field_name]
+            field_name = {"function_id": "a function_id", "operator_id": "an operator_id"}[
+                info.field_name
+            ]
             raise ValueError(f"Invocations must declare {field_name}")
         return value
 
     @pydantic.model_validator(mode="after")
-    def validate_output_features(self) -> typing.Self:
+    def validate_contracts(self) -> typing.Self:
         """Require valid role/result combinations and distinct invocation outputs."""
         if len(set(self.output_features)) != len(self.output_features):
             raise ValueError("Invocation output_features must be unique")
@@ -239,10 +138,98 @@ class Invocation(_PlanModel):
         return self
 
 
+_REQUIRED_SEMANTICS_FIELDS = {
+    "target_identifiers",
+    "fragment_keys",
+    "output_types",
+    "produces_features",
+    "is_sink",
+    "dataframe_input_scope",
+    "fragment_dimensions",
+    "row_count_relation",
+    "key_relation",
+    "row_order_relation",
+    "existing_data_relation",
+    "column_types",
+    "argument_types",
+    "return_type",
+    "package",
+}
+
+
+class Invocation(_PlanModel):
+    """One portable function call and its semantic contract."""
+
+    id: NonEmptyString
+    entrypoint: NonEmptyString
+    arguments: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
+    semantics: InvocationSemantics
+
+    @classmethod
+    def from_node(
+        cls,
+        spec_definition: spec.Spec,
+        node: _InvocationNode,
+        *,
+        dependency_ids: list[str],
+        return_type: str | None,
+        package: Package,
+    ) -> typing.Self:
+        """Create a portable invocation from a compiler node and resolved metadata."""
+        semantics = InvocationSemantics.from_node(
+            node,
+            dependency_ids=dependency_ids,
+            return_type=return_type,
+            package=package,
+        )
+        function_id = node.semantics.function_id
+        profile_id = node.semantics.profile_id
+        operator_id = node.semantics.operator_id
+        role = node.semantics.role
+        function = spec_definition.functions.get(function_id)
+        if function is None or not function.entrypoint:
+            raise ValueError(
+                f"Missing entrypoint for function {function_id} used by operator {operator_id}"
+            )
+        if profile_id is None:
+            raise ValueError(f"Missing profile for function {function_id}")
+        operator = spec_definition.profiles[profile_id].assembly[operator_id]
+        feature_id = None
+        if role == "compute":
+            output_features = [
+                feature
+                for feature in operator.output_features
+                if feature not in semantics.target_identifiers
+            ]
+            feature_id = output_features[0] if len(output_features) == 1 else None
+        arguments = operator.resolve_args(
+            function_id=function_id,
+            profile_id=profile_id,
+            identifiers_by_profile=spec_definition.identifiers_by_profile,
+            resources=spec_definition.binding_resources,
+            role=role,
+            feature_id=feature_id,
+        )
+        return cls(
+            id=node.node_id,
+            entrypoint=function.entrypoint,
+            arguments=arguments,
+            semantics=semantics,
+        )
+
+    @pydantic.field_validator("entrypoint", mode="before")
+    @classmethod
+    def require_declared_identifier(cls, value: object, info: pydantic.ValidationInfo) -> object:
+        """Keep declaration-specific errors clear for required invocation strings."""
+        if not isinstance(value, str) or not value:
+            raise ValueError("Invocations must declare an entrypoint")
+        return value
+
+
 class ExecutionPlan(_PlanModel):
     """Portable invocations and the compiler-selected execution schedule."""
 
-    plan_version: typing.Literal[14]
+    plan_version: typing.Literal[16]
     required_backend: NonEmptyString
     invocations: list[Invocation]
     stages: list[Stage]
@@ -271,14 +258,14 @@ class ExecutionPlan(_PlanModel):
         """Require every computed fragment to be consumed by one merge invocation."""
         merge_dependencies: dict[str, list[str]] = {}
         for invocation in self.invocations:
-            if invocation.role != "merge":
+            if invocation.semantics.role != "merge":
                 continue
             fragment_dependencies = [
                 dependency_id
-                for dependency_id in invocation.dependency_ids
+                for dependency_id in invocation.semantics.dependency_ids
                 if dependency_id in invocations_by_id
-                and invocations_by_id[dependency_id].role == "compute"
-                and invocations_by_id[dependency_id].result == "fragment"
+                and invocations_by_id[dependency_id].semantics.role == "compute"
+                and invocations_by_id[dependency_id].semantics.result == "fragment"
             ]
             if len(fragment_dependencies) != 1:
                 raise ValueError(
@@ -289,7 +276,7 @@ class ExecutionPlan(_PlanModel):
 
         for invocation in self.invocations:
             if (
-                invocation.result == "fragment"
+                invocation.semantics.result == "fragment"
                 and len(merge_dependencies.get(invocation.id, [])) != 1
             ):
                 raise ValueError(
@@ -301,23 +288,24 @@ class ExecutionPlan(_PlanModel):
         entrypoint_and_return_by_function: dict[str, tuple[str, str | None]] = {}
         packages_by_entrypoint: dict[str, Package | None] = {}
         for invocation in self.invocations:
-            metadata = (invocation.entrypoint, invocation.return_type)
+            metadata = (invocation.entrypoint, invocation.semantics.return_type)
             previous = entrypoint_and_return_by_function.setdefault(
-                invocation.function_id, metadata
+                invocation.semantics.function_id, metadata
             )
             if previous[0] != invocation.entrypoint:
                 raise ValueError(
-                    f"Plan assigns function {invocation.function_id!r} to multiple entrypoints"
+                    "Plan assigns function "
+                    f"{invocation.semantics.function_id!r} to multiple entrypoints"
                 )
-            if previous[1] != invocation.return_type:
+            if previous[1] != invocation.semantics.return_type:
                 raise ValueError(
                     f"Plan has conflicting return annotations for function "
-                    f"{invocation.function_id!r}"
+                    f"{invocation.semantics.function_id!r}"
                 )
             previous_package = packages_by_entrypoint.setdefault(
-                invocation.entrypoint, invocation.package
+                invocation.entrypoint, invocation.semantics.package
             )
-            if previous_package != invocation.package:
+            if previous_package != invocation.semantics.package:
                 raise ValueError(
                     f"Plan has conflicting package provenance for entrypoint "
                     f"{invocation.entrypoint!r}"
@@ -333,7 +321,7 @@ class ExecutionPlan(_PlanModel):
         dependencies = {
             dependency_id
             for invocation in self.invocations
-            for dependency_id in invocation.dependency_ids
+            for dependency_id in invocation.semantics.dependency_ids
         }
         unknown = (dependencies | stage_by_invocation.keys()) - invocation_ids
         if unknown:
@@ -344,7 +332,7 @@ class ExecutionPlan(_PlanModel):
         for invocation in self.invocations:
             if any(
                 stage_by_invocation[dependency_id] >= stage_by_invocation[invocation.id]
-                for dependency_id in invocation.dependency_ids
+                for dependency_id in invocation.semantics.dependency_ids
             ):
                 raise ValueError(
                     f"Dependencies for invocation {invocation.id} must be scheduled before it"
@@ -388,7 +376,8 @@ class ExecutionPlan(_PlanModel):
         selected = {
             invocation.id
             for invocation in self.invocations
-            if invocation.profile_id == profile_id and invocation.operator_id == operator_id
+            if invocation.semantics.profile_id == profile_id
+            and invocation.semantics.operator_id == operator_id
         }
         if not selected:
             raise ValueError(
@@ -397,7 +386,7 @@ class ExecutionPlan(_PlanModel):
             )
         pending = list(selected)
         while pending:
-            for dependency_id in self.invocations_by_id[pending.pop()].dependency_ids:
+            for dependency_id in self.invocations_by_id[pending.pop()].semantics.dependency_ids:
                 if dependency_id not in selected:
                     selected.add(dependency_id)
                     pending.append(dependency_id)
@@ -415,12 +404,12 @@ class ExecutionPlan(_PlanModel):
     @functools.cached_property
     def function_ids(self) -> set[str]:
         """Return the distinct functions used by this plan."""
-        return {invocation.function_id for invocation in self.invocations}
+        return {invocation.semantics.function_id for invocation in self.invocations}
 
     @functools.cached_property
     def profile_ids(self) -> set[str | None]:
         """Return the distinct profile IDs used by this plan."""
-        return {invocation.profile_id for invocation in self.invocations}
+        return {invocation.semantics.profile_id for invocation in self.invocations}
 
     @functools.cached_property
     def arguments(self) -> dict[str, dict[str, typing.Any]]:
@@ -432,7 +421,7 @@ class ExecutionPlan(_PlanModel):
         """Return output feature IDs mapped to all their producing invocations."""
         features: dict[str, list[Invocation]] = {}
         for invocation in self.invocations:
-            for feature in invocation.output_features:
+            for feature in invocation.semantics.output_features:
                 features.setdefault(feature, []).append(invocation)
         return features
 
@@ -441,7 +430,7 @@ class ExecutionPlan(_PlanModel):
         """Return invocations grouped by their compute or merge binding role."""
         grouped: dict[typing.Literal["compute", "merge"], list[Invocation]] = {}
         for invocation in self.invocations:
-            grouped.setdefault(invocation.role, []).append(invocation)
+            grouped.setdefault(invocation.semantics.role, []).append(invocation)
         return grouped
 
     @functools.cached_property
@@ -450,8 +439,8 @@ class ExecutionPlan(_PlanModel):
         return {
             feature
             for invocation in self.invocations_by_role.get("compute", [])
-            if invocation.result == "target"
-            for feature in invocation.output_features
+            if invocation.semantics.result == "target"
+            for feature in invocation.semantics.output_features
         }
 
     @functools.cached_property

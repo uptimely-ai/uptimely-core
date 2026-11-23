@@ -1,107 +1,134 @@
 # Execution plan
 
-The execution plan is the Compiler's portable description of what the Engine
-will call, what each call needs, and how the calls depend on one another. It is
-data, not executable Python, and does not contain function implementations.
-The Engine uses it together with the Spec and runtime configuration.
+The execution plan is the versioned `plan.json` build artifact. It records
+function calls, their semantic metadata, and their execution order. It does not
+contain function implementations.
 
-The plan is stored as JSON in `plan.json` inside the build bundle,
-alongside `spec.json`. Project builds normally place these files in
-`artifacts/build/`.
+The call schedule is stored in `plan.json` alongside `spec.json` in the build
+bundle. Project builds normally place these files in `artifacts/build/`.
 
 ## Structure
 
-The versioned JSON object has four root fields:
+The versioned JSON object groups calls by execution stage:
 
 ```json
 {
-  "plan_version": 14,
+  "plan_version": 16,
   "required_backend": "polars",
   "invocations": [
     {
       "id": "read-pump-data--a1b2c3d4e5",
-      "role": "compute",
-      "result": "target",
-      "function_id": "read_pump_data",
-      "operator_id": "read",
-      "profile_id": "pump_telemetry",
       "entrypoint": "pump_io:read_pump_data",
       "arguments": {},
-      "input_features": [],
-      "output_features": ["pressure"],
-      "dependency_ids": []
+      "semantics": {
+        "role": "compute",
+        "result": "target",
+        "produces_features": true,
+        "is_sink": false,
+        "is_workflow": false,
+        "is_seed": true,
+        "dataframe_input_scope": "unrestricted",
+        "fragment_dimensions": "not_applicable",
+        "row_count_relation": "unrestricted",
+        "key_relation": "unrestricted",
+        "row_order_relation": "unrestricted",
+        "existing_data_relation": "unrestricted",
+        "function_id": "read_pump_data",
+        "operator_id": "read_pump_data",
+        "profile_id": "pump",
+        "dependency_ids": [],
+        "output_features": [],
+        "input_features": [],
+        "row_context": null,
+        "target_identifiers": ["pump_id"],
+        "fragment_keys": [],
+        "output_types": {},
+        "column_types": {"pump_id": "string"},
+        "argument_types": {},
+        "return_type": "pandas.DataFrame",
+        "package": {
+          "distribution": "pump-package",
+          "version": "1.0.0"
+        }
+      }
     }
   ],
-  "stages": [
-    ["read-pump-data--a1b2c3d4e5"]
-  ]
+  "stages": [["read-pump-data--a1b2c3d4e5"]]
 }
 ```
 
-| Field | Meaning |
-| --- | --- |
-| `plan_version` | Version of the portable plan format. The current supported version is `14`. |
-| `required_backend` | Dataframe backend required by the plan. The built-in Compiler currently emits `polars`. |
-| `invocations` | Ordered list of executable function calls and their contracts. |
-| `stages` | Lists of invocation IDs grouped by execution order. |
-
-## Invocations
-
-The example shows the main shape; actual invocation objects also include
-execution contracts and runtime metadata. Each invocation describes one
-planned function call. Its portable fields are:
-
-| Field | Purpose |
-| --- | --- |
-| `id` | Unique opaque identifier for this invocation. Consumers should not parse its spelling. |
-| `role` | Binding role: `compute` for the main function call or `merge` for a separate fragment merge. |
-| `result` | How the function result is handled: `none`, complete `target`, or computed `fragment` awaiting a merge. |
-| `produces_features` | Whether this invocation publishes its outputs as feature dependencies. |
-| `is_sink` | Whether this invocation performs a configured publication or write. |
-| `is_workflow` | Whether this invocation runs an opaque workflow with logical feature dependencies rather than dataframe inputs or outputs. |
-| `is_seed` | Whether this invocation initializes its profile dataset as the designated seed. |
-| `dataframe_input_scope` | Declares the scope of dataframe input provided to the invocation. |
-| `fragment_dimensions` | Describes the allowed dimensional grain of a fragment result relative to its target. |
-| `row_count_relation` | States whether output rows must preserve the existing row count or may differ. |
-| `key_relation` | States whether output keys must match existing keys or may differ. |
-| `row_order_relation` | States whether output row order must be preserved or may differ. |
-| `existing_data_relation` | States whether existing dataframe values must be preserved or may be changed. |
-| `entrypoint` | Import location of the Python function the Engine calls. |
-| `function_id` | ID of the Spec function declaration used by this invocation. |
-| `operator_id` | ID of the Spec operator declaration that produces this invocation. |
-| `profile_id` | ID of the profile whose dataframe is supplied or updated, or `null` when not applicable. |
-| `arguments` | Function arguments resolved from the Spec. Runtime storage references remain for the Engine to resolve. |
-| `dependency_ids` | IDs of invocations that must complete before this invocation. |
-| `output_features` | Feature IDs declared as outputs of the associated operation. |
-| `input_features` | Feature IDs declared as inputs to the associated operation. |
-| `target_identifiers` | Ordered identifier columns that define target rows for the invocation's profile. |
-| `fragment_keys` | Identifier and relation columns that may be used to align a fragment with its target. |
-| `output_types` | Logical types for declared output columns, with `null` where a type is not declared. |
-| `column_types` | Logical types for profile identifier and feature columns used by runtime validation. |
-| `argument_types` | Declared types of the function's arguments. |
-| `return_type` | Inspected Python return annotation, if available and signature validation is enabled. |
-| `package` | Package distribution name and version associated with the entrypoint, when available. |
-| `row_context` | Declared row-context requirement, or `null` when none is specified. |
-
-A dataframe result is `target` without a merge and `fragment` with a merge.
-Fragment consumers depend on the merge invocation. Logical workflow outputs
-do not create dataframe columns. Inferred grain relationships appear in
-Explorer, not the plan.
+`plan.json` contains the plan version, required backend, function calls, and
+their semantic metadata. Each invocation keeps call data (`id`, `entrypoint`,
+and `arguments`) separate from its `semantics`. The `stages` field orders
+invocations by dependency level.
 
 ## Stages
 
-Every invocation appears exactly once in `stages`, and each dependency must be
-in an earlier stage. Invocations within one stage have no declared dependency
-on each other. The plan is checked for supported format, valid references, and
-a schedule consistent with its dependencies when it is loaded.
+Every invocation appears exactly once in `stages`. Invocations within one
+stage have no declared dependency on each other. When a bundle is loaded, the
+schedule is checked against the dependencies in each invocation's semantics.
+
+## Semantics
+
+The `semantics` object is analytical metadata for an invocation. It describes
+the invocation's role and result, traces it to a Spec operator and profile,
+declares data dependencies and contracts, and supports runtime validation.
+The fields are part of each invocation in `plan.json`, not a separate artifact.
+
+An Engine should be theoretically able to execute a plan without interpreting
+the `semantics` object. A generic call runner needs the execution order,
+entrypoints, arguments, and a convention for passing return values to later
+calls. It does not need to catalog analytical roles or inspect the meaning of
+those calls.
+
+The built-in Engine also uses `semantics` for analytical dispatch and optional
+contract validation. This includes identifying target transforms, fragments,
+merges, sinks, and dataframe inputs. Those behaviors are separate from basic
+function invocation. A portable plan format could therefore move such routing
+information into explicit call data and leave `semantics` for optional
+provenance and validation.
+
+| Field | Meaning |
+| --- | --- |
+| `role` | Invocation role. `compute` calculates or produces a value. `merge` publishes a computed fragment to its target profile. |
+| `result` | Result routing for a compute invocation: `none` for no dataframe result, `target` for a target-profile dataframe, or `fragment` for a temporary dataframe consumed by one merge invocation. Merge invocations always use `target`. |
+| `produces_features` | Whether the invocation produces declared logical features. |
+| `is_sink` | Whether the invocation is an output or side-effect sink. |
+| `is_workflow` | Whether the invocation is a workflow function without ordinary dataframe output. Workflow invocations must be compute invocations, sinks, and non-dataframe calls. |
+| `is_seed` | Whether the invocation is the seed operator for its profile. |
+| `dataframe_input_scope` | Dataframe input interpretation: `none`, `target`, `foreign`, or `unrestricted`. It tells the Engine whether a dataframe argument refers to no profile, the target profile, a foreign profile, or is context-dependent. |
+| `fragment_dimensions` | Fragment behavior for result validation: `target`, `subset`, or `not_applicable`. It is required for fragment invocations. |
+| `row_count_relation` | Declared row-count relationship to existing target data: `same` or `unrestricted`. |
+| `key_relation` | Declared identifier relationship: `identical` or `unrestricted`. |
+| `row_order_relation` | Declared row-order relationship: `preserve` or `unrestricted`. |
+| `existing_data_relation` | Declared relationship to existing target data: `preserve` or `unrestricted`. |
+| `function_id` | Stable identifier of the function declaration used by the invocation. |
+| `operator_id` | Stable identifier of the source operator declaration. |
+| `profile_id` | Stable identifier of the target or source profile, or `null` when no profile applies. |
+| `dependency_ids` | Invocation IDs that must finish before this invocation. These IDs define the schedule dependencies in addition to the stage list. |
+| `output_features` | Logical feature IDs declared as outputs. A target identifier is not included in this list. |
+| `input_features` | Logical feature IDs declared as inputs. |
+| `row_context` | Observation window required around each row. It can declare a dimension and bounded or unbounded observations before and after the current row. It is `null` when no row context applies. |
+| `target_identifiers` | Identifier columns of the target profile. |
+| `fragment_keys` | Identifier and key columns used when assembling a fragment with the target profile. |
+| `output_types` | Logical output feature IDs mapped to their declared data types. A feature with no declared type has a `null` value. |
+| `column_types` | Available target and key column names mapped to declared data types. |
+| `argument_types` | Invocation argument names mapped to their declared function argument types. |
+| `return_type` | Declared Python return annotation, or `null` when no annotation is available. |
+| `package` | Installed package provenance for the entrypoint, containing `distribution` and `version`, or `null` when provenance is unavailable. |
+
+The fields `dependency_ids` and `stages` both constrain scheduling:
+`dependency_ids` records the graph, while `stages` is the resolved execution
+order. An invocation can be called only after every invocation named in
+`dependency_ids` has succeeded.
 
 ## Versioning
 
-`plan_version` identifies the serialized execution-plan format independently
-of the Spec format. Increment it when an incompatible change is made to the
-plan structure or its contract. A runtime accepts only the plan version it
-supports and does not migrate older plans. After upgrading to a runtime that
-requires a newer plan version, rebuild the bundle from the source Spec.
+`plan_version` identifies the format of `plan.json`, independently of the Spec
+format. Increment it when an incompatible change is made to the plan structure
+or contract. A runtime accepts only the plan version it supports and does not
+migrate older plans. After upgrading to a runtime that requires a newer plan
+version, rebuild the bundle from the source Spec.
 
 ## Learn more
 

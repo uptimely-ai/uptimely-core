@@ -57,8 +57,17 @@ def test_project_build_compiles_once_and_prepares_the_compiled_plan(
         self: project_build.compiler.Compiler,
         spec_definition: spec.Spec,
         features: abc.Collection[str] | None = None,
+        *,
+        signatures: abc.Mapping[str, project_build.entrypoint.Signature] | None = None,
+        validate_spec: bool = True,
     ) -> plan_module.ExecutionPlan:
-        compiled_plan = original_compile(self, spec_definition, features)
+        compiled_plan = original_compile(
+            self,
+            spec_definition,
+            features,
+            signatures=signatures,
+            validate_spec=validate_spec,
+        )
         compiled.append(compiled_plan)
         return compiled_plan
 
@@ -113,10 +122,12 @@ def test_project_build_packages_python_source_and_runtime_definition(
 
     shutil.rmtree(root / "src")
     invocation = next(
-        item for item in build.execution_plan.invocations if item.function_id == "pump_mode"
+        item
+        for item in build.execution_plan.invocations
+        if item.semantics.function_id == "pump_mode"
     )
     result = application.Uptimely(root).run(
-        preview_rows=1, operator=(invocation.profile_id, invocation.operator_id)
+        preview_rows=1, operator=(invocation.semantics.profile_id, invocation.semantics.operator_id)
     )
 
     assert result.failures == {}

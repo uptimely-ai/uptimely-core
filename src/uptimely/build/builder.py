@@ -14,12 +14,15 @@ import pydantic
 
 from uptimely import compiler, spec
 from uptimely.codebase import packaging
+from uptimely.codebase.python import entrypoint
 from uptimely.codebase.python import packaging as python_packaging
 from uptimely.explorer import presentation
+from uptimely.inspector import BindingInspection
 from uptimely.plan import serialization as plan_serialization
 from uptimely.project import config as project_config
 from uptimely.project import defaults, paths, python_imports
 from uptimely.project import spec_source as project_spec_source
+from uptimely.spec import validation as spec_validation
 
 from . import bundle, errors, locking, models
 from . import features as feature_selection
@@ -106,7 +109,13 @@ class ProjectBuilder:
             spec_definition = self._load_spec_definition(spec_source)
             staging_root = self._create_staging_root()
             try:
-                execution_plan = self._compile_plan(spec_definition, selected_features)
+                signatures = self._inspect_bindings(spec_definition)
+                execution_plan = self._compile_plan(
+                    spec_definition,
+                    selected_features,
+                    signatures,
+                    validate_spec=False,
+                )
                 code_artifacts = self._generate_artifacts(
                     spec_definition,
                     execution_plan,
@@ -175,19 +184,38 @@ class ProjectBuilder:
 
     @staticmethod
     def _load_spec_definition(source: project_spec_source.ResolvedSpecSource) -> spec.Spec:
-        """Load a resolved source, deferring semantic validation to compilation."""
+        """Load a resolved source, deferring semantic validation to build inspection."""
         try:
             return project_spec_source.load_spec_source(source, validate=False)
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
 
     @staticmethod
+    def _inspect_bindings(
+        spec_definition: spec.Spec,
+    ) -> dict[str, entrypoint.Signature]:
+        """Validate the Spec and inspect its implementation bindings before compilation."""
+        try:
+            spec_validation.validate_spec(spec_definition)
+            return BindingInspection.inspect_spec(spec_definition)
+        except _SPEC_PROCESSING_ERRORS as error:
+            raise errors.ProjectBuildError("inspection", str(error)) from error
+
+    @staticmethod
     def _compile_plan(
-        spec_definition: spec.Spec, selected_features: list[str] | None
+        spec_definition: spec.Spec,
+        selected_features: list[str] | None,
+        signatures: dict[str, entrypoint.Signature] | None = None,
+        validate_spec: bool = True,
     ) -> compiler.ExecutionPlan:
         """Compile a specification into its execution plan."""
         try:
-            return compiler.Compiler().compile(spec_definition, features=selected_features)
+            return compiler.Compiler().compile(
+                spec_definition,
+                features=selected_features,
+                signatures=signatures,
+                validate_spec=validate_spec,
+            )
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("compilation", str(error)) from error
 

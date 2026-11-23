@@ -102,10 +102,13 @@ def test_engine_preserves_lazy_outputs_and_collects_bounded_previews(
                 invocations=[
                     copy.replace(
                         invocation,
-                        target_identifiers=[],
+                        semantics=copy.replace(
+                            invocation.semantics,
+                            target_identifiers=[],
+                        ),
                         arguments=(
                             invocation.arguments | {"dataset_identifiers": []}
-                            if invocation.role == "merge"
+                            if invocation.semantics.role == "merge"
                             else invocation.arguments
                         ),
                     )
@@ -172,8 +175,8 @@ def test_unsupported_feature_type_is_reported_in_warning(
 ) -> None:
     caplog.set_level(logging.WARNING, logger="uptimely.engine")
     plan = _plan()
-    read = next(item for item in plan.invocations if item.result == "fragment")
-    read.column_types["reading"] = "floatti"
+    read = next(item for item in plan.invocations if item.semantics.result == "fragment")
+    read.semantics.column_types["reading"] = "floatti"
     _patch_callables(
         monkeypatch,
         {"test:read": lambda source: pl.DataFrame({"asset_id": ["A"], "reading": [1]})},
@@ -298,10 +301,10 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
         state,
         validate=validate,
     )
-    read = next(item for item in engine.plan.invocations if item.result == "fragment")
-    merge = next(item for item in engine.plan.invocations if item.role == "merge")
+    read = next(item for item in engine.plan.invocations if item.semantics.result == "fragment")
+    merge = next(item for item in engine.plan.invocations if item.semantics.role == "merge")
     calculate = next(
-        item for item in engine.plan.invocations if item.dataframe_input_scope == "target"
+        item for item in engine.plan.invocations if item.semantics.dataframe_input_scope == "target"
     )
 
     executor.execute(read)
@@ -309,7 +312,7 @@ def test_executor_reuses_dataset_main_frame_and_retains_projected_fragments(
     assert set(state.computed_fragments) == {read.id}
     executor.execute(merge)
     main = state.datasets["telemetry"]
-    source = main.fragments[read.operator_id]
+    source = main.fragments[read.semantics.operator_id]
     assert main.identifiers == ("asset_id",)
     assert source.dataframe.columns == ["asset_id", "reading"]
 
@@ -415,27 +418,29 @@ def test_executor_validates_inputs_against_current_runtime_state(
     )
     invocation = uptimely_plan.Invocation(
         id="invocation",
-        role="compute",
-        result="target",
-        dataframe_input_scope="target",
         entrypoint="test:calculate",
-        function_id="calculate",
-        operator_id="calculate",
-        profile_id="dataset",
-        input_features=["local"],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="target",
+            dataframe_input_scope="target",
+            function_id="calculate",
+            operator_id="calculate",
+            profile_id="dataset",
+            input_features=["local"],
+        ),
     )
 
     executor.check_input_requirements(invocation)
-    invocation.input_features[:] = ["unique"]
+    invocation.semantics.input_features[:] = ["unique"]
     executor.check_input_requirements(invocation)
-    invocation.input_features[:] = ["shared"]
+    invocation.semantics.input_features[:] = ["shared"]
     with pytest.raises(ValueError, match="unavailable or ambiguous: shared"):
         executor.check_input_requirements(invocation)
     runtime_state.datasets["dataset"].dataframe = pl.DataFrame({"new": [1]})
     del runtime_state.datasets["second"]
-    invocation.input_features[:] = ["new"]
+    invocation.semantics.input_features[:] = ["new"]
     executor.check_input_requirements(invocation)
-    invocation.input_features[:] = ["shared"]
+    invocation.semantics.input_features[:] = ["shared"]
     executor.check_input_requirements(invocation)
     assert caplog.messages == ["Check declared input features"] * 5
 
@@ -449,9 +454,12 @@ def test_engine_entrypoints_include_saved_package_provenance(
         invocations=[
             copy.replace(
                 original.invocations[0],
-                package=uptimely_plan.Package(
-                    distribution="recorded-package",
-                    version="1.0",
+                semantics=copy.replace(
+                    original.invocations[0].semantics,
+                    package=uptimely_plan.Package(
+                        distribution="recorded-package",
+                        version="1.0",
+                    ),
                 ),
             ),
             *original.invocations[1:],

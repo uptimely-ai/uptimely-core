@@ -18,10 +18,10 @@ def _log_validation(invocation: plan.Invocation, message: str, *args: object) ->
     logger.debug(
         message + " from operator %s, function %s, invocation %s, profile %s",
         *args,
-        invocation.operator_id,
-        invocation.function_id,
+        invocation.semantics.operator_id,
+        invocation.semantics.function_id,
         invocation.id,
-        invocation.profile_id,
+        invocation.semantics.profile_id,
     )
 
 
@@ -82,28 +82,33 @@ class Fragment:
             ValueError: The invocation does not declare a fragment result or
                 validation rejects the invocation result.
         """
-        if invocation.role != "compute" or invocation.result != "fragment":
+        if invocation.semantics.role != "compute" or invocation.semantics.result != "fragment":
             raise ValueError(
                 f"Invocation {invocation.id} must declare a fragment-producing compute result"
             )
-        if invocation.fragment_dimensions == "not_applicable":
+        if invocation.semantics.fragment_dimensions == "not_applicable":
             raise ValueError(
                 f"Fragment invocation {invocation.id} must declare fragment dimensions"
             )
         dataframe = load()
         if not backend.is_frame(dataframe):
             raise ValueError(
-                f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
+                f"Fragment {invocation.semantics.function_id} must return a Polars DataFrame "
+                "or LazyFrame"
             )
         columns = set(backend.column_names(dataframe))
-        identifiers = tuple(invocation.target_identifiers)
-        available_keys = dict.fromkeys([*identifiers, *invocation.fragment_keys])
+        identifiers = tuple(invocation.semantics.target_identifiers)
+        available_keys = dict.fromkeys([*identifiers, *invocation.semantics.fragment_keys])
         keys = tuple(column for column in available_keys if column in columns)
-        if invocation.fragment_dimensions == "subset" and not set(identifiers).issubset(columns):
+        if invocation.semantics.fragment_dimensions == "subset" and not set(identifiers).issubset(
+            columns
+        ):
             identifiers = keys
         relations = tuple(column for column in keys if column not in identifiers)
         outputs = [
-            key for key in invocation.output_features if key not in invocation.target_identifiers
+            key
+            for key in invocation.semantics.output_features
+            if key not in invocation.semantics.target_identifiers
         ]
         for key in keys:
             if key not in identifiers and key not in outputs:
@@ -144,7 +149,8 @@ class Fragment:
         _log_validation(invocation, "Check fragment dataframe type")
         if not backend.is_frame(self.dataframe):
             raise ValueError(
-                f"Fragment {invocation.function_id} must return a Polars DataFrame or LazyFrame"
+                f"Fragment {invocation.semantics.function_id} must return a Polars DataFrame "
+                "or LazyFrame"
             )
         self._validate_identifier_columns(backend, invocation)
         expected_outputs = (
@@ -152,8 +158,8 @@ class Fragment:
             if output_features is not None
             else [
                 output
-                for output in invocation.output_features
-                if output not in invocation.target_identifiers
+                for output in invocation.semantics.output_features
+                if output not in invocation.semantics.target_identifiers
             ]
         )
         if not validate_content:
@@ -161,13 +167,13 @@ class Fragment:
             return
 
         self._validate_dimensionless_row_count(backend, invocation)
-        if invocation.row_count_relation == "same":
+        if invocation.semantics.row_count_relation == "same":
             _log_validation(invocation, "Check fragment row-count preservation")
             if comparison_frame is None or backend.row_count(comparison_frame) != backend.row_count(
                 self.dataframe
             ):
                 raise ValueError(
-                    f"Operator {invocation.operator_id} "
+                    f"Operator {invocation.semantics.operator_id} "
                     "must preserve the accumulated profile row count"
                 )
         else:
@@ -181,7 +187,7 @@ class Fragment:
             invocation,
             [*self.identifiers, *expected_outputs],
         )
-        if invocation.key_relation == "identical":
+        if invocation.semantics.key_relation == "identical":
             _log_validation(
                 invocation,
                 "Check fragment identifier preservation for columns %s",
@@ -191,7 +197,8 @@ class Fragment:
                 comparison_frame, self.dataframe, self.identifiers
             ):
                 raise ValueError(
-                    f"Operator {invocation.operator_id} must preserve the profile grain keys"
+                    f"Operator {invocation.semantics.operator_id} must preserve the profile "
+                    "grain keys"
                 )
         else:
             _log_validation(invocation, "Skipping fragment identifier preservation (not required)")
@@ -207,7 +214,7 @@ class Fragment:
         missing = sorted(set(self.identifiers) - set(backend.column_names(self.dataframe)))
         if missing:
             raise ValueError(
-                f"Fragment {invocation.function_id} is missing identifier columns: "
+                f"Fragment {invocation.semantics.function_id} is missing identifier columns: "
                 + ", ".join(missing)
             )
 
@@ -222,7 +229,7 @@ class Fragment:
         _log_validation(invocation, "Check fragment dimensionless row count is at most one")
         if backend.row_count(self.dataframe) > 1:
             raise ValueError(
-                f"Fragment {invocation.function_id} contains duplicate identifiers "
+                f"Fragment {invocation.semantics.function_id} contains duplicate identifiers "
                 "(dimensionless profile frames allow at most one row)"
             )
 
@@ -239,7 +246,9 @@ class Fragment:
         )
         keys = backend.select(self.dataframe, self.identifiers)
         if backend.is_duplicated(keys):
-            raise ValueError(f"Fragment {invocation.function_id} contains duplicate identifiers")
+            raise ValueError(
+                f"Fragment {invocation.semantics.function_id} contains duplicate identifiers"
+            )
 
     def _validate_output_columns(
         self,
@@ -253,7 +262,7 @@ class Fragment:
         missing = sorted(set(output_features) - set(backend.column_names(self.dataframe)))
         if missing:
             raise ValueError(
-                f"Operator {invocation.operator_id} is missing output columns: "
+                f"Operator {invocation.semantics.operator_id} is missing output columns: "
                 + ", ".join(missing)
             )
 
@@ -264,9 +273,9 @@ class Fragment:
         columns: abc.Sequence[str],
     ) -> None:
         types = {
-            name: invocation.column_types[name]
+            name: invocation.semantics.column_types[name]
             for name in columns
-            if name in invocation.column_types
+            if name in invocation.semantics.column_types
         }
         _log_validation(invocation, "Check fragment declared column types %s", types)
         backend.validate_types(self.dataframe, types)

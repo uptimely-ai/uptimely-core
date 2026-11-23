@@ -98,36 +98,36 @@ def test_selected_capacity_plan_joins_on_parent_identifiers(
     reader = next(
         invocation
         for invocation in restored.invocations
-        if invocation.profile_id == "pump"
-        and invocation.dataframe_input_scope == "none"
-        and invocation.output_features == ["pump_max_capacity"]
+        if invocation.semantics.profile_id == "pump"
+        and invocation.semantics.dataframe_input_scope == "none"
+        and invocation.semantics.output_features == ["pump_max_capacity"]
     )
-    assert set(reader.fragment_keys) == {
+    assert set(reader.semantics.fragment_keys) == {
         "pump_id",
         "machine_series_id",
         "machine_category_id",
         "server_room_id",
         "data_center_id",
     }
-    assert reader.output_features == ["pump_max_capacity"]
+    assert reader.semantics.output_features == ["pump_max_capacity"]
     series_compute = next(
         invocation
         for invocation in restored.invocations
-        if invocation.profile_id == "pump"
-        and invocation.fragment_dimensions == "subset"
-        and invocation.output_features == ["series_max_capacity"]
+        if invocation.semantics.profile_id == "pump"
+        and invocation.semantics.fragment_dimensions == "subset"
+        and invocation.semantics.output_features == ["series_max_capacity"]
     )
-    assert series_compute.fragment_keys == reader.fragment_keys
+    assert series_compute.semantics.fragment_keys == reader.semantics.fragment_keys
     assert "pump_assets_source" not in series_compute.arguments
-    assert reader.is_seed
+    assert reader.semantics.is_seed
     series_merge = next(
         invocation
         for invocation in restored.invocations
-        if invocation.profile_id == "pump"
-        and invocation.operator_id == series_compute.operator_id
-        and invocation.role == "merge"
+        if invocation.semantics.profile_id == "pump"
+        and invocation.semantics.operator_id == series_compute.semantics.operator_id
+        and invocation.semantics.role == "merge"
     )
-    assert reader.id in series_merge.dependency_ids
+    assert reader.id in series_merge.semantics.dependency_ids
     assert "key_columns" not in series_merge.arguments
     paths = _configured_paths(bundle.project_root)
 
@@ -224,7 +224,7 @@ def test_selected_feature_runs_full_profile_writer_dependencies(
         for invocation in bundle.execution_plan.invocations
         if invocation.id == failure_id
     )
-    assert failed_invocation.operator_id == "read_pump_telemetry"
+    assert failed_invocation.semantics.operator_id == "read_pump_telemetry"
 
 
 @pytest.mark.parametrize(

@@ -1,11 +1,16 @@
 # Compiler
 
 Compiler is the bridge between logical definitions and physical execution.
+It consumes a validated Spec and optional inspected signature metadata. It does
+not import entrypoints or inspect implementation signatures.
 
 ## Operators to invocations
 
-Compiler converts logical operators to physical function invocations. Binding
-connects each operator to a function and its associated arguments.
+Each operator compute binding and merge binding produces one invocation.
+Compilation deterministically maps these bindings to explicit function calls
+with stable invocation IDs. Calls remain traceable to their source operators.
+The Compiler does not execute analytical functions or fuse operator calls into
+hidden work.
 
 ## Resolving binding variables
 
@@ -15,12 +20,14 @@ invocations.
 
 ## Execution graph
 
-Currently compiler's most important job is to creates an ordered graph of invocations based on features dependencies of the operators. In the current implementation each compute and merge action becomes one invocation.
+The Compiler resolves dependencies between invocations and assigns them to
+topological stages. For the same Spec and feature selection, it produces the
+same invocation IDs and stage order.
 
 The seed operator of the profile is always the first invocation.
 
-The graph can be split to topological stages, where each invocation could be executed in parallel.
-
 ## Execution optimization
 
-In the future, it is possible that compiler would apply more advanced optimization stragies to convert logical recipe to most performant execution plan.
+The Compiler does not optimize dataframe operations. A dataframe
+implementation may optimize expressions during execution when it supports lazy
+evaluation.

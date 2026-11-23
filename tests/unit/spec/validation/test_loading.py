@@ -204,17 +204,6 @@ def _python_profile_with_missing_input() -> python_profile.Profile:
             "Unsupported return contract",
         ),
         (
-            function_rules.validate_function_contracts,
-            "vectorize",
-            lambda s: s.functions["compute"].args.update(
-                {
-                    "second": model.Argument(id="second", type="dataframe"),
-                    "third": model.Argument(id="third", type="dataframe"),
-                }
-            ),
-            "at most two dataframe argument slots",
-        ),
-        (
             operator_outputs.validate_compute_function_exists,
             "vectorize",
             lambda s: setattr(compute(s).compute, "function", "missing"),

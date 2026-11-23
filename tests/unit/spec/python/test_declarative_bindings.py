@@ -13,6 +13,11 @@ def must_not_execute(values: list[str], output: str) -> object:
     raise AssertionError("Assembly executed the implementation")
 
 
+@authoring.function(returns="none")
+def implementation(feature: str) -> None:
+    raise AssertionError("Assembly executed the implementation")
+
+
 @pytest.mark.parametrize("returns", ["dataframe", "none", "any"])
 def test_operator_serialization_preserves_compute_contract(returns: str) -> None:
     operator = authoring.Operator(
@@ -299,17 +304,10 @@ def test_assembly_collects_inputs_without_executing_implementation() -> None:
 
 
 @pytest.mark.parametrize(
-    ("arguments", "message"),
-    [
-        ({}, "missing a required argument: 'feature'"),
-        ({"feature": "temperature", "unknown": 1}, "unexpected keyword argument 'unknown'"),
-    ],
+    "arguments",
+    [{}, {"feature": "temperature", "unknown": 1}],
 )
-def test_assembly_reports_invalid_arguments(arguments: dict[str, object], message: str) -> None:
-    @authoring.function(returns="none")
-    def implementation(feature: str) -> None:
-        pass
-
+def test_assembly_defers_invalid_arguments_to_inspector(arguments: dict[str, object]) -> None:
     class Example(authoring.Profile):
         id = "example"
         assembly = [
@@ -323,9 +321,8 @@ def test_assembly_reports_invalid_arguments(arguments: dict[str, object], messag
             )
         ]
 
-    with pytest.raises(TypeError, match="Profile 'example', operator 'invalid'") as error:
-        Example().to_model()
-    assert message in str(error.value)
+    model = Example().to_model()
+    assert model.assembly["invalid"].compute.args.keys() == arguments.keys()
 
 
 @pytest.mark.parametrize("identifier", ["result", "machine"])

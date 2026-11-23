@@ -32,6 +32,20 @@ current Engine processes stages and invocations sequentially.
 An invocation runs only after its prerequisites succeed. If one fails, execution stops,
 remaining invocations are marked skipped, and the result includes the failure.
 
+At the function-call level, an ordered sequence of entrypoints and arguments is
+enough to invoke a flow. Such a runner need not catalog or visualize the
+analytical meaning of those calls. Uptimely's data-aware Engine also uses
+invocation semantics to dispatch compute and merge calls and route dataframe
+results. Runtime validation is optional and checks the declared contracts
+rather than enabling this basic result routing.
+
+The same separation applies to the plan format. The execution order, entrypoint,
+arguments, and an explicit convention for passing return values are sufficient
+for a generic engine to execute the call sequence. The `semantics` object is
+analytical metadata. It enables Uptimely's built-in dataframe dispatch,
+fragment and merge handling, and optional validation, while a generic runner
+could ignore it and use explicit call-data routing instead.
+
 Configured read and write functions are ordinary function calls and may have
 external side effects.
 

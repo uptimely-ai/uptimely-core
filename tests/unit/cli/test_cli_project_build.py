@@ -79,20 +79,18 @@ def test_project_build_examples(
     assert not result.err
     if debug:
         assert "Check operator feature dependencies are acyclic" in result.out
-        assert result.out.count("Check feature selection is a collection, not a string") == 1
-        assert (
-            result.out.index("Check spec version is an integer")
-            < result.out.index("Check globally unique profile IDs")
-            < result.out.index("Check feature selection is a collection, not a string")
+        assert result.out.count("Check feature selection is a collection, not a string") == 0
+        assert result.out.index("Check spec version is an integer") < result.out.index(
+            "Check globally unique profile IDs"
         )
         assert "Validate dependency graph ordering" in result.out
         assert "\nCompiler operator: " not in result.out
         assert result.out.count("Validate function entrypoint declarations") == 1
         assert result.out.count("Resolve structural argument references") == 1
         assert result.out.count("Create portable invocations") == 1
-        assert result.out.count("Parse ") == 1
+        assert result.out.count("Parse ") == 2
         assert result.out.count("Resolve package ownership for ") == 1
-        assert result.out.count("Validate callable signatures for ") == 1
+        assert result.out.count("Inspect callable signatures for ") == 1
         assert "\nCompiler function:" not in result.out
         assert result.out.index("Build summary\n+") > result.out.index(
             "Validate invocation IDs, dependencies, and execution stages"
@@ -442,9 +440,18 @@ def test_project_build_keeps_warnings_visible(
         self: project_build.compiler.Compiler,
         spec_definition: spec.Spec,
         features: abc.Collection[str] | None = None,
+        *,
+        signatures: abc.Mapping[str, object] | None = None,
+        validate_spec: bool = True,
     ) -> plan_module.ExecutionPlan:
         compiler_module.logger.warning("Build warning")
-        return original_compile(self, spec_definition, features)
+        return original_compile(
+            self,
+            spec_definition,
+            features,
+            signatures=signatures,
+            validate_spec=validate_spec,
+        )
 
     monkeypatch.setattr(project_build.compiler.Compiler, "compile", compile_with_warning)
 
@@ -453,9 +460,9 @@ def test_project_build_keeps_warnings_visible(
     result = capsys.readouterr()
     assert not result.err
     assert result.out == (
-        f"{'WARNING':8} | Build warning\n"
         "INFO     | Start spec validation\n"
         "INFO     | Spec validated\n"
+        f"{'WARNING':8} | Build warning\n"
         f"{'INFO':8} | "
         f"Build files created to {root / application.BUILD_OUTPUT_DIR}\n"
     )
@@ -475,17 +482,19 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
 
     assert bundle.manifest.features == ["pump_health_score"]
     plan_invocations = bundle.execution_plan.invocations
-    sinks = [invocation for invocation in plan_invocations if invocation.is_sink]
+    sinks = [invocation for invocation in plan_invocations if invocation.semantics.is_sink]
     assert sinks
     plan_ids = {invocation.id for invocation in plan_invocations}
     produced_features = {
-        feature for invocation in plan_invocations for feature in invocation.output_features
+        feature
+        for invocation in plan_invocations
+        for feature in invocation.semantics.output_features
     }
     dimensions = set(source_spec.identifier_ids)
     for invocation in plan_invocations:
-        assert set(invocation.dependency_ids) <= plan_ids
+        assert set(invocation.semantics.dependency_ids) <= plan_ids
     for sink in sinks:
-        assert set(sink.input_features) <= produced_features | dimensions
+        assert set(sink.semantics.input_features) <= produced_features | dimensions
     full_plan = example_support.example_bundle().execution_plan
     assert len(bundle.execution_plan.invocations) <= len(full_plan.invocations)
     assert len({invocation.id for invocation in bundle.execution_plan.invocations}) == len(

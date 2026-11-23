@@ -184,10 +184,10 @@ def test_grouped_dataframe_outputs_execute_once_with_calculated_inputs(
 ):
     spec_definition = _spec(lazy=lazy)
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
-    assert not any("unneeded" in item.output_features for item in plan.invocations)
-    collapse = next(item for item in plan.invocations if item.profile_id == "summary")
-    assert collapse.input_features == ["value", "doubled"]
-    assert len(collapse.dependency_ids) == 2
+    assert not any("unneeded" in item.semantics.output_features for item in plan.invocations)
+    collapse = next(item for item in plan.invocations if item.semantics.profile_id == "summary")
+    assert collapse.semantics.input_features == ["value", "doubled"]
+    assert len(collapse.semantics.dependency_ids) == 2
     result = engine_for_plan(plan, spec_definition=spec_definition).run()
     assert not result.failures
     frame = result.datasets["summary"]
@@ -251,20 +251,20 @@ def test_conform_round_trip_executes_with_only_foreign_frame_and_explicit_keys(
     plan = compiler.Compiler().compile(spec_definition, features=["conformed_value"])
     portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
     conform_invocation = next(
-        item for item in portable.invocations if item.operator_id == "conform_source"
+        item for item in portable.invocations if item.semantics.operator_id == "conform_source"
     )
     source_merge = next(
         item
         for item in portable.invocations
-        if item.operator_id == "read_source" and item.role == "merge"
+        if item.semantics.operator_id == "read_source" and item.semantics.role == "merge"
     )
-    assert all(item.operator_id != "read_target" for item in portable.invocations)
+    assert all(item.semantics.operator_id != "read_target" for item in portable.invocations)
 
     assert conform_invocation.arguments == {
         "source": "foreign",
         "matching_keys": ["group"],
     }
-    assert conform_invocation.dependency_ids == [source_merge.id]
+    assert conform_invocation.semantics.dependency_ids == [source_merge.id]
     stage_by_id = {
         invocation_id: stage_number
         for stage_number, stage in enumerate(portable.stages)
@@ -347,16 +347,17 @@ def test_profile_seed_is_persisted_and_runs_before_fragment_merges(
 
     plan = compiler.Compiler().compile(restored, features=["base_value"])
     portable = plan_module.from_dict(json.loads(json.dumps(plan_module.to_dict(plan))))
-    initial = next(item for item in portable.invocations if item.operator_id == "initial")
+    initial = next(item for item in portable.invocations if item.semantics.operator_id == "initial")
     merged = next(
         item
         for item in portable.invocations
-        if item.profile_id == "target" and item.role == "merge"
+        if item.semantics.profile_id == "target" and item.semantics.role == "merge"
     )
-    assert initial.is_seed
-    assert initial.id in merged.dependency_ids
+    assert initial.semantics.is_seed
+    assert initial.id in merged.semantics.dependency_ids
     assert not any(
-        item.operator_id == "initial" and item.role == "merge" for item in portable.invocations
+        item.semantics.operator_id == "initial" and item.semantics.role == "merge"
+        for item in portable.invocations
     )
 
     result = engine_for_plan(portable, spec_definition=restored).run()
@@ -420,11 +421,11 @@ def test_write_receives_the_seeded_dataset(
     )
     spec_definition = spec.from_python(profiles=[target])
     plan = compiler.Compiler().compile(spec_definition, features=["source_value"])
-    seed = next(invocation for invocation in plan.invocations if invocation.is_seed)
+    seed = next(invocation for invocation in plan.invocations if invocation.semantics.is_seed)
     writer = next(
-        invocation for invocation in plan.invocations if invocation.operator_id == "write"
+        invocation for invocation in plan.invocations if invocation.semantics.operator_id == "write"
     )
-    assert seed.id in writer.dependency_ids
+    assert seed.id in writer.semantics.dependency_ids
 
     result = engine_for_plan(plan, spec_definition=spec_definition).run()
     assert result.failures == {}
@@ -437,8 +438,11 @@ def test_write_receives_the_seeded_dataset(
 def test_dimensional_inputs_are_validated_against_the_foreign_dataframe() -> None:
     spec_definition = _spec()
     plan = compiler.Compiler().compile(spec_definition, features=["average"])
-    invocation = next(item for item in plan.invocations if item.profile_id == "summary")
-    invocation = copy.replace(invocation, input_features=["maximum"])
+    invocation = next(item for item in plan.invocations if item.semantics.profile_id == "summary")
+    invocation = copy.replace(
+        invocation,
+        semantics=copy.replace(invocation.semantics, input_features=["maximum"]),
+    )
     state = state_module.RuntimeState(
         datasets={
             "summary": execution_support.dataset(pl.DataFrame({"group": ["A"], "maximum": [4]})),

@@ -11,6 +11,7 @@ from uptimely import application, compiler, spec
 from uptimely import plan as plan
 from uptimely.codebase.python import entrypoint as shared_entrypoint
 from uptimely.explorer.sections import spec as spec_render
+from uptimely.inspector import BindingInspection
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
 
@@ -35,14 +36,14 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     specification = spec.load_spec(SPEC_PATH)
     compiled = compiler.Compiler().compile(specification)
     compute_by_operator = {
-        (invocation.profile_id, invocation.operator_id): invocation
+        (invocation.semantics.profile_id, invocation.semantics.operator_id): invocation
         for invocation in compiled.invocations
-        if invocation.role == "compute"
+        if invocation.semantics.role == "compute"
     }
     merges_by_operator = {
-        (invocation.profile_id, invocation.operator_id): invocation
+        (invocation.semantics.profile_id, invocation.semantics.operator_id): invocation
         for invocation in compiled.invocations
-        if invocation.role == "merge"
+        if invocation.semantics.role == "merge"
     }
 
     assert merges_by_operator
@@ -52,29 +53,37 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     assert set(compute_by_operator) >= set(merges_by_operator)
     for operator_key, merge in merges_by_operator.items():
         compute = compute_by_operator[operator_key]
-        assert compute.id in merge.dependency_ids
-        profile_key = specification.profile_keys[compute.profile_id]
-        assert compute.target_identifiers == specification.identifiers_by_profile[profile_key]
-        assert set(compute.output_types) == set(compute.output_features)
-        assert merge.target_identifiers == compute.target_identifiers
-        assert merge.fragment_keys == compute.fragment_keys
-        assert merge.result == "target"
-        assert merge.role == "merge"
-        assert merge.output_features == []
-        assert merge.output_types == {}
-        assert compute.result == "fragment"
-        assert compute.output_features
+        assert compute.id in merge.semantics.dependency_ids
+        profile_key = specification.profile_keys[compute.semantics.profile_id]
+        assert (
+            compute.semantics.target_identifiers
+            == specification.identifiers_by_profile[profile_key]
+        )
+        assert set(compute.semantics.output_types) == set(compute.semantics.output_features)
+        assert merge.semantics.target_identifiers == compute.semantics.target_identifiers
+        assert merge.semantics.fragment_keys == compute.semantics.fragment_keys
+        assert merge.semantics.result == "target"
+        assert merge.semantics.role == "merge"
+        assert merge.semantics.output_features == []
+        assert merge.semantics.output_types == {}
+        assert compute.semantics.result == "fragment"
+        assert compute.semantics.output_features
     target_transform = next(
         invocation
         for invocation in compiled.invocations
-        if invocation.dataframe_input_scope == "target"
+        if invocation.semantics.dataframe_input_scope == "target"
     )
-    assert target_transform.row_count_relation == "same"
-    assert target_transform.key_relation == "identical"
-    assert target_transform.row_order_relation == "preserve"
-    assert target_transform.existing_data_relation == "preserve"
+    assert target_transform.semantics.row_count_relation == "same"
+    assert target_transform.semantics.key_relation == "identical"
+    assert target_transform.semantics.row_order_relation == "preserve"
+    assert target_transform.semantics.existing_data_relation == "preserve"
     assert all(
-        len({(producer.profile_id, producer.operator_id) for producer in producers})
+        len(
+            {
+                (producer.semantics.profile_id, producer.semantics.operator_id)
+                for producer in producers
+            }
+        )
         == len(producers)
         for producers in compiled.features.values()
     )
@@ -82,20 +91,23 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     feature_producers = {
         feature: invocation
         for invocation in compiled.invocations
-        if invocation.role == "compute"
-        for feature in invocation.output_features
+        if invocation.semantics.role == "compute"
+        for feature in invocation.semantics.output_features
     }
     for invocation in compiled.invocations:
-        if invocation.role == "merge":
+        if invocation.semantics.role == "merge":
             continue
-        for feature in invocation.input_features:
+        for feature in invocation.semantics.input_features:
             producer = feature_producers.get(feature)
-            if producer is None or producer.operator_id == invocation.operator_id:
+            if (
+                producer is None
+                or producer.semantics.operator_id == invocation.semantics.operator_id
+            ):
                 continue
             publication = merges_by_operator.get(
-                (producer.profile_id, producer.operator_id), producer
+                (producer.semantics.profile_id, producer.semantics.operator_id), producer
             )
-            assert publication.id in invocation.dependency_ids
+            assert publication.id in invocation.semantics.dependency_ids
 
     selected_feature = next(
         feature for feature in feature_producers if feature not in specification.identifier_ids
@@ -103,12 +115,13 @@ def test_compiler_lowers_merge_bindings_to_publication_invocations() -> None:
     selected = compiler.Compiler().compile(specification, features=[selected_feature])
     selected_producer = feature_producers[selected_feature]
     selected_merge = merges_by_operator.get(
-        (selected_producer.profile_id, selected_producer.operator_id)
+        (selected_producer.semantics.profile_id, selected_producer.semantics.operator_id)
     )
     if selected_merge is not None:
         assert selected_merge.id in {invocation.id for invocation in selected.invocations}
     assert any(
-        selected_feature in invocation.output_features for invocation in selected.invocations
+        selected_feature in invocation.semantics.output_features
+        for invocation in selected.invocations
     )
 
 
@@ -140,7 +153,7 @@ def test_compiler_rejects_missing_function_entrypoints(
 def test_compiler_summarizes_invocation_checks_once(
     caplog: pytest.LogCaptureFixture, pump_bundle: application.BuildBundle, level: int
 ) -> None:
-    caplog.set_level(level, logger="uptimely.compiler")
+    caplog.set_level(level, logger="uptimely")
     compiler_instance = compiler.Compiler()
 
     compiled = compiler_instance.compile(pump_bundle.spec_definition)
@@ -155,28 +168,7 @@ def test_compiler_summarizes_invocation_checks_once(
     ):
         assert caplog.messages.count(check) == (1 if level == logging.DEBUG else 0)
     assert not any(message.startswith("\nCompiler operator:") for message in caplog.messages)
-    signature_summaries = [
-        message for message in caplog.messages if "Validate callable signatures for " in message
-    ]
-    selected_function_ids = {invocation.function_id for invocation in compiled.invocations}
-    enabled_functions = {
-        invocation.function_id
-        for invocation in compiled.invocations
-        if pump_bundle.spec_definition.functions[invocation.function_id].validate_signature
-    }
-    if level == logging.DEBUG:
-        assert len(signature_summaries) == 1
-        disabled_count = len(selected_function_ids - enabled_functions)
-        assert (
-            signature_summaries[0]
-            == f"Validate callable signatures for {len(enabled_functions)} functions; "
-            f"skip {disabled_count} disabled functions"
-        )
-        assert all(
-            "\n" not in message and message == message.lstrip() for message in caplog.messages
-        )
-    else:
-        assert not signature_summaries
+    assert all("\n" not in message and message == message.lstrip() for message in caplog.messages)
     assert not any(message.startswith("\nCompiler function:") for message in caplog.messages)
     package_summaries = [
         message for message in caplog.messages if "Resolve package ownership for " in message
@@ -195,12 +187,12 @@ def test_compiler_summarizes_invocation_checks_once(
     )
 
 
-def test_compiler_reports_unreadable_function_signatures() -> None:
+def test_inspector_reports_unreadable_function_signatures() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions["ratio"].entrypoint = "invalid-entrypoint"
 
     with pytest.raises(ValueError, match="Invalid entrypoint 'invalid-entrypoint'"):
-        compiler.Compiler().compile(spec_definition)
+        BindingInspection.inspect_spec(spec_definition)
 
 
 def test_explorer_context_reports_unloadable_function_modules() -> None:
@@ -232,7 +224,8 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
     function.entrypoint = f"{package_name}.calculation:calculate"
     function.validate_signature = False
 
-    compiled = compiler.Compiler().compile(spec_definition)
+    signatures = BindingInspection.inspect_spec(spec_definition)
+    compiled = compiler.Compiler().compile(spec_definition, signatures=signatures)
 
     assert not marker.exists()
     assert package_name not in sys.modules
@@ -242,26 +235,26 @@ def test_compiler_skips_disabled_signatures_without_changing_dependencies(
     assert {node.id for node in compiled.invocations} == set(baseline_invocations)
     for actual in compiled.invocations:
         expected = baseline_invocations[actual.id]
-        assert set(actual.dependency_ids) == set(expected.dependency_ids)
-        assert actual.input_features == expected.input_features
-        assert actual.output_features == expected.output_features
-        assert actual.package == expected.package
-        if actual.function_id == function.id:
+        assert set(actual.semantics.dependency_ids) == set(expected.semantics.dependency_ids)
+        assert actual.semantics.input_features == expected.semantics.input_features
+        assert actual.semantics.output_features == expected.semantics.output_features
+        assert actual.semantics.package == expected.semantics.package
+        if actual.semantics.function_id == function.id:
             assert actual.entrypoint == function.entrypoint
-            assert actual.return_type is None
+            assert actual.semantics.return_type is None
         else:
-            assert actual.return_type == expected.return_type
+            assert actual.semantics.return_type == expected.semantics.return_type
 
     function.validate_signature = True
     with pytest.raises(ValueError) as exc_info:
-        compiler.Compiler().compile(spec_definition)
+        BindingInspection.inspect_spec(spec_definition)
     message = str(exc_info.value)
     assert "Could not read signature" in message
     assert "uptimely_test_missing_dependency" in message
     assert "available build package: distribution=None version=None" in message
 
 
-def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() -> None:
+def test_inspector_still_checks_other_functions_when_a_signature_is_disabled() -> None:
     spec_definition = spec.load_spec(SPEC_PATH)
     spec_definition.functions["ratio"].validate_signature = False
     spec_definition.functions["aggregate"].entrypoint = "uptimely_test_missing_dependency:calculate"
@@ -269,7 +262,7 @@ def test_compiler_still_checks_other_functions_when_a_signature_is_disabled() ->
     with pytest.raises(
         ValueError, match="Could not read signature.*uptimely_test_missing_dependency"
     ):
-        compiler.Compiler().compile(spec_definition)
+        BindingInspection.inspect_spec(spec_definition)
 
 
 def test_compiler_still_validates_spec_when_signature_validation_is_disabled() -> None:
@@ -295,12 +288,12 @@ def test_compiler_instance_can_compile_independent_specs_and_selections() -> Non
 
     assert len(complete.invocations) > len(selected.invocations)
     assert any(
-        "health_signal_normalized" in invocation.output_features
+        "health_signal_normalized" in invocation.semantics.output_features
         for invocation in selected.invocations
     )
 
 
-def test_compiler_skips_disabled_return_annotation_validation(
+def test_inspector_skips_disabled_return_annotation_validation(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     package_name = f"annotation_fixture_{tmp_path.name.replace('-', '_')}"
@@ -316,14 +309,14 @@ def test_compiler_skips_disabled_return_annotation_validation(
     function.entrypoint = f"{package_name}.calculation:calculate"
     function.validate_signature = False
 
-    compiler.Compiler().compile(spec_definition)
+    BindingInspection.inspect_spec(spec_definition)
 
     function.validate_signature = True
     with pytest.raises(ValueError, match="Python return annotation is int"):
-        compiler.Compiler().compile(spec_definition)
+        BindingInspection.inspect_spec(spec_definition)
 
 
-def test_compiler_reports_unresolved_signature_annotations(
+def test_inspector_reports_unresolved_signature_annotations(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     package_name = f"unresolved_annotation_{tmp_path.name.replace('-', '_')}"
@@ -341,10 +334,10 @@ def test_compiler_reports_unresolved_signature_annotations(
     spec_definition.functions["ratio"].entrypoint = f"{package_name}.calculation:calculate"
 
     with pytest.raises(ValueError, match="Could not read signature.*MissingAnnotation"):
-        compiler.Compiler().compile(spec_definition)
+        BindingInspection.inspect_spec(spec_definition)
 
 
-def test_compiler_reports_uninspectable_signatures(
+def test_inspector_reports_uninspectable_signatures(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     package_name = f"uninspectable_signature_{tmp_path.name.replace('-', '_')}"
@@ -364,7 +357,7 @@ def test_compiler_reports_uninspectable_signatures(
     spec_definition.functions["ratio"].entrypoint = f"{package_name}.calculation:calculate"
 
     with pytest.raises(ValueError, match="Could not read signature"):
-        compiler.Compiler().compile(spec_definition)
+        BindingInspection.inspect_spec(spec_definition)
 
 
 @pytest.mark.parametrize("validate_signature", [False, True])
@@ -383,7 +376,7 @@ def test_compiler_checks_entrypoint_syntax_when_signature_validation_is_disabled
         compiler.Compiler().compile(spec_definition)
 
 
-def test_compiler_inspects_each_distinct_entrypoint_once(
+def test_inspector_inspects_each_distinct_entrypoint_once(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     reads: collections.Counter[str] = collections.Counter()
@@ -397,15 +390,17 @@ def test_compiler_inspects_each_distinct_entrypoint_once(
 
     monkeypatch.setattr(shared_entrypoint.Signature, "read", classmethod(read))
 
-    compiled = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
+    document = spec.load_spec(SPEC_PATH)
+    inspected = BindingInspection.inspect_spec(document)
+    compiled = compiler.Compiler().compile(document, signatures=inspected)
 
-    assert len(compiled.invocations) > len(reads)
+    assert inspected
     assert reads
     assert all(count == 1 for count in reads.values())
     restored = plan.from_dict(plan.to_dict(compiled))
     assert {node.entrypoint for node in restored.invocations} == {
         node.entrypoint for node in compiled.invocations
     }
-    assert [node.package for node in restored.invocations] == [
-        node.package for node in compiled.invocations
+    assert [node.semantics.package for node in restored.invocations] == [
+        node.semantics.package for node in compiled.invocations
     ]

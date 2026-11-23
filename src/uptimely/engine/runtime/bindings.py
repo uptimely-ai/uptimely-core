@@ -36,7 +36,7 @@ class RuntimeBindings:
         return {
             name: self.resolve_value(
                 value,
-                invocation.argument_types.get(name),
+                invocation.semantics.argument_types.get(name),
                 computed_fragment=computed_fragment,
             )
             for name, value in invocation.arguments.items()

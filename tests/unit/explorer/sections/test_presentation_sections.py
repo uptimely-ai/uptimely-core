@@ -51,15 +51,17 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
         }
     )
     invocation = execution_plan.Invocation(
-        role="compute",
-        result="target",
         id="calculate",
         entrypoint="example:calculate",
-        function_id="calculate",
-        operator_id="calculate",
-        profile_id="data",
         arguments=arguments,
-        argument_types=argument_types,
+        semantics=execution_plan.InvocationSemantics(
+            role="compute",
+            result="target",
+            function_id="calculate",
+            operator_id="calculate",
+            profile_id="data",
+            argument_types=argument_types,
+        ),
     )
     compiled = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
@@ -118,30 +120,34 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
     read_id = "invocation:read:read:data:source"
     merge_id = "invocation:merge:join:data:source"
     read = execution_plan.Invocation(
-        role="compute",
-        result="fragment",
         id=read_id,
-        fragment_dimensions="target",
         entrypoint="example:read",
-        function_id="read",
-        operator_id="source",
-        profile_id="data",
-        output_features=["value"],
+        semantics=execution_plan.InvocationSemantics(
+            role="compute",
+            result="fragment",
+            fragment_dimensions="target",
+            function_id="read",
+            operator_id="source",
+            profile_id="data",
+            output_features=["value"],
+        ),
     )
     merge = execution_plan.Invocation(
-        result="target",
         id=merge_id,
-        role="merge",
         entrypoint="example:join",
-        function_id="join",
-        operator_id="source",
-        profile_id="data",
         arguments={
             "dataset": "data",
             "fragment": "$operators.source.fragment",
             "dataset_identifiers": ["id"],
         },
-        dependency_ids=[read_id],
+        semantics=execution_plan.InvocationSemantics(
+            result="target",
+            role="merge",
+            function_id="join",
+            operator_id="source",
+            profile_id="data",
+            dependency_ids=[read_id],
+        ),
     )
     compiled = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
@@ -421,14 +427,16 @@ def test_main_columns_replace_outputs_in_order_without_materializing_ignored_res
     )
     builder = data_lineage._DataLineageBuilder(definition, empty_plan)
     invocation = execution_plan.Invocation(
-        role="compute",
-        result="target",
         id="calculate",
         entrypoint="example:calculate",
-        function_id="calculate",
-        operator_id="calculate",
-        profile_id="data",
-        input_features=["a"],
+        semantics=execution_plan.InvocationSemantics(
+            role="compute",
+            result="target",
+            function_id="calculate",
+            operator_id="calculate",
+            profile_id="data",
+            input_features=["a"],
+        ),
     )
     a, b, c = [
         data_lineage.DataLineageColumn(name, "float", "Output", "red", 1)
@@ -440,7 +448,10 @@ def test_main_columns_replace_outputs_in_order_without_materializing_ignored_res
         a,
         c,
     ]
-    ignored = copy.replace(invocation, function_id="effect")
+    ignored = copy.replace(
+        invocation,
+        semantics=copy.replace(invocation.semantics, function_id="effect"),
+    )
     assert builder._main_columns(ignored, [b]) == [
         copy.replace(a, role="Input"),
         copy.replace(b, role="Existing"),
@@ -504,27 +515,31 @@ def test_plan_and_lineage_present_roles_separately_from_grain_relationships() ->
     merge_id = "merge"
     invocations = [
         execution_plan.Invocation(
-            role="compute",
-            result="fragment",
             id=compute_id,
-            fragment_dimensions="target",
-            produces_features=True,
             entrypoint="example:calculate",
-            function_id="calculate",
-            operator_id="calculate",
-            profile_id="target",
-            input_features=["raw"],
-            output_features=["result"],
+            semantics=execution_plan.InvocationSemantics(
+                role="compute",
+                result="fragment",
+                fragment_dimensions="target",
+                produces_features=True,
+                function_id="calculate",
+                operator_id="calculate",
+                profile_id="target",
+                input_features=["raw"],
+                output_features=["result"],
+            ),
         ),
         execution_plan.Invocation(
-            role="merge",
-            result="target",
             id=merge_id,
             entrypoint="example:merge",
-            function_id="merge",
-            operator_id="calculate",
-            profile_id="target",
-            dependency_ids=[compute_id],
+            semantics=execution_plan.InvocationSemantics(
+                role="merge",
+                result="target",
+                function_id="merge",
+                operator_id="calculate",
+                profile_id="target",
+                dependency_ids=[compute_id],
+            ),
         ),
     ]
     compiled = execution_plan.ExecutionPlan(

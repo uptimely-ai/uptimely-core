@@ -16,6 +16,10 @@ artifacts/
         └── pyproject.toml
 ```
 
+The build manifest names the Spec and plan artifacts. The plan includes each
+invocation's call data and semantic contract. See the [execution plan](execution-plan.md)
+reference for its contents.
+
 ## Code manifest
 
 The `artifacts.code` object describes the project's language and the paths of

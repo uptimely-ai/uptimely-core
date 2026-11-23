@@ -12,7 +12,6 @@ from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
 
 from . import graph as invocation_graph
-from . import validation
 
 logger = logging.getLogger(__name__)
 
@@ -30,6 +29,9 @@ class Compiler:
         self,
         spec_definition: spec.Spec,
         features: abc.Collection[str] | None = None,
+        *,
+        signatures: abc.Mapping[str, entrypoint.Signature] | None = None,
+        validate_spec: bool = True,
     ) -> plan.ExecutionPlan:
         """Compile a Spec by creating, selecting, scheduling, and serializing its invocations.
 
@@ -42,6 +44,8 @@ class Compiler:
         Args:
             spec_definition: The Spec document to compile.
             features: Optional collection of output feature identifiers.
+            signatures: Optional return signatures inspected before compilation.
+            validate_spec: Whether to validate the Spec during compilation.
 
         Returns:
             A portable execution plan for the selected invocation graph.
@@ -49,10 +53,14 @@ class Compiler:
         Raises:
             ValueError: The Spec, feature selection, or implementation contract is invalid.
         """
-        spec_validation.validate_spec(spec_definition)
-        validation.validation_feature_selection(features)
+        if validate_spec:
+            spec_validation.validate_spec(spec_definition)
+        if isinstance(features, str):
+            logger.debug("Check feature selection is a collection, not a string")
+            raise ValueError("features must be a collection of feature identifiers")
+        signatures = dict(signatures or {})
 
-        nodes = self._create_invocation_nodes(spec_definition)
+        nodes = invocation_graph.InvocationBuilder.create_nodes(spec_definition)
         graph, feature_producers = self._create_invocation_graph(spec_definition, nodes)
         if features is not None:
             logger.debug("Selected features: %s", sorted(features))
@@ -81,7 +89,6 @@ class Compiler:
         )
         entrypoints = python_codebase.entrypoints_index
         packages = self._read_plan_packages(entrypoints)
-        signatures = self._validate_signatures(selected_functions, entrypoints)
         logger.debug("Resolve structural argument references")
         invocations = self._create_plan_invocations(
             spec_definition,
@@ -102,195 +109,6 @@ class Compiler:
         )
 
     @staticmethod
-    def _collect_selected_functions(
-        spec_definition: spec.Spec,
-        nodes: list[invocation_graph.InvocationNode],
-    ) -> dict[str, spec_model.FunctionTemplate]:
-        """Validate entrypoints and collect each selected function once."""
-        logger.debug("Validate function entrypoint declarations")
-        logger.debug("Select unique functions for implementation checks")
-        selected_functions: dict[str, spec_model.FunctionTemplate] = {}
-        for node in nodes:
-            function = spec_definition.functions.get(node.function_id)
-            if function is None or not function.entrypoint:
-                raise ValueError(
-                    f"Missing entrypoint for function {node.function_id} "
-                    f"used by operator {node.operator_id}"
-                )
-            selected_functions.setdefault(node.function_id, function)
-        return selected_functions
-
-    @staticmethod
-    def _read_plan_packages(
-        entrypoints: abc.Mapping[str, entrypoint.Entrypoint],
-    ) -> dict[str, plan.Package]:
-        """Read portable package provenance once per entrypoint."""
-        logger.debug("Resolve package ownership for %d unique entrypoints", len(entrypoints))
-        packages: dict[str, plan.Package] = {}
-        for location, implementation in entrypoints.items():
-            try:
-                provenance = implementation.read_package()
-            except (ImportError, ValueError) as error:
-                raise ValueError(
-                    f"Could not read package provenance for entrypoint {location}: {error}"
-                ) from error
-            packages[location] = plan.Package(
-                distribution=provenance.distribution,
-                version=provenance.version,
-            )
-        return packages
-
-    @staticmethod
-    def _validate_signatures(
-        selected_functions: dict[str, spec_model.FunctionTemplate],
-        entrypoints: abc.Mapping[str, entrypoint.Entrypoint],
-    ) -> dict[str, entrypoint.Signature]:
-        """Read and validate each enabled function's implementation signature."""
-        enabled_count = sum(function.validate_signature for function in selected_functions.values())
-        disabled_count = sum(
-            not function.validate_signature for function in selected_functions.values()
-        )
-        logger.debug(
-            "Validate callable signatures for %d functions; skip %d disabled functions",
-            enabled_count,
-            disabled_count,
-        )
-
-        signatures: dict[str, entrypoint.Signature] = {}
-        inspected: dict[str, entrypoint.Signature] = {}
-        for function_id, function in selected_functions.items():
-            if not function.validate_signature:
-                continue
-            signature = inspected.get(function.entrypoint)
-            if signature is None:
-                signature = entrypoints[function.entrypoint].read_signature()
-                inspected[function.entrypoint] = signature
-            validation.validation_callable_signature(
-                validation.CallableValidationContext(function, signature)
-            )
-            signatures[function_id] = signature
-        return signatures
-
-    @staticmethod
-    def _create_plan_invocations(
-        spec_definition: spec.Spec,
-        graph: invocation_graph.InvocationGraph,
-        nodes: list[invocation_graph.InvocationNode],
-        selected_functions: dict[str, spec_model.FunctionTemplate],
-        signatures: dict[str, entrypoint.Signature],
-        packages: dict[str, plan.Package],
-    ) -> list[plan.Invocation]:
-        """Convert scheduled nodes to portable invocations with resolved metadata."""
-        logger.debug("Create portable invocations")
-        invocations: list[plan.Invocation] = []
-        for node in nodes:
-            function = selected_functions[node.function_id]
-            invocations.append(
-                plan.Invocation.from_node(
-                    spec_definition,
-                    node,
-                    dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
-                    return_type=(
-                        signatures[node.function_id].display.returns
-                        if node.function_id in signatures
-                        else None
-                    ),
-                    package=packages[function.entrypoint],
-                )
-            )
-        return invocations
-
-    @staticmethod
-    def _create_invocation_nodes(
-        spec_definition: spec.Spec,
-    ) -> list[invocation_graph.InvocationNode]:
-        """Expand Spec operators into compiler-owned compute and merge nodes."""
-        invocations: list[invocation_graph.InvocationNode] = []
-        for key, operator in spec_definition.operator_items:
-            profile_id = spec_definition.profiles_by_key[key[0]].id
-            relationships = operator.grain_relationships(spec_definition, key)
-            for role, binding in operator.bindings.items():
-                function = spec_definition.functions[binding.function]
-                dataframe_arity = sum(
-                    arg_types.is_dataframe(argument.type) for argument in function.args.values()
-                )
-                if role == "compute" and dataframe_arity > 1:
-                    raise ValueError(
-                        f"Compute function {function.id} for operator {operator.id} "
-                        "must declare at most one dataframe argument"
-                    )
-                if role == "merge" and dataframe_arity != 2:
-                    raise ValueError(
-                        f"Merge function {function.id} for operator {operator.id} "
-                        "must declare exactly two dataframe arguments"
-                    )
-                is_compute = role == "compute"
-                contract = operator.execution_contract(
-                    returns=function.returns,
-                    target_profile=key[0],
-                    dataframe_sources=spec_definition.dataframe_argument_profiles[key],
-                    grain_relationships={
-                        source: relationship
-                        for source, relationship in relationships.items()
-                        if source is not None
-                    },
-                )
-                if role == "merge":
-                    result = "target"
-                elif function.returns != "dataframe":
-                    result = "none"
-                elif operator.merge is not None:
-                    result = "fragment"
-                else:
-                    result = "target"
-                invocations.append(
-                    invocation_graph.InvocationNode(
-                        function_id=binding.function,
-                        profile_id=profile_id,
-                        operator_id=operator.id,
-                        role=role,
-                        result=result,
-                        produces_features=contract.produces_features if is_compute else False,
-                        is_sink=(contract.is_sink or operator.is_workflow) if is_compute else False,
-                        is_workflow=operator.is_workflow if is_compute else False,
-                        dataframe_input_scope=(
-                            contract.dataframe_input_scope if is_compute else "unrestricted"
-                        ),
-                        fragment_dimensions=(
-                            contract.fragment_dimensions if is_compute else "not_applicable"
-                        ),
-                        row_count_relation=(
-                            contract.row_count_relation if is_compute else "unrestricted"
-                        ),
-                        key_relation=contract.key_relation if is_compute else "unrestricted",
-                        row_order_relation=(
-                            contract.row_order_relation if is_compute else "unrestricted"
-                        ),
-                        existing_data_relation=(
-                            contract.existing_data_relation if is_compute else "unrestricted"
-                        ),
-                        output_features=tuple(operator.output_features) if is_compute else (),
-                        arguments=binding.args,
-                        input_features=tuple(operator.input_features) if is_compute else (),
-                        row_context=operator.row_context if is_compute else None,
-                    )
-                )
-
-        nodes_by_id: dict[str, invocation_graph.InvocationNode] = {}
-        for invocation in invocations:
-            previous = nodes_by_id.get(invocation.node_id)
-            if previous is not None:
-                raise ValueError(
-                    f"Invocation ID collision {invocation.node_id!r} between operators "
-                    f"{previous.profile_id!r}/{previous.operator_id!r} "
-                    f"({previous.role}:{previous.function_id}) and "
-                    f"{invocation.profile_id!r}/{invocation.operator_id!r} "
-                    f"({invocation.role}:{invocation.function_id})"
-                )
-            nodes_by_id[invocation.node_id] = invocation
-        return invocations
-
-    @staticmethod
     def _create_invocation_graph(
         spec_definition: spec.Spec,
         invocations: list[invocation_graph.InvocationNode],
@@ -299,44 +117,54 @@ class Compiler:
         dict[str, invocation_graph.InvocationNode],
     ]:
         """Resolve Spec feature and fragment relationships into graph edges."""
-        by_binding = {(node.profile_id, node.operator_id, node.role): node for node in invocations}
+        by_binding = {
+            (
+                node.semantics.profile_id,
+                node.semantics.operator_id,
+                node.semantics.role,
+            ): node
+            for node in invocations
+        }
         feature_producers: dict[str, invocation_graph.InvocationNode] = {}
         dependencies: dict[str, set[str]] = {node.node_id: set() for node in invocations}
         dataset_publishers: dict[str, list[invocation_graph.InvocationNode]] = {}
 
         for node in invocations:
-            if node.role == "merge" or node.result == "target":
-                dataset_publishers.setdefault(node.profile_id, []).append(node)
-            if node.role != "compute":
+            semantics = node.semantics
+            if semantics.role == "merge" or semantics.result == "target":
+                dataset_publishers.setdefault(semantics.profile_id, []).append(node)
+            if semantics.role != "compute":
                 continue
             producer = node
-            if node.result == "fragment":
-                merge_node = by_binding.get((node.profile_id, node.operator_id, "merge"))
+            if semantics.result == "fragment":
+                merge_node = by_binding.get((semantics.profile_id, semantics.operator_id, "merge"))
                 if merge_node is not None:
                     dependencies[merge_node.node_id].add(node.node_id)
                     producer = merge_node
-            if node.produces_features:
-                for feature in node.output_features:
+            if semantics.produces_features:
+                for feature in semantics.output_features:
                     feature_producers[feature] = producer
 
         for node in invocations:
-            if node.role != "compute":
+            semantics = node.semantics
+            if semantics.role != "compute":
                 continue
-            for feature in node.input_features:
+            for feature in semantics.input_features:
                 producer = feature_producers.get(feature)
                 if producer is not None and producer != node:
                     dependencies[node.node_id].add(producer.node_id)
 
         for node in invocations:
-            profile = spec_definition.profiles[node.profile_id]
-            if profile.seed is None or node.operator_id == profile.seed:
+            semantics = node.semantics
+            profile = spec_definition.profiles[semantics.profile_id]
+            if profile.seed is None or semantics.operator_id == profile.seed:
                 continue
-            seed = by_binding[(node.profile_id, profile.seed, "compute")]
+            seed = by_binding[(semantics.profile_id, profile.seed, "compute")]
             if (
-                node.role == "merge"
-                or node.result == "target"
-                or node.is_sink
-                or node.dataframe_input_scope == "target"
+                semantics.role == "merge"
+                or semantics.result == "target"
+                or semantics.is_sink
+                or semantics.dataframe_input_scope == "target"
             ):
                 dependencies[node.node_id].add(seed.node_id)
 
@@ -387,9 +215,83 @@ class Compiler:
         for node in tuple(selected_nodes):
             selected_nodes.update(graph.ancestors(node.node_id))
 
-        selected_profiles = {node.profile_id for node in requested_nodes}
+        selected_profiles = {node.semantics.profile_id for node in requested_nodes}
         for node in invocations:
-            if node.role == "compute" and node.is_sink and node.profile_id in selected_profiles:
+            semantics = node.semantics
+            if (
+                semantics.role == "compute"
+                and semantics.is_sink
+                and semantics.profile_id in selected_profiles
+            ):
                 selected_nodes.add(node)
                 selected_nodes.update(graph.ancestors(node.node_id))
         return graph.subset([node.node_id for node in selected_nodes])
+
+    @staticmethod
+    def _collect_selected_functions(
+        spec_definition: spec.Spec,
+        nodes: list[invocation_graph.InvocationNode],
+    ) -> dict[str, spec_model.FunctionTemplate]:
+        """Validate entrypoints and collect each selected function once."""
+        logger.debug("Validate function entrypoint declarations")
+        logger.debug("Select unique functions for implementation checks")
+        selected_functions: dict[str, spec_model.FunctionTemplate] = {}
+        for node in nodes:
+            function_id = node.semantics.function_id
+            function = spec_definition.functions.get(function_id)
+            if function is None or not function.entrypoint:
+                raise ValueError(
+                    f"Missing entrypoint for function {function_id} "
+                    f"used by operator {node.semantics.operator_id}"
+                )
+            selected_functions.setdefault(function_id, function)
+        return selected_functions
+
+    @staticmethod
+    def _read_plan_packages(
+        entrypoints: abc.Mapping[str, entrypoint.Entrypoint],
+    ) -> dict[str, plan.Package]:
+        """Read portable package provenance once per entrypoint."""
+        logger.debug("Resolve package ownership for %d unique entrypoints", len(entrypoints))
+        packages: dict[str, plan.Package] = {}
+        for location, implementation in entrypoints.items():
+            try:
+                provenance = implementation.read_package()
+            except (ImportError, ValueError) as error:
+                raise ValueError(
+                    f"Could not read package provenance for entrypoint {location}: {error}"
+                ) from error
+            packages[location] = plan.Package(
+                distribution=provenance.distribution,
+                version=provenance.version,
+            )
+        return packages
+
+    @staticmethod
+    def _create_plan_invocations(
+        spec_definition: spec.Spec,
+        graph: invocation_graph.InvocationGraph,
+        nodes: list[invocation_graph.InvocationNode],
+        selected_functions: dict[str, spec_model.FunctionTemplate],
+        signatures: dict[str, entrypoint.Signature],
+        packages: dict[str, plan.Package],
+    ) -> list[plan.Invocation]:
+        """Convert scheduled nodes to portable invocations with resolved metadata."""
+        logger.debug("Create portable invocations")
+        invocations: list[plan.Invocation] = []
+        for node in nodes:
+            function = selected_functions[node.semantics.function_id]
+            invocations.append(
+                plan.Invocation.from_node(
+                    spec_definition,
+                    node,
+                    dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
+                    return_type=(
+                        signatures[node.semantics.function_id].display.returns
+                        if node.semantics.function_id in signatures
+                        else None
+                    ),
+                    package=packages[function.entrypoint],
+                )
+            )
+        return invocations

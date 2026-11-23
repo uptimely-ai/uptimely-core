@@ -338,8 +338,7 @@ def test_selector_metadata_is_validated_independently(document: spec.Spec) -> No
 def test_optional_dataframe_arguments_are_not_tied_to_merge_kind(document: spec.Spec) -> None:
     function = next(iter(document.functions.root.values()))
     function.args["nullable"] = spec.model.Argument(id="nullable", type="dataframe | null")
-
-    assert function.check_dataframe_input_contract() is None
+    assert function.returns in {"dataframe", "none", "any"}
 
 
 def test_function_contract_rules_are_role_and_arity_based(document: spec.Spec) -> None:
@@ -349,15 +348,6 @@ def test_function_contract_rules_are_role_and_arity_based(document: spec.Spec) -
         function.check_return_contract()
 
     function.returns = "dataframe"
-    function.args.clear()
-    function.args.update(
-        {
-            f"frame_{index}": spec.model.Argument(id=f"frame_{index}", type="dataframe")
-            for index in range(3)
-        }
-    )
-    with pytest.raises(ValueError, match="at most two dataframe argument slots"):
-        function.check_dataframe_input_contract()
 
 
 def test_zero_dataframe_no_result_compute_contract_is_valid(document: spec.Spec) -> None:

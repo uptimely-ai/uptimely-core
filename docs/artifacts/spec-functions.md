@@ -16,15 +16,16 @@ identifiers.
 | `category` | string or null | No | `null` | Optional descriptive grouping. It does not change how the function is called or what it returns. |
 | `returns` | string | Yes | N/A | Result type: `dataframe`, `none`, or `any` when the result is ignored. |
 | `entrypoint` | string | Yes | N/A | Reference used to locate the function implementation. |
-| `validate_signature` | boolean | No | `true` | Whether to inspect the implementation signature during compilation and in Explorer. |
+| `validate_signature` | boolean | No | `true` | Whether build-time inspector checks the implementation signature. |
 | `args` | object | No | `{}` | Argument definitions keyed by argument name. |
 | `description` | string or null | No | `null` | Explanation of the function. |
 
 Selectors not accepted as values.
 
-When enabled, compilation checks that the implementation accepts the declared
-arguments as keywords, has no undeclared required parameters, and that any
-available parameter and return annotations are compatible. Explorer inspects
+When enabled, binding inspection checks that the implementation accepts the
+declared arguments as keywords, has no undeclared required parameters, and that
+any available parameter and return annotations are compatible. The build passes
+inspected signatures to compilation for plan serialization. Explorer inspects
 the implementation signature to show its details. Neither check verifies
 calculated results. Frame operations are derived from dataframe signatures for
 Explorer presentation and are not stored in the Spec. See

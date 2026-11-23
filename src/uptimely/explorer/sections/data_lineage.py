@@ -131,15 +131,15 @@ class _DataLineageBuilder:
             )
         self.compact_datasets = set()
         for invocation in invocations:
-            key = (invocation.profile_id, invocation.operator_id)
+            key = (invocation.semantics.profile_id, invocation.semantics.operator_id)
             operator = definition.operators_by_key[key]
             relationships = operator.grain_relationships(definition, key)
             if {"collapse", "vanish"} & set(relationships.values()):
-                self.compact_datasets.add(invocation.profile_id)
+                self.compact_datasets.add(invocation.semantics.profile_id)
             if "expand" in relationships.values():
                 self.compact_datasets.update(
                     self.features[name].dataset.id
-                    for name in invocation.input_features
+                    for name in invocation.semantics.input_features
                     if name in self.features
                 )
         self.accumulated: dict[str | None, dict[str, DataLineageColumn]] = {}
@@ -192,7 +192,7 @@ class _DataLineageBuilder:
         columns: list[DataLineageColumn],
     ) -> list[DataLineageInput]:
         """Group cross-dataset inputs with their source dimensions."""
-        if self.definition.functions[invocation.function_id].returns == "any":
+        if self.definition.functions[invocation.semantics.function_id].returns == "any":
             return []
         source_columns: dict[str, list[DataLineageColumn]] = {}
         for column in columns:
@@ -200,7 +200,7 @@ class _DataLineageBuilder:
             if (
                 column.role == "Input"
                 and source is not None
-                and source.dataset.id != invocation.profile_id
+                and source.dataset.id != invocation.semantics.profile_id
             ):
                 source_columns.setdefault(source.dataset.id, []).append(column)
 
@@ -231,13 +231,13 @@ class _DataLineageBuilder:
         self, invocation: plan_module.Invocation, columns: list[DataLineageColumn]
     ) -> list[DataLineageColumn]:
         """Keep materialized columns, moving replaced outputs to the end."""
-        previous = self.accumulated.setdefault(invocation.profile_id, {})
-        inputs = set(invocation.input_features)
+        previous = self.accumulated.setdefault(invocation.semantics.profile_id, {})
+        inputs = set(invocation.semantics.input_features)
         current = {
             name: dataclasses.replace(column, role="Input" if name in inputs else "Existing")
             for name, column in previous.items()
         }
-        if self.definition.functions[invocation.function_id].returns == "dataframe":
+        if self.definition.functions[invocation.semantics.function_id].returns == "dataframe":
             for column in columns:
                 if column.role == "Output":
                     current.pop(column.name, None)
@@ -247,14 +247,18 @@ class _DataLineageBuilder:
 
     def _step(self, invocation: plan_module.Invocation) -> DataLineageStep:
         """Assemble one invocation's schema, input tables, and dependencies."""
-        profile = self.definition.profiles[invocation.profile_id]
+        profile = self.definition.profiles[invocation.semantics.profile_id]
         dataset = (
-            self.definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
+            self.definition.profiles.get(invocation.semantics.profile_id)
+            if invocation.semantics.profile_id
+            else None
         )
-        key = (invocation.profile_id, invocation.operator_id)
-        function_returns = self.definition.functions[invocation.function_id].returns
+        key = (invocation.semantics.profile_id, invocation.semantics.operator_id)
+        function_returns = self.definition.functions[invocation.semantics.function_id].returns
         has_dataframe_inputs = bool(
-            self.definition.functions[invocation.function_id].arguments_by_type.get("dataframe", {})
+            self.definition.functions[invocation.semantics.function_id].arguments_by_type.get(
+                "dataframe", {}
+            )
         )
         operator = self.definition.operators_by_key[key]
         relationships = operator.grain_relationships(self.definition, key)
@@ -266,27 +270,29 @@ class _DataLineageBuilder:
         columns.extend(
             self._feature_column(name, role)
             for role, names in (
-                (input_role, invocation.input_features),
-                ("Output", invocation.output_features),
+                (input_role, invocation.semantics.input_features),
+                ("Output", invocation.semantics.output_features),
             )
             for name in names
             if name not in grain_keys
         )
-        function = self.definition.functions.get(invocation.function_id)
+        function = self.definition.functions.get(invocation.semantics.function_id)
         dataset_label = UNASSIGNED_DATASET_LABEL
-        if invocation.profile_id:
+        if invocation.semantics.profile_id:
             dataset_label = (
-                dataset.name if dataset is not None and dataset.name else invocation.profile_id
+                dataset.name
+                if dataset is not None and dataset.name
+                else invocation.semantics.profile_id
             )
         return DataLineageStep(
             number=self.numbers[invocation.id],
             invocation_id=invocation.id,
-            function=invocation.function_id,
-            function_label=function.name or invocation.function_id
+            function=invocation.semantics.function_id,
+            function_label=function.name or invocation.semantics.function_id
             if function is not None
-            else invocation.function_id,
-            operator=model_base.humanize_identifier(invocation.operator_id),
-            binding_role=invocation.role,
+            else invocation.semantics.function_id,
+            operator=model_base.humanize_identifier(invocation.semantics.operator_id),
+            binding_role=invocation.semantics.role,
             execution_form=operator.execution_form,
             grain_relationships=[
                 {
@@ -300,7 +306,7 @@ class _DataLineageBuilder:
             function_returns=function_returns,
             has_dataframe_inputs=has_dataframe_inputs,
             profile=profile.id,
-            dataset=invocation.profile_id,
+            dataset=invocation.semantics.profile_id,
             dataset_label=dataset_label,
             grain=", ".join(
                 self.definition.identifiers_by_profile[self.definition.profile_keys[profile.id]]
@@ -308,11 +314,11 @@ class _DataLineageBuilder:
             color=self.colors[invocation.id],
             columns=columns,
             dependencies=sorted(
-                self.numbers[dependency] for dependency in invocation.dependency_ids
+                self.numbers[dependency] for dependency in invocation.semantics.dependency_ids
             ),
             input_tables=self._input_tables(invocation, profile, columns),
             main_columns=self._main_columns(invocation, columns),
-            row_count=1 if invocation.profile_id in self.compact_datasets else 3,
+            row_count=1 if invocation.semantics.profile_id in self.compact_datasets else 3,
         )
 
 

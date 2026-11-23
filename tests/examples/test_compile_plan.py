@@ -35,13 +35,13 @@ def test_telemetry_relations_are_identifiers_not_features(
     invocation = next(
         invocation
         for invocation in pump_bundle.execution_plan.invocations
-        if invocation.profile_id == "pump_telemetry"
-        and invocation.operator_id == "read_pump_telemetry"
-        and invocation.role == "compute"
+        if invocation.semantics.profile_id == "pump_telemetry"
+        and invocation.semantics.operator_id == "read_pump_telemetry"
+        and invocation.semantics.role == "compute"
     )
-    assert invocation.target_identifiers == ["pump_id", "timestamp"]
-    assert relations.issubset(invocation.fragment_keys)
-    assert not relations.intersection(invocation.output_features)
+    assert invocation.semantics.target_identifiers == ["pump_id", "timestamp"]
+    assert relations.issubset(invocation.semantics.fragment_keys)
+    assert not relations.intersection(invocation.semantics.output_features)
     for key, operator in document.operator_items:
         assert not document.key_ids.intersection(operator.input_features)
         assert not document.key_ids_by_profile[key[0]].intersection(operator.output_features)
@@ -58,19 +58,20 @@ def test_hourly_warning_aggregates_all_measurements_in_one_operator(
     invocations = [
         invocation
         for invocation in pump_bundle.execution_plan.invocations
-        if invocation.profile_id == profile_id and invocation.function_id == "aggregate"
+        if invocation.semantics.profile_id == profile_id
+        and invocation.semantics.function_id == "aggregate"
     ]
 
     assert len(invocations) == 1
     invocation = invocations[0]
-    assert set(invocation.input_features) == {
+    assert set(invocation.semantics.input_features) == {
         "warning_differential_pressure",
         "warning_flow_rate",
         "warning_motor_power",
         "warning_bearing_temperature",
         "warning_vibration_rms",
     }
-    assert set(invocation.output_features) == {
+    assert set(invocation.semantics.output_features) == {
         "warning_hour_mean_differential_pressure",
         "warning_hour_mean_flow_rate",
         "warning_hour_mean_motor_power",
@@ -93,24 +94,24 @@ def test_compiled_invocations_capture_runtime_contracts(
     restored = execution_plan.from_dict(execution_plan.to_dict(pump_bundle.execution_plan))
 
     for invocation in restored.invocations:
-        grain_keys = document.identifiers_by_profile[invocation.profile_id]
-        profile = document.profiles[invocation.profile_id]
-        assert invocation.target_identifiers == grain_keys
-        assert invocation.column_types == {
+        grain_keys = document.identifiers_by_profile[invocation.semantics.profile_id]
+        profile = document.profiles[invocation.semantics.profile_id]
+        assert invocation.semantics.target_identifiers == grain_keys
+        assert invocation.semantics.column_types == {
             **{
                 name: feature.type
                 for name, feature in profile.features.items()
                 if feature.type is not None
             },
-            **document.identifier_types_by_profile[invocation.profile_id],
-            **document.relation_types_by_profile[invocation.profile_id],
+            **document.identifier_types_by_profile[invocation.semantics.profile_id],
+            **document.relation_types_by_profile[invocation.semantics.profile_id],
         }
-        assert invocation.fragment_keys == list(
-            document.key_types_by_profile[invocation.profile_id]
+        assert invocation.semantics.fragment_keys == list(
+            document.key_types_by_profile[invocation.semantics.profile_id]
         )
-        assert invocation.argument_types == {
+        assert invocation.semantics.argument_types == {
             name: argument.type
-            for name, argument in document.functions[invocation.function_id].args.items()
+            for name, argument in document.functions[invocation.semantics.function_id].args.items()
         }
 
 
@@ -195,19 +196,19 @@ def test_each_profile_publishes_its_features_with_the_shared_writer(
             invocation
             for invocation in pump_bundle.execution_plan.invocations
             if (
-                invocation.profile_id == profile_id
-                and invocation.function_id == "write_file"
-                and invocation.is_sink
+                invocation.semantics.profile_id == profile_id
+                and invocation.semantics.function_id == "write_file"
+                and invocation.semantics.is_sink
             )
         )
-        assert writer.function_id == "write_file"
+        assert writer.semantics.function_id == "write_file"
         assert set(writer.arguments["features"]) == feature_ids
         assert writer.arguments["output"] == f"$paths.{output_path}"
 
     assert not any(
-        invocation.profile_id == "pump_telemetry_when_warning"
-        and invocation.function_id == "write_file"
-        and invocation.is_sink
+        invocation.semantics.profile_id == "pump_telemetry_when_warning"
+        and invocation.semantics.function_id == "write_file"
+        and invocation.semantics.is_sink
         for invocation in pump_bundle.execution_plan.invocations
     )
 
@@ -238,6 +239,12 @@ def test_project_build_cli_exports_complete_bundle(
     assert (bundle / "build.json").is_file()
     assert (bundle / "spec.json").is_file()
     assert (bundle / "plan.json").is_file()
+    saved_plan = json.loads((bundle / "plan.json").read_text(encoding="utf-8"))
+    assert saved_plan["invocations"]
+    assert all(
+        set(invocation) == {"id", "entrypoint", "arguments", "semantics"}
+        for invocation in saved_plan["invocations"]
+    )
     assert not (bundle / "explorer").exists()
     assert (project_root / application.EXPLORER_DATA_FILE).is_file()
     assert not (project_root / "artifacts/spec/spec.json").exists()
@@ -261,12 +268,17 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "stages",
     }
     assert metadata["plan_version"] == execution_plan.PLAN_VERSION
-    assert all("operator_kind" not in invocation for invocation in metadata["invocations"])
-    assert {invocation["role"] for invocation in metadata["invocations"]} == {"compute", "merge"}
+    assert all(
+        "operator_kind" not in invocation["semantics"] for invocation in metadata["invocations"]
+    )
+    assert {invocation["semantics"]["role"] for invocation in metadata["invocations"]} == {
+        "compute",
+        "merge",
+    }
     collapse_invocation = next(
         invocation
         for invocation in metadata["invocations"]
-        if invocation["operator_id"] == "bearing_temperature_by_pump"
+        if invocation["semantics"]["operator_id"] == "bearing_temperature_by_pump"
     )
     assert "entity_id" not in collapse_invocation
     assert collapse_invocation["entrypoint"].endswith(":aggregate")
@@ -276,4 +288,29 @@ def test_compiled_plan_export_omits_generated_timestamp(
         "dimensions": ["pump_id"],
         "rename": {"bearing_temperature": "bearing_temperature_max"},
     }
-    assert collapse_invocation["output_features"] == ["bearing_temperature_max"]
+    assert collapse_invocation["semantics"]["output_features"] == ["bearing_temperature_max"]
+
+
+def test_build_plan_contains_calls_and_nested_invocation_semantics(
+    pump_bundle: application.BuildBundle,
+) -> None:
+    plan_data = json.loads(pump_bundle.execution_plan_path.read_text(encoding="utf-8"))
+
+    assert set(plan_data) == {
+        "plan_version",
+        "required_backend",
+        "invocations",
+        "stages",
+    }
+    assert [list(stage) for stage in plan_data["stages"]] == [
+        stage.invocation_ids for stage in pump_bundle.execution_plan.stages
+    ]
+    assert all(
+        set(invocation) == {"id", "entrypoint", "arguments", "semantics"}
+        for invocation in plan_data["invocations"]
+    )
+    assert all(
+        "target_identifiers" in invocation["semantics"]
+        and "column_types" in invocation["semantics"]
+        for invocation in plan_data["invocations"]
+    )

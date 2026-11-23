@@ -157,8 +157,8 @@ def test_fragment_dimension_policy_is_compiled_from_profile_relationship(
     plan = compiler.Compiler().compile(spec_definition)
     assert (
         next(
-            item for item in plan.invocations if item.operator_id == "reference"
-        ).fragment_dimensions
+            item for item in plan.invocations if item.semantics.operator_id == "reference"
+        ).semantics.fragment_dimensions
         == "subset"
     )
 

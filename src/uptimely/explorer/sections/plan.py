@@ -31,12 +31,21 @@ def _build_step(
     if feature_labels is None:
         feature_labels = common.feature_labels(spec_definition)
 
-    function_name = spec_definition.functions[invocation.function_id].name or invocation.function_id
-    dataset = spec_definition.profiles.get(invocation.profile_id) if invocation.profile_id else None
-    input_labels = [feature_labels.get(name, name) for name in invocation.input_features]
-    output_labels = [feature_labels.get(name, name) for name in invocation.output_features]
-    function = spec_definition.functions[invocation.function_id]
-    key = (invocation.profile_id, invocation.operator_id)
+    function_name = (
+        spec_definition.functions[invocation.semantics.function_id].name
+        or invocation.semantics.function_id
+    )
+    dataset = (
+        spec_definition.profiles.get(invocation.semantics.profile_id)
+        if invocation.semantics.profile_id
+        else None
+    )
+    input_labels = [feature_labels.get(name, name) for name in invocation.semantics.input_features]
+    output_labels = [
+        feature_labels.get(name, name) for name in invocation.semantics.output_features
+    ]
+    function = spec_definition.functions[invocation.semantics.function_id]
+    key = (invocation.semantics.profile_id, invocation.semantics.operator_id)
     operator = spec_definition.operators_by_key[key]
     grain_relationships = [
         {
@@ -47,14 +56,14 @@ def _build_step(
         }
         for source, relationship in operator.grain_relationships(spec_definition, key).items()
     ]
-    is_merge = invocation.role == "merge"
+    is_merge = invocation.semantics.role == "merge"
     return {
         "position": position,
         "invocation_id": invocation.id,
-        "operator_id": invocation.operator_id,
-        "role": invocation.role,
-        "result": invocation.result,
-        "function": invocation.function_id,
+        "operator_id": invocation.semantics.operator_id,
+        "role": invocation.semantics.role,
+        "result": invocation.semantics.result,
+        "function": invocation.semantics.function_id,
         "execution_form": operator.execution_form,
         "binding_roles": list(operator.binding_roles),
         "grain_relationships": grain_relationships,
@@ -62,14 +71,14 @@ def _build_step(
         "title": function_name,
         "function_label": function_name,
         "entrypoint": invocation.entrypoint,
-        "profile": invocation.profile_id,
-        "dataset": invocation.profile_id,
+        "profile": invocation.semantics.profile_id,
+        "dataset": invocation.semantics.profile_id,
         "dataset_label": dataset.name,
         "feature": ", ".join(output_labels) if output_labels else None,
         "input_features": input_labels,
         "output_features": output_labels,
-        "input_feature_ids": invocation.input_features,
-        "output_feature_ids": invocation.output_features,
+        "input_feature_ids": invocation.semantics.input_features,
+        "output_feature_ids": invocation.semantics.output_features,
         "merge_dataset": (
             _display_value(invocation.arguments.get("dataset")) if is_merge else None
         ),
@@ -80,24 +89,28 @@ def _build_step(
             _display_value(invocation.arguments.get("dataset_identifiers")) if is_merge else None
         ),
         "uncontrolled": function.returns == "any",
-        "row_context": invocation.row_context.to_dict() if invocation.row_context else None,
+        "row_context": invocation.semantics.row_context.to_dict()
+        if invocation.semantics.row_context
+        else None,
         "depends_on_invocations": [
             {
                 "id": dependency_id,
                 "function": (
-                    spec_definition.functions[invocations_by_id[dependency_id].function_id].name
+                    spec_definition.functions[
+                        invocations_by_id[dependency_id].semantics.function_id
+                    ].name
                 )
-                or invocations_by_id[dependency_id].function_id,
-                "operator_id": invocations_by_id[dependency_id].operator_id,
-                "role": invocations_by_id[dependency_id].role,
+                or invocations_by_id[dependency_id].semantics.function_id,
+                "operator_id": invocations_by_id[dependency_id].semantics.operator_id,
+                "role": invocations_by_id[dependency_id].semantics.role,
             }
-            for dependency_id in invocation.dependency_ids
+            for dependency_id in invocation.semantics.dependency_ids
         ],
         "args": {
             name: {
                 "type": {
                     "binding": value.get("type") if isinstance(value, dict) else None,
-                    "function": invocation.argument_types.get(name),
+                    "function": invocation.semantics.argument_types.get(name),
                     "engine": None,
                 },
                 "value": _display_value(
@@ -106,7 +119,7 @@ def _build_step(
             }
             for name, value in invocation.arguments.items()
         },
-        "returns": {"type": {"engine": invocation.return_type}},
+        "returns": {"type": {"engine": invocation.semantics.return_type}},
     }
 
 

@@ -38,7 +38,7 @@ Configuration makes application aware of where to read the requires resources an
         <div class="av-node av-operator">
           <span class="av-node-label">PROJECT BUILDER</span>
           <strong>Load and compile</strong>
-          <span>Compiler validates the Spec and resolves an execution plan</span>
+          <span>Build validates and inspects bindings, then the Compiler resolves the plan</span>
         </div>
         <div class="av-connector" aria-hidden="true">&#8594;</div>
         <div class="av-node av-definition">
