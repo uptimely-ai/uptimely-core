@@ -20,6 +20,7 @@ The versioned JSON object groups calls by execution stage:
       "id": "read-pump-data--a1b2c3d4e5",
       "entrypoint": "pump_io:read_pump_data",
       "arguments": {},
+      "returns": "pump",
       "semantics": {
         "role": "compute",
         "result": "target",
@@ -57,10 +58,30 @@ The versioned JSON object groups calls by execution stage:
 }
 ```
 
-`plan.json` contains the plan version, required backend, function calls, and
-their semantic metadata. Each invocation keeps call data (`id`, `entrypoint`,
-and `arguments`) separate from its `semantics`. The `stages` field orders
+`plan.json` contains the plan version, required backend, function calls,
+return bindings, and their semantic metadata. Each invocation keeps call data
+(`id`, `entrypoint`, `arguments`, and `returns`) separate from `semantics`.
+The `stages` field orders
 invocations by dependency level.
+
+The executable call data consists of:
+
+- `id`, a stable invocation identifier used in the schedule and dependency graph.
+- `entrypoint`, the function implementation that the invocation calls.
+- `arguments`, the resolved argument values or runtime references passed to that
+  entrypoint.
+- `returns`, the target profile whose accumulated dataframe is returned by the
+  invocation, or `null` when it returns no profile result.
+
+The plan requires a convention for passing an invocation's return value to the
+arguments of later invocations that depend on it. `returns` identifies the
+profile whose accumulated dataframe is available as the return binding.
+It is `null` for invocations that do not publish an accumulated profile
+dataframe. Uptimely's built-in Engine resolves this state in memory.
+Another Engine or orchestrator can persist dataframe results and supply them to
+downstream tasks as task outputs or artifact references. Temporary fragment
+returns used only by merge invocations remain execution details rather than
+accumulated profile returns.
 
 ## Stages
 
@@ -75,11 +96,12 @@ the invocation's role and result, traces it to a Spec operator and profile,
 declares data dependencies and contracts, and supports runtime validation.
 The fields are part of each invocation in `plan.json`, not a separate artifact.
 
-An Engine should be theoretically able to execute a plan without interpreting
-the `semantics` object. A generic call runner needs the execution order,
-entrypoints, arguments, and a convention for passing return values to later
-calls. It does not need to catalog analytical roles or inspect the meaning of
-those calls.
+An Engine should theoretically be able to execute a plan without interpreting
+the `semantics` object. Invocation attributes provide the executable function
+call: `id`, `entrypoint`, and resolved `arguments`. A generic runner also needs
+the execution order and a convention for passing each invocation's return value
+to later invocations' arguments. It does not need to catalog analytical roles or
+inspect the meaning of those calls.
 
 The built-in Engine also uses `semantics` for analytical dispatch and optional
 contract validation. This includes identifying target transforms, fragments,

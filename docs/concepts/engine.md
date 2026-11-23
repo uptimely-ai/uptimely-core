@@ -37,11 +37,17 @@ enough to invoke a flow. Such a runner need not catalog or visualize the
 analytical meaning of those calls. Uptimely's data-aware Engine also uses
 invocation semantics to dispatch compute and merge calls and route dataframe
 results. Runtime validation is optional and checks the declared contracts
-rather than enabling this basic result routing.
+rather than enabling this basic result routing. The runner must also make
+invocation returns available to later function arguments according to its
+return-routing convention.
 
-The same separation applies to the plan format. The execution order, entrypoint,
-arguments, and an explicit convention for passing return values are sufficient
-for a generic engine to execute the call sequence. The `semantics` object is
+The same separation applies to the plan format. Each invocation carries the
+callable in `entrypoint` and resolved inputs in `arguments`, outside
+`semantics`. It also carries `returns`, which is the target profile for an
+accumulated dataframe result or `null` for no profile result. The execution
+order and an explicit convention for passing that return binding to later
+arguments are sufficient for a generic engine to execute the call sequence.
+The `semantics` object is
 analytical metadata. It enables Uptimely's built-in dataframe dispatch,
 fragment and merge handling, and optional validation, while a generic runner
 could ignore it and use explicit call-data routing instead.
