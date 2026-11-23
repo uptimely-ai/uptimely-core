@@ -10,6 +10,8 @@ from collections.abc import Collection
 
 import graphable as graphable_
 
+from uptimely import plan
+
 type GraphNode = graphable_.graphable.Graphable
 
 INVOCATION_LABEL_MAX_LENGTH = 24
@@ -18,9 +20,10 @@ INVOCATION_HASH_LENGTH = 10
 
 @dataclasses.dataclass(frozen=True)
 class InvocationNode:
-    """Graph node identified by an opaque invocation ID."""
+    """Invocation contract identified in the graph by an opaque ID."""
 
     node_id: str
+    semantics: plan.InvocationSemantics = dataclasses.field(compare=False, hash=False)
 
     @staticmethod
     def create_id(function_id: str, profile_id: str, operator_id: str, role: str) -> str:

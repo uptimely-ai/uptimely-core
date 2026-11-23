@@ -5,7 +5,7 @@ import re
 
 import pytest
 
-from uptimely import spec
+from uptimely import plan, spec
 from uptimely.compiler import compiler, graph
 from uptimely.spec import model as spec_model
 
@@ -93,9 +93,20 @@ def test_identity_serialization_preserves_field_boundaries() -> None:
     assert first != second
 
 
-def test_graph_orders_and_selects_identifier_only_nodes() -> None:
+def test_graph_orders_and_selects_nodes_with_semantics() -> None:
     first, second, third = (
-        graph.InvocationNode(node_id=name) for name in ("first", "second", "third")
+        graph.InvocationNode(
+            node_id=name,
+            semantics=plan.InvocationSemantics(
+                function_id=name,
+                profile_id="data",
+                operator_id=name,
+                role="compute",
+                result="none",
+                input_features=["input"],
+            ),
+        )
+        for name in ("first", "second", "third")
     )
     invocation_graph = graph.InvocationGraph(
         [first, second, third],
@@ -106,6 +117,23 @@ def test_graph_orders_and_selects_identifier_only_nodes() -> None:
     assert invocation_graph.ancestors("third") == {first, second}
     assert invocation_graph.dependencies(third) == [second]
     assert invocation_graph.subset(["first", "second"]).topology() == [[first], [second]]
+    ancestor = next(node for node in invocation_graph.ancestors("third") if node.node_id == "first")
+    assert ancestor.semantics is first.semantics
+
+
+def test_node_identity_does_not_depend_on_semantics() -> None:
+    semantics = plan.InvocationSemantics(
+        function_id="first",
+        profile_id="data",
+        operator_id="first",
+        role="compute",
+        result="none",
+        input_features=["input"],
+    )
+    first = graph.InvocationNode("same", semantics)
+    other = graph.InvocationNode("same", semantics.__replace__(input_features=["other"]))
+    assert first == other
+    assert len({first, other}) == 1
 
 
 def test_graph_rejects_id_collisions_before_overwriting_nodes(

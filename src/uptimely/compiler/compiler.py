@@ -18,8 +18,6 @@ from . import semantics as semantics_module
 
 logger = logging.getLogger(__name__)
 
-type _InvocationBinding = tuple[invocation_graph.InvocationNode, plan.InvocationSemantics]
-
 
 @dataclasses.dataclass(frozen=True)
 class _OperatorInvocations:
@@ -27,13 +25,13 @@ class _OperatorInvocations:
 
     profile: spec.Profile
     operator: spec.Operator
-    bindings: dict[profile_module.OperatorBindingRole.Value, _InvocationBinding]
+    bindings: dict[profile_module.OperatorBindingRole.Value, invocation_graph.InvocationNode]
 
     @property
-    def fragment_merge(self) -> _InvocationBinding | None:
+    def fragment_merge(self) -> invocation_graph.InvocationNode | None:
         """Return the merge that publishes this operator's fragment, if any."""
-        _, compute = self.bindings[profile_module.OperatorBindingRole.COMPUTE]
-        if compute.result == plan.InvocationResultKind.FRAGMENT:
+        compute = self.bindings[profile_module.OperatorBindingRole.COMPUTE]
+        if compute.semantics.result == plan.InvocationResultKind.FRAGMENT:
             return self.bindings.get(profile_module.OperatorBindingRole.MERGE)
         return None
 
@@ -90,9 +88,7 @@ class Compiler:
         signatures = dict(signatures or {})
 
         operators = self._create_invocations(spec_definition)
-        bindings = [binding for operator in operators for binding in operator.bindings.values()]
-        nodes = [node for node, _ in bindings]
-        semantics_by_id = {node.node_id: semantics for node, semantics in bindings}
+        nodes = [node for operator in operators for node in operator.bindings.values()]
         publishers = self._index_publishers(operators)
         dependencies = self._resolve_dependencies(spec_definition, operators, publishers)
         graph = invocation_graph.InvocationGraph(nodes, dependencies)
@@ -100,7 +96,7 @@ class Compiler:
             logger.debug("Selected features: %s", sorted(features))
             logger.debug("Select requested features and prerequisite invocations")
             selected = self._select_invocations(
-                spec_definition, semantics_by_id, publishers.features, features
+                spec_definition, nodes, publishers.features, features
             )
             for invocation_id in tuple(selected):
                 selected.update(node.node_id for node in graph.ancestors(invocation_id))
@@ -113,9 +109,7 @@ class Compiler:
         nodes = graph.invocations
 
         logger.debug("Validating %d invocations", len(nodes))
-        selected_functions = self._collect_selected_functions(
-            spec_definition, nodes, semantics_by_id
-        )
+        selected_functions = self._collect_selected_functions(spec_definition, nodes)
         locations = dict.fromkeys(
             function.entrypoint for function in selected_functions.values() if function.entrypoint
         )
@@ -133,7 +127,6 @@ class Compiler:
             selected_functions,
             signatures,
             packages,
-            semantics_by_id,
         )
         stages = [[node.node_id for node in stage] for stage in execution_stages]
 
@@ -155,7 +148,9 @@ class Compiler:
             contracts = semantics_module.InvocationSemanticsBuilder.build(
                 spec_definition, key, operator
             )
-            bindings: dict[profile_module.OperatorBindingRole.Value, _InvocationBinding] = {}
+            bindings: dict[
+                profile_module.OperatorBindingRole.Value, invocation_graph.InvocationNode
+            ] = {}
             for role, semantics in contracts.items():
                 invocation_id = invocation_graph.InvocationNode.create_id(
                     semantics.function_id, profile.id, operator.id, role
@@ -170,7 +165,7 @@ class Compiler:
                         f"({semantics.role}:{semantics.function_id})"
                     )
                 seen[invocation_id] = semantics
-                bindings[role] = (invocation_graph.InvocationNode(invocation_id), semantics)
+                bindings[role] = invocation_graph.InvocationNode(invocation_id, semantics)
             operators.append(_OperatorInvocations(profile, operator, bindings))
         return operators
 
@@ -181,16 +176,16 @@ class Compiler:
         datasets: dict[str, list[str]] = {}
         seeds: dict[str, str] = {}
         for item in operators:
-            compute, contract = item.bindings[profile_module.OperatorBindingRole.COMPUTE]
+            compute = item.bindings[profile_module.OperatorBindingRole.COMPUTE]
             merge = item.fragment_merge
-            publisher = merge[0].node_id if merge is not None else compute.node_id
-            if contract.produces_features:
+            publisher = merge.node_id if merge is not None else compute.node_id
+            if compute.semantics.produces_features:
                 for feature in item.operator.output_features:
                     features[feature] = publisher
-            for node, semantics in item.bindings.values():
-                if semantics.result == plan.InvocationResultKind.TARGET:
+            for node in item.bindings.values():
+                if node.semantics.result == plan.InvocationResultKind.TARGET:
                     datasets.setdefault(item.profile.id, []).append(node.node_id)
-                if semantics.is_seed:
+                if node.semantics.is_seed:
                     seeds[item.profile.id] = node.node_id
         return _Publishers(features, datasets, seeds)
 
@@ -204,18 +199,18 @@ class Compiler:
         """Connect each operator's invocations to their prerequisites."""
         dependencies: dict[str, set[str]] = {}
         for item in operators:
-            for node, semantics in item.bindings.values():
+            for node in item.bindings.values():
                 dependencies[node.node_id] = set()
-                if cls._requires_seed(item, semantics):
+                if cls._requires_seed(item, node.semantics):
                     dependencies[node.node_id].add(publishers.seeds[item.profile.id])
 
-            compute, _ = item.bindings[profile_module.OperatorBindingRole.COMPUTE]
+            compute = item.bindings[profile_module.OperatorBindingRole.COMPUTE]
             dependencies[compute.node_id].update(
                 cls._input_dependencies(spec_definition, item, publishers, compute.node_id)
             )
             merge = item.fragment_merge
             if merge is not None:
-                dependencies[merge[0].node_id].add(compute.node_id)
+                dependencies[merge.node_id].add(compute.node_id)
         return dependencies
 
     @staticmethod
@@ -276,7 +271,7 @@ class Compiler:
     @staticmethod
     def _select_invocations(
         spec_definition: spec.Spec,
-        semantics_by_id: abc.Mapping[str, plan.InvocationSemantics],
+        nodes: abc.Collection[invocation_graph.InvocationNode],
         feature_producers: abc.Mapping[str, str],
         features: abc.Collection[str],
     ) -> set[str]:
@@ -286,13 +281,14 @@ class Compiler:
         if missing:
             raise ValueError("Unknown output feature(s): " + ", ".join(sorted(missing)))
         selected = {feature_producers[feature] for feature in features}
-        selected_profiles = {semantics_by_id[item].profile_id for item in selected}
+        nodes_by_id = {node.node_id: node for node in nodes}
+        selected_profiles = {nodes_by_id[item].semantics.profile_id for item in selected}
         selected.update(
-            invocation_id
-            for invocation_id, semantics in semantics_by_id.items()
-            if semantics.role == profile_module.OperatorBindingRole.COMPUTE
-            and semantics.is_sink
-            and semantics.profile_id in selected_profiles
+            node.node_id
+            for node in nodes
+            if node.semantics.role == profile_module.OperatorBindingRole.COMPUTE
+            and node.semantics.is_sink
+            and node.semantics.profile_id in selected_profiles
         )
         return selected
 
@@ -300,14 +296,13 @@ class Compiler:
     def _collect_selected_functions(
         spec_definition: spec.Spec,
         nodes: list[invocation_graph.InvocationNode],
-        semantics_by_id: abc.Mapping[str, plan.InvocationSemantics],
     ) -> dict[str, spec_model.FunctionTemplate]:
         """Validate entrypoints and collect each selected function once."""
         logger.debug("Validate function entrypoint declarations")
         logger.debug("Select unique functions for implementation checks")
         selected_functions: dict[str, spec_model.FunctionTemplate] = {}
         for node in nodes:
-            semantics = semantics_by_id[node.node_id]
+            semantics = node.semantics
             function_id = semantics.function_id
             function = spec_definition.functions.get(function_id)
             if function is None or not function.entrypoint:
@@ -346,18 +341,17 @@ class Compiler:
         selected_functions: dict[str, spec_model.FunctionTemplate],
         signatures: dict[str, entrypoint.Signature],
         packages: dict[str, plan.Package],
-        semantics_by_id: dict[str, plan.InvocationSemantics],
     ) -> list[plan.Invocation]:
         """Convert scheduled nodes to portable invocations with resolved metadata."""
         logger.debug("Create portable invocations")
         invocations: list[plan.Invocation] = []
         for node in nodes:
-            semantics = semantics_by_id[node.node_id]
+            semantics = node.semantics
             function = selected_functions[semantics.function_id]
             invocations.append(
-                plan.Invocation.from_node(
+                plan.Invocation.from_spec(
                     spec_definition,
-                    node,
+                    node.node_id,
                     dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
                     return_type=(
                         signatures[semantics.function_id].display.returns

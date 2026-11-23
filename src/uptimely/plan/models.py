@@ -58,13 +58,6 @@ class Package(_PlanModel):
     version: str | None
 
 
-class _InvocationNode(typing.Protocol):
-    """Compiler graph node carrying an opaque invocation ID."""
-
-    @property
-    def node_id(self) -> str: ...
-
-
 class InvocationSemantics(_PlanModel):
     """Runtime contract and Spec provenance for one function invocation."""
 
@@ -193,17 +186,17 @@ class Invocation(_PlanModel):
     semantics: InvocationSemantics
 
     @classmethod
-    def from_node(
+    def from_spec(
         cls,
         spec_definition: spec.Spec,
-        node: _InvocationNode,
+        invocation_id: str,
         *,
         dependency_ids: list[str],
         return_type: str | None,
         package: Package,
         semantics: InvocationSemantics,
     ) -> typing.Self:
-        """Create a portable invocation from a compiler node and resolved metadata."""
+        """Create a portable invocation from a Spec and resolved metadata."""
         semantics = InvocationSemantics.from_node(
             semantics,
             dependency_ids=dependency_ids,
@@ -239,7 +232,7 @@ class Invocation(_PlanModel):
             feature_id=feature_id,
         )
         return cls(
-            id=node.node_id,
+            id=invocation_id,
             entrypoint=function.entrypoint,
             arguments=arguments,
             returns=(

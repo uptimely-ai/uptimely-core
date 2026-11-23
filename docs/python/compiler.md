@@ -1,8 +1,8 @@
 # Compiler
 
-`InvocationNode` represents an invocation by its `node_id`. Its `create_id`
-method derives the ID from the function, profile, operator, and binding role.
-These identity values are stored in the invocation semantics.
+`InvocationNode` carries an invocation's semantics and is identified by its
+`node_id`. Its `create_id` method derives the ID from the function, profile,
+operator, and binding role. Node equality and hashing use only the ID.
 `InvocationGraph` orders nodes using the supplied dependency IDs.
 `InvocationSemanticsBuilder.build` derives contracts for one operator.
 `Compiler` creates operator invocations, indexes their publishers, and resolves

@@ -18,8 +18,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
-- `InvocationNode` now contains only its invocation ID. Invocation identity
-  and binding metadata are available in invocation semantics.
+- `InvocationNode` carries invocation semantics alongside its ID. Node equality
+  and hashing use the ID.
+- `Invocation.from_spec` accepts an invocation ID instead of a graph node.
 - `InvocationSemanticsBuilder.build` derives contracts for one operator instead
   of creating nodes for an entire Spec.
 - Spec bindings are inspected through `uptimely.inspector.BindingInspection`
