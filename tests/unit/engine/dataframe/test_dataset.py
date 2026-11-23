@@ -319,16 +319,18 @@ def test_runtime_validation_uses_column_types_from_invocation() -> None:
     assert main.fragments == {}
 
 
-def test_runtime_bindings_unwrap_dataset_and_fragment() -> None:
+def test_runtime_bindings_resolve_named_returns_without_unwrapping() -> None:
     data = pl.DataFrame({"id": [1], "value": [2]})
     main = execution_support.dataset(None, ["id"])
     projected = main.merge(fragment_module.Fragment(data, ("id",)))
     main.fragments["source"] = projected
-    state = state_module.RuntimeState(datasets={"dataset": main})
+    state = state_module.RuntimeState(
+        values={"$datasets.dataset.main": main, "$fragments.dataset.source": projected}
+    )
     bindings = bindings_module.RuntimeBindings(state, {})
 
-    assert bindings.resolve_value("dataset", "dataframe") is data
-    assert bindings.resolve_value("source", "dataframe") is data
+    assert bindings.resolve_value("$datasets.dataset.main") is main
+    assert bindings.resolve_value("$fragments.dataset.source") is projected
 
 
 def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:

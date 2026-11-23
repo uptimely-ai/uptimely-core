@@ -7,6 +7,7 @@ from .models import (
     InvocationResultKind,
     InvocationSemantics,
     Stage,
+    Variable,
 )
 from .serialization import (
     export_json,
@@ -21,6 +22,7 @@ __all__ = [
     "InvocationResultKind",
     "InvocationSemantics",
     "Stage",
+    "Variable",
     "ExecutionPlan",
     "export_json",
     "from_dict",

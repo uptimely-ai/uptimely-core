@@ -1,8 +1,8 @@
 # Plan models
 
 `uptimely.plan` provides the plan models and JSON helpers.
-An `Invocation` pairs a function call with its nested `InvocationSemantics`
-contract.
+An `Invocation` pairs explicit function-call data with an optional
+`InvocationSemantics` contract.
 
 ::: uptimely.plan.models
     options:

@@ -123,7 +123,7 @@ def test_uptimely_build_and_run_use_saved_build(tmp_path: pathlib.Path) -> None:
     app.build()
     (root / "spec/spec.py").write_text("raise RuntimeError('must not rebuild')\n", encoding="utf-8")
 
-    result = app.run(validate=True)
+    result = app.run()
 
     assert not result.failures
     assert result.datasets["values"].to_dict(as_series=False) == {"value": [7]}

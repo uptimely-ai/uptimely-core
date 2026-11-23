@@ -44,6 +44,7 @@ def _write_empty_build(project_root: pathlib.Path) -> pathlib.Path:
                 "required_backend": "polars",
                 "invocations": [],
                 "stages": [],
+                "datasets": {},
             }
         ),
         encoding="utf-8",

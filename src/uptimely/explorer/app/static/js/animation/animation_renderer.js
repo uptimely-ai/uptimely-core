@@ -121,7 +121,7 @@ export function animation(data) {
     content: `<main class="data-lineage-page">
       ${stages.length ? `<p id="animation-dataset-prompt" role="status" hidden>Choose a profile in Animation controls to view its operator.</p>
         <div id="data-lineage-board">${stages.map((stage, index) => `<section class="data-lineage-stage" aria-labelledby="stage-${index + 1}">
-          <h2 id="stage-${index + 1}">Stage ${index + 1} / ${stage.length} independent step${stage.length === 1 ? "" : "s"}</h2>
+          <h2 id="stage-${index + 1}">Stage ${index + 1} / ${stage.length} step${stage.length === 1 ? "" : "s"}</h2>
           ${stage.map(step => animationStep(step, index + 1, functions[step.function] || {})).join("")}</section>`).join("")}</div>`
         : "<p>No processing steps. Add function operator to the spec to display the animation.</p>"}</main>`,
   };

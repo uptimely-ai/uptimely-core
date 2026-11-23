@@ -17,7 +17,7 @@ class ExecutionResult:
     """Immutable summary and outputs produced by one engine execution."""
 
     datasets: dict[str, object]
-    calculated_outputs: dict[tuple[str, str], object]
+    calculated_outputs: dict[tuple[str, str], object] | None
     invocation_statuses: dict[str, InvocationStatus]
     durations: dict[str, float]
     failures: dict[str, str]

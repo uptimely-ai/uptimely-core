@@ -1,120 +1,62 @@
-"""Resolve portable plan values against execution resources and runtime state."""
+"""Resolve portable plan arguments against execution resources."""
 
 import pathlib
-import typing
 from collections import abc
 
 from uptimely import plan
-from uptimely.spec import arg_types, selectors
+from uptimely.spec import selectors
 
 from . import state as state_module
 
 
 class RuntimeBindings:
-    """Resolve typed invocation arguments, global parameters, and dataframe IDs."""
+    """Resolve named returns, parameters, and paths in JSON arguments."""
 
     def __init__(
         self,
         state: state_module.RuntimeState,
-        parameters: abc.Mapping[str, typing.Any],
+        parameters: abc.Mapping[str, object],
         paths: abc.Mapping[str, str] | None = None,
         project_root: pathlib.Path | None = None,
     ) -> None:
         """Create a resolver for one execution's values and project context."""
         self.state = state
         self.parameters = parameters
-        self.paths = paths or {}
+        self.paths = {} if paths is None else paths
         self.project_root = project_root
 
-    def resolve_args(
-        self,
-        invocation: plan.Invocation,
-        *,
-        computed_fragment: object | None = None,
-    ) -> dict[str, object]:
-        """Bind compiled argument values to runtime values using declared argument types."""
-        return {
-            name: self.resolve_value(
-                value,
-                invocation.semantics.argument_types.get(name),
-                computed_fragment=computed_fragment,
-            )
-            for name, value in invocation.arguments.items()
-        }
+    def resolve_args(self, invocation: plan.Invocation) -> dict[str, object]:
+        """Resolve all argument values for an invocation."""
+        return {name: self.resolve_value(value) for name, value in invocation.arguments.items()}
 
-    def resolve_value(
-        self,
-        value: object,
-        argument_type: str | None = None,
-        *,
-        computed_fragment: object | None = None,
-    ) -> object:
-        """Recursively resolve one typed plan binding value."""
-        if hasattr(value, "model_dump"):
-            value = value.model_dump()
-        if value == f"{selectors.OPERATOR_PREFIX}{selectors.CURRENT_ID}.fragment":
-            if argument_type != arg_types.DATAFRAME:
-                raise ValueError("Merge fragment argument must have dataframe type")
-            if computed_fragment is None:
-                raise ValueError("Computed fragment is unavailable")
-            return computed_fragment
-        if arg_types.is_dataframe(argument_type or "") and isinstance(value, str):
-            frame = self.state.resolve_dataset_or_fragment_dataframe(value)
-            if frame is None:
-                if argument_type == arg_types.OPTIONAL_DATAFRAME:
-                    return None
-                raise ValueError(f"Profile dataframe is unavailable: {value}")
-            return frame
-        if isinstance(value, str) and value.startswith(selectors.PARAMS_PREFIX):
-            return self.resolve_parameter_reference(value)
-        if isinstance(value, str) and value.startswith(selectors.PATHS_PREFIX):
-            return self.resolve_path_reference(value)
-        if isinstance(value, str) and value == "$params":
-            raise ValueError(f"Malformed parameter reference: {value}")
-        if isinstance(value, str) and value == "$paths":
-            raise ValueError(f"Malformed path reference: {value}")
-        if isinstance(value, str) and value.startswith("?"):
-            raise ValueError(
-                f"Legacy runtime reference {value!r} is unsupported; use a $params.<name> "
-                "or $paths.<name> reference"
-            )
+    def resolve_value(self, value: object) -> object:
+        """Recursively resolve reserved references in a plan argument.
+
+        Raises:
+            ValueError: A referenced return, parameter, or path is unavailable.
+        """
+        if isinstance(value, str):
+            if value.startswith(plan.Variable.PREFIXES):
+                return self.state.resolve(value)
+            if value.startswith(selectors.PARAMS_PREFIX):
+                name = value.removeprefix(selectors.PARAMS_PREFIX)
+                if name not in self.parameters:
+                    raise ValueError(f"Unresolved parameter: {name}")
+                return self.parameters[name]
+            if value.startswith(selectors.PATHS_PREFIX):
+                name = value.removeprefix(selectors.PATHS_PREFIX)
+                if name not in self.paths:
+                    raise ValueError(f"Unresolved path: {name}")
+                path = pathlib.Path(self.paths[name])
+                if path.is_absolute():
+                    return str(path)
+                if self.project_root is None:
+                    raise ValueError(
+                        f"Cannot resolve project-relative path without a project root: {name}"
+                    )
+                return str(self.project_root / path)
         if isinstance(value, list):
-            element_type = (
-                arg_types.array_item_type(argument_type) if argument_type is not None else None
-            )
-            return [
-                self.resolve_value(item, element_type, computed_fragment=computed_fragment)
-                for item in value
-            ]
+            return [self.resolve_value(item) for item in value]
         if isinstance(value, dict):
-            value_type = (
-                arg_types.object_value_type(argument_type) if argument_type is not None else None
-            )
-            return {
-                name: self.resolve_value(item, value_type, computed_fragment=computed_fragment)
-                for name, item in value.items()
-            }
+            return {name: self.resolve_value(item) for name, item in value.items()}
         return value
-
-    def resolve_parameter_reference(self, value: str) -> object:
-        """Resolve a required ``$params.<name>`` project parameter."""
-        name = value.removeprefix(selectors.PARAMS_PREFIX)
-        if not name or "." in name or not name.isidentifier():
-            raise ValueError(f"Malformed parameter reference: {value}")
-        if name not in self.parameters:
-            raise ValueError(f"Unresolved parameter: {name}")
-        return self.parameters[name]
-
-    def resolve_path_reference(self, value: str) -> str:
-        """Resolve a required ``$paths.<name>`` value against the project root."""
-        name = value.removeprefix(selectors.PATHS_PREFIX)
-        if not name or "." in name or not name.isidentifier():
-            raise ValueError(f"Malformed path reference: {value}")
-        if name not in self.paths:
-            raise ValueError(f"Unresolved path: {name}")
-        path = pathlib.Path(self.paths[name])
-        if path.is_absolute():
-            return str(path)
-        if self.project_root is None:
-            raise ValueError(f"Cannot resolve project-relative path without a project root: {name}")
-        return str(self.project_root / path)

@@ -1,6 +1,6 @@
 # Scaling strategies
 
-Uptimely Engine itself is naive. It runs functions defined in execution plan, validates the results if asked, and is not aware of where it runs.
+Uptimely Engine runs functions defined in the execution plan and is not aware of where it runs. Analytical runtime validation is not currently supported.
 
 Even with this setup Uptimely gives plenty of opportunities to scale up from the basics.
 

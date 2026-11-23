@@ -4,6 +4,8 @@ Compiler is the bridge between logical definitions and physical execution.
 It consumes a validated Spec and optional inspected signature metadata. It does
 not import entrypoints or inspect implementation signatures.
 
+Execution plans contain named invocation results.
+
 ## Operators to invocations
 
 Each operator compute binding and merge binding produces one invocation.
@@ -14,9 +16,8 @@ hidden work.
 
 ## Resolving binding variables
 
-The compiler resolves object references to the actual values used in function
-calls. It validates those values and binds them to the corresponding
-invocations.
+The plan encoder resolves Spec bindings and encodes runtime references for
+function arguments and returns in the scheduled invocations.
 
 ## Execution graph
 

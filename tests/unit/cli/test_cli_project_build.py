@@ -87,7 +87,7 @@ def test_project_build_examples(
         assert "\nCompiler operator: " not in result.out
         assert result.out.count("Validate function entrypoint declarations") == 1
         assert result.out.count("Resolve structural argument references") == 1
-        assert result.out.count("Create portable invocations") == 1
+        assert result.out.count("Validate invocation IDs, dependencies, and execution stages") == 1
         assert result.out.count("Parse ") == 2
         assert result.out.count("Inspect callable signatures for ") == 1
         assert "\nCompiler function:" not in result.out
@@ -483,15 +483,12 @@ def test_scoped_build_normalizes_features_and_includes_dataset_sink(
     plan_invocations = bundle.execution_plan.invocations
     sinks = [invocation for invocation in plan_invocations if invocation.semantics.is_sink]
     assert sinks
-    plan_ids = {invocation.id for invocation in plan_invocations}
     produced_features = {
         feature
         for invocation in plan_invocations
         for feature in invocation.semantics.output_features
     }
     dimensions = set(source_spec.identifier_ids)
-    for invocation in plan_invocations:
-        assert set(invocation.semantics.dependency_ids) <= plan_ids
     for sink in sinks:
         assert set(sink.semantics.input_features) <= produced_features | dimensions
     full_plan = example_support.example_bundle().execution_plan

@@ -55,13 +55,13 @@ def test_run_persists_bounded_schema_and_reuses_preview(
         return sample
 
     monkeypatch.setattr(pl.LazyFrame, "collect", collect)
-    result = runtime.run(validate=True, preview_rows=2)
+    result = runtime.run(preview_rows=2)
     saved = store.RunStore(runtime.bundle.project_root)
     manifest = saved.read_manifest()
     sample = saved.read_preview("telemetry", run_id=manifest.run_id)
 
     assert manifest.status == "succeeded"
-    assert manifest.runtime_validation
+    assert not manifest.runtime_validation
     assert manifest.duration_seconds == result.duration_seconds
     assert manifest.finished_at >= manifest.started_at
     assert manifest.profiles["telemetry"].row_count == (None if lazy else row_count)
@@ -327,7 +327,7 @@ def test_build_fingerprint_uses_loaded_objects_not_current_files(runtime: engine
     assert models.BuildIdentity.from_bundle(runtime.bundle) == identity
     other = copy.replace(
         runtime.bundle,
-        execution_plan=copy.replace(runtime.plan, invocations=[], stages=[]),
+        execution_plan=copy.replace(runtime.plan, invocations=[], stages=[], datasets={}),
     )
     assert models.BuildIdentity.from_bundle(other).fingerprint != identity.fingerprint
 

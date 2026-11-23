@@ -8,6 +8,7 @@ from collections import abc
 
 from uptimely import plan, spec
 from uptimely.codebase.python import entrypoint
+from uptimely.plan import encoding as plan_encoding
 from uptimely.spec import arg_types
 from uptimely.spec import model as spec_model
 from uptimely.spec import validation as spec_validation
@@ -82,27 +83,8 @@ class Compiler:
         """
         if validate_spec:
             spec_validation.validate_spec(spec_definition)
-        if isinstance(features, str):
-            logger.debug("Check feature selection is a collection, not a string")
-            raise ValueError("features must be a collection of feature identifiers")
         signatures = dict(signatures or {})
-
-        operators = self._create_invocations(spec_definition)
-        nodes = [node for operator in operators for node in operator.bindings.values()]
-        publishers = self._index_publishers(operators)
-        dependencies = self._resolve_dependencies(spec_definition, operators, publishers)
-        graph = invocation_graph.InvocationGraph(nodes, dependencies)
-        if features is not None:
-            logger.debug("Selected features: %s", sorted(features))
-            logger.debug("Select requested features and prerequisite invocations")
-            selected = self._select_invocations(
-                spec_definition, nodes, publishers.features, features
-            )
-            for invocation_id in tuple(selected):
-                selected.update(node.node_id for node in graph.ancestors(invocation_id))
-            graph = graph.subset(selected)
-        else:
-            logger.debug("Using all features")
+        graph = self.invocation_graph(spec_definition, features)
 
         logger.debug("Validate dependency graph ordering")
         execution_stages = graph.topology()
@@ -117,12 +99,20 @@ class Compiler:
         for location in locations:
             entrypoint.Entrypoint(location)
         logger.debug("Resolve structural argument references")
-        invocations = self._create_plan_invocations(
-            spec_definition,
-            graph,
-            nodes,
-            signatures,
-        )
+        encoder = plan_encoding.InvocationEncoder(spec_definition)
+        invocations = [
+            encoder.encode(
+                node.node_id,
+                node.semantics,
+                return_type=(
+                    signatures[node.semantics.function_id].display.returns
+                    if node.semantics.function_id in signatures
+                    else None
+                ),
+            )
+            for stage in execution_stages
+            for node in stage
+        ]
         stages = [[node.node_id for node in stage] for stage in execution_stages]
 
         logger.debug("Validate invocation IDs, dependencies, and execution stages")
@@ -131,7 +121,44 @@ class Compiler:
             required_backend="polars",
             invocations=invocations,
             stages=[plan.Stage(stage) for stage in stages],
+            datasets=encoder.datasets,
         )
+
+    @classmethod
+    def invocation_graph(
+        cls, spec_definition: spec.Spec, features: abc.Collection[str] | None = None
+    ) -> invocation_graph.InvocationGraph:
+        """Build the compiler's invocation dependency graph for a Spec and selection.
+
+        Args:
+            spec_definition: Spec containing the operator bindings.
+            features: Optional collection of output feature identifiers.
+
+        Returns:
+            The invocation dependency graph, restricted to the selected features if provided.
+
+        Raises:
+            ValueError: The feature selection is invalid.
+        """
+        if isinstance(features, str):
+            logger.debug("Check feature selection is a collection, not a string")
+            raise ValueError("features must be a collection of feature identifiers")
+        operators = cls._create_invocations(spec_definition)
+        publishers = cls._index_publishers(operators)
+        nodes = [node for operator in operators for node in operator.bindings.values()]
+        dependencies = cls._resolve_dependencies(spec_definition, operators, publishers)
+        graph = invocation_graph.InvocationGraph(nodes, dependencies)
+        if features is not None:
+            logger.debug("Selected features: %s", sorted(features))
+            logger.debug("Select requested features and prerequisite invocations")
+            selected = cls._select_invocations(
+                spec_definition, nodes, publishers.features, features
+            )
+            for invocation_id in tuple(selected):
+                selected.update(node.node_id for node in graph.ancestors(invocation_id))
+            return graph.subset(selected)
+        logger.debug("Using all features")
+        return graph
 
     @staticmethod
     def _create_invocations(spec_definition: spec.Spec) -> list[_OperatorInvocations]:
@@ -307,30 +334,3 @@ class Compiler:
                 )
             selected_functions.setdefault(function_id, function)
         return selected_functions
-
-    @staticmethod
-    def _create_plan_invocations(
-        spec_definition: spec.Spec,
-        graph: invocation_graph.InvocationGraph,
-        nodes: list[invocation_graph.InvocationNode],
-        signatures: dict[str, entrypoint.Signature],
-    ) -> list[plan.Invocation]:
-        """Convert scheduled nodes to portable invocations with resolved metadata."""
-        logger.debug("Create portable invocations")
-        invocations: list[plan.Invocation] = []
-        for node in nodes:
-            semantics = node.semantics
-            invocations.append(
-                plan.Invocation.from_spec(
-                    spec_definition,
-                    node.node_id,
-                    dependency_ids=[dependency.node_id for dependency in graph.dependencies(node)],
-                    return_type=(
-                        signatures[semantics.function_id].display.returns
-                        if semantics.function_id in signatures
-                        else None
-                    ),
-                    semantics=semantics,
-                )
-            )
-        return invocations

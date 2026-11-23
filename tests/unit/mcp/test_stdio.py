@@ -14,8 +14,6 @@ pytest.importorskip("fastmcp", reason="fastmcp extra is not installed")
 import fastmcp  # noqa: E402
 from fastmcp.client import transports  # noqa: E402
 
-from uptimely import application  # noqa: E402
-
 REPOSITORY_ROOT = pathlib.Path(__file__).parents[3]
 
 
@@ -38,11 +36,6 @@ async def test_documented_stdio_launchers_build_and_execute(
         check=False,
     )
     assert built.returncode == 0, built.stdout + built.stderr
-    bundle = application.load_build_bundle(root)
-    operator_id = example_support.operator_id_for_output(
-        bundle.spec_definition.profiles["pump_telemetry"].assembly, "pressure_flow_efficiency"
-    )
-
     if launcher == "vscode":
         poetry = shutil.which("poetry")
         if poetry is None:
@@ -72,15 +65,8 @@ async def test_documented_stdio_launchers_build_and_execute(
         assert {"describe_spec", "execute_operator", "read_last_run_logs"} <= tools
         described = await client.call_tool("describe_spec")
         assert json.loads(described.content[0].text)["features"] > 0
-        executed = await client.call_tool(
-            "execute_operator",
-            {
-                "profile_id": "pump_telemetry",
-                "operator_id": operator_id,
-                "max_rows": 1,
-            },
-        )
+        executed = await client.call_tool("execute_build", {"max_rows": 1})
         payload = json.loads(executed.content[0].text)
         assert payload["status"] == "ok", payload
-        assert payload["datasets"][0]["row_count"] == 1
-        assert "pressure_flow_efficiency" in payload["datasets"][0]["rows"][0]
+        assert payload["datasets"] == []
+        assert payload["output_summary_available"] is False

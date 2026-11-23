@@ -27,18 +27,24 @@ a client and example questions.
 
 ## Run analytics
 
+Targeted execution and calculated-feature output summaries are not currently
+supported. The execution tools therefore cannot return analytical rows.
+`execute_build` can execute the plan, including writers, before reporting that
+the output summary is unavailable. The response sets
+`output_summary_available` to `false` and returns an empty `datasets` list.
+
 `execute_function(function_id: str, profile_id: str | None = None, operator_id: str | None = None, max_rows: int = 50) -> str`
-: Runs one function through its operator and dependencies. Use profile or operator
-  IDs to disambiguate reused functions.
+: Requests a function through its operator. Targeted execution is unsupported.
 
 `execute_operator(profile_id: str, operator_id: str, max_rows: int = 50) -> str`
-: Runs one operator and its dependencies, excluding later work and output writers.
+: Requests one operator. Targeted execution is unsupported.
 
 `execute_build(max_rows: int = 50) -> str`
-: Runs the entire saved plan, including configured output writers.
+: Runs the entire saved plan, including configured output writers, but cannot
+  currently return calculated rows.
 
-`max_rows` limits returned samples, not calculation inputs. Explicitly selecting
-an output writer still runs it. Custom functions can also have side effects.
+`max_rows` limits preview samples, not calculation inputs. Custom functions can
+also have side effects.
 
 ## Inspect the latest run
 

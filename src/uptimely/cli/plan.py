@@ -8,7 +8,7 @@ logger = logging.getLogger(__name__)
 
 
 def log_stages(plan: plan_module.ExecutionPlan) -> None:
-    """Log execution stages and their function dependencies."""
+    """Log execution stages and explicitly referenced input producers."""
     invocations_by_id = plan.invocations_by_id
     logger.info("\nExecution stages")
     for stage_number, stage in enumerate(plan.execution_stages, 1):
@@ -16,7 +16,7 @@ def log_stages(plan: plan_module.ExecutionPlan) -> None:
         for invocation in stage:
             dependencies = [
                 invocations_by_id[dependency_id].semantics.function_id
-                for dependency_id in invocation.semantics.dependency_ids
+                for dependency_id in plan.input_invocations[invocation.id]
             ]
             suffix = f" <- [{', '.join(dependencies)}]" if dependencies else ""
             logger.info(

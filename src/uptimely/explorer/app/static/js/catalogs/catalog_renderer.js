@@ -727,8 +727,8 @@ export function stageCards(data) {
           <div><dt>Profile</dt><dd><a href="${href("profiles", `profile-${step.profile}`)}">${escape(step.dataset_label || step.profile)}</a></dd></div>
           <div><dt>Operator</dt><dd><a href="${href("profiles", `operator-${step.profile}-${step.operator_id}`)}">${escape(step.operator_id)}</a></dd></div>
           <div><dt>${step.uncontrolled ? "Python return (ignored)" : "Returns"}</dt><dd>${dataTypeLabel(step.returns.type.engine || "—")}</dd></div>
-          <div><dt>Depends on invocations</dt><dd>${step.depends_on_invocations.map(dep =>
-            `<a href="#invocation-${escape(dep.id)}"><code>${escape(dep.function)}</code></a>`).join("") || '<span class="profile-operator-empty">No invocation dependencies</span>'}</dd></div>
+          <div><dt>Input-producing invocations</dt><dd>${step.depends_on_invocations.map(dep =>
+            `<a href="#invocation-${escape(dep.id)}"><code>${escape(dep.function)}</code></a>`).join("") || '<span class="profile-operator-empty">No referenced invocation inputs</span>'}</dd></div>
           ${step.role === "merge" ? [["Merge dataset", step.merge_dataset], ["Fragment source", step.fragment_source], ["Merge keys", step.merge_keys]].map(([title, value]) =>
             `<div><dt>${title}</dt><dd><code>${display(value)}</code></dd></div>`).join("") : ""}
           ${step.row_context != null ? `<div><dt>Row context</dt><dd><code>${display(step.row_context)}</code></dd></div>` : ""}

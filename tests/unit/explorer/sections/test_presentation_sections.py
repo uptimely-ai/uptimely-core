@@ -54,6 +54,7 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
         id="calculate",
         entrypoint="example:calculate",
         arguments=arguments,
+        returns="$dataset.data.calculate",
         semantics=execution_plan.InvocationSemantics(
             role="compute",
             result="target",
@@ -68,6 +69,7 @@ def test_stage_arguments_include_compiled_function_data_types() -> None:
         required_backend="polars",
         invocations=[invocation],
         stages=[["calculate"]],
+        datasets={"data": "$dataset.data.calculate"},
     )
 
     step = plan_render._build_step(1, invocation, compiled, definition)
@@ -122,6 +124,8 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
     read = execution_plan.Invocation(
         id=read_id,
         entrypoint="example:read",
+        arguments={},
+        returns="$fragments.data.source",
         semantics=execution_plan.InvocationSemantics(
             role="compute",
             result="fragment",
@@ -137,16 +141,16 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         entrypoint="example:join",
         arguments={
             "dataset": "data",
-            "fragment": "$operators.source.fragment",
+            "fragment": "$fragments.data.source",
             "dataset_identifiers": ["id"],
         },
+        returns="$dataset.data.source",
         semantics=execution_plan.InvocationSemantics(
             result="target",
             role="merge",
             function_id="join",
             operator_id="source",
             profile_id="data",
-            dependency_ids=[read_id],
         ),
     )
     compiled = execution_plan.ExecutionPlan(
@@ -154,6 +158,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
         required_backend="polars",
         invocations=[read, merge],
         stages=[[read_id], [merge_id]],
+        datasets={"data": "$dataset.data.source"},
     )
 
     nodes, links = invocation_lineage.invocation_lineage_payload(compiled, definition)
@@ -165,7 +170,7 @@ def test_merge_invocations_expose_phase_binding_and_fragment_edge() -> None:
     assert merge_node["operator_id"] == card["operator_id"] == "source"
     assert merge_node["operator_name"] == "Source"
     assert merge_node["merge_dataset"] == card["merge_dataset"] == "data"
-    assert merge_node["fragment_source"] == card["fragment_source"] == "$operators.source.fragment"
+    assert merge_node["fragment_source"] == card["fragment_source"] == "$fragments.data.source"
     assert merge_node["merge_keys"] == card["merge_keys"] == ["id"]
     assert all(node["profile_id"] == "data" for node in nodes)
     assert all(node["profile_name"] == "Data" for node in nodes)
@@ -416,6 +421,7 @@ def test_main_columns_replace_outputs_in_order_without_materializing_ignored_res
         required_backend="polars",
         invocations=[],
         stages=[],
+        datasets={},
     )
     definition = spec.Spec.model_validate(
         {
@@ -429,6 +435,8 @@ def test_main_columns_replace_outputs_in_order_without_materializing_ignored_res
     invocation = execution_plan.Invocation(
         id="calculate",
         entrypoint="example:calculate",
+        arguments={},
+        returns="$dataset.data.calculate",
         semantics=execution_plan.InvocationSemantics(
             role="compute",
             result="target",
@@ -517,6 +525,8 @@ def test_plan_and_lineage_present_roles_separately_from_grain_relationships() ->
         execution_plan.Invocation(
             id=compute_id,
             entrypoint="example:calculate",
+            arguments={},
+            returns="$fragments.target.calculate",
             semantics=execution_plan.InvocationSemantics(
                 role="compute",
                 result="fragment",
@@ -532,13 +542,18 @@ def test_plan_and_lineage_present_roles_separately_from_grain_relationships() ->
         execution_plan.Invocation(
             id=merge_id,
             entrypoint="example:merge",
+            arguments={
+                "dataset": None,
+                "fragment": "$fragments.target.calculate",
+                "dataset_identifiers": ["id"],
+            },
+            returns="$dataset.target.calculate",
             semantics=execution_plan.InvocationSemantics(
                 role="merge",
                 result="target",
                 function_id="merge",
                 operator_id="calculate",
                 profile_id="target",
-                dependency_ids=[compute_id],
             ),
         ),
     ]
@@ -547,6 +562,7 @@ def test_plan_and_lineage_present_roles_separately_from_grain_relationships() ->
         required_backend="polars",
         invocations=invocations,
         stages=[[compute_id], [merge_id]],
+        datasets={"target": "$dataset.target.calculate"},
     )
     context = plan_render.build_context(compiled, definition)
     nodes, _ = invocation_lineage.invocation_lineage_payload(compiled, definition)

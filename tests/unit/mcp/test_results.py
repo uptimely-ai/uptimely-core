@@ -67,6 +67,18 @@ def test_full_build_reports_missing_outputs_as_failure(
     assert payload["datasets"] == []
 
 
+def test_full_build_reports_unavailable_calculated_outputs(
+    pump_bundle: application.BuildBundle,
+) -> None:
+    result = dataclasses.replace(_result(pump_bundle), calculated_outputs=None)
+
+    payload = results.ExecutionResponse.format(pump_bundle, result)
+
+    assert payload["status"] == "ok"
+    assert payload["datasets"] == []
+    assert payload["output_summary_available"] is False
+
+
 def test_targeted_run_keeps_execution_failure(pump_bundle: application.BuildBundle) -> None:
     target = _target(pump_bundle)
     result = dataclasses.replace(

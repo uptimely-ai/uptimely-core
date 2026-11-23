@@ -65,17 +65,16 @@ After a successful run and any requested previews, an info log shows the
 `uptimely explore --project-root PATH` command for opening that project's Explorer.
 
 The log level applies to Uptimely loggers, not third-party dependency loggers.
-It does not enable validation. Use `--validate` to run the runtime checks.
+It does not enable analytical validation, which is not currently supported.
 Execution debug logs use flat messages with the logger's module name,
 rather than headers, indentation, or bullets. For example:
 
 ```text
-DEBUG    | Check fragment dataframe type
-DEBUG    | Merging into profile pump_profile
+DEBUG    | Executing invocation read (pump_io:read)
 ```
 
 Module prefixes identify where each message originates. Invocation start messages
-identify the operator, function, binding role, and result handling.
+identify the invocation and entrypoint.
 Structured logs use the invocation IDs from the saved plan. Newly compiled
 plans use compact invocation IDs shown in the
 [execution plan](../artifacts/execution-plan.md).

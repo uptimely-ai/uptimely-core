@@ -140,6 +140,76 @@ def test_saved_explorer_snapshot_matches_rebuilt_spec_and_plan(
     assert saved["format_version"] == 3
 
 
+def test_presentation_follows_referenced_results_and_stage_order(
+    pump_bundle: application.BuildBundle,
+) -> None:
+    execution_plan = pump_bundle.execution_plan
+    data = presentation.build_presentation_data(pump_bundle.spec_definition, execution_plan)
+    merge = next(
+        invocation
+        for invocation in execution_plan.invocations
+        if invocation.semantics is not None and invocation.semantics.role == "merge"
+    )
+    producer = next(
+        invocation
+        for invocation in execution_plan.invocations
+        if invocation.returns == merge.arguments["fragment"]
+    )
+
+    assert {
+        "source": producer.id,
+        "target": merge.id,
+        "dependency_type": "fragment",
+    } in data["graphs"]["invocation_lineage"]["links"]
+    assert [[step["invocation_id"] for step in stage["steps"]] for stage in data["stages"]] == [
+        [invocation.id for invocation in stage] for stage in execution_plan.execution_stages
+    ]
+    assert [[step["invocation_id"] for step in stage] for stage in data["animation"]["stages"]] == [
+        [invocation.id for invocation in stage] for stage in execution_plan.execution_stages
+    ]
+
+
+def test_topology_shows_logical_score_inputs_not_same_stage_dataframe_order(
+    pump_bundle: application.BuildBundle,
+) -> None:
+    data = presentation.build_presentation_data(
+        pump_bundle.spec_definition, pump_bundle.execution_plan
+    )
+    topology = data["graphs"]["invocation_lineage"]
+    nodes = {
+        node["function_id"]: node
+        for node in topology["nodes"]
+        if node["profile_id"] == "pump_telemetry"
+        and node["function_id"] in {"ratio", "pump_health_score"}
+    }
+    deltas = [
+        node
+        for node in topology["nodes"]
+        if node["profile_id"] == "pump_telemetry" and node["function_id"] == "delta"
+    ]
+    ratio = nodes["ratio"]
+    score = nodes["pump_health_score"]
+    assert len(deltas) == 2
+    assert all(delta["stage"] == ratio["stage"] for delta in deltas)
+    links = {(link["source"], link["target"]) for link in topology["links"]}
+    assert all((node["id"], score["id"]) in links for node in [ratio, *deltas])
+    assert all((ratio["id"], delta["id"]) not in links for delta in deltas)
+    assert set(score["dependency_ids"]) >= {node["id"] for node in [ratio, *deltas]}
+
+    feature_graph = data["graphs"]["feature_lineage"]
+    score_operator = next(
+        node
+        for node in feature_graph["nodes"]
+        if node.get("is_operator") and node.get("function_id") == "pump_health_score"
+    )
+    features_by_id = {node["id"]: node.get("feature_id") for node in feature_graph["nodes"]}
+    assert {
+        features_by_id[link["source"]]
+        for link in feature_graph["links"]
+        if link["target"] == score_operator["id"]
+    } == {"bearing_temperature_delta", "vibration_delta", "pressure_flow_efficiency"}
+
+
 def test_presentation_captures_project_source_in_catalog_and_snapshot(
     pump_bundle: application.BuildBundle,
 ) -> None:

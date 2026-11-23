@@ -165,10 +165,10 @@ to title case:
 
 Selectors not accepted as values.
 
-### Runtime type validation
+### Feature types
 
-When runtime validation is enabled, the built-in engine checks feature columns
-against these types:
+Feature declarations can use these types. The Engine does not currently
+validate feature column types at runtime.
 
 | Type | Meaning |
 | --- | --- |
@@ -194,5 +194,4 @@ declared feature with no producer causes a warning, not an error.
 ### Dataframe expectations
 
 Feature and dimension registries describe the columns expected in returned
-dataframes. Runtime type checks and dataframe merge behavior are described in
-the execution engine guide.
+dataframes. Merge behavior is described in the execution engine guide.

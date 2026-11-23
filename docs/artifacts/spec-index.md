@@ -77,7 +77,6 @@ operations run or requiring the workflow to be rebuilt.
 | --- | --- | --- |
 | Spec declarations, including dimensions, functions, profiles, and operators | Spec | Yes |
 | Runtime parameters and resource paths | `params` and `paths` in project runtime configuration | No |
-| Check returned data during a run | Run option: `uptimely run --validate` or `Engine.run(validate=True)` | No |
 | Engine backend | `engine.backend` in project runtime configuration | No, if it matches the backend required by the saved plan |
 
 The saved plan specifies which backend it uses. Choosing a different backend in

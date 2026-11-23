@@ -69,7 +69,7 @@ def test_pump_external_workflow_runs_with_its_own_paths(
         project_root=bundle.project_root,
         spec_definition=spec_definition,
         paths=paths,
-    ).run(validate=True)
+    ).run()
 
     profile_output_paths = [
         pathlib.Path(paths[name]) for name in configuration["paths"] if name.endswith("_output")

@@ -100,21 +100,7 @@ def test_compilation_preserves_the_saved_plan() -> None:
         invocation["id"]: invocation["semantics"]["return_type"]
         for invocation in expected["invocations"]
     }
-    assert {
-        item["id"]: item
-        | {
-            "semantics": item["semantics"]
-            | {"dependency_ids": sorted(item["semantics"]["dependency_ids"])}
-        }
-        for item in actual["invocations"]
-    } == {
-        item["id"]: item
-        | {
-            "semantics": item["semantics"]
-            | {"dependency_ids": sorted(item["semantics"]["dependency_ids"])}
-        }
-        for item in expected["invocations"]
-    }
+    assert actual["invocations"] == expected["invocations"]
     assert [set(stage) for stage in actual["stages"]] == [
         set(stage) for stage in expected["stages"]
     ]
@@ -342,7 +328,6 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
         invocation_id: index for index, stage in enumerate(plan.stages) for invocation_id in stage
     }
 
-    assert source.id in conform.semantics.dependency_ids
     assert stage_by_id[source.id] < stage_by_id[conform.id]
     restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(plan))))
     assert restored == plan
@@ -405,7 +390,12 @@ def test_workflow_is_selected_only_for_its_profile_and_keeps_logical_dependencie
         if item.semantics.operator_id == producer.semantics.operator_id
         and item.semantics.role == "merge"
     )
-    assert publisher.id in workflow.semantics.dependency_ids
+    stage_by_id = {
+        invocation_id: index
+        for index, stage in enumerate(selected.stages)
+        for invocation_id in stage.invocation_ids
+    }
+    assert stage_by_id[publisher.id] < stage_by_id[workflow.id]
     other = compiler.Compiler().compile(document, features=["pressure_flow_efficiency"])
     assert not any(item.semantics.is_workflow for item in other.invocations)
     by_logical_output = compiler.Compiler().compile(document, features=["external_result"])
@@ -454,7 +444,6 @@ def test_unknown_result_inputs_and_outputs_define_logical_dependencies(
     by_operator = {
         invocation.semantics.operator_id: invocation for invocation in compiled.invocations
     }
-    by_id = compiled.invocations_by_id
     process_operator_id = next(
         operator_id
         for operator_id, operator in document.profiles["pump"].assembly.items()
@@ -471,20 +460,21 @@ def test_unknown_result_inputs_and_outputs_define_logical_dependencies(
         "unknown_source",
         process_operator_id,
     }
-    assert {
-        by_id[dependency_id].semantics.operator_id
-        for dependency_id in by_operator["unknown_start"].semantics.dependency_ids
-    } == {"read_pump_telemetry"}
-    assert {
-        by_id[dependency_id].semantics.operator_id
-        for dependency_id in by_operator["unknown_chain"].semantics.dependency_ids
-    } == {"unknown_start"}
-
-    assert {
-        by_id[dependency_id].semantics.operator_id
-        for dependency_id in by_operator["unknown_unrelated"].semantics.dependency_ids
-    } == {"read_pump_telemetry"}
-    assert by_operator["unknown_source"].semantics.dependency_ids == []
+    stage_by_id = {
+        invocation_id: index
+        for index, stage in enumerate(compiled.stages)
+        for invocation_id in stage.invocation_ids
+    }
+    reader = next(
+        invocation
+        for invocation in compiled.invocations
+        if invocation.semantics.operator_id == "read_pump_telemetry"
+    )
+    assert stage_by_id[reader.id] < stage_by_id[by_operator["unknown_start"].id]
+    assert (
+        stage_by_id[by_operator["unknown_start"].id] < stage_by_id[by_operator["unknown_chain"].id]
+    )
+    assert stage_by_id[reader.id] < stage_by_id[by_operator["unknown_unrelated"].id]
     assert by_operator["unknown_start"].semantics.output_features == ["unknown_start_output"]
     assert by_operator["unknown_chain"].semantics.output_features == ["unknown_chain_output"]
     assert by_operator["unknown_source"].semantics.input_features == []
@@ -518,10 +508,13 @@ def test_feature_index_uses_declared_interface_outputs(tmp_path: pathlib.Path) -
 
     plan = compiler.Compiler().compile(document)
     chain = next(item for item in plan.invocations if item.semantics.operator_id == "unknown_chain")
-    assert {
-        plan.invocations_by_id[dependency_id].semantics.operator_id
-        for dependency_id in chain.semantics.dependency_ids
-    } == {"unknown_start"}
+    start = next(item for item in plan.invocations if item.semantics.operator_id == "unknown_start")
+    stage_by_id = {
+        invocation_id: index
+        for index, stage in enumerate(plan.stages)
+        for invocation_id in stage.invocation_ids
+    }
+    assert stage_by_id[start.id] < stage_by_id[chain.id]
     assert any(
         invocation.semantics.operator_id == "unknown_start"
         for invocation in compiler.Compiler()
@@ -626,13 +619,17 @@ def test_compiler_feature_subset_contains_requested_output_and_ancestors() -> No
     )
 
     assert normalized.semantics.output_features == ["health_signal_normalized"]
-    assert {
-        (
-            subset.invocations_by_id[dependency_id].semantics.role,
-            subset.invocations_by_id[dependency_id].semantics.function_id,
-        )
-        for dependency_id in normalized.semantics.dependency_ids
-    } == {("merge", "merge_by_grain"), ("compute", "read_file")}
+    stage_by_id = {
+        invocation_id: index
+        for index, stage in enumerate(subset.stages)
+        for invocation_id in stage.invocation_ids
+    }
+    ancestors = {
+        (invocation.semantics.role, invocation.semantics.function_id)
+        for invocation in subset.invocations
+        if stage_by_id[invocation.id] < stage_by_id[normalized.id]
+    }
+    assert {("merge", "merge_by_grain"), ("compute", "read_file")} <= ancestors
     assert {
         invocation.semantics.operator_id
         for invocation in subset.invocations

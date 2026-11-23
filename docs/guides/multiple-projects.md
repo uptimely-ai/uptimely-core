@@ -207,7 +207,7 @@ declaration. Save the edited spec temporarily to `spec.json`,
 build it, and run its engine:
 
 ```python
-# script
+# example
 
 import uptimely as up
 
@@ -222,7 +222,7 @@ up.write_document(spec, updated_doc)
 
 app = up.Uptimely()
 bundle = app.build(updated_doc)
-result = app.create_engine(bundle).run(validate=True)
+result = app.create_engine(bundle).run()
 
 print(result.datasets["telemetry"])
 ```

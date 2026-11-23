@@ -7,17 +7,43 @@ import typing
 
 import pydantic
 
-from uptimely import spec
-from uptimely.spec import arg_types
+from uptimely.spec import arg_types, selectors
 from uptimely.spec import row_context as row_context_module
 from uptimely.spec.model import profile as profile_module
 
-PLAN_VERSION = 17
+PLAN_VERSION: typing.Final = 18
 NonEmptyString = typing.Annotated[str, pydantic.Field(min_length=1)]
 
 
+class Variable:
+    """Encode and recognize named results in a plan."""
+
+    DATASET = "$datasets."
+    FRAGMENT = "$fragments."
+    MERGE = "$dataset."
+    PREFIXES = (DATASET, FRAGMENT, MERGE)
+
+    @classmethod
+    def encode(cls, prefix: str, profile: str, operator: str) -> str:
+        """Return a qualified result name for one profile and operator."""
+        if prefix not in cls.PREFIXES or not profile or not operator:
+            raise ValueError("A result requires a valid prefix, profile, and operator")
+        return f"{prefix}{profile}.{operator}"
+
+    @classmethod
+    def validate(cls, value: str) -> str:
+        """Require a result name with a profile and operator."""
+        for prefix in cls.PREFIXES:
+            if value.startswith(prefix):
+                profile, separator, operator = value.removeprefix(prefix).partition(".")
+                if profile and separator and operator:
+                    return value
+                break
+        raise ValueError(f"Malformed result reference: {value}")
+
+
 class InvocationResultKind:
-    """How an invocation's result is used."""
+    """Analytical classification of an invocation's result."""
 
     Value = typing.Literal["none", "target", "fragment"]
     NONE: typing.Final = "none"
@@ -28,7 +54,9 @@ class InvocationResultKind:
 class _PlanModel(pydantic.BaseModel):
     """Strict immutable base for portable plan metadata."""
 
-    model_config = pydantic.ConfigDict(extra="forbid", strict=True, frozen=True)
+    model_config = pydantic.ConfigDict(
+        extra="forbid", strict=True, frozen=True, allow_inf_nan=False
+    )
 
     def __replace__(self, **changes: typing.Any) -> typing.Self:
         """Return a revalidated copy with selected fields replaced."""
@@ -37,7 +65,7 @@ class _PlanModel(pydantic.BaseModel):
 
 
 class Stage(pydantic.RootModel[list[NonEmptyString]]):
-    """Portable group of invocation identifiers scheduled at the same time."""
+    """Ordered group of invocation identifiers in a plan schedule."""
 
     model_config = pydantic.ConfigDict(strict=True, frozen=True)
 
@@ -52,7 +80,7 @@ class Stage(pydantic.RootModel[list[NonEmptyString]]):
 
 
 class InvocationSemantics(_PlanModel):
-    """Runtime contract and Spec provenance for one function invocation."""
+    """Analytical contract and Spec provenance for one function invocation."""
 
     role: profile_module.OperatorBindingRole.Value
     result: InvocationResultKind.Value
@@ -79,7 +107,6 @@ class InvocationSemantics(_PlanModel):
     function_id: NonEmptyString
     operator_id: NonEmptyString
     profile_id: NonEmptyString | None
-    dependency_ids: list[NonEmptyString] = pydantic.Field(default_factory=list)
     output_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     input_features: list[NonEmptyString] = pydantic.Field(default_factory=list)
     row_context: row_context_module.RowContext | None = None
@@ -89,20 +116,6 @@ class InvocationSemantics(_PlanModel):
     column_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     argument_types: dict[NonEmptyString, NonEmptyString] = pydantic.Field(default_factory=dict)
     return_type: str | None = None
-
-    @classmethod
-    def from_node(
-        cls,
-        semantics: InvocationSemantics,
-        *,
-        dependency_ids: list[str],
-        return_type: str | None,
-    ) -> typing.Self:
-        """Complete a compiler-resolved contract with graph and runtime metadata."""
-        return semantics.__replace__(
-            dependency_ids=dependency_ids,
-            return_type=return_type,
-        )
 
     @pydantic.field_validator("function_id", "operator_id", mode="before")
     @classmethod
@@ -147,310 +160,109 @@ class InvocationSemantics(_PlanModel):
         return self
 
 
-_REQUIRED_SEMANTICS_FIELDS = {
-    "target_identifiers",
-    "fragment_keys",
-    "output_types",
-    "produces_features",
-    "is_sink",
-    "dataframe_input_scope",
-    "fragment_dimensions",
-    "row_count_relation",
-    "key_relation",
-    "row_order_relation",
-    "existing_data_relation",
-    "column_types",
-    "argument_types",
-    "return_type",
-}
+def _validate_dataframe_reference(value: str) -> str:
+    """Require a qualified result reference."""
+    return Variable.validate(value)
+
+
+type DataframeReference = typing.Annotated[
+    str, pydantic.AfterValidator(_validate_dataframe_reference)
+]
 
 
 class Invocation(_PlanModel):
-    """One portable function call and its semantic contract."""
+    """A function call and an optional immutable return name."""
 
     id: NonEmptyString
     entrypoint: NonEmptyString
-    arguments: dict[str, typing.Any] = pydantic.Field(default_factory=dict)
-    returns: NonEmptyString | None = None
-    semantics: InvocationSemantics
+    arguments: dict[str, pydantic.JsonValue]
+    returns: DataframeReference | None
+    semantics: InvocationSemantics | None = None
 
-    @classmethod
-    def from_spec(
-        cls,
-        spec_definition: spec.Spec,
-        invocation_id: str,
-        *,
-        dependency_ids: list[str],
-        return_type: str | None,
-        semantics: InvocationSemantics,
-    ) -> typing.Self:
-        """Create a portable invocation from a Spec and resolved metadata."""
-        semantics = InvocationSemantics.from_node(
-            semantics,
-            dependency_ids=dependency_ids,
-            return_type=return_type,
-        )
-        function_id = semantics.function_id
-        profile_id = semantics.profile_id
-        operator_id = semantics.operator_id
-        role = semantics.role
-        function = spec_definition.functions.get(function_id)
-        if function is None or not function.entrypoint:
-            raise ValueError(
-                f"Missing entrypoint for function {function_id} used by operator {operator_id}"
+    @functools.cached_property
+    def referenced_results(self) -> tuple[str, ...]:
+        """Return distinct result references in the invocation's arguments."""
+        return tuple(
+            dict.fromkeys(
+                name for value in self.arguments.values() for name in _return_references(value)
             )
-        if profile_id is None:
-            raise ValueError(f"Missing profile for function {function_id}")
-        operator = spec_definition.profiles[profile_id].assembly[operator_id]
-        feature_id = None
-        if role == profile_module.OperatorBindingRole.COMPUTE:
-            output_features = [
-                feature
-                for feature in operator.output_features
-                if feature not in semantics.target_identifiers
-            ]
-            feature_id = output_features[0] if len(output_features) == 1 else None
-        arguments = operator.resolve_args(
-            function_id=function_id,
-            profile_id=profile_id,
-            identifiers_by_profile=spec_definition.identifiers_by_profile,
-            resources=spec_definition.binding_resources,
-            role=role,
-            feature_id=feature_id,
         )
-        return cls(
-            id=invocation_id,
-            entrypoint=function.entrypoint,
-            arguments=arguments,
-            returns=(
-                profile_id
-                if role == profile_module.OperatorBindingRole.MERGE
-                or semantics.result == InvocationResultKind.TARGET
-                else None
-            ),
-            semantics=semantics,
-        )
-
-    @pydantic.field_validator("entrypoint", mode="before")
-    @classmethod
-    def require_declared_identifier(cls, value: object, info: pydantic.ValidationInfo) -> object:
-        """Keep declaration-specific errors clear for required invocation strings."""
-        if not isinstance(value, str) or not value:
-            raise ValueError("Invocations must declare an entrypoint")
-        return value
 
 
 class ExecutionPlan(_PlanModel):
-    """Portable invocations and the compiler-selected execution schedule."""
+    """A call schedule with named results and final dataset aliases."""
 
-    plan_version: typing.Literal[17]
+    plan_version: typing.Literal[18]
     required_backend: NonEmptyString
     invocations: list[Invocation]
     stages: list[Stage]
+    datasets: dict[NonEmptyString, DataframeReference]
 
-    @pydantic.model_validator(mode="before")
+    @pydantic.field_validator("plan_version", mode="before")
     @classmethod
-    def validate_supported_version(cls, value: object) -> object:
-        """Reject incompatible plan versions before parsing the versioned schema."""
-        if isinstance(value, dict) and "plan_version" in value:
-            _validate_plan_version(value["plan_version"])
+    def validate_version(cls, value: object) -> object:
+        """Require the exact integer format version."""
+        if type(value) is not int or value != PLAN_VERSION:
+            raise ValueError(f"Unsupported plan version: {value!r}. Expected {PLAN_VERSION}.")
         return value
 
     @pydantic.model_validator(mode="after")
-    def validate_plan_contracts(self) -> typing.Self:
-        """Validate invocation consistency and the compiler-selected schedule."""
-        invocations_by_id = {invocation.id: invocation for invocation in self.invocations}
-        invocation_ids = {invocation.id for invocation in self.invocations}
-        if len(invocation_ids) != len(self.invocations):
-            raise ValueError("Plan contains duplicate invocation ids")
-        self._validate_invocation_roles(invocations_by_id)
-        self._validate_invocation_metadata()
-        self._validate_execution_order(invocation_ids)
-        return self
+    def validate_schedule(self) -> typing.Self:
+        """Check identifiers, single-assignment returns, and reference ordering."""
+        invocations = {invocation.id: invocation for invocation in self.invocations}
+        if len(invocations) != len(self.invocations):
+            raise ValueError("Plan contains duplicate invocation IDs")
 
-    def _validate_invocation_roles(self, invocations_by_id: dict[str, Invocation]) -> None:
-        """Require every computed fragment to be consumed by one merge invocation."""
-        merge_dependencies: dict[str, list[str]] = {}
-        for invocation in self.invocations:
-            if invocation.semantics.role != profile_module.OperatorBindingRole.MERGE:
-                continue
-            fragment_dependencies = [
-                dependency_id
-                for dependency_id in invocation.semantics.dependency_ids
-                if dependency_id in invocations_by_id
-                and invocations_by_id[dependency_id].semantics.role
-                == profile_module.OperatorBindingRole.COMPUTE
-                and invocations_by_id[dependency_id].semantics.result
-                == InvocationResultKind.FRAGMENT
-            ]
-            if len(fragment_dependencies) != 1:
-                raise ValueError(
-                    f"Merge invocation {invocation.id} must depend on exactly one "
-                    "fragment-producing compute invocation"
-                )
-            merge_dependencies.setdefault(fragment_dependencies[0], []).append(invocation.id)
-
-        for invocation in self.invocations:
-            if (
-                invocation.semantics.result == InvocationResultKind.FRAGMENT
-                and len(merge_dependencies.get(invocation.id, [])) != 1
-            ):
-                raise ValueError(
-                    f"Fragment invocation {invocation.id} must have exactly one merge consumer"
-                )
-
-    def _validate_invocation_metadata(self) -> None:
-        """Require consistent entrypoints and return types."""
-        entrypoint_and_return_by_function: dict[str, tuple[str, str | None]] = {}
-        for invocation in self.invocations:
-            metadata = (invocation.entrypoint, invocation.semantics.return_type)
-            previous = entrypoint_and_return_by_function.setdefault(
-                invocation.semantics.function_id, metadata
-            )
-            if previous[0] != invocation.entrypoint:
-                raise ValueError(
-                    "Plan assigns function "
-                    f"{invocation.semantics.function_id!r} to multiple entrypoints"
-                )
-            if previous[1] != invocation.semantics.return_type:
-                raise ValueError(
-                    f"Plan has conflicting return annotations for function "
-                    f"{invocation.semantics.function_id!r}"
-                )
-
-    def _validate_execution_order(self, invocation_ids: set[str]) -> None:
-        """Require a schedule that respects dependencies."""
-        stage_by_invocation: dict[str, int] = {}
-        for stage_number, stage in enumerate(self.stages):
-            for invocation_id in stage.invocation_ids:
-                stage_by_invocation[invocation_id] = stage_number
-
-        dependencies = {
-            dependency_id
-            for invocation in self.invocations
-            for dependency_id in invocation.semantics.dependency_ids
-        }
-        unknown = (dependencies | stage_by_invocation.keys()) - invocation_ids
-        if unknown:
-            raise ValueError("Plan references unknown invocation(s): " + ", ".join(sorted(unknown)))
-        staged_count = sum(len(stage.invocation_ids) for stage in self.stages)
-        if staged_count != len(stage_by_invocation) or stage_by_invocation.keys() != invocation_ids:
+        order: dict[str, int] = {}
+        for stage in self.stages:
+            for invocation_id in stage:
+                if invocation_id not in invocations:
+                    raise ValueError(f"Stage references unknown invocation: {invocation_id}")
+                if invocation_id in order:
+                    raise ValueError(f"Invocation is staged more than once: {invocation_id}")
+                order[invocation_id] = len(order)
+        if order.keys() != invocations.keys():
             raise ValueError("Plan must stage every invocation exactly once")
+
+        returns: dict[str, str] = {}
         for invocation in self.invocations:
-            if any(
-                stage_by_invocation[dependency_id] >= stage_by_invocation[invocation.id]
-                for dependency_id in invocation.semantics.dependency_ids
-            ):
-                raise ValueError(
-                    f"Dependencies for invocation {invocation.id} must be scheduled before it"
-                )
+            if invocation.returns is not None:
+                if invocation.returns in returns:
+                    raise ValueError(
+                        f"Return name is assigned more than once: {invocation.returns}"
+                    )
+                returns[invocation.returns] = invocation.id
+
+        for invocation in self.invocations:
+            for argument in invocation.arguments.values():
+                for name in _return_references(argument):
+                    if name not in returns:
+                        raise ValueError(f"Unknown return reference in {invocation.id}: {name}")
+                    if order[returns[name]] >= order[invocation.id]:
+                        raise ValueError(f"Return {name} must be produced before {invocation.id}")
+
+        for dataset, name in self.datasets.items():
+            if name not in returns:
+                raise ValueError(f"Dataset {dataset} references unknown return: {name}")
+        return self
 
     @functools.cached_property
     def invocations_by_id(self) -> dict[str, Invocation]:
-        """Return the plan's invocation index keyed by opaque identifiers."""
+        """Return invocations indexed by ID."""
         return {invocation.id: invocation for invocation in self.invocations}
 
     @functools.cached_property
     def execution_stages(self) -> list[list[Invocation]]:
-        """Return staged invocations resolved from stage identifiers."""
-        by_id = self.invocations_by_id
+        """Return invocations grouped in stage order."""
         return [
-            [by_id[invocation_id] for invocation_id in stage.invocation_ids]
+            [self.invocations_by_id[invocation_id] for invocation_id in stage]
             for stage in self.stages
         ]
 
     @functools.cached_property
     def execution_invocations(self) -> list[Invocation]:
-        """Return invocations in stage order, retaining the order within each stage."""
+        """Return invocations in stage order."""
         return [invocation for stage in self.execution_stages for invocation in stage]
-
-    def for_operator(self, profile_id: str, operator_id: str) -> ExecutionPlan:
-        """Restrict the saved schedule to one operator and its prerequisites.
-
-        Both compute and merge bindings are included. Downstream invocations,
-        including sinks, are not selected. The compiler's ordering is preserved.
-
-        Args:
-            profile_id: Profile containing the requested operator.
-            operator_id: Operator identifier within the profile.
-
-        Returns:
-            A validated subset of this plan without recompiling.
-
-        Raises:
-            ValueError: The operator is absent from the saved execution scope.
-        """
-        selected = {
-            invocation.id
-            for invocation in self.invocations
-            if invocation.semantics.profile_id == profile_id
-            and invocation.semantics.operator_id == operator_id
-        }
-        if not selected:
-            raise ValueError(
-                f"Operator {profile_id}/{operator_id} is not in the saved execution scope. "
-                "Rebuild the project with this operator's outputs or all features."
-            )
-        pending = list(selected)
-        while pending:
-            for dependency_id in self.invocations_by_id[pending.pop()].semantics.dependency_ids:
-                if dependency_id not in selected:
-                    selected.add(dependency_id)
-                    pending.append(dependency_id)
-        stages = [
-            Stage([invocation_id for invocation_id in stage if invocation_id in selected])
-            for stage in self.stages
-        ]
-        return self.__replace__(
-            invocations=[
-                invocation for invocation in self.invocations if invocation.id in selected
-            ],
-            stages=[stage for stage in stages if stage.root],
-        )
-
-    @functools.cached_property
-    def function_ids(self) -> set[str]:
-        """Return the distinct functions used by this plan."""
-        return {invocation.semantics.function_id for invocation in self.invocations}
-
-    @functools.cached_property
-    def profile_ids(self) -> set[str | None]:
-        """Return the distinct profile IDs used by this plan."""
-        return {invocation.semantics.profile_id for invocation in self.invocations}
-
-    @functools.cached_property
-    def arguments(self) -> dict[str, dict[str, typing.Any]]:
-        """Return bound arguments keyed by invocation ID."""
-        return {invocation.id: invocation.arguments for invocation in self.invocations}
-
-    @functools.cached_property
-    def features(self) -> dict[str, list[Invocation]]:
-        """Return output feature IDs mapped to all their producing invocations."""
-        features: dict[str, list[Invocation]] = {}
-        for invocation in self.invocations:
-            for feature in invocation.semantics.output_features:
-                features.setdefault(feature, []).append(invocation)
-        return features
-
-    @functools.cached_property
-    def invocations_by_role(
-        self,
-    ) -> dict[profile_module.OperatorBindingRole.Value, list[Invocation]]:
-        """Return invocations grouped by their compute or merge binding role."""
-        grouped: dict[profile_module.OperatorBindingRole.Value, list[Invocation]] = {}
-        for invocation in self.invocations:
-            grouped.setdefault(invocation.semantics.role, []).append(invocation)
-        return grouped
-
-    @functools.cached_property
-    def calculated_features(self) -> set[str]:
-        """Return distinct feature IDs from compute invocations publishing targets."""
-        return {
-            feature
-            for invocation in self.invocations_by_role.get("compute", [])
-            if invocation.semantics.result == InvocationResultKind.TARGET
-            for feature in invocation.semantics.output_features
-        }
 
     @functools.cached_property
     def entrypoints(self) -> dict[str, None]:
@@ -458,17 +270,86 @@ class ExecutionPlan(_PlanModel):
         return dict.fromkeys(invocation.entrypoint for invocation in self.invocations)
 
     @functools.cached_property
-    def count_per_role(self) -> dict[profile_module.OperatorBindingRole.Value, int]:
-        """Return invocation counts keyed by binding role, sorted by role."""
+    def input_invocations(self) -> dict[str, list[str]]:
+        """Index producers explicitly referenced by each invocation's arguments."""
+        producers = {
+            invocation.returns: invocation.id
+            for invocation in self.invocations
+            if invocation.returns is not None
+        }
         return {
-            role: len(invocations) for role, invocations in sorted(self.invocations_by_role.items())
+            invocation.id: list(
+                dict.fromkeys(producers[name] for name in invocation.referenced_results)
+            )
+            for invocation in self.invocations
         }
 
+    @functools.cached_property
+    def function_ids(self) -> set[str]:
+        """Return declared function IDs from invocations with semantics."""
+        return {
+            invocation.semantics.function_id
+            for invocation in self.invocations
+            if invocation.semantics is not None
+        }
 
-def _validate_plan_version(version: object) -> None:
-    """Reject plan versions this runtime cannot load."""
-    if type(version) is not int or version != PLAN_VERSION:
-        raise ValueError(
-            f"Unsupported plan version: {version!r}. Supported version is {PLAN_VERSION}. "
-            "Recompile the project build."
-        )
+    @functools.cached_property
+    def profile_ids(self) -> set[str | None]:
+        """Return declared profile IDs from invocations with semantics."""
+        return {
+            invocation.semantics.profile_id
+            for invocation in self.invocations
+            if invocation.semantics is not None
+        }
+
+    @functools.cached_property
+    def features(self) -> dict[str, list[Invocation]]:
+        """Index declared output features by their producing invocations."""
+        features: dict[str, list[Invocation]] = {}
+        for invocation in self.invocations:
+            if invocation.semantics is not None:
+                for feature in invocation.semantics.output_features:
+                    features.setdefault(feature, []).append(invocation)
+        return features
+
+    @functools.cached_property
+    def calculated_features(self) -> set[str]:
+        """Return feature IDs from compute calls publishing targets."""
+        return {
+            feature
+            for invocation in self.invocations
+            if invocation.semantics is not None
+            and invocation.semantics.role == profile_module.OperatorBindingRole.COMPUTE
+            and invocation.semantics.result == InvocationResultKind.TARGET
+            for feature in invocation.semantics.output_features
+        }
+
+    @functools.cached_property
+    def count_per_role(self) -> dict[profile_module.OperatorBindingRole.Value, int]:
+        """Count invocations by declared role."""
+        counts: dict[profile_module.OperatorBindingRole.Value, int] = {}
+        for invocation in self.invocations:
+            if invocation.semantics is not None:
+                role = invocation.semantics.role
+                counts[role] = counts.get(role, 0) + 1
+        return dict(sorted(counts.items()))
+
+
+def _return_references(argument: pydantic.JsonValue) -> typing.Iterator[str]:
+    """Yield named returns and validate runtime references in a JSON value."""
+    if isinstance(argument, str):
+        for prefix in Variable.PREFIXES:
+            if argument == prefix[:-1] or argument.startswith(prefix):
+                yield Variable.validate(argument)
+                break
+        for prefix in (selectors.PARAMS_PREFIX, selectors.PATHS_PREFIX):
+            if argument == prefix[:-1] or (
+                argument.startswith(prefix) and not argument.removeprefix(prefix).isidentifier()
+            ):
+                raise ValueError(f"Malformed runtime reference: {argument}")
+    elif isinstance(argument, list):
+        for item in argument:
+            yield from _return_references(item)
+    elif isinstance(argument, dict):
+        for item in argument.values():
+            yield from _return_references(item)

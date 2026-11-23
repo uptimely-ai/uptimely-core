@@ -121,16 +121,10 @@ def test_project_build_packages_python_source_and_runtime_definition(
     assert not (source / "__pycache__").exists()
 
     shutil.rmtree(root / "src")
-    invocation = next(
-        item
-        for item in build.execution_plan.invocations
-        if item.semantics.function_id == "pump_mode"
-    )
-    result = application.Uptimely(root).run(
-        preview_rows=1, operator=(invocation.semantics.profile_id, invocation.semantics.operator_id)
-    )
+    result = application.Uptimely(root).run(preview_rows=1)
 
     assert result.failures == {}
+    assert result.datasets
 
 
 def test_bundle_loader_requires_declared_runtime_definition(tmp_path: pathlib.Path) -> None:

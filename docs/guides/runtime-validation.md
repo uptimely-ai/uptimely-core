@@ -4,9 +4,8 @@
 
 Before running any operator, the Engine checks the bundle's Python version
 constraint and verifies that dependencies whose environment markers match are
-installed at compatible versions. This check runs regardless of `--validate`
-and reports missing or incompatible dependencies together with any Python
-version mismatch.
+installed at compatible versions. This check reports missing or incompatible
+dependencies together with any Python version mismatch.
 
 The Engine does not install dependencies or verify transitive dependencies,
 extras, or direct URL provenance. Bundles without a runtime definition skip
@@ -15,34 +14,16 @@ for how the metadata is generated.
 
 ## Runtime validation
 
-Runtime contract validation is opt-in. Enable it with `uptimely run --validate`
-or `Engine.run(validate=True)` to check declared inputs and
-dataframe contracts as each invocation executes. Checks include required
-features, declared types, key uniqueness, row counts, coverage, and preservation
-of existing rows, keys, values, and order where the invocation contract requires it.
+Analytical runtime validation is not currently supported. `uptimely run
+--validate` and `Engine.run(validate=True)` fail before executing the plan.
 
-Some checks on lazy frames must evaluate queries and may repeat upstream work,
-so validation can add substantial runtime. It checks declared contracts, not
-whether analytical results are correct.
-
-Some structural checks always apply, even when runtime validation is disabled.
-For example, results must have the required dataframe structure, declared
-outputs, and expected merge schema. The Engine also checks configuration,
-saved-build structure, and runtime compatibility. It does not verify bundle
-contents against build-time hashes.
-
-Native dataframe and function errors can also fail execution. Skipped checks
-are not deferred to writes or final collection. Execution still runs configured
-functions, including write sinks, and may have external side effects.
-Missing or invalid builds report a recovery command.
-
-See [Fragment and merge](../concepts/dataframes.md#fragments-and-datasets)
-for merge-result requirements and
-[Engine architecture](../concepts/engine.md#plan-execution)
+The Engine checks configuration, plan structure, and runtime compatibility,
+but does not check returned data against analytical contracts. Function and
+dataframe errors can fail execution, and configured functions can have
+external side effects. See [Engine execution](../concepts/engine.md#plan-execution)
 for execution order and failure handling.
 
 ## Runtime validation and configuration
 
-Validation is a run option, not a project setting.
 See [Configure a project](configuration.md#runtime-values) for runtime values,
 paths, parameters, and backend settings.

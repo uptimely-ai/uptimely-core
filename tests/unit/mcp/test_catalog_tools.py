@@ -272,17 +272,8 @@ async def test_execute_build_runs_the_saved_plan_without_compiling(
     payload = await _call(state, "execute_build", {"max_rows": 3})
     assert payload["status"] == "ok"
     assert payload["features"] is None
-    telemetry = next(
-        dataset for dataset in payload["datasets"] if "pump_health_score" in dataset["features"]
-    )
-    assert telemetry["profile"] == "pump_telemetry"
-    assert telemetry["row_count"] == 3
-    assert {
-        "pump_id",
-        "timestamp",
-        "pump_health_score",
-    } <= set(telemetry["columns"])
-    assert {"pump_id", "pump_health_score"} <= set(telemetry["rows"][0])
+    assert payload["datasets"] == []
+    assert payload["output_summary_available"] is False
     assert (await _call(state, "reload_build"))["features"] is None
 
 

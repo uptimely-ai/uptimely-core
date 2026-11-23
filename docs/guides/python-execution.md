@@ -4,19 +4,16 @@
 and records a preview, logs, and run metadata under `artifacts/run/`.
 
 ```python
+# example
 from uptimely import Uptimely
 
 app = Uptimely()
-result = app.run(validate=True)
+result = app.run()
 ```
 
-Pass `validate=True` to enable
-[runtime contract validation](runtime-validation.md#runtime-validation).
-
-To run one operator and its prerequisites, pass
-`operator=("profile_id", "operator_id")` to `run()`. This does not rebuild the
-project. See [Run artifacts](../artifacts/run.md) for saved output
-and preview behavior.
+Analytical runtime validation and targeted operator execution are not currently
+supported. See [Run artifacts](../artifacts/run.md) for saved output and preview
+behavior.
 
 ## Read a saved run
 

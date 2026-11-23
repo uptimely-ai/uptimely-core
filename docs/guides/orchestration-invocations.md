@@ -52,29 +52,33 @@ from prefect import flow, task
 
 
 @task
-def invoke(invocation: dict, inputs: dict) -> str:
+def invoke(invocation: dict, inputs: dict) -> str | None:
     arguments = load_arguments(invocation["arguments"], inputs)
     result = load_function(invocation["entrypoint"])(**arguments)
-    return persist(invocation["id"], result)
+    if invocation["returns"] is not None:
+        return persist(invocation["returns"], result)
+    return None
 
 
 @flow
 def run_plan(plan: dict) -> dict[str, str]:
-    futures = {}
-    for invocation in plan["invocations"]:
-        dependencies = {
-            dependency_id: futures[dependency_id]
-            for dependency_id in invocation["semantics"]["dependency_ids"]
-        }
-        futures[invocation["id"]] = invoke.submit(
-            invocation,
-            dependencies,
-        )
-
-    return {invocation_id: future.result() for invocation_id, future in futures.items()}
+    invocations = {item["id"]: item for item in plan["invocations"]}
+    values = {}
+    previous = None
+    for stage in plan["stages"]:
+        for invocation_id in stage:
+            invocation = invocations[invocation_id]
+            previous = invoke.submit(
+                invocation, values, wait_for=[previous] if previous is not None else []
+            )
+            if invocation["returns"] is not None:
+                values[invocation["returns"]] = previous
+    if previous is not None:
+        previous.result()
+    return {name: future.result() for name, future in values.items()}
 ```
 
-`load_function` imports the entrypoint. `load_arguments` reads any Arrow IPC
-inputs. `persist` writes the result and returns its URI.
-
-The plan must list invocations after their dependencies.
+`load_function` imports the entrypoint. `load_arguments` resolves parameters,
+paths, and named returns, reading any Arrow IPC inputs. `persist` writes a named
+result and returns its URI. The example preserves stage order, including calls
+with side effects and no return.

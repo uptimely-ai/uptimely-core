@@ -71,6 +71,8 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
     invocation = execution_plan.Invocation(
         id="transfer",
         entrypoint="example:transfer",
+        arguments={},
+        returns="$dataset.target.transfer",
         semantics=execution_plan.InvocationSemantics(
             role="compute",
             result="target",
@@ -86,6 +88,7 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
         required_backend="polars",
         invocations=[invocation],
         stages=[["transfer"]],
+        datasets={"target": "$dataset.target.transfer"},
     )
 
     step = data_lineage.build_context(definition, plan)["stages"][0][0]

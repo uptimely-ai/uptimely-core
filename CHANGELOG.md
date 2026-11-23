@@ -18,13 +18,19 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Execution plans use profile and operator result references.
+  The Engine executes explicit calls without analytical validation, targeted
+  execution, or calculated-feature output summaries.
+- Compiled calls to the built-in merge include profile relation keys in
+  `key_columns` to preserve relational joins.
+- Explorer topology shows compiler dependencies, which can differ from
+  dataframe references in invocation arguments.
 - Execution plans no longer record entrypoint package provenance. Rebuild
   existing bundles.
 - `Entrypoint` and `Codebase.from_locations` no longer accept saved package
   provenance.
 - `InvocationNode` carries invocation semantics alongside its ID. Node equality
   and hashing use the ID.
-- `Invocation.from_spec` accepts an invocation ID instead of a graph node.
 - `InvocationSemanticsBuilder.build` derives contracts for one operator instead
   of creating nodes for an entire Spec.
 - Spec bindings are inspected through `uptimely.inspector.BindingInspection`

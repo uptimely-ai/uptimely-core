@@ -1,4 +1,3 @@
-import copy
 import pathlib
 
 import pytest
@@ -34,25 +33,7 @@ def test_json_round_trip_preserves_the_document_and_compiled_plan(
     assert reloaded == document
     first = compiler.Compiler().compile(document)
     second = compiler.Compiler().compile(reloaded)
-    assert {
-        item.id: copy.replace(
-            item,
-            semantics=copy.replace(
-                item.semantics,
-                dependency_ids=sorted(item.semantics.dependency_ids),
-            ),
-        )
-        for item in first.invocations
-    } == {
-        item.id: copy.replace(
-            item,
-            semantics=copy.replace(
-                item.semantics,
-                dependency_ids=sorted(item.semantics.dependency_ids),
-            ),
-        )
-        for item in second.invocations
-    }
+    assert first.invocations == second.invocations
     assert [set(stage) for stage in first.stages] == [set(stage) for stage in second.stages]
 
 

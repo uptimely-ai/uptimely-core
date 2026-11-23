@@ -11,7 +11,7 @@ arguments, outputs, and dataframe contracts. It does not select a host or
 scheduler.
 
 The current Engine executes a saved build in one Python process. This is
-suitable for local development, debugging, testing, and result validation.
+suitable for local development, debugging, and testing.
 An orchestrator can run the same build in production.
 
 ```text
@@ -83,12 +83,12 @@ build.
 The local Python API is currently available:
 
 ```python
-# script
+# example
 from uptimely import Uptimely
 
 application = Uptimely()
 application.build()
-result = application.run(validate=True)
+result = application.run()
 ```
 
 This runs the Engine in the current Python process.
@@ -97,7 +97,7 @@ If Prefect is installed in the same environment as the Uptimely project and
 its Python dependencies, a flow can run the existing API directly:
 
 ```python
-# script
+# example
 from prefect import flow
 from uptimely import Uptimely
 
@@ -105,7 +105,7 @@ from uptimely import Uptimely
 @flow
 def run_uptimely_build(project_root: str) -> object:
     application = Uptimely(project_root, config="production")
-    return application.run(validate=True)
+    return application.run()
 
 
 if __name__ == "__main__":
@@ -120,7 +120,7 @@ systems:
 import subprocess
 
 subprocess.run(["uptimely", "build"], check=True)
-subprocess.run(["uptimely", "run", "--validate"], check=True)
+subprocess.run(["uptimely", "run"], check=True)
 ```
 
 The integration owns runtime preparation, project transfer, configuration,

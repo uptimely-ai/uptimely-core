@@ -1,65 +1,30 @@
-"""Per-execution state and lookups for portable plan execution."""
+"""Named values produced during one plan execution."""
 
 import dataclasses
-
-from uptimely import plan
-from uptimely.engine.dataframe import dataset as dataset_module
-from uptimely.engine.dataframe import fragment as fragment_module
 
 
 @dataclasses.dataclass
 class RuntimeState:
-    """Materialized profile datasets, retained fragments, and outputs for one run."""
+    """Single-assignment values produced by invocation calls."""
 
-    datasets: dict[str, dataset_module.Dataset] = dataclasses.field(default_factory=dict)
-    computed_fragments: dict[str, fragment_module.Fragment] = dataclasses.field(
-        default_factory=dict
-    )
-    calculated_outputs: dict[tuple[str, str], object] = dataclasses.field(default_factory=dict)
+    values: dict[str, object] = dataclasses.field(default_factory=dict)
 
-    def computed_fragment_for(
-        self, invocation: plan.Invocation
-    ) -> tuple[str, fragment_module.Fragment]:
-        """Find the single computed fragment dependency of a merge invocation.
+    def store(self, name: str, value: object) -> None:
+        """Store a named return without overwriting an earlier value.
 
         Raises:
-            ValueError: The invocation does not depend on exactly one computed fragment.
+            ValueError: The return name has already been assigned.
         """
-        dependencies = [
-            dependency_id
-            for dependency_id in invocation.semantics.dependency_ids
-            if dependency_id in self.computed_fragments
-        ]
-        if len(dependencies) != 1:
-            raise ValueError(
-                f"Merge invocation {invocation.id} requires exactly one "
-                "computed fragment dependency"
-            )
-        dependency_id = dependencies[0]
-        return dependency_id, self.computed_fragments[dependency_id]
+        if name in self.values:
+            raise ValueError(f"Return name is assigned more than once: {name}")
+        self.values[name] = value
 
-    def resolve_dataset_or_fragment_dataframe(self, identifier: str) -> object | None:
-        """Resolve a materialized dataset ID or fragment mapping ID to its dataframe.
-
-        Dataset IDs take precedence over fragment names.
-
-        Args:
-            identifier: Dataset ID or fragment mapping ID.
-
-        Returns:
-            The underlying dataframe, or None when neither kind of reference exists.
+    def resolve(self, name: str) -> object:
+        """Resolve a named return, including a return whose value is None.
 
         Raises:
-            ValueError: A fragment name matches multiple datasets.
+            ValueError: The named return has not been produced.
         """
-        dataset = self.datasets.get(identifier)
-        if dataset is not None:
-            return dataset.dataframe
-        matches = [
-            dataset.fragments[identifier].dataframe
-            for dataset in self.datasets.values()
-            if identifier in dataset.fragments
-        ]
-        if len(matches) > 1:
-            raise ValueError(f"Ambiguous fragment reference: {identifier}")
-        return matches[0] if matches else None
+        if name not in self.values:
+            raise ValueError(f"Return is unavailable: {name}")
+        return self.values[name]

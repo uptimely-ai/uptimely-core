@@ -1,7 +1,4 @@
-import collections.abc
 import copy
-
-import pytest
 
 from uptimely import plan as uptimely_plan
 
@@ -14,49 +11,43 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
             uptimely_plan.Invocation(
                 id="opaque-read",
                 entrypoint="example.src:load",
-                arguments={"dataset": {"type": "literal", "value": "pump_profile"}},
+                arguments={},
+                returns="$datasets.pump.read",
                 semantics=uptimely_plan.InvocationSemantics(
                     role="compute",
                     result="target",
-                    dataframe_input_scope="none",
                     function_id="load",
                     operator_id="read_pressure",
                     profile_id="pump_profile",
-                    dependency_ids=[],
                     target_identifiers=["plant", "pump"],
-                    fragment_keys=["plant", "pump"],
-                    output_types={"pressure": "float"},
-                    column_types={"plant": "string", "pump": "string", "pressure": "float"},
-                    argument_types={"dataset": "dataframe"},
-                    return_type="DataFrame",
                 ),
             ),
             uptimely_plan.Invocation(
                 id="opaque-collapse",
                 entrypoint="example.src:maximum",
-                arguments={"feature": "pressure"},
+                arguments={"dataset": "$datasets.pump.read"},
+                returns="$dataset.pump.maximum",
                 semantics=uptimely_plan.InvocationSemantics(
                     role="compute",
                     result="target",
-                    dataframe_input_scope="foreign",
                     function_id="maximum",
                     operator_id="pressure_by_pump",
                     profile_id="pump_profile",
-                    output_features=["plant", "pump", "maximum"],
-                    dependency_ids=["opaque-read"],
+                    output_features=["maximum"],
                 ),
             ),
             uptimely_plan.Invocation(
                 id="opaque-write",
                 entrypoint="example.src:save",
-                arguments={},
+                arguments={"dataset": "$dataset.pump.maximum"},
+                returns=None,
                 semantics=uptimely_plan.InvocationSemantics(
                     role="compute",
                     result="none",
                     function_id="save",
                     operator_id="save_pressure_by_pump",
                     profile_id="pump_profile",
-                    dependency_ids=["opaque-collapse"],
+                    is_sink=True,
                 ),
             ),
         ],
@@ -65,96 +56,31 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
             ["opaque-collapse"],
             ["opaque-write"],
         ],
+        datasets={"pump": "$dataset.pump.maximum"},
     )
 
 
-class _CountingInvocations(list[uptimely_plan.Invocation]):
-    traversals = 0
+def test_plan_indexes_explicit_references_and_declared_metadata() -> None:
+    plan = _sample_plan()
 
-    def __iter__(self) -> collections.abc.Iterator[uptimely_plan.Invocation]:
-        self.traversals += 1
-        return super().__iter__()
-
-
-def test_plan_cached_views_are_independent() -> None:
-    original = _sample_plan()
-    counted = _CountingInvocations(original.invocations)
-    plan = uptimely_plan.ExecutionPlan.model_construct(
-        plan_version=original.plan_version,
-        required_backend=original.required_backend,
-        invocations=counted,
-        stages=original.stages,
-    )
-    counted.traversals = 0
-
-    for _ in range(3):
-        assert list(plan.invocations_by_id) == ["opaque-read", "opaque-collapse", "opaque-write"]
-        assert plan.invocations_by_id["opaque-read"] is plan.invocations[0]
-        assert plan.function_ids == {"load", "maximum", "save"}
-        assert plan.profile_ids == {"pump_profile"}
-        assert plan.arguments["opaque-read"] is plan.invocations[0].arguments
-        assert plan.features["maximum"] == [plan.invocations[1]]
-        assert plan.calculated_features == {"plant", "pump", "maximum"}
-        assert list(plan.entrypoints) == [
-            "example.src:load",
-            "example.src:maximum",
-            "example.src:save",
-        ]
-        assert plan.invocations_by_role["compute"] == plan.invocations
-        assert plan.count_per_role == {"compute": 3}
-        assert list(plan.count_per_role) == ["compute"]
-        assert plan.execution_stages == [[invocation] for invocation in original.invocations]
-        assert plan.execution_invocations == original.invocations
-
-    assert counted.traversals > 1
-    assert plan.execution_stages is plan.execution_stages
-    assert plan.execution_invocations is plan.execution_invocations
-    assert plan.count_per_role is plan.count_per_role
-    assert uptimely_plan.to_dict(plan) == uptimely_plan.to_dict(original)
-    assert uptimely_plan.to_dict(plan) == uptimely_plan.to_dict(original)
-
-
-def test_plan_keeps_signature_metadata_on_invocations() -> None:
-    original = _sample_plan()
-    invocation = original.invocations[0]
-    assert invocation.semantics.return_type == "DataFrame"
-
-
-def test_plan_rejects_function_ids_with_multiple_entrypoints() -> None:
-    original = _sample_plan()
-    conflicting = copy.replace(
-        original.invocations[1],
-        semantics=copy.replace(
-            original.invocations[1].semantics,
-            function_id=original.invocations[0].semantics.function_id,
-        ),
-        entrypoint="other.functions:load",
-    )
-
-    with pytest.raises(ValueError, match="assigns function 'load' to multiple entrypoints"):
-        copy.replace(
-            original,
-            invocations=[original.invocations[0], conflicting, *original.invocations[2:]],
-        )
-
-
-def test_plan_rejects_conflicting_return_types_for_function() -> None:
-    original = _sample_plan()
-    conflicting = copy.replace(
-        original.invocations[1],
-        entrypoint=original.invocations[0].entrypoint,
-        semantics=copy.replace(
-            original.invocations[1].semantics,
-            function_id=original.invocations[0].semantics.function_id,
-            return_type="int",
-        ),
-    )
-
-    with pytest.raises(ValueError, match="conflicting return annotations for function 'load'"):
-        copy.replace(
-            original,
-            invocations=[original.invocations[0], conflicting, *original.invocations[2:]],
-        )
+    assert list(plan.invocations_by_id) == ["opaque-read", "opaque-collapse", "opaque-write"]
+    assert plan.function_ids == {"load", "maximum", "save"}
+    assert plan.profile_ids == {"pump_profile"}
+    assert plan.features == {"maximum": [plan.invocations[1]]}
+    assert plan.calculated_features == {"maximum"}
+    assert list(plan.entrypoints) == [
+        "example.src:load",
+        "example.src:maximum",
+        "example.src:save",
+    ]
+    assert plan.input_invocations == {
+        "opaque-read": [],
+        "opaque-collapse": ["opaque-read"],
+        "opaque-write": ["opaque-collapse"],
+    }
+    assert plan.count_per_role == {"compute": 3}
+    assert plan.execution_stages == [[invocation] for invocation in plan.invocations]
+    assert plan.execution_invocations == plan.invocations
 
 
 def test_plan_replacement_does_not_retain_stale_indexes() -> None:
@@ -189,27 +115,11 @@ def test_execution_invocations_follow_stages_not_declaration_order() -> None:
     assert plan.execution_invocations == original.invocations
     assert uptimely_plan.to_dict(plan)["invocations"][0]["id"] == "opaque-write"
 
-    independent = [
-        copy.replace(
-            invocation,
-            semantics=copy.replace(invocation.semantics, dependency_ids=[]),
-        )
-        for invocation in original.invocations
-    ]
-    grouped = copy.replace(
-        original,
-        invocations=independent,
-        stages=[["opaque-write", "opaque-read"], [], ["opaque-collapse"]],
-    )
-    assert [invocation.id for invocation in grouped.execution_invocations] == [
-        "opaque-write",
-        "opaque-read",
-        "opaque-collapse",
-    ]
     empty = copy.replace(
         original,
         invocations=[],
         stages=[],
+        datasets={},
     )
     assert empty.execution_invocations == []
     assert empty.count_per_role == {}

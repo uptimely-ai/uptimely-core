@@ -6,7 +6,8 @@ operator, and binding role. Node equality and hashing use only the ID.
 `InvocationGraph` orders nodes using the supplied dependency IDs.
 `InvocationSemanticsBuilder.build` derives contracts for one operator.
 `Compiler` creates operator invocations, indexes their publishers, and resolves
-their dependencies before selecting and scheduling the graph.
+their dependencies before selecting and scheduling the graph. Its
+`invocation_graph` method returns the complete graph or a feature-selected graph.
 
 ::: uptimely.compiler.compiler
     options:

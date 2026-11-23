@@ -104,7 +104,7 @@ def _build_step(
                 "operator_id": invocations_by_id[dependency_id].semantics.operator_id,
                 "role": invocations_by_id[dependency_id].semantics.role,
             }
-            for dependency_id in invocation.semantics.dependency_ids
+            for dependency_id in plan.input_invocations[invocation.id]
         ],
         "args": {
             name: {
@@ -132,16 +132,6 @@ def _display_value(value: object) -> object:
     if isinstance(value, list):
         return [_display_value(item) for item in value]
     return value
-
-
-def _step_sort_key(step: dict[str, typing.Any]) -> tuple[str, str, str, str]:
-    """Keep stage cards in their existing display order."""
-    return (
-        step["entrypoint"] or "",
-        step["profile"],
-        step["dataset"] or "",
-        step["feature"] or "",
-    )
 
 
 def build_context(
@@ -173,7 +163,7 @@ def build_context(
             )
             step["depends_on_invocations"].sort(key=lambda dependency: dependency["function"])
             steps.append(step)
-        stages.append({"stage": stage_number, "steps": sorted(steps, key=_step_sort_key)})
+        stages.append({"stage": stage_number, "steps": steps})
 
     invocation_nodes, invocation_links = invocation_lineage.invocation_lineage_payload(
         plan, spec_definition, feature_labels
@@ -189,7 +179,7 @@ def build_context(
         "feature_count": len(plan.calculated_features),
         "stage_count": len(stages),
         "dependency_count": len(invocation_links),
-        "max_parallel_invocations": max((len(stage["steps"]) for stage in stages), default=0),
+        "max_stage_invocations": max((len(stage["steps"]) for stage in stages), default=0),
         "invocation_role_counts": list(plan.count_per_role.items()),
         "stages": stages,
         "invocation_lineage_data": invocation_lineage_data,
