@@ -123,12 +123,11 @@ def test_binding_accepts_arguments_named_like_constructor_parameters() -> None:
 
 @pytest.mark.parametrize("arguments", [{}, {"value": "ok", "unexpected": True}])
 @pytest.mark.parametrize("method", ["bound_arguments", "to_model", "to_function_template"])
-def test_binding_validates_direct_callable_arguments(
+def test_binding_defers_direct_callable_argument_validation(
     arguments: dict[str, typing.Any], method: str
 ) -> None:
     binding = assembly.Bind(calculate, **arguments)
-    with pytest.raises(TypeError):
-        getattr(binding, method)()
+    assert getattr(binding, method)() is not None
 
 
 def test_deferred_binding_preserves_metadata_without_importing_entrypoint() -> None:

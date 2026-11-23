@@ -49,8 +49,8 @@ def test_workflow_logical_features_order_execution_without_dataframes(
     )
     restored = spec.Spec.model_validate(document.model_dump())
     plan = compiler.Compiler().compile(restored, features=["result"])
-    invocations = {item.operator_id: item for item in plan.invocations}
-    assert invocations["start"].id in invocations["finish"].dependency_ids
+    invocations = {item.semantics.operator_id: item for item in plan.invocations}
+    assert invocations["start"].id in invocations["finish"].semantics.dependency_ids
     assert invocations["finish"].arguments == {}
     result = engine_for_plan(plan, spec_definition=restored).run(validate=True)
     assert workflow_events == ["start", "finish"]
@@ -183,19 +183,19 @@ def test_explicit_inputs_drive_dependencies_not_identifier_arguments() -> None:
     computed = compiler.Compiler().compile(spec_definition, features=["result"])
     assert len(computed.invocations) == 2
     assert next(
-        item for item in computed.invocations if item.dataframe_input_scope == "target"
-    ).input_features == [
+        item for item in computed.invocations if item.semantics.dataframe_input_scope == "target"
+    ).semantics.input_features == [
         "value",
     ]
     metadata = compiler.Compiler().compile(spec_definition, features=["metadata"])
-    assert all("result" not in item.output_features for item in metadata.invocations)
+    assert all("result" not in item.semantics.output_features for item in metadata.invocations)
     metadata_invocation = next(
-        item for item in metadata.invocations if item.operator_id == "metadata"
+        item for item in metadata.invocations if item.semantics.operator_id == "metadata"
     )
     assert {
-        dependency.operator_id
+        dependency.semantics.operator_id
         for dependency in metadata.invocations
-        if dependency.id in metadata_invocation.dependency_ids
+        if dependency.id in metadata_invocation.semantics.dependency_ids
     } == {"read_values"}
 
 
@@ -209,9 +209,9 @@ def test_compute_can_merge_a_fragment_from_the_current_dataset(
     computed = next(
         invocation
         for invocation in compiled.invocations
-        if invocation.operator_id == "result" and invocation.role == "compute"
+        if invocation.semantics.operator_id == "result" and invocation.semantics.role == "compute"
     )
-    assert computed.result == "fragment"
+    assert computed.semantics.result == "fragment"
     execution = engine_for_plan(compiled, spec_definition=document).run(validate=True)
     assert execution.failures == {}
     assert execution.datasets["observations"].sort("id").select("id", "value", "result").rows() == [
@@ -236,9 +236,13 @@ def test_opaque_compute_orders_foreign_features_without_a_merge(
     document.functions.root.update(publication.function_catalog().root)
     document = spec.Spec.model_validate(document.model_dump())
     compiled = compiler.Compiler().compile(document)
-    publisher = next(item for item in compiled.invocations if item.operator_id == "publish")
-    producer = next(item for item in compiled.invocations if item.operator_id == "read_values")
-    assert producer.id in publisher.dependency_ids
+    publisher = next(
+        item for item in compiled.invocations if item.semantics.operator_id == "publish"
+    )
+    producer = next(
+        item for item in compiled.invocations if item.semantics.operator_id == "read_values"
+    )
+    assert producer.id in publisher.semantics.dependency_ids
     execution = engine_for_plan(compiled, spec_definition=document).run(validate=True)
     assert execution.failures == {}
     assert workflow_events == ["finish"]
@@ -493,12 +497,14 @@ def test_dimensional_operator_schedules_only_its_foreign_dataframe_dependency(
     )
     compiled = compiler.Compiler().compile(spec_definition, features=["copied"])
     assert len(compiled.invocations) == 3
-    expand = next(item for item in compiled.invocations if item.fragment_dimensions == "subset")
+    expand = next(
+        item for item in compiled.invocations if item.semantics.fragment_dimensions == "subset"
+    )
     source_merge = next(
         item
         for item in compiled.invocations
-        if item.operator_id == "read_lower_grain" and item.result == "target"
+        if item.semantics.operator_id == "read_lower_grain" and item.semantics.result == "target"
     )
-    assert source_merge.id in expand.dependency_ids
-    assert expand.input_features == ["value"]
+    assert source_merge.id in expand.semantics.dependency_ids
+    assert expand.semantics.input_features == ["value"]
     assert expand.arguments["dataset"] == "source"

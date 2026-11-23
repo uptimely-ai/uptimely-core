@@ -27,21 +27,23 @@ def _invocation(
 ) -> plan_module.Invocation:
     return plan_module.Invocation(
         id="invocation",
-        role="compute",
-        result="target" if dataframe_input_scope == "target" else "fragment",
-        dataframe_input_scope=dataframe_input_scope,
-        fragment_dimensions=fragment_dimensions,
-        row_count_relation=row_count_relation,
-        key_relation=key_relation,
-        row_order_relation=row_order_relation,
-        existing_data_relation=existing_data_relation,
         entrypoint="test:calculate",
-        function_id="calculate",
-        operator_id="calculate",
-        profile_id="dataset",
-        target_identifiers=["key"],
-        output_features=output_features or [],
-        column_types=column_types or {},
+        semantics=plan_module.InvocationSemantics(
+            role="compute",
+            result="target" if dataframe_input_scope == "target" else "fragment",
+            dataframe_input_scope=dataframe_input_scope,
+            fragment_dimensions=fragment_dimensions,
+            row_count_relation=row_count_relation,
+            key_relation=key_relation,
+            row_order_relation=row_order_relation,
+            existing_data_relation=existing_data_relation,
+            function_id="calculate",
+            operator_id="calculate",
+            profile_id="dataset",
+            target_identifiers=["key"],
+            output_features=output_features or [],
+            column_types=column_types or {},
+        ),
     )
 
 
@@ -84,7 +86,10 @@ def test_read_retains_dimension_identifiers_without_feature_outputs(validate: bo
     invocation = _invocation(
         output_features=["value"],
         column_types={"key": "string", "series": "string", "category": "string", "value": "float"},
-    ).__replace__(fragment_keys=["series", "category"])
+    )
+    invocation = invocation.__replace__(
+        semantics=invocation.semantics.__replace__(fragment_keys=["series", "category"])
+    )
     frame = pl.LazyFrame(
         {"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0], "extra": [1, 2]}
     )
@@ -97,14 +102,15 @@ def test_read_retains_dimension_identifiers_without_feature_outputs(validate: bo
     assert fragment.relations == ("series",)
     assert fragment.keys == ("key", "series")
     assert fragment.dataframe.collect().columns == ["key", "value", "series"]
-    assert invocation.output_features == ["value"]
+    assert invocation.semantics.output_features == ["value"]
     assert fragment.dataframe.collect()["series"].to_list() == ["s1", "s1"]
 
 
 def test_read_validates_carried_identifier_types() -> None:
-    invocation = _invocation(
-        output_features=["value"], column_types={"series": "string"}
-    ).__replace__(fragment_keys=["series"])
+    invocation = _invocation(output_features=["value"], column_types={"series": "string"})
+    invocation = invocation.__replace__(
+        semantics=invocation.semantics.__replace__(fragment_keys=["series"])
+    )
 
     with pytest.raises(ValueError, match="Output column series.*expected string"):
         fragment_module.Fragment.compute(
@@ -117,9 +123,12 @@ def test_read_validates_carried_identifier_types() -> None:
 
 @pytest.mark.parametrize("validate", [False, True])
 def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
-    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
-        fragment_keys=["series"],
-        column_types={"series": "string", "value": "float"},
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"])
+    invocation = invocation.__replace__(
+        semantics=invocation.semantics.__replace__(
+            fragment_keys=["series"],
+            column_types={"series": "string", "value": "float"},
+        )
     )
     frame = pl.LazyFrame({"series": ["s1", "s2"], "value": [90.0, 80.0], "extra": [1, 2]})
 
@@ -134,8 +143,9 @@ def test_expand_fragment_retains_parent_identifiers(validate: bool) -> None:
 
 
 def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
-    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
-        fragment_keys=["plant", "series"]
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"])
+    invocation = invocation.__replace__(
+        semantics=invocation.semantics.__replace__(fragment_keys=["plant", "series"])
     )
     fragment = fragment_module.Fragment.compute(
         backend_module.PolarsBackend(),
@@ -148,8 +158,9 @@ def test_expand_fragment_retains_only_present_resolution_identifiers() -> None:
 
 
 def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() -> None:
-    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
-        fragment_keys=["series"]
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"])
+    invocation = invocation.__replace__(
+        semantics=invocation.semantics.__replace__(fragment_keys=["series"])
     )
 
     with pytest.raises(ValueError, match="duplicate identifiers"):
@@ -162,8 +173,9 @@ def test_expand_fragment_rejects_duplicate_parent_identifiers_with_validation() 
 
 
 def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
-    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
-        fragment_keys=["series"]
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"])
+    invocation = invocation.__replace__(
+        semantics=invocation.semantics.__replace__(fragment_keys=["series"])
     )
     frame = pl.LazyFrame({"key": ["p1", "p2"], "value": [90.0, 80.0]})
 
@@ -176,8 +188,9 @@ def test_expand_fragment_can_still_return_the_complete_target_grain() -> None:
 
 
 def test_full_grain_fragment_retains_other_resolution_keys_without_changing_uniqueness() -> None:
-    invocation = _invocation(fragment_dimensions="subset", output_features=["value"]).__replace__(
-        fragment_keys=["key", "series"]
+    invocation = _invocation(fragment_dimensions="subset", output_features=["value"])
+    invocation = invocation.__replace__(
+        semantics=invocation.semantics.__replace__(fragment_keys=["key", "series"])
     )
     frame = pl.LazyFrame({"key": ["p1", "p2"], "series": ["s1", "s1"], "value": [90.0, 80.0]})
     backend = backend_module.PolarsBackend()

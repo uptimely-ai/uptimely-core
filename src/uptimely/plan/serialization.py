@@ -11,53 +11,13 @@ from . import models
 
 def to_dict(plan: models.ExecutionPlan) -> dict[str, typing.Any]:
     """Return a plan as JSON-compatible data."""
-    return {
-        "plan_version": plan.plan_version,
-        "required_backend": plan.required_backend,
-        "invocations": [
-            {
-                "id": invocation.id,
-                "role": invocation.role,
-                "result": invocation.result,
-                "produces_features": invocation.produces_features,
-                "is_sink": invocation.is_sink,
-                "is_workflow": invocation.is_workflow,
-                "is_seed": invocation.is_seed,
-                "dataframe_input_scope": invocation.dataframe_input_scope,
-                "fragment_dimensions": invocation.fragment_dimensions,
-                "row_count_relation": invocation.row_count_relation,
-                "key_relation": invocation.key_relation,
-                "row_order_relation": invocation.row_order_relation,
-                "existing_data_relation": invocation.existing_data_relation,
-                "entrypoint": invocation.entrypoint,
-                "function_id": invocation.function_id,
-                "operator_id": invocation.operator_id,
-                "profile_id": invocation.profile_id,
-                "arguments": invocation.arguments,
-                "dependency_ids": invocation.dependency_ids,
-                "output_features": invocation.output_features,
-                "input_features": invocation.input_features,
-                "target_identifiers": invocation.target_identifiers,
-                "fragment_keys": invocation.fragment_keys,
-                "output_types": invocation.output_types,
-                "column_types": invocation.column_types,
-                "argument_types": invocation.argument_types,
-                "return_type": invocation.return_type,
-                "package": (
-                    invocation.package.model_dump() if invocation.package is not None else None
-                ),
-                "row_context": (
-                    invocation.row_context.to_dict() if invocation.row_context is not None else None
-                ),
-            }
-            for invocation in plan.invocations
-        ],
-        "stages": [stage.invocation_ids for stage in plan.stages],
-    }
+    return plan.model_dump(mode="json")
 
 
 def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     """Load a plan from a decoded JSON object."""
+    if not isinstance(payload, dict):
+        raise ValueError("Plan artifact must contain a JSON object")
     if "plan_version" in payload:
         models._validate_plan_version(payload["plan_version"])
     required = {
@@ -72,38 +32,42 @@ def from_dict(payload: dict[str, typing.Any]) -> models.ExecutionPlan:
     unexpected = sorted(payload.keys() - required)
     if unexpected:
         raise ValueError("Plan contains unknown fields: " + ", ".join(unexpected))
-    invocations = []
-    for invocation in payload["invocations"]:
-        missing_metadata = {
-            "target_identifiers",
-            "fragment_keys",
-            "output_types",
-            "produces_features",
-            "is_sink",
-            "dataframe_input_scope",
-            "fragment_dimensions",
-            "row_count_relation",
-            "key_relation",
-            "row_order_relation",
-            "existing_data_relation",
-            "column_types",
-            "argument_types",
-            "return_type",
-            "package",
-        } - invocation.keys()
-        if missing_metadata:
+    invocations = payload["invocations"]
+    if not isinstance(invocations, list):
+        raise ValueError("Plan invocations must be a list")
+    identifiers: set[str] = set()
+    for invocation in invocations:
+        if not isinstance(invocation, dict):
+            raise ValueError("Plan invocations must be objects")
+        invocation_fields = {"id", "entrypoint", "arguments", "semantics"}
+        missing_invocation_fields = sorted(invocation_fields - invocation.keys())
+        unexpected_invocation_fields = sorted(invocation.keys() - invocation_fields)
+        if missing_invocation_fields:
             raise ValueError(
-                f"Invocation {invocation.get('id', '<unknown>')} is missing runtime metadata: "
-                + ", ".join(sorted(missing_metadata))
+                "Plan invocation is missing fields: " + ", ".join(missing_invocation_fields)
+            )
+        if unexpected_invocation_fields:
+            raise ValueError(
+                "Plan invocation contains unknown fields: "
+                + ", ".join(unexpected_invocation_fields)
+            )
+        invocation_id = invocation["id"]
+        if not isinstance(invocation_id, str) or invocation_id in identifiers:
+            raise ValueError(
+                f"Plan contains an invalid or duplicate invocation ID: {invocation_id!r}"
+            )
+        identifiers.add(invocation_id)
+        semantic_data = invocation["semantics"]
+        if not isinstance(semantic_data, dict):
+            raise ValueError(f"Invocation {invocation_id} semantics must be an object")
+        missing_semantics = models._REQUIRED_SEMANTICS_FIELDS - semantic_data.keys()
+        if missing_semantics:
+            raise ValueError(
+                f"Invocation {invocation_id} is missing runtime metadata: "
+                + ", ".join(sorted(missing_semantics))
                 + ". Recompile the project build."
             )
-        invocations.append(models.Invocation(**invocation))
-    return models.ExecutionPlan(
-        plan_version=payload["plan_version"],
-        required_backend=payload["required_backend"],
-        invocations=invocations,
-        stages=payload["stages"],
-    )
+    return models.ExecutionPlan.model_validate(payload)
 
 
 def export_json(plan: models.ExecutionPlan, path: str | pathlib.Path) -> pathlib.Path:

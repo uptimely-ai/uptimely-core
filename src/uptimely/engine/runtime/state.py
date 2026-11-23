@@ -27,7 +27,7 @@ class RuntimeState:
         """
         dependencies = [
             dependency_id
-            for dependency_id in invocation.dependency_ids
+            for dependency_id in invocation.semantics.dependency_ids
             if dependency_id in self.computed_fragments
         ]
         if len(dependencies) != 1:

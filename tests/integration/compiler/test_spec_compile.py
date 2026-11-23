@@ -7,7 +7,8 @@ from support import examples as example_support
 from uptimely import compiler, spec
 from uptimely import plan as compiler_plan
 from uptimely.codebase.python import entrypoint
-from uptimely.compiler import validation
+from uptimely.inspector import bindings as inspector
+from uptimely.plan import serialization
 from uptimely.spec import model as spec_model
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
@@ -83,21 +84,38 @@ def _unknown_result_spec_configuration() -> dict:
 
 
 def test_compilation_preserves_the_saved_plan() -> None:
-    expected = json.loads(SPEC_PATH.with_name("plan.json").read_text(encoding="utf-8"))
-    actual = compiler_plan.to_dict(compiler.Compiler().compile(spec.load_spec(SPEC_PATH)))
+    expected_plan = serialization.from_json(SPEC_PATH.with_name("plan.json"))
+    expected = serialization.to_dict(expected_plan)
+    document = spec.load_spec(SPEC_PATH)
+    signatures = inspector.BindingInspection.inspect_spec(document)
+    actual = compiler_plan.to_dict(compiler.Compiler().compile(document, signatures=signatures))
 
     assert actual.keys() == expected.keys()
     assert actual["plan_version"] == expected["plan_version"]
     assert actual["required_backend"] == expected["required_backend"]
     assert {
-        invocation["id"]: invocation["return_type"] for invocation in actual["invocations"]
-    } == {invocation["id"]: invocation["return_type"] for invocation in expected["invocations"]}
-    assert all(invocation["package"] is not None for invocation in actual["invocations"])
+        invocation["id"]: invocation["semantics"]["return_type"]
+        for invocation in actual["invocations"]
+    } == {
+        invocation["id"]: invocation["semantics"]["return_type"]
+        for invocation in expected["invocations"]
+    }
+    assert all(
+        invocation["semantics"]["package"] is not None for invocation in actual["invocations"]
+    )
     assert {
-        item["id"]: item | {"dependency_ids": sorted(item["dependency_ids"])}
+        item["id"]: item
+        | {
+            "semantics": item["semantics"]
+            | {"dependency_ids": sorted(item["semantics"]["dependency_ids"])}
+        }
         for item in actual["invocations"]
     } == {
-        item["id"]: item | {"dependency_ids": sorted(item["dependency_ids"])}
+        item["id"]: item
+        | {
+            "semantics": item["semantics"]
+            | {"dependency_ids": sorted(item["semantics"]["dependency_ids"])}
+        }
         for item in expected["invocations"]
     }
     assert [set(stage) for stage in actual["stages"]] == [
@@ -126,7 +144,7 @@ def test_profile_dimension_selector_is_resolved_in_the_portable_plan(
     definition = spec.load_spec(path)
     plan = compiler.Compiler().compile(definition)
     invocation = next(
-        item for item in plan.invocations if item.function_id == "read_pump_telemetry"
+        item for item in plan.invocations if item.semantics.function_id == "read_pump_telemetry"
     )
     expected = definition.identifiers_by_profile["pump_telemetry"]
     expected_source = definition.identifiers_by_profile["pump"]
@@ -135,7 +153,9 @@ def test_profile_dimension_selector_is_resolved_in_the_portable_plan(
     assert invocation.arguments["source_keys"] == expected_source
     portable = compiler_plan.to_dict(plan)
     portable_invocation = next(
-        item for item in portable["invocations"] if item["function_id"] == "read_pump_telemetry"
+        item
+        for item in portable["invocations"]
+        if item["semantics"]["function_id"] == "read_pump_telemetry"
     )
     assert portable_invocation["arguments"]["keys"] == expected
     assert portable_invocation["arguments"]["source_keys"] == expected_source
@@ -151,20 +171,26 @@ def test_collapse_feature_placeholder_uses_declared_output(tmp_path: pathlib.Pat
     definition = spec.load_spec(path)
     plan = compiler.Compiler().compile(definition)
     invocation = next(
-        item for item in plan.invocations if item.operator_id == "bearing_temperature_by_pump"
+        item
+        for item in plan.invocations
+        if item.semantics.operator_id == "bearing_temperature_by_pump"
     )
 
-    assert "bearing_temperature_max" in invocation.output_features
+    assert "bearing_temperature_max" in invocation.semantics.output_features
     assert invocation.arguments["rename"] == {"bearing_temperature": "bearing_temperature_max"}
 
 
 def test_compiler_keeps_reused_function_operators_as_distinct_invocations() -> None:
     plan = compiler.Compiler().compile(spec.load_spec(SPEC_PATH))
     invocations = [
-        invocation for invocation in plan.invocations if invocation.function_id == "extract_field"
+        invocation
+        for invocation in plan.invocations
+        if invocation.semantics.function_id == "extract_field"
     ]
 
-    assert {feature for invocation in invocations for feature in invocation.output_features} == {
+    assert {
+        feature for invocation in invocations for feature in invocation.semantics.output_features
+    } == {
         "recommended_differential_pressure",
         "energy_cost_score",
         "converged",
@@ -174,13 +200,13 @@ def test_compiler_keeps_reused_function_operators_as_distinct_invocations() -> N
     direct_invocations = [
         invocation
         for invocation in plan.invocations
-        if invocation.function_id == "LazyFrame.with_columns"
+        if invocation.semantics.function_id == "LazyFrame.with_columns"
     ]
     assert len(direct_invocations) == 1
-    assert direct_invocations[0].operator_id.startswith(
+    assert direct_invocations[0].semantics.operator_id.startswith(
         "op-LazyFrame.with_columns-recommended_flow_rate-"
     )
-    assert direct_invocations[0].output_features == ["recommended_flow_rate"]
+    assert direct_invocations[0].semantics.output_features == ["recommended_flow_rate"]
     assert direct_invocations[0].arguments["recommended_flow_rate"] == "warning_hour_mean_flow_rate"
 
 
@@ -191,19 +217,36 @@ def test_compact_invocation_ids_are_stable_across_recompilation_and_selection() 
     repeated_plan = compiler_instance.compile(document)
     selected_plan = compiler_instance.compile(document, features=["health_signal_normalized"])
     full_by_binding = {
-        (item.function_id, item.profile_id, item.operator_id, item.role): item.id
+        (
+            item.semantics.function_id,
+            item.semantics.profile_id,
+            item.semantics.operator_id,
+            item.semantics.role,
+        ): item.id
         for item in full_plan.invocations
     }
 
     assert {
-        (item.function_id, item.profile_id, item.operator_id, item.role): item.id
+        (
+            item.semantics.function_id,
+            item.semantics.profile_id,
+            item.semantics.operator_id,
+            item.semantics.role,
+        ): item.id
         for item in repeated_plan.invocations
     } == full_by_binding
     assert selected_plan.invocations
     for item in selected_plan.invocations:
         assert (
             item.id
-            == full_by_binding[(item.function_id, item.profile_id, item.operator_id, item.role)]
+            == full_by_binding[
+                (
+                    item.semantics.function_id,
+                    item.semantics.profile_id,
+                    item.semantics.operator_id,
+                    item.semantics.role,
+                )
+            ]
         )
         assert len(item.id) <= 36
         assert item.id.count("--") == 1
@@ -290,18 +333,19 @@ def test_compiler_emits_conform_invocation_with_its_dataset_dependency() -> None
     conform = next(
         invocation
         for invocation in plan.invocations
-        if invocation.operator_id == "conform_auxiliary"
+        if invocation.semantics.operator_id == "conform_auxiliary"
     )
     source = next(
         invocation
         for invocation in plan.invocations
-        if invocation.operator_id == "read_auxiliary" and invocation.result == "target"
+        if invocation.semantics.operator_id == "read_auxiliary"
+        and invocation.semantics.result == "target"
     )
     stage_by_id = {
         invocation_id: index for index, stage in enumerate(plan.stages) for invocation_id in stage
     }
 
-    assert source.id in conform.dependency_ids
+    assert source.id in conform.semantics.dependency_ids
     assert stage_by_id[source.id] < stage_by_id[conform.id]
     restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(plan))))
     assert restored == plan
@@ -316,8 +360,8 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
         feature
         for stage in plan.execution_stages
         for invocation in stage
-        if invocation.dataframe_input_scope == "target"
-        for feature in invocation.output_features
+        if invocation.semantics.dataframe_input_scope == "target"
+        for feature in invocation.semantics.output_features
     ] == [
         "max_capacity",
         "health_signal_normalized",
@@ -326,8 +370,8 @@ def test_compiler_creates_invocation_graph_subset_for_requested_features() -> No
     assert {
         feature
         for invocation in plan.invocations
-        if invocation.dataframe_input_scope == "target"
-        for feature in invocation.output_features
+        if invocation.semantics.dataframe_input_scope == "target"
+        for feature in invocation.semantics.output_features
     } == {
         "max_capacity",
         "health_signal_normalized",
@@ -350,22 +394,25 @@ def test_workflow_is_selected_only_for_its_profile_and_keeps_logical_dependencie
     path.write_text(json.dumps(configuration), encoding="utf-8")
     document = spec.load_spec(path)
     selected = compiler.Compiler().compile(document, features=["measurement"])
-    workflow = next(item for item in selected.invocations if item.is_workflow)
-    assert workflow.input_features == ["bearing_temperature_max"]
-    assert workflow.output_features == ["external_result"]
+    workflow = next(item for item in selected.invocations if item.semantics.is_workflow)
+    assert workflow.semantics.input_features == ["bearing_temperature_max"]
+    assert workflow.semantics.output_features == ["external_result"]
     producer = next(
-        item for item in selected.invocations if "bearing_temperature_max" in item.output_features
+        item
+        for item in selected.invocations
+        if "bearing_temperature_max" in item.semantics.output_features
     )
     publisher = next(
         item
         for item in selected.invocations
-        if item.operator_id == producer.operator_id and item.role == "merge"
+        if item.semantics.operator_id == producer.semantics.operator_id
+        and item.semantics.role == "merge"
     )
-    assert publisher.id in workflow.dependency_ids
+    assert publisher.id in workflow.semantics.dependency_ids
     other = compiler.Compiler().compile(document, features=["pressure_flow_efficiency"])
-    assert not any(item.is_workflow for item in other.invocations)
+    assert not any(item.semantics.is_workflow for item in other.invocations)
     by_logical_output = compiler.Compiler().compile(document, features=["external_result"])
-    assert any(item.is_workflow for item in by_logical_output.invocations)
+    assert any(item.semantics.is_workflow for item in by_logical_output.invocations)
 
 
 def test_compiler_emits_one_invocation_for_multi_output_operator(
@@ -388,12 +435,12 @@ def test_compiler_emits_one_invocation_for_multi_output_operator(
     target_dataframe_invocations = [
         invocation
         for invocation in plan.invocations
-        if invocation.dataframe_input_scope == "target"
-        and "health_signal_normalized" in invocation.output_features
+        if invocation.semantics.dataframe_input_scope == "target"
+        and "health_signal_normalized" in invocation.semantics.output_features
     ]
 
     assert len(target_dataframe_invocations) == 1
-    assert target_dataframe_invocations[0].output_features == [
+    assert target_dataframe_invocations[0].semantics.output_features == [
         "health_signal_normalized",
         "health_signal_secondary",
     ]
@@ -407,7 +454,9 @@ def test_unknown_result_inputs_and_outputs_define_logical_dependencies(
     path.write_text(json.dumps(configuration), encoding="utf-8")
     document = spec.load_spec(path)
     compiled = compiler.Compiler().compile(document)
-    by_operator = {invocation.operator_id: invocation for invocation in compiled.invocations}
+    by_operator = {
+        invocation.semantics.operator_id: invocation for invocation in compiled.invocations
+    }
     by_id = compiled.invocations_by_id
     process_operator_id = next(
         operator_id
@@ -415,9 +464,9 @@ def test_unknown_result_inputs_and_outputs_define_logical_dependencies(
         if operator.is_workflow
     )
     assert {
-        invocation.operator_id
+        invocation.semantics.operator_id
         for invocation in compiled.invocations
-        if document.functions[invocation.function_id].returns == "any"
+        if document.functions[invocation.semantics.function_id].returns == "any"
     } == {
         "unknown_start",
         "unknown_chain",
@@ -426,40 +475,40 @@ def test_unknown_result_inputs_and_outputs_define_logical_dependencies(
         process_operator_id,
     }
     assert {
-        by_id[dependency_id].operator_id
-        for dependency_id in by_operator["unknown_start"].dependency_ids
+        by_id[dependency_id].semantics.operator_id
+        for dependency_id in by_operator["unknown_start"].semantics.dependency_ids
     } == {"read_pump_telemetry"}
     assert {
-        by_id[dependency_id].operator_id
-        for dependency_id in by_operator["unknown_chain"].dependency_ids
+        by_id[dependency_id].semantics.operator_id
+        for dependency_id in by_operator["unknown_chain"].semantics.dependency_ids
     } == {"unknown_start"}
 
     assert {
-        by_id[dependency_id].operator_id
-        for dependency_id in by_operator["unknown_unrelated"].dependency_ids
+        by_id[dependency_id].semantics.operator_id
+        for dependency_id in by_operator["unknown_unrelated"].semantics.dependency_ids
     } == {"read_pump_telemetry"}
-    assert by_operator["unknown_source"].dependency_ids == []
-    assert by_operator["unknown_start"].output_features == ["unknown_start_output"]
-    assert by_operator["unknown_chain"].output_features == ["unknown_chain_output"]
-    assert by_operator["unknown_source"].input_features == []
-    assert by_operator["unknown_source"].output_features == ["unknown_source_output"]
+    assert by_operator["unknown_source"].semantics.dependency_ids == []
+    assert by_operator["unknown_start"].semantics.output_features == ["unknown_start_output"]
+    assert by_operator["unknown_chain"].semantics.output_features == ["unknown_chain_output"]
+    assert by_operator["unknown_source"].semantics.input_features == []
+    assert by_operator["unknown_source"].semantics.output_features == ["unknown_source_output"]
     assert {
         "unknown_chain_output",
         "unknown_source_output",
     } <= spec.FeatureGraph(document).feature_names
     feature_subset = compiler.Compiler().compile(document, features=["unknown_chain_output"])
     assert {"unknown_start", "unknown_chain"} <= {
-        invocation.operator_id for invocation in feature_subset.invocations
+        invocation.semantics.operator_id for invocation in feature_subset.invocations
     }
     compiled_unknown = {
-        invocation.operator_id: invocation
+        invocation.semantics.operator_id: invocation
         for invocation in compiled.invocations
-        if document.functions[invocation.function_id].returns == "any"
+        if document.functions[invocation.semantics.function_id].returns == "any"
     }
-    assert compiled_unknown["unknown_start"].output_features == ["unknown_start_output"]
-    assert compiled_unknown["unknown_chain"].output_features == ["unknown_chain_output"]
-    assert compiled_unknown["unknown_source"].input_features == []
-    assert compiled_unknown["unknown_source"].output_features == ["unknown_source_output"]
+    assert compiled_unknown["unknown_start"].semantics.output_features == ["unknown_start_output"]
+    assert compiled_unknown["unknown_chain"].semantics.output_features == ["unknown_chain_output"]
+    assert compiled_unknown["unknown_source"].semantics.input_features == []
+    assert compiled_unknown["unknown_source"].semantics.output_features == ["unknown_source_output"]
     restored = compiler_plan.from_dict(json.loads(json.dumps(compiler_plan.to_dict(compiled))))
     assert restored == compiled
     assert restored.invocations == compiled.invocations
@@ -471,12 +520,13 @@ def test_feature_index_uses_declared_interface_outputs(tmp_path: pathlib.Path) -
     document = spec.load_spec(path)
 
     plan = compiler.Compiler().compile(document)
-    chain = next(item for item in plan.invocations if item.operator_id == "unknown_chain")
+    chain = next(item for item in plan.invocations if item.semantics.operator_id == "unknown_chain")
     assert {
-        plan.invocations_by_id[dependency_id].operator_id for dependency_id in chain.dependency_ids
+        plan.invocations_by_id[dependency_id].semantics.operator_id
+        for dependency_id in chain.semantics.dependency_ids
     } == {"unknown_start"}
     assert any(
-        invocation.operator_id == "unknown_start"
+        invocation.semantics.operator_id == "unknown_start"
         for invocation in compiler.Compiler()
         .compile(document, features=["unknown_start_output"])
         .invocations
@@ -516,11 +566,18 @@ def test_unknown_result_annotations_do_not_constrain_compilation(
     path = tmp_path / "unknown_signatures.json"
     path.write_text(json.dumps(configuration), encoding="utf-8")
 
-    compiled = compiler.Compiler().compile(spec.load_spec(path))
-    unknown_results = {invocation.function_id: invocation for invocation in compiled.invocations}
+    document = spec.load_spec(path)
+    signatures = inspector.BindingInspection.inspect_spec(document)
+    compiled = compiler.Compiler().compile(
+        document,
+        signatures=signatures,
+    )
+    unknown_results = {
+        invocation.semantics.function_id: invocation for invocation in compiled.invocations
+    }
 
     assert {
-        function_id: invocation.return_type
+        function_id: invocation.semantics.return_type
         for function_id, invocation in unknown_results.items()
         if function_id
         in {
@@ -538,7 +595,7 @@ def test_unknown_result_annotations_do_not_constrain_compilation(
         "returns_unannotated": None,
     }
     assert all(
-        unknown_results[function_id].output_features == []
+        unknown_results[function_id].semantics.output_features == []
         for function_id in (
             "returns_none",
             "returns_scalar",
@@ -553,15 +610,13 @@ def test_controlled_function_return_annotations_remain_validated() -> None:
     function = spec.load_spec(SPEC_PATH).functions["ratio"]
 
     with pytest.raises(ValueError, match="expected DataFrame or LazyFrame"):
-        validation.validation_return_annotation(
-            validation.CallableValidationContext(
-                function,
-                entrypoint.Signature(
-                    parameters={},
-                    return_annotation="int",
-                ),
-            )
-        )
+        inspector.BindingInspection(
+            function,
+            entrypoint.Signature(
+                parameters={},
+                return_annotation="int",
+            ),
+        ).inspect_return_annotation()
 
 
 def test_compiler_feature_subset_contains_requested_output_and_ancestors() -> None:
@@ -570,21 +625,21 @@ def test_compiler_feature_subset_contains_requested_output_and_ancestors() -> No
     normalized = next(
         invocation
         for invocation in subset.invocations
-        if "health_signal_normalized" in invocation.output_features
+        if "health_signal_normalized" in invocation.semantics.output_features
     )
 
-    assert normalized.output_features == ["health_signal_normalized"]
+    assert normalized.semantics.output_features == ["health_signal_normalized"]
     assert {
         (
-            subset.invocations_by_id[dependency_id].role,
-            subset.invocations_by_id[dependency_id].function_id,
+            subset.invocations_by_id[dependency_id].semantics.role,
+            subset.invocations_by_id[dependency_id].semantics.function_id,
         )
-        for dependency_id in normalized.dependency_ids
+        for dependency_id in normalized.semantics.dependency_ids
     } == {("merge", "merge_by_grain"), ("compute", "read_file")}
     assert {
-        invocation.operator_id
+        invocation.semantics.operator_id
         for invocation in subset.invocations
-        if invocation.operator_id == "bearing_temperature_by_pump"
+        if invocation.semantics.operator_id == "bearing_temperature_by_pump"
     } == {"bearing_temperature_by_pump"}
 
     with pytest.raises(ValueError, match=r"Unknown output feature\(s\): missing"):
@@ -605,13 +660,15 @@ def test_compiled_inputs_match_each_profile_operator() -> None:
 
     assert len(profiles) > 1
     for invocation in execution_plan.invocations:
-        operator = profiles[invocation.profile_id].assembly[invocation.operator_id]
-        if invocation.role == "merge":
-            assert invocation.input_features == []
-            assert invocation.output_features == []
+        operator = profiles[invocation.semantics.profile_id].assembly[
+            invocation.semantics.operator_id
+        ]
+        if invocation.semantics.role == "merge":
+            assert invocation.semantics.input_features == []
+            assert invocation.semantics.output_features == []
             continue
-        assert invocation.input_features == operator.input_features
-        assert invocation.output_features == operator.output_features
+        assert invocation.semantics.input_features == operator.input_features
+        assert invocation.semantics.output_features == operator.output_features
 
 
 def test_compiler_feature_subset_uses_source_profile_and_operator_declarations() -> None:
@@ -619,10 +676,12 @@ def test_compiler_feature_subset_uses_source_profile_and_operator_declarations()
     subset = compiler.Compiler().compile(document, features=["health_signal_normalized"])
 
     for invocation in subset.invocations:
-        operator = document.profiles[invocation.profile_id].assembly[invocation.operator_id]
-        if invocation.role == "merge":
-            assert invocation.input_features == []
-            assert invocation.output_features == []
+        operator = document.profiles[invocation.semantics.profile_id].assembly[
+            invocation.semantics.operator_id
+        ]
+        if invocation.semantics.role == "merge":
+            assert invocation.semantics.input_features == []
+            assert invocation.semantics.output_features == []
             continue
-        assert invocation.input_features == operator.input_features
-        assert invocation.output_features == operator.output_features
+        assert invocation.semantics.input_features == operator.input_features
+        assert invocation.semantics.output_features == operator.output_features

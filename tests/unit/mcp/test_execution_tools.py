@@ -81,7 +81,7 @@ async def test_targeted_execution_returns_only_requested_outputs(
     assert all(
         saved.invocations[invocation.id].status == "skipped"
         for invocation in bundle.execution_plan.invocations
-        if invocation.is_sink
+        if invocation.semantics.is_sink
     )
     assert saved.preview_rows == 2
     assert len(run_store.RunStore(state.project_root).read_preview("pump_telemetry").rows) == 2

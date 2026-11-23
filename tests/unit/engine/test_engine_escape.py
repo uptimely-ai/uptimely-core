@@ -78,14 +78,16 @@ def test_escape_ignores_any_return_without_materializing_features(
     invocation_id = "invocation:escape:external_operator:asset:external:operator"
     escape = uptimely_plan.Invocation(
         id=invocation_id,
-        role="compute",
-        result="none",
         entrypoint="test:escape",
-        function_id="external_operator",
-        operator_id="operator",
-        profile_id="external",
-        output_features=[],
-        input_features=["external_input"],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="none",
+            function_id="external_operator",
+            operator_id="operator",
+            profile_id="external",
+            output_features=[],
+            input_features=["external_input"],
+        ),
     )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=uptimely_plan.PLAN_VERSION,
@@ -121,26 +123,30 @@ def test_escape_feature_outputs_order_invocations_without_materializing_datafram
 
     first_invocation = uptimely_plan.Invocation(
         id=first_id,
-        role="compute",
-        result="none",
         entrypoint="test:first",
-        function_id="first",
-        operator_id="first",
-        profile_id="external",
-        output_features=["first_output"],
-        input_features=["external_input"],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="none",
+            function_id="first",
+            operator_id="first",
+            profile_id="external",
+            output_features=["first_output"],
+            input_features=["external_input"],
+        ),
     )
     second_invocation = uptimely_plan.Invocation(
         id=second_id,
-        role="compute",
-        result="none",
         entrypoint="test:second",
-        function_id="second",
-        operator_id="second",
-        profile_id="external",
-        output_features=[],
-        input_features=["first_output"],
-        dependency_ids=[first_id],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="none",
+            function_id="second",
+            operator_id="second",
+            profile_id="external",
+            output_features=[],
+            input_features=["first_output"],
+            dependency_ids=[first_id],
+        ),
     )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=uptimely_plan.PLAN_VERSION,
@@ -165,16 +171,18 @@ def test_escape_resolves_literal_and_runtime_arguments(
     invocation_id = "invocation:escape:external_operator:asset:external:operator"
     escape = uptimely_plan.Invocation(
         id=invocation_id,
-        role="compute",
-        result="none",
         entrypoint="test:escape",
-        function_id="external_operator",
-        operator_id="operator",
-        profile_id="external",
-        output_features=[],
-        input_features=["external_input"],
         arguments={"path": "$params.output", "mode": "replace"},
-        argument_types={"path": "string", "mode": "string"},
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="none",
+            function_id="external_operator",
+            operator_id="operator",
+            profile_id="external",
+            output_features=[],
+            input_features=["external_input"],
+            argument_types={"path": "string", "mode": "string"},
+        ),
     )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=uptimely_plan.PLAN_VERSION,
@@ -202,25 +210,30 @@ def test_escape_missing_explicit_dataframe_argument_fails_and_skips_downstream(
     second_id = "invocation:escape:second:asset:external:second"
     first_invocation = uptimely_plan.Invocation(
         id=first_id,
-        role="compute",
-        result="none",
         entrypoint="test:first",
-        function_id="first",
-        operator_id="first",
-        profile_id="external",
-        output_features=[],
-        input_features=["external_input"],
         arguments={"frame": "missing"},
-        argument_types={"frame": "dataframe"},
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="none",
+            function_id="first",
+            operator_id="first",
+            profile_id="external",
+            output_features=[],
+            input_features=["external_input"],
+            argument_types={"frame": "dataframe"},
+        ),
     )
     second_invocation = copy.replace(
         first_invocation,
         id=second_id,
         entrypoint="test:second",
-        function_id="second",
-        operator_id="second",
-        output_features=[],
-        dependency_ids=[first_id],
+        semantics=copy.replace(
+            first_invocation.semantics,
+            function_id="second",
+            operator_id="second",
+            output_features=[],
+            dependency_ids=[first_id],
+        ),
     )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=uptimely_plan.PLAN_VERSION,
@@ -257,62 +270,70 @@ def test_escape_outputs_are_not_passed_to_following_dataframe_invocations(
 
     read_invocation = uptimely_plan.Invocation(
         id=read_id,
-        role="compute",
-        result="fragment",
-        fragment_dimensions="target",
         entrypoint="test:read",
-        function_id="load",
-        operator_id="load",
-        profile_id="telemetry",
-        output_features=["asset_id", "reading"],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="fragment",
+            fragment_dimensions="target",
+            function_id="load",
+            operator_id="load",
+            profile_id="telemetry",
+            output_features=["asset_id", "reading"],
+        ),
     )
     merge_invocation = uptimely_plan.Invocation(
         id=merge_id,
-        role="merge",
-        result="target",
         entrypoint="test:merge",
-        function_id="combine",
-        operator_id="load",
-        profile_id="telemetry",
-        target_identifiers=["asset_id"],
         arguments={
             "dataset": "telemetry",
             "fragment": "$operators.@.fragment",
             "dataset_identifiers": ["asset_id"],
         },
-        argument_types={
-            "dataset": "dataframe | null",
-            "fragment": "dataframe",
-            "dataset_identifiers": "array[string]",
-        },
-        dependency_ids=[read_id],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="merge",
+            result="target",
+            function_id="combine",
+            operator_id="load",
+            profile_id="telemetry",
+            target_identifiers=["asset_id"],
+            argument_types={
+                "dataset": "dataframe | null",
+                "fragment": "dataframe",
+                "dataset_identifiers": "array[string]",
+            },
+            dependency_ids=[read_id],
+        ),
     )
     escape_invocation = uptimely_plan.Invocation(
         id=escape_id,
-        role="compute",
-        result="none",
         entrypoint="test:escape",
-        function_id="external_operator",
-        operator_id="external_result",
-        profile_id="telemetry",
-        output_features=["external_result"],
-        input_features=["reading"],
         arguments={"dataset": "telemetry"},
-        argument_types={"dataset": "dataframe"},
-        dependency_ids=[merge_id],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="none",
+            function_id="external_operator",
+            operator_id="external_result",
+            profile_id="telemetry",
+            output_features=["external_result"],
+            input_features=["reading"],
+            argument_types={"dataset": "dataframe"},
+            dependency_ids=[merge_id],
+        ),
     )
     vectorize_invocation = uptimely_plan.Invocation(
         id=vectorize_id,
-        role="compute",
-        result="target",
-        dataframe_input_scope="target",
         entrypoint="test:consume",
-        function_id="consume",
-        operator_id="consume",
-        profile_id="telemetry",
-        output_features=["processed"],
-        input_features=["external_result"],
-        dependency_ids=[escape_id],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="target",
+            dataframe_input_scope="target",
+            function_id="consume",
+            operator_id="consume",
+            profile_id="telemetry",
+            output_features=["processed"],
+            input_features=["external_result"],
+            dependency_ids=[escape_id],
+        ),
     )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=uptimely_plan.PLAN_VERSION,
@@ -354,23 +375,28 @@ def test_escape_exception_fails_and_skips_downstream(
     second_id = "invocation:escape:second:asset:external:second"
     first_invocation = uptimely_plan.Invocation(
         id=first_id,
-        role="compute",
-        result="none",
         entrypoint="test:first",
-        function_id="first",
-        operator_id="first",
-        profile_id="external",
-        output_features=[],
-        input_features=["external_input"],
+        semantics=uptimely_plan.InvocationSemantics(
+            role="compute",
+            result="none",
+            function_id="first",
+            operator_id="first",
+            profile_id="external",
+            output_features=[],
+            input_features=["external_input"],
+        ),
     )
     second_invocation = copy.replace(
         first_invocation,
         id=second_id,
         entrypoint="test:second",
-        function_id="second",
-        operator_id="second",
-        output_features=[],
-        dependency_ids=[first_id],
+        semantics=copy.replace(
+            first_invocation.semantics,
+            function_id="second",
+            operator_id="second",
+            output_features=[],
+            dependency_ids=[first_id],
+        ),
     )
     plan = uptimely_plan.ExecutionPlan(
         plan_version=uptimely_plan.PLAN_VERSION,

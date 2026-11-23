@@ -93,9 +93,11 @@ def test_spec_plan_execution_and_presentation_preserve_context(
     assert authored_profile["assembly"]["result"]["row_context"] == context.to_dict()
     restored = spec.load_spec(path)
     compiled = compiler.Compiler().compile(restored)
-    invocation = next(item for item in compiled.invocations if item.row_context is not None)
-    assert invocation.input_features == ["temperature"]
-    assert invocation.row_context == context
+    invocation = next(
+        item for item in compiled.invocations if item.semantics.row_context is not None
+    )
+    assert invocation.semantics.input_features == ["temperature"]
+    assert invocation.semantics.row_context == context
     portable = uptimely_plan.from_dict(uptimely_plan.to_dict(compiled))
     result = engine_for_plan(portable, spec_definition=restored).run()
     assert not result.failures
@@ -155,9 +157,11 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
     assert spec_definition.functions["calculate"].args["column"].type == "string"
 
     plan = compiler.Compiler().compile(restored_spec)
-    invocation = next(item for item in plan.invocations if item.row_context is not None)
-    assert invocation.row_context == context
-    assert all(item.row_context is None for item in plan.invocations if item is not invocation)
+    invocation = next(item for item in plan.invocations if item.semantics.row_context is not None)
+    assert invocation.semantics.row_context == context
+    assert all(
+        item.semantics.row_context is None for item in plan.invocations if item is not invocation
+    )
     assert invocation.arguments == {
         "dataset": "observations",
         "column": "temperature",
@@ -191,8 +195,10 @@ def test_spec_plan_and_batch_execution_preserve_context_and_arguments(
 
 def test_plan_context_is_present_in_portable_operations() -> None:
     plan = compiler.Compiler().compile(_spec(context=authoring.current()))
-    invocation = next(item for item in plan.invocations if "result" in item.output_features)
-    assert invocation.row_context == authoring.current()
+    invocation = next(
+        item for item in plan.invocations if "result" in item.semantics.output_features
+    )
+    assert invocation.semantics.row_context == authoring.current()
 
 
 def test_collapse_functions_execute_without_row_context(
@@ -249,7 +255,7 @@ def test_collapse_functions_execute_without_row_context(
     )
     plan = compiler.Compiler().compile(spec_definition)
     invocation = next(item for item in plan.invocations if item.entrypoint.endswith(":maximum"))
-    assert invocation.row_context is None
+    assert invocation.semantics.row_context is None
     assert invocation.entrypoint.endswith(":maximum")
     assert invocation.arguments == {
         "dataset": "observations",

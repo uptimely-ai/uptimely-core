@@ -4,9 +4,12 @@
 A **function** is reusable code with typed arguments and a declared return
 contract.
 
+Function implementationsa are independent from spec's logical function templates. This makes it possible to keep the spec unthouched while changing the implementation on the background.
+
 ## Function dataframe signature
 
-Functions are inspected and validated by the number of dataframes they take as arguments, and how many they return.
+The inspector derives and validates the number of dataframes an implementation
+takes as arguments and returns. The Spec stores the logical dataframe contract.
 
 Dataframe counts describe the function data signature, independently of operator
 bindings, logical features, or internal I/O.
@@ -55,4 +58,6 @@ Dataframe signatures visualized:
 
 ## Other arguments
 
-Functions might have any additional arguments. Only the dataframe signature is inspected and validated.
+Functions might have any additional arguments. Spec validation checks declared
+argument names and types. Binding inspection additionally compares these
+declarations with implementation parameters and annotations.

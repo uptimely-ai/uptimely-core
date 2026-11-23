@@ -2,8 +2,9 @@
 
 An entrypoint identifies a function with `"module.path:function_name"`.
 Install the function's package in both the build and runtime environments.
-Uptimely checks the function signature during compilation and loads the function
-when the engine runs.
+Uptimely inspects function signatures before compilation and loads the function
+when the engine runs. Signature inspection is performed by the independent
+[Binding inspector](inspector.md), not by the compiler.
 
 ```python
 from uptimely.codebase.python.entrypoint import Entrypoint

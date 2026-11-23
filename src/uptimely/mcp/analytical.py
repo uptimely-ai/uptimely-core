@@ -73,7 +73,7 @@ class AnalyticalTools:
         bundle = self._state.load_bundle()
         definition = bundle.spec_definition
         available = {
-            (invocation.profile_id, invocation.operator_id)
+            (invocation.semantics.profile_id, invocation.semantics.operator_id)
             for invocation in bundle.execution_plan.invocations
         }
         return serialization.JsonSerializer.dumps(

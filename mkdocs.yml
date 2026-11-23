@@ -99,6 +99,7 @@ nav:
         - Profile: concepts/profiles.md
         - Grain relationships: concepts/grain-relationships.md
       - Build:
+        - Inspector: concepts/inspector.md
         - Compiler: concepts/compiler.md
         - Build: concepts/build.md
       - Execution:
@@ -149,6 +150,7 @@ nav:
           - Overview: python/index.md
           - Row-context utilities: python/row-context.md
           - Builds and bundles: python/build.md
+          - Binding inspector: python/inspector.md
           - Compiler: python/compiler.md
           - Saved runs: python/engine-runs.md
           - Explorer: python/explorer.md
@@ -206,11 +208,11 @@ nav:
           - uptimely explore: cli/explorer.md
           - uptimely export: cli/export.md
           - uptimely feature-graph: cli/spec.md
-      - File formats:
-          - Configuration: artifacts/configuration.md
+  - File formats:
+      - Configuration: artifacts/configuration.md
+      - Build artifacts:
           - Build bundle: artifacts/build.md
-          - Execution plan JSON: artifacts/execution-plan.md
-          - Run artifacts: artifacts/run.md
+          - Plan JSON: artifacts/execution-plan.md
           - Spec JSON:
               - Overview: artifacts/spec-index.md
               - Dimensions: artifacts/spec-dimensions.md
@@ -218,6 +220,8 @@ nav:
               - Functions: artifacts/spec-functions.md
               - Operators: artifacts/spec-operators.md
               - Selectors: artifacts/spec-selectors.md
+      - Run artifacts:
+          - Run: artifacts/run.md
   - Project:
       - The problem: project/background.md
       - Tests: https://uptimely-ai.github.io/uptimely-core/tests/
@@ -232,8 +236,6 @@ nav:
           - Release 4 - Specification authoring: project/release-04-specification-authoring.md
           - Release 5 - Freshness scheduling: project/release-05-freshness-scheduling.md
           - Release 6 - Signal processing: project/release-06-signal-processing.md
-          - Release 7 - Reproducible builds: project/release-07-reproducible-builds.md
-          - Release 8 - Runtime bundles: project/release-08-runtime-bundles.md
           - Release 9 - Launchers and deployment: project/release-09-launchers-deployment.md
           - Release 10 - Segmented execution: project/release-10-segmented-execution.md
           - Release 11 - Executable scopes: project/release-11-executable-scopes.md

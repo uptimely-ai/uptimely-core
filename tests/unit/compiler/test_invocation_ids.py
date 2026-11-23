@@ -7,18 +7,20 @@ from unittest import mock
 
 import pytest
 
-from uptimely import spec
-from uptimely.compiler import compiler, graph
+from uptimely import plan, spec
+from uptimely.compiler import graph
 from uptimely.spec import model as spec_model
 
 
 def _node(operator_id: str = "bearing_temperature_delta") -> graph.InvocationNode:
     return graph.InvocationNode(
-        function_id="delta",
-        profile_id="pump_telemetry",
-        operator_id=operator_id,
-        role="compute",
-        result="target",
+        semantics=plan.InvocationSemantics(
+            function_id="delta",
+            profile_id="pump_telemetry",
+            operator_id=operator_id,
+            role="compute",
+            result="target",
+        )
     )
 
 
@@ -54,7 +56,8 @@ def test_invocation_labels_are_bounded_ascii_with_single_dashes(
 
 def test_compute_and_merge_roles_have_distinct_invocation_ids() -> None:
     compute = _node()
-    merge = dataclasses.replace(compute, role="merge", result="target")
+    semantics = compute.semantics.model_copy(update={"role": "merge", "result": "target"})
+    merge = dataclasses.replace(compute, semantics=semantics)
 
     assert merge.node_id.split("--")[0] == compute.node_id.split("--")[0]
     assert len(merge.node_id) <= 36
@@ -72,14 +75,26 @@ def test_compute_and_merge_roles_have_distinct_invocation_ids() -> None:
 )
 def test_fingerprint_distinguishes_each_identity_field(changes: dict[str, str]) -> None:
     node = _node()
-    changed = dataclasses.replace(node, **changes)
+    semantics = node.semantics.model_copy(update=changes)
+    changed = dataclasses.replace(node, semantics=semantics)
 
     assert changed.node_id.rsplit("--", 1)[1] != node.node_id.rsplit("--", 1)[1]
 
 
 def test_identity_serialization_preserves_field_boundaries() -> None:
-    first = dataclasses.replace(_node(), function_id="delta:pump", profile_id="telemetry")
-    second = dataclasses.replace(_node(), function_id="delta", profile_id="pump:telemetry")
+    original = _node()
+    first = dataclasses.replace(
+        original,
+        semantics=original.semantics.model_copy(
+            update={"function_id": "delta:pump", "profile_id": "telemetry"}
+        ),
+    )
+    second = dataclasses.replace(
+        original,
+        semantics=original.semantics.model_copy(
+            update={"function_id": "delta", "profile_id": "pump:telemetry"}
+        ),
+    )
 
     assert first.node_id != second.node_id
 
@@ -88,8 +103,9 @@ def test_invocation_id_does_not_depend_on_runtime_metadata() -> None:
     node = _node()
     changed = dataclasses.replace(
         node,
-        input_features=("input",),
-        output_features=("output",),
+        semantics=node.semantics.model_copy(
+            update={"input_features": ["input"], "output_features": ["output"]}
+        ),
         arguments={"value": spec_model.BindingArgument(42)},
     )
 
@@ -128,4 +144,4 @@ def test_graph_rejects_id_collisions_before_overwriting_nodes(
     )
 
     with pytest.raises(ValueError, match=r"Invocation ID collision.*first.*second"):
-        compiler.Compiler._create_invocation_nodes(specification)
+        graph.InvocationBuilder.create_nodes(specification)

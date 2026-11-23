@@ -15,6 +15,7 @@ reference pages show the public classes and functions, grouped by package.
 | Resolve project paths, sources, and Python imports | [Project](project.md) |
 | Work with a configured project | [Application](application.md) |
 | Build or load a project bundle | [Builds and bundles](build.md) |
+| Inspect Spec bindings against implementations | [Binding inspector](inspector.md) |
 | Compile a Spec | [Compiler](compiler.md) |
 | Inspect and serialize execution plans | [Models](plans-models.md) and [serialization](plans-serialization.md) |
 | Run analytics and read results | [Execution engine](engine.md) |

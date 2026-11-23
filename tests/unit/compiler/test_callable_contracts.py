@@ -1,14 +1,13 @@
 """Compiler checks for callable compatibility with declared function contracts."""
 
 import functools
-import graphlib
 import inspect
 import logging
 
 import pytest
 
 from uptimely.codebase.python import entrypoint
-from uptimely.compiler import validation
+from uptimely.inspector import bindings as inspector
 from uptimely.spec import model as spec_model
 from uptimely.spec.validation import errors
 
@@ -102,16 +101,26 @@ def _signature(name: str) -> entrypoint.Signature:
     return function.read_signature()
 
 
-@pytest.mark.parametrize("validate", validation.VALIDATION_DEPENDENCIES, ids=lambda f: f.__name__)
+@pytest.mark.parametrize(
+    "inspection_method",
+    [
+        "inspect_declared_arguments",
+        "inspect_keyword_arguments",
+        "inspect_argument_annotations",
+        "inspect_required_parameters",
+        "inspect_return_annotation",
+    ],
+)
 def test_callable_rules_do_not_repeat_per_function_logs(
-    caplog: pytest.LogCaptureFixture, validate: validation.Validator
+    caplog: pytest.LogCaptureFixture,
+    inspection_method: str,
 ) -> None:
-    caplog.set_level(logging.DEBUG, logger=validation.__name__)
-    context = validation.CallableValidationContext(
+    caplog.set_level(logging.DEBUG, logger=inspector.__name__)
+    callable_validation = inspector.BindingInspection(
         _function_template(), _signature("typed_dataframe")
     )
 
-    validate(context)
+    getattr(callable_validation, inspection_method)()
 
     assert not caplog.records
 
@@ -120,26 +129,34 @@ def test_callable_rules_do_not_repeat_per_function_logs(
 def test_callable_validation_does_not_repeat_summary(
     caplog: pytest.LogCaptureFixture, level: int
 ) -> None:
-    caplog.set_level(level, logger=validation.__name__)
+    caplog.set_level(level, logger=inspector.__name__)
 
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(_function_template(), _signature("typed_dataframe"))
-    )
+    inspector.BindingInspection(_function_template(), _signature("typed_dataframe")).inspect()
 
     assert not caplog.messages
+
+
+def test_callable_validation_class_runs_all_semantic_methods() -> None:
+    callable_validation = inspector.BindingInspection(
+        _function_template(),
+        _signature("typed_dataframe"),
+    )
+
+    callable_validation.inspect()
+
+    assert callable_validation.function == _function_template()
+    assert callable_validation.signature == _signature("typed_dataframe")
 
 
 def test_failed_signature_validation_preserves_function_diagnostic(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    caplog.set_level(logging.DEBUG, logger=validation.__name__)
+    caplog.set_level(logging.DEBUG, logger=inspector.__name__)
 
     with pytest.raises(errors.SpecError, match="positional-only") as error:
-        validation.validation_callable_signature(
-            validation.CallableValidationContext(
-                _function_template(), _signature("positional_only_dataframe")
-            )
-        )
+        inspector.BindingInspection(
+            _function_template(), _signature("positional_only_dataframe")
+        ).inspect()
 
     assert error.value.path == ("functions", "calculate", "args", "frame")
     assert not caplog.messages
@@ -149,61 +166,52 @@ def test_failed_signature_validation_preserves_function_diagnostic(
 def test_signature_validation_does_not_log_individual_annotation_skips(
     caplog: pytest.LogCaptureFixture, implementation: str
 ) -> None:
-    caplog.set_level(logging.DEBUG, logger=validation.__name__)
+    caplog.set_level(logging.DEBUG, logger=inspector.__name__)
 
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(_function_template(), _signature(implementation))
-    )
+    inspector.BindingInspection(_function_template(), _signature(implementation)).inspect()
 
     assert not caplog.messages
 
 
 def test_unrestricted_return_annotation_skip_is_quiet(caplog: pytest.LogCaptureFixture) -> None:
     function = _function_template(returns="any")
-    caplog.set_level(logging.DEBUG, logger=validation.__name__)
+    caplog.set_level(logging.DEBUG, logger=inspector.__name__)
 
-    validation.validation_return_annotation(
-        validation.CallableValidationContext(function, _signature("typed_dataframe"))
-    )
+    inspector.BindingInspection(function, _signature("typed_dataframe")).inspect_return_annotation()
 
     assert not caplog.messages
-
-
-def test_callable_validation_dependencies_are_acyclic() -> None:
-    dependencies = validation.VALIDATION_DEPENDENCIES
-    ordered = tuple(graphlib.TopologicalSorter(dependencies).static_order())
-
-    assert ordered == tuple(dependencies)
-    assert all(
-        prerequisite in dependencies
-        for prerequisites in dependencies.values()
-        for prerequisite in prerequisites
-    )
 
 
 def test_callable_validation_stops_after_a_failed_prerequisite(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     calls: list[str] = []
-    context = validation.CallableValidationContext(
+    callable_validation = inspector.BindingInspection(
         _function_template(), _signature("typed_dataframe")
     )
 
-    def failing_validator(context: validation.CallableValidationContext) -> None:
+    def failing_validator() -> None:
         calls.append("failing")
         raise ValueError("invalid callable signature")
 
-    def dependent_validator(context: validation.CallableValidationContext) -> None:
+    def dependent_validator() -> None:
         calls.append("dependent")
 
     monkeypatch.setattr(
-        validation,
-        "VALIDATION_DEPENDENCIES",
-        {failing_validator: (), dependent_validator: (failing_validator,)},
+        callable_validation,
+        "INSPECTION_DEPENDENCIES",
+        {
+            "failing_validator": (),
+            "dependent_validator": ("failing_validator",),
+        },
+    )
+    monkeypatch.setattr(callable_validation, "failing_validator", failing_validator, raising=False)
+    monkeypatch.setattr(
+        callable_validation, "dependent_validator", dependent_validator, raising=False
     )
 
     with pytest.raises(ValueError, match="invalid callable signature"):
-        validation.validation_callable_signature(context)
+        callable_validation.inspect()
 
     assert calls == ["failing"]
 
@@ -229,42 +237,45 @@ def test_signature_properties_follow_current_parameters() -> None:
 def test_typed_and_untyped_callables_satisfy_supported_contracts() -> None:
     function = _function_template()
 
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(function, _signature("typed_dataframe"))
-    )
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(function, _signature("untyped_dataframe"))
-    )
+    inspector.BindingInspection(function, _signature("typed_dataframe")).inspect()
+    inspector.BindingInspection(function, _signature("untyped_dataframe")).inspect()
 
 
 def test_optional_dataframe_contract_requires_nullable_implementation() -> None:
     function = _function_template(arguments={"frame": "dataframe | null"})
 
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(function, _signature("optional_dataframe"))
-    )
+    inspector.BindingInspection(function, _signature("optional_dataframe")).inspect()
 
     with pytest.raises(errors.SpecError, match="declares argument type dataframe \\| null"):
-        validation.validation_callable_signature(
-            validation.CallableValidationContext(function, _signature("required_dataframe"))
-        )
+        inspector.BindingInspection(function, _signature("required_dataframe")).inspect()
 
 
 def test_nullable_implementation_accepts_nonnullable_dataframe_contract() -> None:
     function = _function_template(arguments={"frame": "dataframe"})
 
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(function, _signature("optional_dataframe"))
+    inspector.BindingInspection(function, _signature("optional_dataframe")).inspect()
+
+
+def test_dataframe_contract_rejects_more_than_two_declared_inputs() -> None:
+    function = _function_template(
+        arguments={
+            "first": "dataframe",
+            "second": "dataframe",
+            "third": "dataframe",
+        }
     )
+
+    with pytest.raises(errors.SpecError, match="at most two dataframe argument slots"):
+        inspector.BindingInspection(
+            function, _signature("typed_dataframe")
+        ).inspect_dataframe_contract()
 
 
 def test_callable_must_accept_declared_arguments_as_keywords() -> None:
     function = _function_template()
 
     with pytest.raises(errors.SpecError, match="positional-only") as error:
-        validation.validation_callable_signature(
-            validation.CallableValidationContext(function, _signature("positional_only_dataframe"))
-        )
+        inspector.BindingInspection(function, _signature("positional_only_dataframe")).inspect()
 
     assert error.value.code == "invalid_implementation_signature"
     assert error.value.path == ("functions", "calculate", "args", "frame")
@@ -272,31 +283,23 @@ def test_callable_must_accept_declared_arguments_as_keywords() -> None:
 
 def test_var_positional_parameter_does_not_accept_a_declared_keyword() -> None:
     with pytest.raises(errors.SpecError, match="cannot be passed as a keyword"):
-        validation.validation_callable_signature(
-            validation.CallableValidationContext(
-                _function_template(), _signature("variadic_positional_dataframe")
-            )
-        )
+        inspector.BindingInspection(
+            _function_template(), _signature("variadic_positional_dataframe")
+        ).inspect()
 
 
 def test_callable_cannot_require_undeclared_parameters() -> None:
     with pytest.raises(errors.SpecError, match="requires undeclared parameter 'required'"):
-        validation.validation_callable_signature(
-            validation.CallableValidationContext(
-                _function_template(), _signature("requires_extra_parameter")
-            )
-        )
+        inspector.BindingInspection(
+            _function_template(), _signature("requires_extra_parameter")
+        ).inspect()
 
 
 def test_declared_arguments_are_forwarded_to_kwargs_and_defaults_are_allowed() -> None:
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(_function_template(), _signature("accepts_kwargs"))
-    )
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(
-            _function_template(), _signature("defaulted_extra_parameter")
-        )
-    )
+    inspector.BindingInspection(_function_template(), _signature("accepts_kwargs")).inspect()
+    inspector.BindingInspection(
+        _function_template(), _signature("defaulted_extra_parameter")
+    ).inspect()
 
 
 def test_nested_declared_argument_types_are_compared_recursively() -> None:
@@ -308,29 +311,21 @@ def test_nested_declared_argument_types_are_compared_recursively() -> None:
     )
     signature = _signature("nested_arguments")
 
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(function, signature)
-    )
+    inspector.BindingInspection(function, signature).inspect()
 
 
 def test_supported_argument_annotation_must_match_declared_type() -> None:
     with pytest.raises(errors.SpecError, match="declares argument type dataframe"):
-        validation.validation_callable_signature(
-            validation.CallableValidationContext(
-                _function_template(), _signature("wrong_argument_annotation")
-            )
-        )
+        inspector.BindingInspection(
+            _function_template(), _signature("wrong_argument_annotation")
+        ).inspect()
 
 
 def test_missing_return_annotation_is_permitted_but_none_contradicts_dataframe() -> None:
-    validation.validation_callable_signature(
-        validation.CallableValidationContext(_function_template(), _signature("untyped_dataframe"))
-    )
+    inspector.BindingInspection(_function_template(), _signature("untyped_dataframe")).inspect()
     with pytest.raises(errors.SpecError, match="expected DataFrame or LazyFrame") as error:
-        validation.validation_callable_signature(
-            validation.CallableValidationContext(
-                _function_template(), _signature("wrong_return_annotation")
-            )
-        )
+        inspector.BindingInspection(
+            _function_template(), _signature("wrong_return_annotation")
+        ).inspect()
 
     assert error.value.path == ("functions", "calculate", "returns")

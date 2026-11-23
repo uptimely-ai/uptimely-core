@@ -36,15 +36,17 @@ def merge_fragment(
     """Exercise runtime validation and projection around a physical accumulator."""
     invocation = fragment.invocation or execution_plan.Invocation(
         id="standalone",
-        role="compute",
-        result="fragment",
         entrypoint="test:read",
-        function_id="read",
-        operator_id="read",
-        profile_id="dataset",
-        target_identifiers=list(main.identifiers),
-        fragment_dimensions="target",
-        column_types=dict(dimension_types or {}),
+        semantics=execution_plan.InvocationSemantics(
+            role="compute",
+            result="fragment",
+            function_id="read",
+            operator_id="read",
+            profile_id="dataset",
+            target_identifiers=list(main.identifiers),
+            fragment_dimensions="target",
+            column_types=dict(dimension_types or {}),
+        ),
     )
     if fragment.invocation is not None:
         fragment = fragment_module.Fragment.compute(
@@ -63,12 +65,14 @@ def merge_fragment(
     if main.dataframe is not None:
         main.validate_accumulated_frame(
             description="Accumulated profile",
-            column_types=invocation.column_types,
+            column_types=invocation.semantics.column_types,
         )
         merge_module.Merge(main, fragment).validate_input()
     main.merge(
         fragment,
-        fragment_id=fragment.invocation.operator_id if fragment.invocation is not None else None,
+        fragment_id=fragment.invocation.semantics.operator_id
+        if fragment.invocation is not None
+        else None,
         join_cardinality="1:1",
         broadcast_cardinality="m:1",
     )
@@ -79,9 +83,9 @@ def _return_contract_from_invocation(
     invocation: execution_plan.Invocation,
 ) -> typing.Literal["dataframe", "none", "any"]:
     """Derive a minimal function return contract from portable invocation metadata."""
-    if invocation.result != "none":
+    if invocation.semantics.result != "none":
         return "dataframe"
-    return "none" if invocation.is_sink else "any"
+    return "none" if invocation.semantics.is_sink else "any"
 
 
 class BundleFactory(typing.Protocol):
@@ -115,12 +119,12 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
     functions: dict[str, typing.Any] = {}
 
     for invocation in execution_plan.invocations:
-        if invocation.profile_id is None:
+        if invocation.semantics.profile_id is None:
             continue
-        profile = profiles.setdefault(invocation.profile_id, {"grain": []})
-        if not profile.get("grain") and invocation.target_identifiers:
+        profile = profiles.setdefault(invocation.semantics.profile_id, {"grain": []})
+        if not profile.get("grain") and invocation.semantics.target_identifiers:
             profile["grain"] = []
-            for key in invocation.target_identifiers:
+            for key in invocation.semantics.target_identifiers:
                 dimension_id = key
                 resolution_id = key
                 dimensions.setdefault(
@@ -129,13 +133,13 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
                         "resolutions": {
                             resolution_id: {
                                 "key": key,
-                                "type": invocation.column_types.get(key, "string"),
+                                "type": invocation.semantics.column_types.get(key, "string"),
                             }
                         }
                     },
                 )
                 profile["grain"].append({"dimension": dimension_id, "resolution": resolution_id})
-        function = functions.setdefault(invocation.function_id, {})
+        function = functions.setdefault(invocation.semantics.function_id, {})
         function.setdefault(
             "returns",
             _return_contract_from_invocation(invocation),
@@ -145,23 +149,25 @@ def spec_for_plan(execution_plan: execution_plan.ExecutionPlan) -> spec_model.Sp
             "args",
             {
                 name: {"type": argument_type}
-                for name, argument_type in invocation.argument_types.items()
+                for name, argument_type in invocation.semantics.argument_types.items()
             },
         )
-        profile.setdefault("name", invocation.profile_id)
+        profile.setdefault("name", invocation.semantics.profile_id)
         features = profile.setdefault("features", {})
-        for feature in invocation.output_features:
+        for feature in invocation.semantics.output_features:
             features.setdefault(
                 feature,
-                {"type": invocation.column_types.get(feature)},
+                {"type": invocation.semantics.column_types.get(feature)},
             )
         profile.setdefault("assembly", {}).setdefault(
-            invocation.operator_id,
+            invocation.semantics.operator_id,
             {
-                "compute": {"function": invocation.function_id},
+                "compute": {"function": invocation.semantics.function_id},
                 "interface": {
-                    "inputs": [f"$features.{name}" for name in invocation.input_features],
-                    "outputs": [f"$features.{name}" for name in invocation.output_features],
+                    "inputs": [f"$features.{name}" for name in invocation.semantics.input_features],
+                    "outputs": [
+                        f"$features.{name}" for name in invocation.semantics.output_features
+                    ],
                 },
             },
         )
@@ -192,30 +198,35 @@ def bundle_for_plan(
             invocations=[
                 copy.replace(
                     invocation,
-                    target_identifiers=(
-                        invocation.target_identifiers
-                        or bundle_spec.identifiers_by_profile[invocation.profile_id]
+                    semantics=copy.replace(
+                        invocation.semantics,
+                        target_identifiers=(
+                            invocation.semantics.target_identifiers
+                            or bundle_spec.identifiers_by_profile[invocation.semantics.profile_id]
+                        ),
+                        column_types={
+                            **{
+                                key: feature.type
+                                for key, feature in bundle_spec.profiles[
+                                    invocation.semantics.profile_id
+                                ].features.items()
+                                if feature.type is not None
+                            },
+                            **bundle_spec.identifier_types_by_profile[
+                                invocation.semantics.profile_id
+                            ],
+                            **invocation.semantics.column_types,
+                        },
+                        argument_types={
+                            **{
+                                key: argument.type
+                                for key, argument in bundle_spec.functions[
+                                    invocation.semantics.function_id
+                                ].args.items()
+                            },
+                            **invocation.semantics.argument_types,
+                        },
                     ),
-                    column_types={
-                        **{
-                            key: feature.type
-                            for key, feature in bundle_spec.profiles[
-                                invocation.profile_id
-                            ].features.items()
-                            if feature.type is not None
-                        },
-                        **bundle_spec.identifier_types_by_profile[invocation.profile_id],
-                        **invocation.column_types,
-                    },
-                    argument_types={
-                        **{
-                            key: argument.type
-                            for key, argument in bundle_spec.functions[
-                                invocation.function_id
-                            ].args.items()
-                        },
-                        **invocation.argument_types,
-                    },
                 )
                 for invocation in execution_plan.invocations
             ],

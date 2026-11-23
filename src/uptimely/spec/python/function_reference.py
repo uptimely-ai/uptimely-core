@@ -119,8 +119,6 @@ def function(
             annotation = signature.return_annotation
             if returns is None:
                 returns = function_contracts.return_role(annotation)
-            if returns is not None:
-                function_contracts.check_return_annotation(returns, annotation)
         declared_category = declared.category
         if declared_category is not None:
             if category is not None and category != declared_category:

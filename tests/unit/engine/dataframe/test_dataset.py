@@ -121,7 +121,7 @@ def test_fragment_preserves_raw_data_until_validation_and_projects_declared_outp
     assert main.dataframe.columns == ["asset_id", "reading"]
     assert projected.dataframe is main.dataframe
     assert projected.invocation is invocation
-    assert main.fragments == {invocation.operator_id: projected}
+    assert main.fragments == {invocation.semantics.operator_id: projected}
 
 
 @pytest.mark.parametrize("lazy", [False, True])
@@ -174,7 +174,7 @@ def test_fragment_compute_loads_once_and_returns_merge_ready_data(
     assert computed.invocation is invocation
     assert backend.column_names(computed.dataframe) == ["asset_id", "reading"]
     assert backend.column_names(raw) == ["asset_id", "reading", "extra"]
-    main = dataset_module.Dataset(backend, invocation.target_identifiers)
+    main = dataset_module.Dataset(backend, invocation.semantics.target_identifiers)
     assert main.merge(computed) is computed
     result = main.dataframe.collect() if lazy else main.dataframe
     assert result.to_dicts() == [{"asset_id": "A", "reading": 2}]
@@ -220,7 +220,10 @@ def test_fragment_compute_rejects_non_fragment_invocations_without_loading(
     result: str,
 ) -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
-    invocation = copy.replace(plan.invocations[0], result=result)
+    invocation = copy.replace(
+        plan.invocations[0],
+        semantics=copy.replace(plan.invocations[0].semantics, result=result),
+    )
 
     def load() -> object:
         pytest.fail("A non-dataframe invocation must not be loaded during fragment computation")
@@ -332,10 +335,13 @@ def test_fragment_dimension_policy_uses_carried_keys_for_expand() -> None:
     plan = execution_plan.from_json("tests/fixtures/plans/simple_engine.json")
     invocation = copy.replace(
         plan.invocations[0],
-        fragment_dimensions="subset",
-        output_features=["new"],
-        target_identifiers=["group", "id"],
-        fragment_keys=["group"],
+        semantics=copy.replace(
+            plan.invocations[0].semantics,
+            fragment_dimensions="subset",
+            output_features=["new"],
+            target_identifiers=["group", "id"],
+            fragment_keys=["group"],
+        ),
     )
     frame = pl.LazyFrame({"group": ["A"], "new": [1]})
     fragment = fragment_module.Fragment.compute(
@@ -368,6 +374,6 @@ def test_failed_merge_preserves_retained_fragments_and_other_datasets() -> None:
         )
 
     assert main.dataframe is accumulated
-    assert main.fragments == {invocation.operator_id: retained}
+    assert main.fragments == {invocation.semantics.operator_id: retained}
     assert other.fragments == {}
     assert other.fragments is not main.fragments

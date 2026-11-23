@@ -16,6 +16,7 @@ plan_io.export_json(execution_plan, "execution_plan.json")
 ```
 
 See [Spec validation](../python/spec-validation.md#spec-validation)
-for declaration and implementation checks, and
+for declaration checks, [Binding inspector](../python/inspector.md)
+for implementation checks, and
 [Execution plan versioning](../artifacts/execution-plan.md#versioning)
 for compatibility and rebuild requirements.

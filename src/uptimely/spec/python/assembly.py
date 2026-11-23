@@ -4,7 +4,6 @@ from __future__ import annotations
 
 import dataclasses
 import hashlib
-import inspect
 import typing
 from collections import abc
 
@@ -15,7 +14,6 @@ from uptimely.spec import (
 )
 
 from . import binding_conversion, feature, ref
-from . import functions as function_metadata
 from . import row_context as row_context_module
 
 __all__ = ["Operator", "Bind"]
@@ -50,17 +48,10 @@ class Bind:
     def bound_arguments(self) -> dict[str, typing.Any]:
         """Copy arguments after validating signatures of in-process callables.
 
-        Entrypoint strings and references are not imported during authoring;
-        their signature validation is deferred until compilation.
+        Entrypoint strings and references are not imported during authoring.
+        Implementation signature validation is deferred to binding inspection.
         """
-        if (
-            callable(self.function)
-            and function_metadata.declared_metadata(self.function).validate_signature
-        ):
-            inspect.signature(self.function).bind(**self.arguments)
         reference = self.reference
-        if reference.signature is not None:
-            reference.signature.bind(**self.arguments)
         if reference.args is not None and set(reference.args) != set(self.arguments):
             raise ValueError("Bind arguments must match the explicit function args contract")
         return self.arguments.copy()

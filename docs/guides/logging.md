@@ -77,7 +77,8 @@ DEBUG    | Merging into profile pump_profile
 Module prefixes identify where each message originates. Invocation start messages
 identify the operator, function, binding role, and result handling.
 Structured logs use the invocation IDs from the saved plan. Newly compiled
-plans use [compact invocation IDs](../artifacts/execution-plan.md#invocations).
+plans use compact invocation IDs shown in the
+[execution plan](../artifacts/execution-plan.md).
 Rebuild the project to adopt them.
 
 See the [`uptimely build`](../cli/project.md) and

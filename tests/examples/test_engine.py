@@ -479,9 +479,11 @@ def test_engine_merges_fragments_by_profile_grain_keys(
     )
 
     invocation = next(
-        invocation for invocation in engine.plan.invocations if invocation.profile_id == "pump"
+        invocation
+        for invocation in engine.plan.invocations
+        if invocation.semantics.profile_id == "pump"
     )
-    grain_keys = engine.spec_definition.identifiers_by_profile[invocation.profile_id]
+    grain_keys = engine.spec_definition.identifiers_by_profile[invocation.semantics.profile_id]
     main = execution_support.dataset(
         existing,
         grain_keys,
@@ -630,10 +632,11 @@ def test_engine_validates_required_fragment_columns_and_types(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.profile_id == "pump" and item.operator_id == "bearing_temperature_by_pump"
+        if item.semantics.profile_id == "pump"
+        and item.semantics.operator_id == "bearing_temperature_by_pump"
     )
-    grain_keys = engine.spec_definition.identifiers_by_profile[invocation.profile_id]
-    output = next(name for name in invocation.output_features if name not in grain_keys)
+    grain_keys = engine.spec_definition.identifiers_by_profile[invocation.semantics.profile_id]
+    output = next(name for name in invocation.semantics.output_features if name not in grain_keys)
     columns: dict[str, list[object]] = {name: [f"{name}-1"] for name in grain_keys}
     columns[output] = ["wrong type" if invalid_column == "output" else 1.5]
     if invalid_column == "key":
@@ -677,10 +680,11 @@ def test_engine_assembly_rejects_feature_collisions(
     invocation = next(
         item
         for item in engine.plan.invocations
-        if item.profile_id == "pump" and item.operator_id == "bearing_temperature_by_pump"
+        if item.semantics.profile_id == "pump"
+        and item.semantics.operator_id == "bearing_temperature_by_pump"
     )
-    grain_keys = engine.spec_definition.identifiers_by_profile[invocation.profile_id]
-    output = next(name for name in invocation.output_features if name not in grain_keys)
+    grain_keys = engine.spec_definition.identifiers_by_profile[invocation.semantics.profile_id]
+    output = next(name for name in invocation.semantics.output_features if name not in grain_keys)
     keys = {name: [f"{name}-1"] for name in grain_keys}
     result = pl.DataFrame({**keys, output: [1.5]})
     existing = pl.DataFrame({**keys, output: [2.5]})
@@ -726,14 +730,14 @@ def test_engine_rejects_invalid_fragments(
     invocation = next(
         invocation
         for invocation in engine.plan.invocations
-        if invocation.profile_id == "pump"
-        and invocation.operator_id == "bearing_temperature_by_pump"
-        and invocation.result == "fragment"
+        if invocation.semantics.profile_id == "pump"
+        and invocation.semantics.operator_id == "bearing_temperature_by_pump"
+        and invocation.semantics.result == "fragment"
     )
 
     main = execution_support.dataset(
         None,
-        engine.spec_definition.identifiers_by_profile[invocation.profile_id],
+        engine.spec_definition.identifiers_by_profile[invocation.semantics.profile_id],
         backend=engine.backend,
     )
     with pytest.raises(ValueError, match=message):
@@ -810,8 +814,8 @@ def test_engine_executes_requested_feature_and_its_dependencies(
         feature
         for stage in engine.plan.execution_stages
         for invocation in stage
-        if invocation.dataframe_input_scope == "target"
-        for feature in invocation.output_features
+        if invocation.semantics.dataframe_input_scope == "target"
+        for feature in invocation.semantics.output_features
     ] == [
         "max_capacity",
         "health_signal_normalized",

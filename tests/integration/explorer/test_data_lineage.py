@@ -69,15 +69,17 @@ def test_transfer_tables_preserve_source_grain_and_shared_keys(
     )
     operator = definition.profiles["target"].assembly["transfer"]
     invocation = execution_plan.Invocation(
-        role="compute",
-        result="target",
         id="transfer",
         entrypoint="example:transfer",
-        function_id="transfer",
-        operator_id=operator.id,
-        profile_id="target",
-        input_features=["input_value"],
-        output_features=["result"],
+        semantics=execution_plan.InvocationSemantics(
+            role="compute",
+            result="target",
+            function_id="transfer",
+            operator_id=operator.id,
+            profile_id="target",
+            input_features=["input_value"],
+            output_features=["result"],
+        ),
     )
     plan = execution_plan.ExecutionPlan(
         plan_version=execution_plan.PLAN_VERSION,
@@ -146,7 +148,10 @@ def test_animation_stages_match_compiled_execution_order(pump_bundle) -> None:
         }
     for stage in stages:
         for step in stage:
-            if pump_bundle.execution_plan.invocations_by_id[step.invocation_id].role == "merge":
+            if (
+                pump_bundle.execution_plan.invocations_by_id[step.invocation_id].semantics.role
+                == "merge"
+            ):
                 assert all(column.role == "Dimension" for column in step.columns)
             else:
                 assert step.columns

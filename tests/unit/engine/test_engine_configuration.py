@@ -199,26 +199,36 @@ def test_fragment_names_are_scoped_by_profile(
     )
     for profile_id in ("first", "second"):
         read = copy.replace(
-            next(item for item in engine.plan.invocations if item.result == "fragment"),
-            profile_id=profile_id,
-            operator_id="shared",
+            next(item for item in engine.plan.invocations if item.semantics.result == "fragment"),
+            semantics=copy.replace(
+                next(
+                    item for item in engine.plan.invocations if item.semantics.result == "fragment"
+                ).semantics,
+                profile_id=profile_id,
+                operator_id="shared",
+            ),
         )
         merge = copy.replace(
-            next(item for item in engine.plan.invocations if item.role == "merge"),
+            next(item for item in engine.plan.invocations if item.semantics.role == "merge"),
             id=f"invocation:merge:merge_by_grain:{profile_id}:shared",
-            profile_id=profile_id,
-            operator_id="shared",
+            semantics=copy.replace(
+                next(
+                    item for item in engine.plan.invocations if item.semantics.role == "merge"
+                ).semantics,
+                profile_id=profile_id,
+                operator_id="shared",
+                dependency_ids=[read.id],
+            ),
             arguments={
                 "dataset": profile_id,
                 **{
                     key: value
                     for key, value in next(
-                        item for item in engine.plan.invocations if item.role == "merge"
+                        item for item in engine.plan.invocations if item.semantics.role == "merge"
                     ).arguments.items()
                     if key != "dataset"
                 },
             },
-            dependency_ids=[read.id],
         )
         executor.execute(read)
         executor.execute(merge)

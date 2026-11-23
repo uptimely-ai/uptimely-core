@@ -48,22 +48,22 @@ class InvocationExecutor:
 
     def execute(self, invocation: plan.Invocation) -> None:
         """Execute one invocation, validating before side effects and state updates."""
-        if invocation.role == "merge":
+        if invocation.semantics.role == "merge":
             self._execute_merge(invocation)
             return
         if (
             self.validate
-            and not invocation.is_workflow
-            and (invocation.result != "none" or invocation.is_sink)
+            and not invocation.semantics.is_workflow
+            and (invocation.semantics.result != "none" or invocation.semantics.is_sink)
         ):
             self.check_input_requirements(invocation)
-        if invocation.result == "none":
+        if invocation.semantics.result == "none":
             self._invoke(invocation)
             return
-        if invocation.result == "fragment":
+        if invocation.semantics.result == "fragment":
             self._execute_dataframe_operator(invocation)
-        elif invocation.result == "target":
-            if invocation.dataframe_input_scope == "target":
+        elif invocation.semantics.result == "target":
+            if invocation.semantics.dataframe_input_scope == "target":
                 self._execute_target_transform(invocation)
             else:
                 self._execute_target_operator(invocation)
@@ -75,7 +75,7 @@ class InvocationExecutor:
             ValueError: A source reference is invalid or required features are
                 unavailable or ambiguous.
         """
-        if invocation.dataframe_input_scope == "foreign":
+        if invocation.semantics.dataframe_input_scope == "foreign":
             argument_name = self._check_foreign_dataframe_argument(invocation)
             source_id = self._check_foreign_source_reference(invocation, argument_name)
             source = self._check_foreign_source_available(source_id)
@@ -86,23 +86,24 @@ class InvocationExecutor:
     def _check_input_features(self, invocation: plan.Invocation) -> None:
         """Require each feature locally or in exactly one other profile."""
         logger.debug("Check declared input features")
-        target = self.state.datasets.get(invocation.profile_id)
+        target = self.state.datasets.get(invocation.semantics.profile_id)
         target_columns = (
             set(self.backend.column_names(target.dataframe)) if target is not None else set()
         )
-        required = set(invocation.input_features) - target_columns
+        required = set(invocation.semantics.input_features) - target_columns
         if not required:
             return
         available = collections.Counter(
             column
             for dataset_id, frame in self.state.datasets.items()
-            if dataset_id != invocation.profile_id
+            if dataset_id != invocation.semantics.profile_id
             for column in set(self.backend.column_names(frame.dataframe))
         )
-        for feature in invocation.input_features:
+        for feature in invocation.semantics.input_features:
             if feature in required and available[feature] != 1:
                 raise ValueError(
-                    f"Operator {invocation.operator_id} input feature is unavailable or ambiguous: "
+                    f"Operator {invocation.semantics.operator_id} input feature is unavailable "
+                    "or ambiguous: "
                     f"{feature}"
                 )
 
@@ -111,7 +112,7 @@ class InvocationExecutor:
         """Return names of declared dataframe arguments."""
         return [
             name
-            for name, argument_type in invocation.argument_types.items()
+            for name, argument_type in invocation.semantics.argument_types.items()
             if argument_type == arg_types.DATAFRAME
         ]
 
@@ -121,7 +122,7 @@ class InvocationExecutor:
         arguments = self._dataframe_arguments(invocation)
         if len(arguments) != 1:
             raise ValueError(
-                f"Operator {invocation.operator_id} must declare exactly one foreign "
+                f"Operator {invocation.semantics.operator_id} must declare exactly one foreign "
                 "dataframe argument"
             )
         return arguments[0]
@@ -132,9 +133,10 @@ class InvocationExecutor:
         """Require a dataset reference distinct from the invocation's target."""
         logger.debug("Check foreign source reference")
         source_id = invocation.arguments.get(argument_name)
-        if not isinstance(source_id, str) or source_id == invocation.profile_id:
+        if not isinstance(source_id, str) or source_id == invocation.semantics.profile_id:
             raise ValueError(
-                f"Operator {invocation.operator_id} must reference a foreign source profile"
+                f"Operator {invocation.semantics.operator_id} must reference a foreign source "
+                "profile"
             )
         return source_id
 
@@ -152,10 +154,11 @@ class InvocationExecutor:
         """Require declared features in the validated foreign source."""
         logger.debug("Check foreign input features")
         columns = set(self.backend.column_names(source.dataframe))
-        for feature in invocation.input_features:
+        for feature in invocation.semantics.input_features:
             if feature not in columns:
                 raise ValueError(
-                    f"Operator {invocation.operator_id} input feature is unavailable in foreign "
+                    f"Operator {invocation.semantics.operator_id} input feature is unavailable "
+                    "in foreign "
                     f"source profile: {feature}"
                 )
 
@@ -182,11 +185,11 @@ class InvocationExecutor:
             if current is not None
             else dataset_module.Dataset(
                 self.backend,
-                invocation.target_identifiers,
+                invocation.semantics.target_identifiers,
                 relations=[
                     column
-                    for column in invocation.fragment_keys
-                    if column not in invocation.target_identifiers
+                    for column in invocation.semantics.fragment_keys
+                    if column not in invocation.semantics.target_identifiers
                 ],
             )
         )
@@ -197,15 +200,15 @@ class InvocationExecutor:
         result = merge.Merge(dataset, fragment).execute(
             functools.partial(self._invoke, invocation, arguments=arguments),
             description=(
-                f"Merge result {invocation.function_id} for profile {dataset_id}, "
-                f"operator {invocation.operator_id}, invocation {invocation.id}"
+                f"Merge result {invocation.semantics.function_id} for profile {dataset_id}, "
+                f"operator {invocation.semantics.operator_id}, invocation {invocation.id}"
             ),
-            column_types=invocation.column_types,
+            column_types=invocation.semantics.column_types,
             validate=self.validate,
         )
 
         dataset.dataframe = result
-        dataset.fragments[invocation.operator_id] = fragment
+        dataset.fragments[invocation.semantics.operator_id] = fragment
         self.state.datasets[dataset_id] = dataset
         del self.state.computed_fragments[fragment_id]
 
@@ -219,7 +222,7 @@ class InvocationExecutor:
         if self.validate:
             comparison_frame = self.backend.snapshot(comparison_frame)
             arguments = self.bindings.resolve_args(invocation)
-            for name, argument_type in invocation.argument_types.items():
+            for name, argument_type in invocation.semantics.argument_types.items():
                 if (
                     argument_type == arg_types.DATAFRAME
                     and invocation.arguments.get(name) == dataset_id
@@ -236,7 +239,7 @@ class InvocationExecutor:
         )
         calculated_outputs = {
             (dataset_id, output): self.backend.select(
-                frame, [*invocation.target_identifiers, output]
+                frame, [*invocation.semantics.target_identifiers, output]
             )
             for output in output_features
         }
@@ -248,63 +251,63 @@ class InvocationExecutor:
         dataset_id = self._profile_id(invocation)
         frame = self._invoke(invocation)
         context = (
-            f"target result from operator {invocation.operator_id}, "
-            f"function {invocation.function_id}, invocation {invocation.id}, "
+            f"target result from operator {invocation.semantics.operator_id}, "
+            f"function {invocation.semantics.function_id}, invocation {invocation.id}, "
             f"profile {dataset_id}"
         )
         logger.debug("Check dataframe type for %s", context)
         if not self.backend.is_frame(frame):
             raise ValueError(
-                f"Target result from {invocation.function_id} must be "
+                f"Target result from {invocation.semantics.function_id} must be "
                 "a Polars DataFrame or LazyFrame"
             )
 
         frame_columns = set(self.backend.column_names(frame))
-        missing_identifiers = sorted(set(invocation.target_identifiers) - frame_columns)
+        missing_identifiers = sorted(set(invocation.semantics.target_identifiers) - frame_columns)
         if missing_identifiers:
             raise ValueError(
-                f"Target result from {invocation.function_id} is missing identifier columns: "
-                + ", ".join(missing_identifiers)
+                f"Target result from {invocation.semantics.function_id} is missing identifier "
+                "columns: " + ", ".join(missing_identifiers)
             )
         output_features = [
             output
-            for output in invocation.output_features
-            if output not in invocation.target_identifiers
+            for output in invocation.semantics.output_features
+            if output not in invocation.semantics.target_identifiers
         ]
         missing_outputs = sorted(set(output_features) - frame_columns)
         if missing_outputs:
             raise ValueError(
-                f"Operator {invocation.operator_id} is missing output columns: "
+                f"Operator {invocation.semantics.operator_id} is missing output columns: "
                 + ", ".join(missing_outputs)
             )
 
         relations = [
             column
-            for column in invocation.fragment_keys
-            if column not in invocation.target_identifiers and column in frame_columns
+            for column in invocation.semantics.fragment_keys
+            if column not in invocation.semantics.target_identifiers and column in frame_columns
         ]
         columns = list(
-            dict.fromkeys([*invocation.target_identifiers, *relations, *output_features])
+            dict.fromkeys([*invocation.semantics.target_identifiers, *relations, *output_features])
         )
         target = self.backend.select(frame, columns)
         dataset = dataset_module.Dataset(
-            self.backend, invocation.target_identifiers, relations=relations
+            self.backend, invocation.semantics.target_identifiers, relations=relations
         )
         dataset.validate_frame(
             target,
             description=f"Target result for profile {dataset_id}",
-            column_types=invocation.column_types,
+            column_types=invocation.semantics.column_types,
             validate_content=self.validate,
         )
         calculated_outputs = {
             (dataset_id, output): self.backend.select(
-                target, [*invocation.target_identifiers, output]
+                target, [*invocation.semantics.target_identifiers, output]
             )
             for output in output_features
         }
         dataset.dataframe = target
         self.state.datasets[dataset_id] = dataset
-        if not invocation.is_seed:
+        if not invocation.semantics.is_seed:
             self.state.calculated_outputs.update(calculated_outputs)
 
     def _validate_target_transform_result(
@@ -329,20 +332,22 @@ class InvocationExecutor:
         Raises:
             ValueError: The result violates the target dataframe contract.
         """
-        description = f"Target transform result {invocation.function_id}"
+        description = f"Target transform result {invocation.semantics.function_id}"
         context = (
-            f"target transform result from operator {invocation.operator_id}, "
-            f"function {invocation.function_id}, invocation {invocation.id}, "
-            f"profile {invocation.profile_id}"
+            f"target transform result from operator {invocation.semantics.operator_id}, "
+            f"function {invocation.semantics.function_id}, invocation {invocation.id}, "
+            f"profile {invocation.semantics.profile_id}"
         )
         logger.debug("Check dataframe type for %s", context)
         if not self.backend.is_frame(frame):
             raise ValueError(f"{description} must be a Polars DataFrame or LazyFrame")
         logger.debug(
-            "Check required identifier columns %s for %s", invocation.target_identifiers, context
+            "Check required identifier columns %s for %s",
+            invocation.semantics.target_identifiers,
+            context,
         )
         frame_columns = set(self.backend.column_names(frame))
-        missing_identifiers = sorted(set(invocation.target_identifiers) - frame_columns)
+        missing_identifiers = sorted(set(invocation.semantics.target_identifiers) - frame_columns)
         if missing_identifiers:
             raise ValueError(
                 f"{description} is missing identifier columns: " + ", ".join(missing_identifiers)
@@ -350,19 +355,19 @@ class InvocationExecutor:
 
         output_features = [
             output
-            for output in invocation.output_features
-            if output not in invocation.target_identifiers
+            for output in invocation.semantics.output_features
+            if output not in invocation.semantics.target_identifiers
         ]
         logger.debug("Check declared output columns %s exist in %s", output_features, context)
         missing_outputs = sorted(set(output_features) - frame_columns)
         if missing_outputs:
             raise ValueError(
-                f"Operator {invocation.operator_id} is missing output columns: "
+                f"Operator {invocation.semantics.operator_id} is missing output columns: "
                 + ", ".join(missing_outputs)
             )
 
         existing_columns = set(self.backend.column_names(comparison_frame))
-        existing_features = existing_columns - set(invocation.target_identifiers)
+        existing_features = existing_columns - set(invocation.semantics.target_identifiers)
         logger.debug(
             "Check output columns %s do not replace existing feature columns %s in %s",
             output_features,
@@ -372,7 +377,7 @@ class InvocationExecutor:
         collisions = sorted(set(output_features) & existing_features)
         if collisions:
             raise ValueError(
-                f"Operator {invocation.operator_id} cannot replace existing "
+                f"Operator {invocation.semantics.operator_id} cannot replace existing "
                 "columns: " + ", ".join(collisions)
             )
 
@@ -382,7 +387,7 @@ class InvocationExecutor:
         missing_existing = sorted(existing_columns - frame_columns)
         if missing_existing:
             raise ValueError(
-                f"Operator {invocation.operator_id} must preserve existing "
+                f"Operator {invocation.semantics.operator_id} must preserve existing "
                 "columns: " + ", ".join(missing_existing)
             )
 
@@ -395,14 +400,14 @@ class InvocationExecutor:
         unexpected = sorted(frame_columns - allowed_columns)
         if unexpected:
             raise ValueError(
-                f"Vectorize operator {invocation.operator_id} returned undeclared columns: "
-                + ", ".join(unexpected)
+                f"Vectorize operator {invocation.semantics.operator_id} returned undeclared "
+                "columns: " + ", ".join(unexpected)
             )
 
         if preserve_data:
             if (
-                invocation.row_order_relation == "preserve"
-                or invocation.existing_data_relation == "preserve"
+                invocation.semantics.row_order_relation == "preserve"
+                or invocation.semantics.existing_data_relation == "preserve"
             ):
                 existing_names = self.backend.column_names(comparison_frame)
                 logger.debug(
@@ -412,13 +417,13 @@ class InvocationExecutor:
                 )
                 if not self.backend.same_data(comparison_frame, frame, existing_names):
                     raise ValueError(
-                        f"Operator {invocation.operator_id} must preserve existing "
+                        f"Operator {invocation.semantics.operator_id} must preserve existing "
                         "column values and row order"
                     )
             column_types = {
-                name: invocation.column_types[name]
-                for name in [*invocation.target_identifiers, *output_features]
-                if name in invocation.column_types
+                name: invocation.semantics.column_types[name]
+                for name in [*invocation.semantics.target_identifiers, *output_features]
+                if name in invocation.semantics.column_types
             }
             logger.debug(
                 "Check declared types of dimension and output columns %s in %s",
@@ -431,9 +436,9 @@ class InvocationExecutor:
     @staticmethod
     def _profile_id(invocation: plan.Invocation) -> str:
         """Require a target profile ID for a dataframe invocation."""
-        if invocation.profile_id is None:
+        if invocation.semantics.profile_id is None:
             raise ValueError(f"Dataframe invocation {invocation.id} must declare a profile ID")
-        return invocation.profile_id
+        return invocation.semantics.profile_id
 
     def _invoke(
         self,

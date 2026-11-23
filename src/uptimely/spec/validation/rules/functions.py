@@ -14,11 +14,7 @@ def validate_function_contracts(spec: spec_model.Spec) -> None:
     """Validate function-owned contracts and report spec paths."""
     logger.debug("Check function contracts")
     for function_id, function in spec.functions.root.items():
-        checks = (
-            (function.check_return_contract, "invalid_function_return_contract", "returns"),
-            (function.check_dataframe_input_contract, "invalid_function_input_contract", "args"),
-            (function.check_argument_contracts, "invalid_function_input_contract", "args"),
-        )
+        checks = ((function.check_return_contract, "invalid_function_return_contract", "returns"),)
         for check, code, field in checks:
             try:
                 check()

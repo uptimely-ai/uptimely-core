@@ -49,12 +49,14 @@ def test_compiled_relation_from_non_grain_dimension_survives_execution(
     )
     document = conversion.to_model([declaration])
     plan = compiler.Compiler().compile(document, features=["value"])
-    compute = next(invocation for invocation in plan.invocations if invocation.role == "compute")
-    assert compute.target_identifiers == ["pump_id"]
-    assert "plant_id" in compute.fragment_keys
-    assert compute.column_types["plant_id"] == "string"
-    assert "plant_id" not in compute.output_features
-    assert compute.output_features == ["value"]
+    compute = next(
+        invocation for invocation in plan.invocations if invocation.semantics.role == "compute"
+    )
+    assert compute.semantics.target_identifiers == ["pump_id"]
+    assert "plant_id" in compute.semantics.fragment_keys
+    assert compute.semantics.column_types["plant_id"] == "string"
+    assert "plant_id" not in compute.semantics.output_features
+    assert compute.semantics.output_features == ["value"]
     assert document.profiles["readings"].assembly["read"].output_features == ["value"]
     assert set(document.profiles["readings"].features) == {"value"}
     result = engine_for_plan(plan, spec_definition=document).run(validate=True)
@@ -144,9 +146,9 @@ def test_inferred_inputs_exclude_local_and_foreign_keys() -> None:
     validation.validate_spec(document)
     assert document.profiles["target"].assembly["copy"].input_features == ["value"]
     compiled = compiler.Compiler().compile(document, features=["copied"])
-    invocation = next(item for item in compiled.invocations if item.operator_id == "copy")
-    assert invocation.input_features == ["value"]
-    assert invocation.output_features == ["copied"]
+    invocation = next(item for item in compiled.invocations if item.semantics.operator_id == "copy")
+    assert invocation.semantics.input_features == ["value"]
+    assert invocation.semantics.output_features == ["copied"]
     assert invocation.arguments["identifier"] == "pump_id"
     assert invocation.arguments["relation"] == "series_id"
 
@@ -177,7 +179,7 @@ def test_key_only_reader_has_no_feature_outputs(
     validation.validate_spec(document)
     compiled = compiler.Compiler().compile(document)
     assert document.profiles["keys_only"].features == {}
-    assert all(not invocation.output_features for invocation in compiled.invocations)
+    assert all(not invocation.semantics.output_features for invocation in compiled.invocations)
     execution = engine_for_plan(compiled, spec_definition=document).run(validate=True)
     assert not execution.failures
     assert execution.datasets["keys_only"].to_dicts() == [{"pump_id": "pump", "plant_id": "plant"}]

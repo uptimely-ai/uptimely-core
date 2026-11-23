@@ -77,15 +77,15 @@ def test_pump_external_workflow_runs_with_its_own_paths(
     workflow = next(
         invocation
         for invocation in saved_plan.invocations
-        if invocation.function_id == "process_pump_external_workflow"
+        if invocation.semantics.function_id == "process_pump_external_workflow"
     )
-    assert workflow.is_workflow
+    assert workflow.semantics.is_workflow
     assert workflow.arguments == {
         "source": "$paths.pump_external_inputs_source",
         "output": "$paths.pump_external_workflow_output",
     }
-    assert workflow.input_features == ["measurement", "reference_value"]
-    assert workflow.output_features == []
+    assert workflow.semantics.input_features == ["measurement", "reference_value"]
+    assert workflow.semantics.output_features == []
     assert result.invocation_statuses[workflow.id] == "succeeded"
     assert all(status == "succeeded" for status in result.invocation_statuses.values())
     assert result.failures == {}
@@ -119,7 +119,9 @@ def test_selected_workflow_ignores_returns_and_reports_failures(
     )
     app = application.Uptimely(root)
     bundle = application.load_build_bundle(root)
-    workflow = next(item for item in bundle.execution_plan.invocations if item.is_workflow)
+    workflow = next(
+        item for item in bundle.execution_plan.invocations if item.semantics.is_workflow
+    )
     result = app.run(src_path=source.parent)
     assert result.invocation_statuses[workflow.id] == ("failed" if fails else "succeeded")
     if fails:

@@ -146,7 +146,7 @@ class Engine:
         }
         packages: dict[str, entrypoint.PackageOrigin] = {}
         for location, invocation in invocation_by_entrypoint.items():
-            package = invocation.package
+            package = invocation.semantics.package
             if package is not None:
                 packages[location] = entrypoint.PackageOrigin(
                     distribution=package.distribution,
@@ -180,11 +180,14 @@ class Engine:
             try:
                 logger.debug(
                     "Executing operator %s, function %s (role=%s, result=%s)",
-                    invocation.operator_id,
-                    invocation.function_id,
-                    invocation.role,
-                    invocation.result,
-                    extra={"invocation_id": invocation.id, "profile_id": invocation.profile_id},
+                    invocation.semantics.operator_id,
+                    invocation.semantics.function_id,
+                    invocation.semantics.role,
+                    invocation.semantics.result,
+                    extra={
+                        "invocation_id": invocation.id,
+                        "profile_id": invocation.semantics.profile_id,
+                    },
                 )
                 invocation_executor.execute(invocation)
             except Exception as error:
@@ -196,7 +199,10 @@ class Engine:
                     invocation.id,
                     error,
                     exc_info=True,
-                    extra={"invocation_id": invocation.id, "profile_id": invocation.profile_id},
+                    extra={
+                        "invocation_id": invocation.id,
+                        "profile_id": invocation.semantics.profile_id,
+                    },
                 )
                 break
             statuses[invocation.id] = result.INVOCATION_STATUS_SUCCEEDED

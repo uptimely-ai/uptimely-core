@@ -1,6 +1,16 @@
 # Build
 
-A build is an operation that reads specification, runs compilation, infers semantical information and produces a build bundle. The bundle is set of files that can be consumed by Explorer and Engine but also other frameworks outside of Uptimely Core.
+A build reads a Spec, validates it, inspects implementation bindings, and
+compiles an execution plan. The resulting bundle contains files that Explorer,
+the Engine, and external frameworks can consume.
+
+## Build sequence
+
+1. Load and structurally parse the Spec.
+2. Run Spec semantic validation.
+3. Inspect enabled function bindings and implementation signatures.
+4. Compile the validated Spec and inspected metadata into an execution plan.
+5. Package the implementation and prepare bundle and Explorer artifacts.
 
 ## Build manifest
 
@@ -14,7 +24,9 @@ When authored manually by json, simply copied to the bundle.
 
 ## Operator compilation to invocations
 
-Build triggers compiler to convert spec declarations to physical execution plan.
+The build invokes the compiler after Spec validation and binding inspection.
+The compiler converts operator declarations into physical invocations and does
+not perform implementation inspection.
 
 ## Explorer data
 

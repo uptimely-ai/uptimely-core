@@ -12,46 +12,52 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
         invocations=[
             uptimely_plan.Invocation(
                 id="opaque-read",
-                role="compute",
-                result="target",
-                dataframe_input_scope="none",
                 entrypoint="example.src:load",
-                function_id="load",
-                operator_id="read_pressure",
-                profile_id="pump_profile",
                 arguments={"dataset": {"type": "literal", "value": "pump_profile"}},
-                dependency_ids=[],
-                target_identifiers=["plant", "pump"],
-                fragment_keys=["plant", "pump"],
-                output_types={"pressure": "float"},
-                column_types={"plant": "string", "pump": "string", "pressure": "float"},
-                argument_types={"dataset": "dataframe"},
-                return_type="DataFrame",
-                package=uptimely_plan.Package(distribution="example-package", version="1.0"),
+                semantics=uptimely_plan.InvocationSemantics(
+                    role="compute",
+                    result="target",
+                    dataframe_input_scope="none",
+                    function_id="load",
+                    operator_id="read_pressure",
+                    profile_id="pump_profile",
+                    dependency_ids=[],
+                    target_identifiers=["plant", "pump"],
+                    fragment_keys=["plant", "pump"],
+                    output_types={"pressure": "float"},
+                    column_types={"plant": "string", "pump": "string", "pressure": "float"},
+                    argument_types={"dataset": "dataframe"},
+                    return_type="DataFrame",
+                    package=uptimely_plan.Package(distribution="example-package", version="1.0"),
+                ),
             ),
             uptimely_plan.Invocation(
                 id="opaque-collapse",
-                role="compute",
-                result="target",
-                dataframe_input_scope="foreign",
                 entrypoint="example.src:maximum",
-                function_id="maximum",
-                operator_id="pressure_by_pump",
-                profile_id="pump_profile",
                 arguments={"feature": "pressure"},
-                output_features=["plant", "pump", "maximum"],
-                dependency_ids=["opaque-read"],
+                semantics=uptimely_plan.InvocationSemantics(
+                    role="compute",
+                    result="target",
+                    dataframe_input_scope="foreign",
+                    function_id="maximum",
+                    operator_id="pressure_by_pump",
+                    profile_id="pump_profile",
+                    output_features=["plant", "pump", "maximum"],
+                    dependency_ids=["opaque-read"],
+                ),
             ),
             uptimely_plan.Invocation(
                 id="opaque-write",
-                role="compute",
-                result="none",
                 entrypoint="example.src:save",
-                function_id="save",
-                operator_id="save_pressure_by_pump",
-                profile_id="pump_profile",
                 arguments={},
-                dependency_ids=["opaque-collapse"],
+                semantics=uptimely_plan.InvocationSemantics(
+                    role="compute",
+                    result="none",
+                    function_id="save",
+                    operator_id="save_pressure_by_pump",
+                    profile_id="pump_profile",
+                    dependency_ids=["opaque-collapse"],
+                ),
             ),
         ],
         stages=[
@@ -93,7 +99,8 @@ def test_plan_rejects_version_one_with_supported_version_error() -> None:
     payload["callables"] = payload.pop("invocations")
 
     with pytest.raises(
-        ValueError, match=r"Unsupported plan version: 1\. Supported version is 14\."
+        ValueError,
+        match=rf"Unsupported plan version: 1\. Supported version is {uptimely_plan.PLAN_VERSION}\.",
     ):
         uptimely_plan.from_dict(payload)
 
@@ -115,7 +122,7 @@ def test_version_six_plan_requires_rebuilding() -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
     payload["plan_version"] = 6
     for invocation in payload["invocations"]:
-        invocation["dataset_id"] = invocation.pop("profile_id")
+        invocation["semantics"]["dataset_id"] = invocation["semantics"].pop("profile_id")
 
     with pytest.raises(ValueError, match=r"Unsupported plan version: 6.*Recompile"):
         uptimely_plan.from_dict(payload)
@@ -125,7 +132,7 @@ def test_version_six_plan_requires_rebuilding() -> None:
 
 def test_plan_rejects_unknown_dependency_and_stage_invocation() -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
-    payload["invocations"][1]["dependency_ids"] = ["unknown-invocation"]
+    payload["invocations"][1]["semantics"]["dependency_ids"] = ["unknown-invocation"]
     payload["stages"][2] = ["another-unknown-operation"]
 
     with pytest.raises(ValueError, match="Plan references unknown invocation"):
@@ -136,7 +143,7 @@ def test_plan_rejects_duplicate_and_unstaged_invocations() -> None:
     duplicate_payload = uptimely_plan.to_dict(_sample_plan())
     duplicate_payload["invocations"].append(dict(duplicate_payload["invocations"][0]))
 
-    with pytest.raises(ValueError, match="duplicate invocation ids"):
+    with pytest.raises(ValueError, match="invalid or duplicate invocation ID"):
         uptimely_plan.from_dict(duplicate_payload)
 
     unstaged_payload = uptimely_plan.to_dict(_sample_plan())
@@ -164,7 +171,13 @@ def test_direct_execution_plan_construction_validates_structure() -> None:
         (
             {
                 "invocations": [
-                    copy.replace(plan.invocations[0], dependency_ids=["unknown-invocation"]),
+                    copy.replace(
+                        plan.invocations[0],
+                        semantics=copy.replace(
+                            plan.invocations[0].semantics,
+                            dependency_ids=["unknown-invocation"],
+                        ),
+                    ),
                     *plan.invocations[1:],
                 ]
             },
@@ -201,8 +214,8 @@ def test_plan_rejects_invalid_invocation_metadata(field: str, value: object, mes
 
 def test_plan_preserves_runtime_contract_fields() -> None:
     payload = uptimely_plan.to_dict(_sample_plan())
-    payload["invocations"][1]["row_count_relation"] = "same"
+    payload["invocations"][1]["semantics"]["row_count_relation"] = "same"
 
     plan = uptimely_plan.from_dict(payload)
 
-    assert plan.invocations[1].row_count_relation == "same"
+    assert plan.invocations[1].semantics.row_count_relation == "same"

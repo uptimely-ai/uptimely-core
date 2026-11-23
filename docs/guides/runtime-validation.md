@@ -38,7 +38,7 @@ Missing or invalid builds report a recovery command.
 
 See [Fragment and merge](../concepts/dataframes.md#fragments-and-datasets)
 for merge-result requirements and
-[Engine architecture](../concepts/engine.md#invocation-execution)
+[Engine architecture](../concepts/engine.md#plan-execution)
 for execution order and failure handling.
 
 ## Runtime validation and configuration

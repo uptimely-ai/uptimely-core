@@ -13,46 +13,52 @@ def _sample_plan() -> uptimely_plan.ExecutionPlan:
         invocations=[
             uptimely_plan.Invocation(
                 id="opaque-read",
-                role="compute",
-                result="target",
-                dataframe_input_scope="none",
                 entrypoint="example.src:load",
-                function_id="load",
-                operator_id="read_pressure",
-                profile_id="pump_profile",
                 arguments={"dataset": {"type": "literal", "value": "pump_profile"}},
-                dependency_ids=[],
-                target_identifiers=["plant", "pump"],
-                fragment_keys=["plant", "pump"],
-                output_types={"pressure": "float"},
-                column_types={"plant": "string", "pump": "string", "pressure": "float"},
-                argument_types={"dataset": "dataframe"},
-                return_type="DataFrame",
-                package=uptimely_plan.Package(distribution="example-package", version="1.0"),
+                semantics=uptimely_plan.InvocationSemantics(
+                    role="compute",
+                    result="target",
+                    dataframe_input_scope="none",
+                    function_id="load",
+                    operator_id="read_pressure",
+                    profile_id="pump_profile",
+                    dependency_ids=[],
+                    target_identifiers=["plant", "pump"],
+                    fragment_keys=["plant", "pump"],
+                    output_types={"pressure": "float"},
+                    column_types={"plant": "string", "pump": "string", "pressure": "float"},
+                    argument_types={"dataset": "dataframe"},
+                    return_type="DataFrame",
+                    package=uptimely_plan.Package(distribution="example-package", version="1.0"),
+                ),
             ),
             uptimely_plan.Invocation(
                 id="opaque-collapse",
-                role="compute",
-                result="target",
-                dataframe_input_scope="foreign",
                 entrypoint="example.src:maximum",
-                function_id="maximum",
-                operator_id="pressure_by_pump",
-                profile_id="pump_profile",
                 arguments={"feature": "pressure"},
-                output_features=["plant", "pump", "maximum"],
-                dependency_ids=["opaque-read"],
+                semantics=uptimely_plan.InvocationSemantics(
+                    role="compute",
+                    result="target",
+                    dataframe_input_scope="foreign",
+                    function_id="maximum",
+                    operator_id="pressure_by_pump",
+                    profile_id="pump_profile",
+                    output_features=["plant", "pump", "maximum"],
+                    dependency_ids=["opaque-read"],
+                ),
             ),
             uptimely_plan.Invocation(
                 id="opaque-write",
-                role="compute",
-                result="none",
                 entrypoint="example.src:save",
-                function_id="save",
-                operator_id="save_pressure_by_pump",
-                profile_id="pump_profile",
                 arguments={},
-                dependency_ids=["opaque-collapse"],
+                semantics=uptimely_plan.InvocationSemantics(
+                    role="compute",
+                    result="none",
+                    function_id="save",
+                    operator_id="save_pressure_by_pump",
+                    profile_id="pump_profile",
+                    dependency_ids=["opaque-collapse"],
+                ),
             ),
         ],
         stages=[
@@ -112,16 +118,19 @@ def test_plan_cached_views_are_independent() -> None:
 def test_plan_keeps_signature_and_package_metadata_on_invocations() -> None:
     original = _sample_plan()
     invocation = original.invocations[0]
-    assert invocation.return_type == "DataFrame"
-    assert invocation.package is not None
-    assert invocation.package.distribution == "example-package"
+    assert invocation.semantics.return_type == "DataFrame"
+    assert invocation.semantics.package is not None
+    assert invocation.semantics.package.distribution == "example-package"
 
 
 def test_plan_rejects_function_ids_with_multiple_entrypoints() -> None:
     original = _sample_plan()
     conflicting = copy.replace(
         original.invocations[1],
-        function_id=original.invocations[0].function_id,
+        semantics=copy.replace(
+            original.invocations[1].semantics,
+            function_id=original.invocations[0].semantics.function_id,
+        ),
         entrypoint="other.functions:load",
     )
 
@@ -136,10 +145,13 @@ def test_plan_rejects_conflicting_return_types_for_function() -> None:
     original = _sample_plan()
     conflicting = copy.replace(
         original.invocations[1],
-        function_id=original.invocations[0].function_id,
         entrypoint=original.invocations[0].entrypoint,
-        return_type="int",
-        package=original.invocations[0].package,
+        semantics=copy.replace(
+            original.invocations[1].semantics,
+            function_id=original.invocations[0].semantics.function_id,
+            return_type="int",
+            package=original.invocations[0].semantics.package,
+        ),
     )
 
     with pytest.raises(ValueError, match="conflicting return annotations for function 'load'"):
@@ -154,7 +166,10 @@ def test_plan_replacement_does_not_retain_stale_indexes() -> None:
     original_index = plan.invocations_by_id
     original_execution = plan.execution_invocations
     original_features = plan.features
-    replacement = copy.replace(plan.invocations[1], output_features=["changed"])
+    replacement = copy.replace(
+        plan.invocations[1],
+        semantics=copy.replace(plan.invocations[1].semantics, output_features=["changed"]),
+    )
     plan.invocations[1] = replacement
     assert "changed" not in original_features
     assert plan.features is original_features
@@ -179,7 +194,11 @@ def test_execution_invocations_follow_stages_not_declaration_order() -> None:
     assert uptimely_plan.to_dict(plan)["invocations"][0]["id"] == "opaque-write"
 
     independent = [
-        copy.replace(invocation, dependency_ids=[]) for invocation in original.invocations
+        copy.replace(
+            invocation,
+            semantics=copy.replace(invocation.semantics, dependency_ids=[]),
+        )
+        for invocation in original.invocations
     ]
     grouped = copy.replace(
         original,
@@ -205,13 +224,19 @@ def test_count_per_role_rebuilt_on_plan_replacement() -> None:
     previous = plan.count_per_role
     plan.invocations[0] = copy.replace(
         plan.invocations[0],
-        result="fragment",
-        fragment_dimensions="target",
+        semantics=copy.replace(
+            plan.invocations[0].semantics,
+            result="fragment",
+            fragment_dimensions="target",
+        ),
     )
     plan.invocations[1] = copy.replace(
         plan.invocations[1],
-        role="merge",
-        operator_id="read_pressure",
+        semantics=copy.replace(
+            plan.invocations[1].semantics,
+            role="merge",
+            operator_id="read_pressure",
+        ),
     )
     assert plan.count_per_role is previous
     plan = copy.replace(plan)
