@@ -211,7 +211,7 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
                     compute=authoring.Bind(
                         ref.function("implementation:calculate", returns="dataframe"),
                         dataset=ref.dataset(),
-                        column=ref.feature("pipeline_result"),
+                        column=ref.input("pipeline_result"),
                     ),
                 )
             ],
@@ -222,14 +222,14 @@ def test_grouped_operator_preserve_dependencies_and_canonical_operator_ids() -> 
                     compute=authoring.Bind(
                         ref.function("implementation:publish", returns="none"),
                         dataset=ref.dataset(),
-                        column=ref.feature("result"),
+                        column=ref.input("result"),
                     ),
                 )
             ],
             "custom": [
                 authoring.Operator(
                     id="custom_work",
-                    inputs=[ref.feature("external_input")],
+                    inputs=[ref.input("external_input")],
                     outputs=[],
                     compute=authoring.Bind(
                         ref.function("implementation:custom_work", returns="any"),

@@ -35,7 +35,7 @@ def test_profile_subclasses_inherit_and_replace_collections() -> None:
         compute=authoring.Bind(
             ref.function("writer:write", returns="none"),
             dataset=ref.dataset(),
-            column=ref.feature("value"),
+            column=ref.input("value"),
         ),
     )
 
@@ -119,11 +119,11 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
             ref.function("calculation:calculate", returns="dataframe"),
             configuration={
                 "columns": [
-                    ref.feature("first"),
-                    row_context.rows(ref.feature("second"), before=2),
-                    ref.feature("first"),
+                    ref.input("first"),
+                    row_context.rows(ref.input("second"), before=2),
+                    ref.input("first"),
                 ],
-                "output": ref.feature("result").id,
+                "output": ref.output("result").id,
                 "key": ref.profile().grain.ids,
             },
         ),
@@ -142,12 +142,12 @@ def test_nested_arguments_infer_inputs_without_identifier_selectors() -> None:
 def test_programmatic_profile_operator_uses_function_name_for_catalog_id() -> None:
     operator = authoring.Operator(
         id="named",
-        inputs=[ref.feature("explicit")],
+        inputs=[ref.input("explicit")],
         outputs=[authoring.Feature(id="result", type="float")],
         compute=authoring.Bind(
             ref.function("calculation:calculate", returns="dataframe"),
             dataset=ref.dataset(),
-            column=ref.feature("inferred"),
+            column=ref.input("inferred"),
         ),
     )
     declaration = authoring.Profile(id="example", assembly=[operator])
@@ -167,7 +167,7 @@ def test_operator_inputs_accept_feature_declarations() -> None:
         outputs=[authoring.Feature(id="result")],
         compute=authoring.Bind(
             ref.function("calculation:calculate", returns="dataframe"),
-            value=ref.feature("inferred"),
+            value=ref.input("inferred"),
         ),
     )
 

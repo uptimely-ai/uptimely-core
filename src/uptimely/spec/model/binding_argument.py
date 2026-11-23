@@ -40,9 +40,22 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
         """Convert nested Pydantic declarations to their document values."""
         if isinstance(value, pydantic.BaseModel):
             return cls.normalize_models(value.model_dump())
+        if getattr(value, "role", None) == "output":
+            return cls.normalize_models(value.to_model())
+        if hasattr(value, "value") and hasattr(value, "row_context"):
+            return cls.normalize_models(value.value)
+        if hasattr(value, "args") and isinstance(value.args, dict) and hasattr(value, "function"):
+            function = value.function
+            function_reference = getattr(function, "name", function)
+            return {
+                "function": getattr(value, "function_id", None) or function_reference,
+                "args": {key: cls.normalize_models(item) for key, item in value.args.items()},
+            }
+        if hasattr(value, "to_model") and callable(value.to_model):
+            return cls.normalize_models(value.to_model())
         if isinstance(value, dict):
             return {key: cls.normalize_models(item) for key, item in value.items()}
-        if isinstance(value, list):
+        if isinstance(value, (list, tuple)):
             return [cls.normalize_models(item) for item in value]
         return value
 

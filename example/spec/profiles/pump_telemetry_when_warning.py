@@ -48,12 +48,12 @@ class PumpTelemetryWhenWarning(Profile):
         Operator(
             id="filter_warning",
             inputs=[
-                ref.feature("pump_mode"),
-                ref.feature("differential_pressure"),
-                ref.feature("flow_rate"),
-                ref.feature("motor_power"),
-                ref.feature("bearing_temperature"),
-                ref.feature("vibration_rms"),
+                ref.input("pump_mode"),
+                ref.input("differential_pressure"),
+                ref.input("flow_rate"),
+                ref.input("motor_power"),
+                ref.input("bearing_temperature"),
+                ref.input("vibration_rms"),
             ],
             outputs=[
                 features.warning_differential_pressure,
@@ -65,7 +65,7 @@ class PumpTelemetryWhenWarning(Profile):
             compute=Bind(
                 analytics.filter_rows,
                 dataset=ref.dataset("pump_telemetry"),
-                feature=ref.feature("pump_mode"),
+                feature=ref.input("pump_mode"),
                 value="warning",
                 rename={
                     "differential_pressure": features.warning_differential_pressure,

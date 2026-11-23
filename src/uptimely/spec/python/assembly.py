@@ -110,7 +110,8 @@ class Operator:
             referenced as a profile's seed must have an explicitly supplied ID.
         inputs: Feature dependencies. Inputs are inferred from binding arguments
             when omitted.
-        outputs: Feature declarations produced by the operator.
+        outputs: Explicit feature declarations produced by the operator. When
+            omitted, output references in the compute and merge bindings are used.
         row_context: Operator-specific observation requirements, merged with
             argument annotations.
         compute: Function accepting zero or one dataframe. A dataframe result
@@ -121,7 +122,7 @@ class Operator:
 
     id: str
     inputs: list[feature.Feature | ref.Reference | str] | None
-    outputs: list[feature.Feature]
+    outputs: list[feature.Feature] | None
     row_context: (
         row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
     ) = None
@@ -135,7 +136,7 @@ class Operator:
         compute: Bind,
         id: str | None = None,
         inputs: abc.Sequence[feature.Feature | ref.Reference | str] | None = None,
-        outputs: abc.Sequence[feature.Feature] = (),
+        outputs: abc.Sequence[feature.Feature] | None = None,
         row_context: (
             row_context_values.RowContext | row_context_module.RowContextBinding[typing.Any] | None
         ) = None,
@@ -150,16 +151,26 @@ class Operator:
             not isinstance(inputs, abc.Sequence) or isinstance(inputs, (str, bytes))
         ):
             raise TypeError("Operator inputs must be a sequence of feature references")
-        if not isinstance(outputs, abc.Sequence) or isinstance(outputs, (str, bytes)):
+        if outputs is not None and (
+            not isinstance(outputs, abc.Sequence) or isinstance(outputs, (str, bytes))
+        ):
             raise TypeError("Operator outputs must be a sequence of Features")
         id_explicit = id is not None
         if id is None:
-            id = self._generate_id(outputs, compute.reference.name)
+            resolved_output_ids = (
+                type(self)._output_ids(outputs)
+                if outputs is not None
+                else type(self)._inferred_output_ids(compute, merge)
+            )
+            id = type(self)._generate_id(
+                resolved_output_ids,
+                compute.reference.name,
+            )
         if not isinstance(id, str) or not id.strip():
             raise ValueError("Operator requires a non-empty id")
         object.__setattr__(self, "id", id)
         object.__setattr__(self, "inputs", list(inputs) if inputs is not None else None)
-        object.__setattr__(self, "outputs", list(outputs))
+        object.__setattr__(self, "outputs", list(outputs) if outputs is not None else None)
         object.__setattr__(self, "row_context", row_context)
         object.__setattr__(self, "compute", compute)
         object.__setattr__(self, "merge", merge)
@@ -169,9 +180,12 @@ class Operator:
         self.__post_init__()
 
     @classmethod
-    def _generate_id(cls, outputs: abc.Sequence[feature.Feature], function_id: str) -> str:
-        """Create an ID from its function, outputs, and short hash."""
-        output_ids = cls._output_ids(outputs)
+    def _generate_id(
+        cls,
+        output_ids: abc.Sequence[str],
+        function_id: str,
+    ) -> str:
+        """Create an ID from its function, resolved output IDs, and short hash."""
         output_id = output_ids[0] if len(output_ids) == 1 else f"features{len(output_ids)}"
         prefix = f"op-{function_id}-{output_id}-"
         digest = hashlib.sha256(prefix.encode("utf-8")).hexdigest()[:8]
@@ -179,8 +193,47 @@ class Operator:
 
     @property
     def output_ids(self) -> list[str]:
-        """Return the declared output feature IDs in order."""
+        """Return explicit or inferred output feature IDs in order."""
+        if self.outputs is None:
+            return self._inferred_output_ids(self.compute, self.merge)
         return self._output_ids(self.outputs)
+
+    @property
+    def input_ids(self) -> list[str]:
+        """Return explicit or inferred input feature IDs in order."""
+        if self.inputs is None:
+            return self._inferred_input_ids(
+                self.compute,
+                self.merge,
+                output_ids=self.output_ids,
+            )
+        return self._input_ids()
+
+    @classmethod
+    def _inferred_output_ids(cls, compute: Bind, merge: Bind | None) -> list[str]:
+        """Infer output feature IDs from output references in bindings."""
+        compute_model = compute.to_model()
+        identifiers = list(compute_model.inferred_feature_outputs)
+        if merge is not None:
+            identifiers.extend(merge.to_model().inferred_feature_outputs)
+        return list(dict.fromkeys(identifiers))
+
+    @classmethod
+    def _inferred_input_ids(
+        cls,
+        compute: Bind,
+        merge: Bind | None,
+        output_ids: abc.Sequence[str] = (),
+    ) -> list[str]:
+        """Infer input feature IDs from input references in bindings."""
+        compute_model = compute.to_model()
+        identifiers = list(compute_model.inferred_feature_inputs)
+        if merge is not None:
+            identifiers.extend(merge.to_model().inferred_feature_inputs)
+        excluded = set(output_ids)
+        return [
+            identifier for identifier in dict.fromkeys(identifiers) if identifier not in excluded
+        ]
 
     @classmethod
     def _output_ids(cls, outputs: abc.Sequence[feature.Feature]) -> list[str]:
@@ -265,14 +318,6 @@ class Operator:
         """Convert this declaration to its canonical document model."""
         compute = self.compute.to_model()
         merge = self.merge.to_model() if self.merge is not None else None
-        if self.inputs is None:
-            output_ids = set(self.output_ids)
-            inferred = list(compute.inferred_feature_inputs)
-            if merge is not None:
-                inferred.extend(merge.inferred_feature_inputs)
-            input_ids = [name for name in dict.fromkeys(inferred) if name not in output_ids]
-        else:
-            input_ids = self._input_ids()
         return spec_model.Operator(
             id=self.id,
             compute=compute,
@@ -285,7 +330,7 @@ class Operator:
             ),
             merge=merge,
             interface=spec_model.Interface(
-                inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in input_ids],
+                inputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in self.input_ids],
                 outputs=[f"{selectors.FEATURE_PREFIX}{name}" for name in self.output_ids],
             ),
             row_context=self.row_context,

@@ -38,7 +38,7 @@ def double_operator(index: int, source_feature: str) -> up.Operator:
         compute=up.Bind(
             double_single,
             dataset=up.ref.dataset(),
-            feature=up.ref.feature(source_feature),
+            feature=up.ref.input(source_feature),
         ),
     )
 
@@ -73,7 +73,7 @@ operator = up.Operator(
     compute=up.Bind(
         double_many,
         dataset=up.ref.dataset(),
-        features=[up.ref.feature(feature) for feature in source_features],
+        features=[up.ref.input(feature) for feature in source_features],
         outputs=output_features,
     ),
 )

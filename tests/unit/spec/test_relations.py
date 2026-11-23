@@ -134,8 +134,8 @@ def test_dimension_keys_and_cross_profile_features_in_bindings() -> None:
                     dataset=source.dataset,
                     identifier=ref.dimension("machine").resolution("pump").key,
                     relation=ref.dimension("machine").resolution("series").key,
-                    value=ref.feature("value"),
-                    output=ref.feature("copied").id,
+                    value=ref.input("value"),
+                    output=ref.output("copied").id,
                 ),
                 merge=merge.default(),
             )
@@ -160,7 +160,7 @@ def test_dimension_keys_cannot_be_selected_as_features(
     column: str, metadata: bool, explicit_inputs: bool, nested: bool
 ) -> None:
     machines = _dimension()
-    selected = ref.feature(column)
+    selected = ref.input(column)
     argument = selected.id if metadata else selected
     source = profile.Profile(id="source", grain=[machines.resolution("series")])
     target = profile.Profile(

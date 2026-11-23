@@ -21,6 +21,22 @@ class Binding(base.StrictModel):
 
     function: str
     args: dict[str, binding_argument.BindingArgument] = pydantic.Field(default_factory=dict)
+    inferred_feature_outputs: tuple[str, ...] = pydantic.Field(default=(), exclude=True)
+
+    def __init__(self, **data: typing.Any) -> None:
+        """Initialize arguments and inferred returned-feature facts."""
+        arguments = data.get("args")
+        if isinstance(arguments, dict):
+            data["inferred_feature_outputs"] = self._collect_output_feature_ids(arguments)
+            data["args"] = {
+                name: (
+                    value
+                    if isinstance(value, binding_argument.BindingArgument)
+                    else binding_argument.BindingArgument(value)
+                )
+                for name, value in arguments.items()
+            }
+        super().__init__(**data)
 
     def argument_mismatches(
         self, function: functions.FunctionTemplate
@@ -118,6 +134,44 @@ class Binding(base.StrictModel):
             for identifier in argument.profile_dataframe_references
         )
 
+    @classmethod
+    def _collect_output_feature_ids(cls, value: object) -> tuple[str, ...]:
+        """Collect bare and ID output references from nested Python values."""
+        if getattr(value, "role", None) == "output":
+            document_value = value.to_model()
+            if isinstance(document_value, str):
+                identifier = document_value.removeprefix(selectors.FEATURE_PREFIX)
+                identifier, dot, attribute = identifier.partition(".")
+                if (
+                    (not dot or attribute == "id")
+                    and identifier
+                    and identifier != selectors.CURRENT_ID
+                ):
+                    return (identifier,)
+            return ()
+        if isinstance(value, dict):
+            identifiers = [
+                identifier
+                for item in value.values()
+                for identifier in cls._collect_output_feature_ids(item)
+            ]
+            return tuple(dict.fromkeys(identifiers))
+        if isinstance(value, (list, tuple)):
+            identifiers = [
+                identifier for item in value for identifier in cls._collect_output_feature_ids(item)
+            ]
+            return tuple(dict.fromkeys(identifiers))
+        if hasattr(value, "args") and isinstance(value.args, dict):
+            identifiers = [
+                identifier
+                for item in value.args.values()
+                for identifier in cls._collect_output_feature_ids(item)
+            ]
+            return tuple(dict.fromkeys(identifiers))
+        if hasattr(value, "value"):
+            return cls._collect_output_feature_ids(value.value)
+        return ()
+
     @property
     def inferred_feature_inputs(self) -> tuple[str, ...]:
         """Return ordered unique feature inputs inferred by the arguments."""
@@ -126,6 +180,7 @@ class Binding(base.StrictModel):
                 feature
                 for argument in self.args.values()
                 for feature in argument.inferred_feature_inputs
+                if feature not in self.inferred_feature_outputs
             )
         )
 

@@ -99,7 +99,7 @@ class PumpTelemetry(Profile):
                 compute=Bind(
                     analytics.select_columns,
                     dataset=ref.dataset("constants"),
-                    columns=[ref.feature("room_temperature")],
+                    columns=[ref.input("room_temperature")],
                     rename={"room_temperature": features.room_temperature_reference},
                 ),
                 merge=merge.default(),

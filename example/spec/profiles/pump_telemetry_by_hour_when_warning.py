@@ -80,11 +80,11 @@ class PumpTelemetryByHourWhenWarning(Profile):
         Operator(
             id="aggregate_warning",
             inputs=[
-                ref.feature("warning_differential_pressure"),
-                ref.feature("warning_flow_rate"),
-                ref.feature("warning_motor_power"),
-                ref.feature("warning_bearing_temperature"),
-                ref.feature("warning_vibration_rms"),
+                ref.input("warning_differential_pressure"),
+                ref.input("warning_flow_rate"),
+                ref.input("warning_motor_power"),
+                ref.input("warning_bearing_temperature"),
+                ref.input("warning_vibration_rms"),
             ],
             outputs=[
                 features.warning_hour_mean_differential_pressure,

@@ -21,6 +21,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Python bindings use `ref.input()` for input feature references. Input inference
+  registers feature values and IDs without treating metadata as dependencies.
+- Python bindings use `ref.output()` for returned feature references. If
+  `Operator.outputs` is omitted, output references are registered as implicit
+  outputs instead of input dependencies.
 - Python bindings infer feature dependencies from `.id` selectors as well as
   bare feature selectors, unless explicit inputs are supplied.
 - Feature selectors must reference declared features. Use dimension resolution

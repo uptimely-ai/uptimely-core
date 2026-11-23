@@ -18,8 +18,10 @@ def resource_reference(
     if isinstance(value, (references.Reference, references.Params, references.Paths)):
         return value
     if isinstance(value, feature.Feature):
-        return references.FeatureReference(
-            kind="feature", value=f"{selectors.FEATURE_PREFIX}{value.id}"
+        return references.InputReference(
+            kind="feature",
+            value=f"{selectors.FEATURE_PREFIX}{value.id}",
+            role="input",
         )
     if isinstance(value, dimension.Dimension):
         return references.DimensionReference(
@@ -38,6 +40,8 @@ def to_value(value: typing.Any) -> typing.Any:
     """Convert Python references and nested bindings to document values."""
     if isinstance(value, row_context_module.RowContextBinding):
         return to_value(value.value)
+    if isinstance(value, references.Reference) and value.role == "output":
+        return value
     reference = resource_reference(value)
     if reference is not None:
         return reference.to_model()

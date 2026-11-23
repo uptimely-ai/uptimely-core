@@ -19,7 +19,7 @@ def _profile(identifier: str, conflicting: bool = False) -> profile.Profile:
                         returns="dataframe",
                     ),
                     path="readings.json",
-                    columns=[ref.feature("temperature")],
+                    columns=[ref.input("temperature")],
                 ),
             )
         ],

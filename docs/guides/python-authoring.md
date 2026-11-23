@@ -32,8 +32,8 @@ fragment must be integrated into the target dataset.
 ### References
 
 Use `ref` to refer to profile data, features, and other Spec values without
-loading data during authoring. Both `ref.feature("name")` and
-`ref.feature("name").id` pass the feature identifier and infer an input
+loading data during authoring. Both `ref.input("name")` and
+`ref.input("name").id` pass the feature identifier and infer an input
 dependency unless the feature is an operator output. Explicit `inputs` override
 inference.
 
@@ -95,8 +95,8 @@ up.Operator(
     compute=up.Bind(
         rolling_mean,
         dataset=up.ref.dataset(),
-        value=up.ref.feature("value"),
-        output=up.ref.feature("mean").id,
+        value=up.ref.input("value"),
+        output=up.ref.output("mean").id,
         before=up.ref.row_context("before"),
     ),
 )
