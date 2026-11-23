@@ -41,7 +41,14 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
     specification = spec.Spec(functions={"calculate": function})
     graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     selected_graph = mock.Mock(spec=invocation_graph.InvocationGraph)
-    node = invocation_graph.InvocationNode(node_id="calculate--1234567890")
+    semantics = execution_plan.InvocationSemantics(
+        function_id="calculate",
+        profile_id="entity",
+        operator_id="calculate",
+        role="compute",
+        result="target",
+    )
+    node = invocation_graph.InvocationNode(node_id="calculate--1234567890", semantics=semantics)
     selected_graph.invocations = [node]
     selected_graph.dependencies.return_value = []
     emitted_invocation = execution_plan.Invocation(
@@ -57,20 +64,13 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
             package=execution_plan.Package(distribution=None, version=None),
         ),
     )
-    semantics = execution_plan.InvocationSemantics(
-        function_id="calculate",
-        profile_id="entity",
-        operator_id="calculate",
-        role="compute",
-        result="target",
-    )
     operators = [
         compiler._OperatorInvocations(
             profile=spec_model.Profile(id="entity"),
             operator=spec_model.Operator(
                 id="calculate", compute=spec_model.Binding(function="calculate")
             ),
-            bindings={"compute": (node, semantics)},
+            bindings={"compute": node},
         )
     ]
     publishers = compiler._Publishers(features={}, datasets={}, seeds={})
@@ -104,7 +104,7 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
     monkeypatch.setattr(compiler.Compiler, "_resolve_dependencies", operations["dependencies"])
     monkeypatch.setattr(compiler.Compiler, "_select_invocations", operations["selection"])
     monkeypatch.setattr(compiler.invocation_graph, "InvocationGraph", operations["graph"])
-    monkeypatch.setattr(execution_plan.Invocation, "from_node", operations["invocation"])
+    monkeypatch.setattr(execution_plan.Invocation, "from_spec", operations["invocation"])
     monkeypatch.setattr(compiler.entrypoint, "Entrypoint", operations["entrypoint"])
     compiler_instance = compiler.Compiler()
     features = ["result", "result"]
@@ -129,13 +129,13 @@ def test_compiler_runs_explicit_steps_in_fail_fast_order(
         mock.call.publishers(operators),
         mock.call.dependencies(specification, operators, publishers),
         mock.call.graph([node], {node.node_id: set()}),
-        mock.call.selection(specification, {node.node_id: semantics}, {}, ["result", "result"]),
+        mock.call.selection(specification, [node], {}, ["result", "result"]),
         mock.call.topology(),
         mock.call.entrypoint("module:calculate"),
         mock.call.package(),
         mock.call.invocation(
             specification,
-            node,
+            node.node_id,
             dependency_ids=[],
             return_type="float",
             package=execution_plan.Package(distribution=None, version=None),
@@ -192,7 +192,19 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
     monkeypatch.setattr(compiler.entrypoint, "Entrypoint", parse_entrypoint)
     monkeypatch.setattr(inspector.BindingInspection, "inspect", validate)
     calls = [("calculate", "first"), ("calculate", "second"), ("disabled", "third")]
-    nodes = [invocation_graph.InvocationNode(node_id=operator) for _, operator in calls]
+    nodes = [
+        invocation_graph.InvocationNode(
+            node_id=operator,
+            semantics=execution_plan.InvocationSemantics(
+                function_id=function_id,
+                profile_id="entity",
+                operator_id=operator,
+                role="compute",
+                result="target",
+            ),
+        )
+        for function_id, operator in calls
+    ]
     graph = mock.Mock(spec=invocation_graph.InvocationGraph)
     graph.topology.return_value = [nodes]
     graph.invocations = nodes
@@ -203,18 +215,7 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
             operator=spec_model.Operator(
                 id=operator, compute=spec_model.Binding(function=function_id)
             ),
-            bindings={
-                "compute": (
-                    node,
-                    execution_plan.InvocationSemantics(
-                        function_id=function_id,
-                        profile_id="entity",
-                        operator_id=operator,
-                        role="compute",
-                        result="target",
-                    ),
-                )
-            },
+            bindings={"compute": node},
         )
         for node, (function_id, operator) in zip(nodes, calls, strict=True)
     ]
@@ -228,7 +229,7 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
 
     def create_invocation(
         _specification: spec.Spec,
-        node: invocation_graph.InvocationNode,
+        invocation_id: str,
         *,
         dependency_ids: list[str],
         return_type: str | None,
@@ -236,7 +237,7 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
         semantics: execution_plan.InvocationSemantics,
     ) -> execution_plan.Invocation:
         return execution_plan.Invocation(
-            id=node.node_id,
+            id=invocation_id,
             entrypoint="module:calculate",
             semantics=semantics.__replace__(
                 dependency_ids=dependency_ids,
@@ -247,7 +248,7 @@ def test_compiler_inspects_unique_functions_once_and_skips_disabled_functions(
 
     monkeypatch.setattr(
         execution_plan.Invocation,
-        "from_node",
+        "from_spec",
         mock.Mock(side_effect=create_invocation),
     )
 
