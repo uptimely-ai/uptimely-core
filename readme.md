@@ -118,63 +118,83 @@ The previous example was built by the [Python-authored example specification](ht
 
 Here is even more simplified example.
 
-Store this code to `spec/spec.py`
+Put this to `src/functions.py`:
 
 ```python
 import polars as pl
-import uptimely as up
 
 
-def read_values() -> pl.DataFrame:
-    return pl.DataFrame(
+def read_values(dims: list[str], features: list[str]) -> pl.DataFrame:
+    dataset = pl.DataFrame(
         {
             "id": [1, 2],
             "value": [10, 20],
         }
     )
+    return dataset.select(*dims, *features)
 
 
 def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
 
-def print_results(dataset: pl.DataFrame) -> None:
-    print(dataset)
+def print_results(dataset: pl.DataFrame, dims: list[str], features: list[str]) -> None:
+    print(dataset.select(*dims, *features))
+```
 
+Store this code to `spec/spec.py`:
 
-measurement_id = up.Dimension(
+```python
+from src import functions
+from uptimely import (
+    Bind,
+    Dimension,
+    Operator,
+    Profile,
+    Resolution,
+    Spec,
+    ref,
+)
+
+measurement_id = Dimension(
     id="measurement_id",
-    resolutions=[up.Resolution(id="measurement_id", key="id", type="integer")],
+    resolutions=[Resolution(id="measurement_id", key="id", type="integer")],
 )
 
 
-class MyAnalyticalProfile(up.Profile):
+class MyAnalyticalProfile(Profile):
     grain = [measurement_id.resolution("measurement_id")]
     seed = "read_values"
 
     assembly = [
-        up.Operator(
+        Operator(
             id="read_values",
-            outputs=[up.Feature(id="value")],
-            compute=up.Bind(read_values),
-        ),
-        up.Operator(
-            outputs=[up.Feature(id="doubled")],
-            compute=up.Bind(
-                double,
-                dataset=up.ref.dataset(),
-                value=up.ref.input("value"),
-                output=up.ref.output("doubled").id,
+            compute=Bind(
+                functions.read_values,
+                dims=ref.profile().grain.ids,
+                features=[ref.output("value")],
             ),
         ),
-        up.Operator(
-            inputs=[up.ref.input("doubled")],
-            compute=up.Bind(print_results, dataset=up.ref.dataset()),
+        Operator(
+            compute=Bind(
+                functions.double,
+                dataset=ref.dataset(),
+                value=ref.input("value"),
+                output=ref.output("doubled"),
+            ),
+        ),
+        Operator(
+            compute=Bind(
+                functions.print_results,
+                dataset=ref.dataset(),
+                dims=ref.profile().grain.ids,
+                features=[ref.input("doubled")],
+            ),
         ),
     ]
 
 
-python_spec = up.Spec(
+python_spec = Spec(
     profiles=[MyAnalyticalProfile],
     name="Analytics Specification",
 )
