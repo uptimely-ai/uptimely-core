@@ -218,9 +218,9 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
 
     @property
     def inferred_feature_inputs(self) -> tuple[str, ...]:
-        """Return unique bare feature references for Python input inference.
+        """Return unique feature value and ID references for Python input inference.
 
-        Metadata selectors and the current-output marker do not imply inputs.
+        Other metadata selectors and the current-output marker do not imply inputs.
         Explicit document interfaces remain authoritative.
         """
         return tuple(
@@ -228,7 +228,7 @@ class BindingArgument(pydantic.RootModel[pydantic.JsonValue]):
                 leaf.identifier
                 for leaf, _ in self.references_with_paths
                 if leaf.prefix == selectors.FEATURE_PREFIX
-                and leaf.selector is None
+                and leaf.selector in {None, "id"}
                 and leaf.identifier is not None
                 and leaf.identifier != selectors.CURRENT_ID
             )

@@ -21,6 +21,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Python bindings infer feature dependencies from `.id` selectors as well as
+  bare feature selectors, unless explicit inputs are supplied.
 - Feature selectors must reference declared features. Use dimension resolution
   key selectors instead of feature selectors for dimension keys.
 - `from_python` and Python declaration conversion accept sequences of Python

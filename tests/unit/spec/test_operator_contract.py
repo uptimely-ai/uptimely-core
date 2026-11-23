@@ -23,6 +23,43 @@ def finish_workflow() -> None:
     workflow_events.append("finish")
 
 
+def finish_workflow_with_feature(identifier: str) -> None:
+    workflow_events.append(identifier)
+
+
+def test_feature_id_binding_orders_producer_before_consumer(
+    engine_for_plan: execution_support.EngineFactory,
+) -> None:
+    workflow_events.clear()
+    document = spec.from_python(
+        profiles=[
+            profile.Profile(
+                id="external",
+                assembly=[
+                    assembly.Operator(
+                        id="start",
+                        outputs=[feature.Feature(id="intermediate")],
+                        compute=assembly.Bind(ref.function(start_workflow, returns="any")),
+                    ),
+                    assembly.Operator(
+                        id="finish",
+                        outputs=[feature.Feature(id="result")],
+                        compute=assembly.Bind(
+                            ref.function(finish_workflow_with_feature, returns="none"),
+                            identifier=ref.feature("intermediate").id,
+                        ),
+                    ),
+                ],
+            )
+        ]
+    )
+    assert document.profiles["external"].assembly["finish"].input_features == ["intermediate"]
+    plan = compiler.Compiler().compile(document, features=["result"])
+    result = engine_for_plan(plan, spec_definition=document).run()
+    assert result.failures == {}
+    assert workflow_events == ["start", "intermediate"]
+
+
 def test_workflow_logical_features_order_execution_without_dataframes(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:

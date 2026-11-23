@@ -109,6 +109,19 @@ def test_inferred_dependencies_exclude_metadata_and_deduplicate_after_resolution
     assert binding.inferred_feature_inputs == ("pressure",)
 
 
+def test_feature_id_selectors_infer_inputs_except_current_and_other_metadata() -> None:
+    argument = model.BindingArgument(
+        [
+            "$features.pressure.id",
+            "$features.flow",
+            "$features.pressure",
+            "$features.other.name",
+            "$features.@.id",
+        ]
+    )
+    assert argument.inferred_feature_inputs == ("pressure", "flow")
+
+
 def test_resolution_is_contextual_and_does_not_modify_bound_values() -> None:
     value = {
         "current": "$profiles.@.dataset",
