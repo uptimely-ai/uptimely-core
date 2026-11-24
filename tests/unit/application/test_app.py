@@ -129,7 +129,7 @@ def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.P
     (tmp_path / "uptimely.toml").write_text(
         '[engine]\npreview_rows = 8\n[engine.backend]\ntype = "default"\nevaluation = "eager"\n'
         '[paths]\nsource = "data/source.csv"\n[params]\nthreshold = 10\n'
-        '[application]\npython_spec = "spec.spec:python_spec"\n'
+        '[application]\npython_spec = "spec.spec:spec"\n'
         '[code]\nlanguage = "python"\nrequirements = "worker-env/pyproject.toml"\n',
         encoding="utf-8",
     )
@@ -150,7 +150,7 @@ def test_project_named_config_overrides_defaults_recursively(tmp_path: pathlib.P
     assert app.config.engine.preview_rows == 12
     assert app.config.paths.root == {"source": "data/source.csv"}
     assert app.config.params.root == {"threshold": 42}
-    assert app.config.application.python_spec == "spec.spec:python_spec"
+    assert app.config.application.python_spec == "spec.spec:spec"
     assert app.config.code.language == "python"
     assert app.config.code.requirements == "worker-env/pyproject.toml"
     assert app.config.code.src == "production-src"
@@ -191,7 +191,7 @@ def test_project_config_rejects_multiple_spec_sources_and_invalid_preview_rows(
 ) -> None:
     config_path = tmp_path / "uptimely.toml"
     config_path.write_text(
-        '[application]\npython_spec = "spec.spec:python_spec"\njson_spec = "spec/spec.json"\n',
+        '[application]\npython_spec = "spec.spec:spec"\njson_spec = "spec/spec.json"\n',
         encoding="utf-8",
     )
 
@@ -397,13 +397,11 @@ def test_project_build_forwards_source_and_feature_options(
 ) -> None:
     source = app.root / application_module.SPEC_JSON_ENTRY_FILE
     with mock.patch.object(builder, "ProjectBuilder", autospec=True) as builder_class:
-        result = app.build(
-            python_spec="spec.spec:python_spec", json_spec=source, features=["reading"]
-        )
+        result = app.build(python_spec="spec.spec:spec", json_spec=source, features=["reading"])
 
     builder_class.assert_called_once_with(app.root)
     builder_class.return_value.build.assert_called_once_with(
-        python_spec="spec.spec:python_spec",
+        python_spec="spec.spec:spec",
         json_spec=source,
         features=["reading"],
         code=app.config.code,

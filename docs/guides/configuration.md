@@ -36,7 +36,7 @@ shows a complete project configuration.
 
 ```toml
 [application]
-python_spec = "spec.spec:python_spec"
+python_spec = "spec.spec:spec"
 
 [code]
 language = "python"

@@ -98,26 +98,24 @@ def test_python_source_resolves_enclosing_packages(
 def test_python_spec_rejects_local_file_entrypoints(tmp_path: pathlib.Path) -> None:
     python_path = tmp_path / application.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir(parents=True)
-    python_path.write_text("python_spec = None\n", encoding="utf-8")
+    python_path.write_text("spec = None\n", encoding="utf-8")
 
     with pytest.raises(ValueError, match="Invalid module path"):
-        project_spec_source.SpecSourceResolver(tmp_path).resolve(f"{python_path}:python_spec")
+        project_spec_source.SpecSourceResolver(tmp_path).resolve(f"{python_path}:spec")
 
 
 def test_explicit_python_source_has_no_conventional_file_path(tmp_path: pathlib.Path) -> None:
-    source = project_spec_source.SpecSourceResolver(tmp_path).resolve(
-        "custom.declaration:python_spec"
-    )
+    source = project_spec_source.SpecSourceResolver(tmp_path).resolve("custom.declaration:spec")
 
     assert isinstance(source, project_spec_source.PythonSpecSource)
     assert source.path is None
-    assert source.display_name == "custom.declaration:python_spec"
+    assert source.display_name == "custom.declaration:spec"
 
 
 def test_spec_source_rejects_ambiguous_discovered_sources(tmp_path: pathlib.Path) -> None:
     python_path = tmp_path / application.SPEC_PYTHON_ENTRY_FILE
     python_path.parent.mkdir(parents=True)
-    python_path.write_text("python_spec = None\n", encoding="utf-8")
+    python_path.write_text("spec = None\n", encoding="utf-8")
     json_path = tmp_path / application.SPEC_JSON_ENTRY_FILE
     json_path.write_bytes(FIXTURE_SPEC.read_bytes())
 
@@ -150,13 +148,13 @@ def test_python_source_loads_explicit_entrypoint_with_module_api(
         "from uptimely.spec.python.spec import Spec\n"
         "class Values(Profile):\n"
         "    id = 'values'\n"
-        f"python_spec = Spec(profiles=[Values], "
+        f"spec = Spec(profiles=[Values], "
         f"name={dependency_name}.VALUE)\n",
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
     source = project_spec_source.SpecSourceResolver(tmp_path).resolve(
-        python_spec=f"{module_name}:python_spec"
+        python_spec=f"{module_name}:spec"
     )
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
@@ -185,13 +183,13 @@ def test_build_defers_source_semantic_validation_to_compiler(
     (tmp_path / f"{module_name}.py").write_text(
         "from uptimely.spec.python import Spec, Profile\n"
         "values = Profile(id='values')\n"
-        "python_spec = Spec(profiles=[values])\n",
+        "spec = Spec(profiles=[values])\n",
         encoding="utf-8",
     )
     monkeypatch.syspath_prepend(str(tmp_path))
     json_path = tmp_path / "spec.json"
     json_path.write_text('{"spec_version": 9}', encoding="utf-8")
-    python_spec = f"{module_name}:python_spec" if source_kind == "python" else None
+    python_spec = f"{module_name}:spec" if source_kind == "python" else None
     json_spec = json_path if source_kind == "json" else None
 
     with mock.patch.object(validation, "validate_spec", wraps=validation.validate_spec) as check:
@@ -227,8 +225,8 @@ def test_build_reports_source_loading_errors(tmp_path: pathlib.Path, source_kind
         source.write_text("{", encoding="utf-8")
         options = {"json_spec": str(source)}
     else:
-        (tmp_path / "invalid_declaration.py").write_text("python_spec = None\n", encoding="utf-8")
-        options = {"python_spec": "invalid_declaration:python_spec"}
+        (tmp_path / "invalid_declaration.py").write_text("spec = None\n", encoding="utf-8")
+        options = {"python_spec": "invalid_declaration:spec"}
 
     with pytest.raises(application.ProjectBuildError) as error:
         builder.ProjectBuilder(tmp_path).build(**options)

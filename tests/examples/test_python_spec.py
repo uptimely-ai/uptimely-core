@@ -49,7 +49,7 @@ def test_aggregate_executes_independently() -> None:
 
 
 def test_pump_dimensions_are_declared_in_spec_order() -> None:
-    inferred = pump_telemetry_spec.python_spec.to_model().dimensions
+    inferred = pump_telemetry_spec.spec.to_model().dimensions
 
     assert list(inferred) == ["machine_dimension", "machine_timestamp", "facility_dimension"]
     assert list(inferred["machine_dimension"].resolutions) == [
@@ -91,7 +91,7 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
     ]
 
     assert [
-        profile.category for profile in pump_telemetry_spec.python_spec.to_model().profiles.values()
+        profile.category for profile in pump_telemetry_spec.spec.to_model().profiles.values()
     ] == [
         "Telemetry",
         "Cooling System",
@@ -104,8 +104,8 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         "Telemetry",
         "Telemetry",
     ]
-    assert [type(profile) for profile in pump_telemetry_spec.python_spec.profiles] == expected
-    assert [profile.id for profile in pump_telemetry_spec.python_spec.profiles] == [
+    assert [type(profile) for profile in pump_telemetry_spec.spec.profiles] == expected
+    assert [profile.id for profile in pump_telemetry_spec.spec.profiles] == [
         "pump_telemetry",
         "pump",
         "constants",
@@ -140,7 +140,7 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
 
 
 def test_function_catalog_contracts_are_independent_of_grain_relationships() -> None:
-    spec_definition = pump_telemetry_spec.python_spec.to_model()
+    spec_definition = pump_telemetry_spec.spec.to_model()
 
     user_functions = {
         function_id: function
@@ -221,8 +221,8 @@ def test_example_manifest_parses_complete_spec() -> None:
 
 def test_spec_from_profiles_python_api() -> None:
     spec_definition = spec.from_python(
-        profiles=pump_telemetry_spec.python_spec.profiles,
-        name=pump_telemetry_spec.python_spec.name,
+        profiles=pump_telemetry_spec.spec.profiles,
+        name=pump_telemetry_spec.spec.name,
     )
 
     assert set(spec_definition.profiles) == {
@@ -237,7 +237,7 @@ def test_spec_from_profiles_python_api() -> None:
         "pump_telemetry_by_hour",
         "pump_telemetry_by_day",
     }
-    assert spec_definition.name == pump_telemetry_spec.python_spec.name
+    assert spec_definition.name == pump_telemetry_spec.spec.name
     assert spec_definition.source.name == "python_api"
     assert spec_definition.source.generated is True
     reader = spec_definition.profiles["pump_telemetry"].assembly["read_pump_telemetry"]
@@ -246,7 +246,7 @@ def test_spec_from_profiles_python_api() -> None:
 
 def test_example_timestamp_order_matches_python_declaration() -> None:
     authored = spec.from_python(
-        profiles=pump_telemetry_spec.python_spec.profiles,
+        profiles=pump_telemetry_spec.spec.profiles,
     )
     exported = spec.load_spec(SPEC_PATH)
     expected = [

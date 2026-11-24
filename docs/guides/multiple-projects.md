@@ -183,7 +183,7 @@ class Telemetry(up.Profile):
     ]
 
 
-python_spec = up.Spec(
+spec = up.Spec(
     profiles=[Telemetry],
     name="Analytics Specification",
 )

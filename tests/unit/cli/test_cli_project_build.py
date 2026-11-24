@@ -108,7 +108,7 @@ def test_project_build_examples(
         )
         assert "| Build   | Build scope" in result.out
         assert "| all features" in result.out
-        assert "| spec.spec:python_spec" in result.out
+        assert "| spec.spec:spec" in result.out
     else:
         assert result.out == (
             "INFO     | Start spec validation\n"

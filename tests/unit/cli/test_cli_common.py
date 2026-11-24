@@ -15,7 +15,7 @@ def test_exit_with_error_reports_chained_tracebacks_only_at_debug(
     with common.apply_log_level(level):
         try:
             try:
-                raise AttributeError("missing python_spec")
+                raise AttributeError("missing spec")
             except AttributeError as cause:
                 raise ValueError("source loading failed") from cause
         except ValueError as error:
@@ -29,7 +29,7 @@ def test_exit_with_error_reports_chained_tracebacks_only_at_debug(
     if level == "debug":
         assert "Traceback (most recent call last):" in output.err
         assert __file__ in output.err
-        assert "AttributeError: missing python_spec" in output.err
+        assert "AttributeError: missing spec" in output.err
         assert "direct cause" in output.err
         assert "ValueError: source loading failed" in output.err
     else:
