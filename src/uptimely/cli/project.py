@@ -9,6 +9,7 @@ import polars as pl
 
 from uptimely.application import BuildBundle, BuildError, BuildLockError, ProjectBuildError
 from uptimely.cli import common
+from uptimely.test import models as test_models
 from uptimely.test import runner as test_runner
 
 logger = logging.getLogger(__name__)
@@ -54,6 +55,11 @@ def configure_test_parser(parser: argparse.ArgumentParser) -> None:
         action="store_true",
         help="Build and publish the project before running tests",
     )
+    parser.add_argument(
+        "--show",
+        action="store_true",
+        help="Show all input and expected output rows for each test case",
+    )
     common.configure_log_level_argument(parser)
 
 
@@ -67,7 +73,7 @@ def run_test(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
                 logger.info("Start building the project bundle")
                 bundle = app.build()
                 logger.info("Build files created to %s", bundle.root)
-            report = test_runner.TestRunner(app).run()
+            report = test_runner.TestRunner(app).run(on_case=_show_case if args.show else None)
             for case in report.cases:
                 if case.status != "passed":
                     logger.error(
@@ -87,6 +93,35 @@ def run_test(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             TypeError,
         ) as error:
             common.exit_with_error(parser, error)
+
+
+def _show_case(result: test_models.CaseResult, case: test_models.Case) -> None:
+    """Print fixture inputs and expected output as dataframes."""
+    rows = [*case.inputs.values(), case.expected.return_]
+    string_length = max(
+        (len(str(value)) for frame in rows for row in frame for value in row.values()),
+        default=32,
+    )
+    print(f"\nCase: {result.profile}/{result.operator}/{result.case} ({result.status})")
+    with pl.Config(
+        tbl_rows=-1,
+        tbl_cols=-1,
+        tbl_width_chars=-1,
+        fmt_str_lengths=max(32, string_length),
+        fmt_table_cell_list_len=-1,
+    ):
+        print("Inputs:")
+        for name, frame_rows in case.inputs.items():
+            print(f"{name}:\n{_format_case_frame(frame_rows)}")
+        print(f"Expected output:\n{_format_case_frame(case.expected.return_)}")
+
+
+def _format_case_frame(rows: list[dict[str, object]]) -> str:
+    """Format fixture rows, reporting invalid dataframe values explicitly."""
+    try:
+        return str(pl.DataFrame(rows))
+    except (pl.exceptions.PolarsError, TypeError, ValueError, OverflowError) as error:
+        return f"Cannot display dataframe: {type(error).__name__}: {error}"
 
 
 def _log_build_details(
