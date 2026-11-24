@@ -8,6 +8,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-11-24
+
 ### Added
 
 - Python bindings can reference a resolution dataframe key directly with
