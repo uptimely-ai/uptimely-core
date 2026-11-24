@@ -31,12 +31,15 @@ class TestRunner:
         self.app = app
 
     def run(
-        self, *, on_case: abc.Callable[[models.CaseResult, models.Case], None] | None = None
+        self,
+        *,
+        on_case: abc.Callable[[models.CaseResult, models.Case, pl.DataFrame | None], None]
+        | None = None,
     ) -> models.TestReport:
         """Execute all cases and atomically save the latest report.
 
         Args:
-            on_case: Optional callback receiving each outcome and its case data.
+            on_case: Optional callback receiving each outcome, case, and mismatched output.
 
         Returns:
             The completed report, including individual failures.
@@ -69,12 +72,12 @@ class TestRunner:
                     bundle.root, bundle.source_path, reserved_modules=("uptimely",)
                 ).expose():
                     for profile, operator, case_id, invocation, case in cases:
-                        result = self._run_case(
+                        result, actual = self._run_case(
                             profile, operator, case_id, invocation, case, entries
                         )
                         report.cases.append(result)
                         if on_case is not None:
-                            on_case(result, case)
+                            on_case(result, case, actual)
                 report.status = (
                     "passed" if all(case.status == "passed" for case in report.cases) else "failed"
                 )
@@ -164,10 +167,11 @@ class TestRunner:
         invocation: plan.Invocation,
         case: models.Case,
         entries: abc.Mapping[str, entrypoint.Entrypoint],
-    ) -> models.CaseResult:
+    ) -> tuple[models.CaseResult, pl.DataFrame | None]:
         result = models.CaseResult(
             profile=profile, operator=operator, case=case_id, status="passed"
         )
+        mismatch: pl.DataFrame | None = None
         try:
             runtime_state = state.RuntimeState()
             dataframe_args = {
@@ -198,10 +202,11 @@ class TestRunner:
             except AssertionError:
                 result.status = "failed"
                 result.message = "Returned dataframe does not match expected rows"
+                mismatch = frame
         except Exception as error:
             result.status = "error"
             result.message = f"{type(error).__name__}: {str(error)[:500]}"
-        return result
+        return result, mismatch
 
     @staticmethod
     def _compare(actual: pl.DataFrame, expected: list[dict[str, pydantic.JsonValue]]) -> None:
