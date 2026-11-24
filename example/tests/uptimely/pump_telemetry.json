@@ -1,0 +1,62 @@
+{
+  "op-pump_mode-pump_mode-ec4abb9c": {
+    "cases": {
+      "warning": {
+        "inputs": {"dataset": [{"bearing_temperature": 90.0, "vibration_rms": 3.0}]},
+        "expected": {"return": [{"bearing_temperature": 90.0, "vibration_rms": 3.0, "pump_mode": "warning"}]}
+      },
+      "operational": {
+        "inputs": {"dataset": [{"bearing_temperature": 80.0, "vibration_rms": 3.0}]},
+        "expected": {"return": [{"bearing_temperature": 80.0, "vibration_rms": 3.0, "pump_mode": "operational"}]}
+      }
+    }
+  },
+  "op-ratio-pressure_flow_efficiency-f7d0f73b": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"differential_pressure": 3.0, "flow_rate": 12.0, "motor_power": 2.0}]},
+        "expected": {"return": [{"differential_pressure": 3.0, "flow_rate": 12.0, "motor_power": 2.0, "pressure_flow_efficiency": 0.5}]}
+      }
+    }
+  },
+  "op-select_columns-room_temperature_reference-0913934f": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"room_temperature": 20.0}]},
+        "expected": {"return": [{"room_temperature_reference": 20.0}]}
+      }
+    }
+  },
+  "op-subtract-bearing_temperature_rise-35c8524f": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"bearing_temperature": 80.0, "room_temperature_reference": 20.0}]},
+        "expected": {"return": [{"bearing_temperature": 80.0, "room_temperature_reference": 20.0, "bearing_temperature_rise": 60.0}]}
+      }
+    }
+  },
+  "op-delta-bearing_temperature_delta-75a9dabd": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"pump_id": "P1", "timestamp": "2026-01-01T10:00:00Z", "bearing_temperature": 80.0}, {"pump_id": "P1", "timestamp": "2026-01-01T10:01:00Z", "bearing_temperature": 82.0}]},
+        "expected": {"return": [{"pump_id": "P1", "timestamp": "2026-01-01T10:00:00Z", "bearing_temperature": 80.0, "bearing_temperature_delta": null}, {"pump_id": "P1", "timestamp": "2026-01-01T10:01:00Z", "bearing_temperature": 82.0, "bearing_temperature_delta": 2.0}]}
+      }
+    }
+  },
+  "op-delta-vibration_delta-1d0d06cd": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"pump_id": "P1", "timestamp": "2026-01-01T10:00:00Z", "vibration_rms": 2.0}, {"pump_id": "P1", "timestamp": "2026-01-01T10:01:00Z", "vibration_rms": 3.0}]},
+        "expected": {"return": [{"pump_id": "P1", "timestamp": "2026-01-01T10:00:00Z", "vibration_rms": 2.0, "vibration_delta": null}, {"pump_id": "P1", "timestamp": "2026-01-01T10:01:00Z", "vibration_rms": 3.0, "vibration_delta": 1.0}]}
+      }
+    }
+  },
+  "op-pump_health_score-pump_health_score-0a4f2fa7": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"bearing_temperature_delta": 2.0, "vibration_delta": 1.0, "pressure_flow_efficiency": 1.0}]},
+        "expected": {"return": [{"bearing_temperature_delta": 2.0, "vibration_delta": 1.0, "pressure_flow_efficiency": 1.0, "pump_health_score": 0.3}]}
+      }
+    }
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "op-aggregate-bearing_temperature_series_max-eadf990d": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"machine_series_id": "S1", "bearing_temperature": 60.0}, {"machine_series_id": "S1", "bearing_temperature": 70.0}]},
+        "expected": {"return": [{"machine_series_id": "S1", "bearing_temperature_series_max": 70.0}]}
+      }
+    }
+  }
+}

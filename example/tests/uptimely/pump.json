@@ -1,0 +1,46 @@
+{
+  "op-select_columns-series_max_capacity-37a647d9": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"machine_series_id": "S1", "max_capacity_series": 90.0}]},
+        "expected": {"return": [{"machine_series_id": "S1", "series_max_capacity": 90.0}]}
+      }
+    }
+  },
+  "op-select_columns-category_max_capacity-2fe61923": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"machine_category_id": "C1", "max_capacity_category": 100.0}]},
+        "expected": {"return": [{"machine_category_id": "C1", "category_max_capacity": 100.0}]}
+      }
+    }
+  },
+  "op-first_non_null_value-max_capacity-ff83edcb": {
+    "cases": {
+      "series_fallback": {
+        "inputs": {"dataset": [{"pump_max_capacity": null, "series_max_capacity": 90.0, "category_max_capacity": 100.0}]},
+        "expected": {"return": [{"pump_max_capacity": null, "series_max_capacity": 90.0, "category_max_capacity": 100.0, "max_capacity": 90.0}]}
+      },
+      "pump_first": {
+        "inputs": {"dataset": [{"pump_max_capacity": 80.0, "series_max_capacity": 90.0, "category_max_capacity": 100.0}]},
+        "expected": {"return": [{"pump_max_capacity": 80.0, "series_max_capacity": 90.0, "category_max_capacity": 100.0, "max_capacity": 80.0}]}
+      }
+    }
+  },
+  "bearing_temperature_by_pump": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"pump_id": "P1", "bearing_temperature": 60.0}, {"pump_id": "P1", "bearing_temperature": 70.0}]},
+        "expected": {"return": [{"pump_id": "P1", "bearing_temperature_max": 70.0}]}
+      }
+    }
+  },
+  "op-min_max_scale-health_signal_normalized-b3b03332": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"bearing_temperature_max": 60.0}, {"bearing_temperature_max": 70.0}]},
+        "expected": {"return": [{"bearing_temperature_max": 60.0, "health_signal_normalized": -1.0}, {"bearing_temperature_max": 70.0, "health_signal_normalized": 1.0}]}
+      }
+    }
+  }
+}

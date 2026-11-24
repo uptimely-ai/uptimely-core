@@ -12,6 +12,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - `uptimely test` checks a configurable project test folder, defaulting to
   `tests/uptimely`. Test execution is not yet implemented.
+- The example project includes provisional input and expected-output cases for
+  non-I/O operator compute bindings.
 
 ## [0.12.0] - 2026-11-24
 
