@@ -18,6 +18,13 @@ def double(dataset: pl.LazyFrame, value: str, output: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(value) * 2).alias(output))
 
 
+def test_resolution_defaults_key_to_id() -> None:
+    resolution = up.Resolution(id="id", type="integer")
+
+    assert resolution.key == "id"
+    assert resolution.to_model().key == "id"
+
+
 def test_root_authoring_api_compiles_and_executes(
     engine_for_plan: execution_support.EngineFactory,
 ) -> None:
@@ -25,7 +32,7 @@ def test_root_authoring_api_compiles_and_executes(
         id = "calculated_profile"
         id_dimension = up.Dimension(
             id="id",
-            resolutions=[up.Resolution(id="id", key="id", type="integer")],
+            resolutions=[up.Resolution(id="id", type="integer")],
         )
         grain = [id_dimension.resolution("id")]
         assembly = [

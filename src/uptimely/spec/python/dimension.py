@@ -14,7 +14,7 @@ __all__ = [
 ]
 
 
-@dataclasses.dataclass(frozen=True)
+@dataclasses.dataclass(frozen=True, init=False)
 class Resolution:
     """A dataframe key resolution within a dimension."""
 
@@ -24,6 +24,26 @@ class Resolution:
     parent: str | None = None
     _dimension: Dimension | None = dataclasses.field(default=None, repr=False, compare=False)
     name: str | None = dataclasses.field(default=None, kw_only=True)
+
+    def __init__(
+        self,
+        id: str,
+        key: str | None = None,
+        type: str | None = None,
+        parent: str | None = None,
+        *,
+        name: str | None = None,
+        _dimension: Dimension | None = None,
+    ) -> None:
+        """Initialize a resolution and default its dataframe key to the ID."""
+        if type is None:
+            raise TypeError("Resolution.__init__() missing required argument: 'type'")
+        object.__setattr__(self, "id", id)
+        object.__setattr__(self, "key", id if key is None else key)
+        object.__setattr__(self, "type", type)
+        object.__setattr__(self, "parent", parent)
+        object.__setattr__(self, "_dimension", _dimension)
+        object.__setattr__(self, "name", name)
 
     @property
     def dimension(self) -> Dimension | None:
