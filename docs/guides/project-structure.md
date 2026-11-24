@@ -53,7 +53,7 @@ project/
 | `data/output/` | Results you want to keep, share, or reuse. |
 | `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
-| `tests/uptimely/` | Default folder for project tests. Test execution is not yet implemented. |
+| `tests/uptimely/` | Default folder for project operator cases. |
 | `requirements/` | Optional definition of package dependencies and laguage version. The Python runtime uses `requirements/pyproject.toml`. |
 | `artifacts/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
 | `uptimely.toml` | Project defaults and settings under `application`, `code`, `engine`, `test`, `paths`, and `params`. See [Configure a project](configuration.md). |

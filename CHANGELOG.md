@@ -10,8 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
-- `uptimely test` checks a configurable project test folder, defaulting to
-  `tests/uptimely`. Test execution is not yet implemented.
+- `uptimely test` runs JSON operator cases from a configurable test folder
+  against the saved build and saves the latest results under `artifacts/test/`.
 - The example project includes provisional input and expected-output cases for
   non-I/O operator compute bindings.
 
