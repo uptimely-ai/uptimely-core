@@ -47,7 +47,7 @@ class Resolution:
 
     @property
     def dimension(self) -> Dimension | None:
-        """Return the owning dimension when selected through ``Dimension.resolution``."""
+        """Return the owning dimension when selected through ``Dimension.at``."""
         return self._dimension
 
     def to_model(self) -> spec_model.Resolution:
@@ -80,6 +80,17 @@ class Dimension:
             if resolution.id == name:
                 return dataclasses.replace(resolution, _dimension=self)
         raise ValueError(f"Dimension '{self.id}' does not declare resolution '{name}'")
+
+    def at(self, name: str) -> Resolution:
+        """Return the resolution with the given ID.
+
+        Args:
+            name: Resolution identifier.
+
+        Returns:
+            The resolution associated with this dimension.
+        """
+        return self.resolution(name)
 
     def __post_init__(self) -> None:
         """Generate a display name from the ID when one is not supplied."""

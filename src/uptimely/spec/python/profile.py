@@ -31,9 +31,9 @@ class Order:
     def resolution_id(self) -> str:
         """Return the selected resolution ID after validating dimension membership."""
         selected = (
-            self.dimension.resolution(self.resolution.id)
+            self.dimension.at(self.resolution.id)
             if isinstance(self.resolution, dimension_module.Resolution)
-            else self.dimension.resolution(self.resolution)
+            else self.dimension.at(self.resolution)
         )
         return selected.id
 
@@ -294,7 +294,7 @@ class Profile:
         if item.dimension is None:
             raise ValueError(
                 f"Profile '{self.id}' grain and relation resolutions must be selected through "
-                "Dimension.resolution()"
+                "Dimension.at()"
             )
         if item not in item.dimension.resolutions:
             raise ValueError(

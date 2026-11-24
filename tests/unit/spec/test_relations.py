@@ -34,8 +34,8 @@ def test_compiled_relation_from_non_grain_dimension_survives_execution(
     )
     declaration = profile.Profile(
         id="readings",
-        grain=[machines.resolution("pump")],
-        relations=[sites.resolution("plant")],
+        grain=[machines.at("pump")],
+        relations=[sites.at("plant")],
         assembly=[
             assembly.Operator(
                 id="read",
@@ -112,8 +112,8 @@ def test_dimension_keys_and_cross_profile_features_in_bindings() -> None:
     machines = _dimension()
     source = profile.Profile(
         id="source",
-        grain=[machines.resolution("pump")],
-        relations=[machines.resolution("series")],
+        grain=[machines.at("pump")],
+        relations=[machines.at("series")],
         assembly=[
             assembly.Operator(
                 id="read",
@@ -124,7 +124,7 @@ def test_dimension_keys_and_cross_profile_features_in_bindings() -> None:
     )
     target = profile.Profile(
         id="target",
-        grain=[machines.resolution("pump")],
+        grain=[machines.at("pump")],
         assembly=[
             assembly.Operator(
                 id="copy",
@@ -132,8 +132,8 @@ def test_dimension_keys_and_cross_profile_features_in_bindings() -> None:
                 compute=assembly.Bind(
                     ref.function(_copy_related),
                     dataset=source.dataset,
-                    identifier=ref.dimension("machine").resolution("pump").key,
-                    relation=ref.dimension("machine").resolution("series").key,
+                    identifier=ref.dimension("machine").at("pump").key,
+                    relation=ref.dimension("machine").at("series").key,
                     value=ref.input("value"),
                     output=ref.output("copied").id,
                 ),
@@ -162,10 +162,10 @@ def test_dimension_keys_cannot_be_selected_as_features(
     machines = _dimension()
     selected = ref.input(column)
     argument = selected.id if metadata else selected
-    source = profile.Profile(id="source", grain=[machines.resolution("series")])
+    source = profile.Profile(id="source", grain=[machines.at("series")])
     target = profile.Profile(
         id="target",
-        grain=[machines.resolution("pump")],
+        grain=[machines.at("pump")],
         assembly=[
             assembly.Operator(
                 id="copy",
@@ -210,8 +210,8 @@ def test_key_only_reader_has_no_feature_outputs(
     )
     declaration = profile.Profile(
         id="keys_only",
-        grain=[machines.resolution("pump")],
-        relations=[sites.resolution("plant")],
+        grain=[machines.at("pump")],
+        relations=[sites.at("plant")],
         assembly=[
             assembly.Operator(
                 id="read",
@@ -240,8 +240,8 @@ def test_relations_round_trip_without_changing_grain_or_features() -> None:
     )
     declaration = profile.Profile(
         id="readings",
-        grain=[machines.resolution("pump")],
-        relations=[machines.resolution("series"), sites.resolution("plant")],
+        grain=[machines.at("pump")],
+        relations=[machines.at("series"), sites.at("plant")],
     )
     document = conversion.to_model([declaration])
     validation.validate_spec(document)
@@ -273,7 +273,7 @@ def test_relation_only_dimension_is_collected() -> None:
     machines = _dimension()
 
     class Related(profile.Profile):
-        relations = [machines.resolution("series")]
+        relations = [machines.at("series")]
 
     document = conversion.to_model([Related()])
     validation.validate_spec(document)

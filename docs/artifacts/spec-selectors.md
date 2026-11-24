@@ -64,7 +64,7 @@ explicit argument when the function needs them, such as for grouping or
 matching rows across dimensions. Use feature selectors only for declared
 features, not for dimension keys. In Python, pass a known dataframe column ID
 directly with `ref.key("pump_id")`. The structural form
-`ref.dimension("machine").resolution("pump").key` remains available for
+`ref.dimension("machine").at("pump").key` remains available for
 selecting resolution metadata.
 
 ## Validation

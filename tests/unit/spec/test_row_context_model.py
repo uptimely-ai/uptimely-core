@@ -41,7 +41,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
         profiles=[
             profile.Profile(
                 id="observations",
-                grain=[timestamp.resolution("timestamp")],
+                grain=[timestamp.at("timestamp")],
                 order=[profile.Order(timestamp, "timestamp", "asc")] if ordered else [],
                 assembly=[
                     assembly.Operator(

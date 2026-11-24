@@ -163,7 +163,7 @@ measurement_id = Dimension(
 
 
 class MyAnalyticalProfile(Profile):
-    grain = [measurement_id.resolution("measurement_id")]
+    grain = [measurement_id.at("measurement_id")]
     seed = "read_values"
 
     assembly = [

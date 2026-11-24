@@ -65,12 +65,12 @@ class Pump(Profile):
     name = "Cooling Pump"
     description = "One row per cooling pump with condition and workflow inputs."
     category = "Cooling System"
-    grain = [dimension.MACHINE_DIMENSION.resolution("machine")]
+    grain = [dimension.MACHINE_DIMENSION.at("machine")]
     relations = [
-        dimension.FACILITY_DIMENSION.resolution("server_room"),
-        dimension.FACILITY_DIMENSION.resolution("data_center"),
-        dimension.MACHINE_DIMENSION.resolution("machine_series"),
-        dimension.MACHINE_DIMENSION.resolution("machine_category"),
+        dimension.FACILITY_DIMENSION.at("server_room"),
+        dimension.FACILITY_DIMENSION.at("data_center"),
+        dimension.MACHINE_DIMENSION.at("machine_series"),
+        dimension.MACHINE_DIMENSION.at("machine_category"),
     ]
     scope = "Cooling-pump telemetry and external workflow inputs for data centers"
     features = PumpFeatures()

@@ -163,7 +163,7 @@ measurement = Dimension(
 
 
 class CoolingPump(Profile):
-    grain = [measurement.resolution("id")]
+    grain = [measurement.at("id")]
     seed = "read_values"
 
     assembly = [

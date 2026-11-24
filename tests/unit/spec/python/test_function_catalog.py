@@ -268,7 +268,7 @@ def test_to_dict_preserves_name_grain_and_profile_metadata() -> None:
         id = "telemetry"
         name = "Pump Telemetry"
         description = "Telemetry readings"
-        grain = [pump.resolution("machine")]
+        grain = [pump.at("machine")]
         category = "telemetry"
         scope = "One row per pump observation"
         order = [profile.Order(pump, "machine", direction="desc")]

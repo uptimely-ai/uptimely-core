@@ -21,7 +21,7 @@ row = Dimension(
 
 class Values(Profile):
     id = "values"
-    grain = [row.resolution("row")]
+    grain = [row.at("row")]
 
     assembly = [
         Operator(
