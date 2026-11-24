@@ -2,48 +2,300 @@
   "aggregate_warning": {
     "cases": {
       "basic": {
-        "inputs": {"dataset": [{"pump_id": "P1", "hour": "2026-01-01T10:00:00Z", "warning_differential_pressure": 4.0, "warning_flow_rate": 10.0, "warning_motor_power": 5.0, "warning_bearing_temperature": 90.0, "warning_vibration_rms": 3.0}]},
-        "expected": {"return": [{"pump_id": "P1", "hour": "2026-01-01T10:00:00Z", "warning_hour_mean_differential_pressure": 4.0, "warning_hour_mean_flow_rate": 10.0, "warning_hour_mean_motor_power": 5.0, "warning_hour_max_bearing_temperature": 90.0, "warning_hour_max_vibration_rms": 3.0}]}
+        "inputs": {
+          "dataset": [
+            {
+              "pump_id": "P1",
+              "hour": "2026-01-01T10:00:00Z",
+              "warning_differential_pressure": 4.0,
+              "warning_flow_rate": 10.0,
+              "warning_motor_power": 5.0,
+              "warning_bearing_temperature": 90.0,
+              "warning_vibration_rms": 3.0
+            },
+            {
+              "pump_id": "P1",
+              "hour": "2026-01-01T10:00:00Z",
+              "warning_differential_pressure": 6.0,
+              "warning_flow_rate": 14.0,
+              "warning_motor_power": 9.0,
+              "warning_bearing_temperature": 95.0,
+              "warning_vibration_rms": 4.0
+            },
+            {
+              "pump_id": "P1",
+              "hour": "2026-01-01T10:00:00Z",
+              "warning_differential_pressure": 2.0,
+              "warning_flow_rate": 12.0,
+              "warning_motor_power": 7.0,
+              "warning_bearing_temperature": 85.0,
+              "warning_vibration_rms": 5.0
+            }
+          ]
+        },
+        "expected": {
+          "return": [
+            {
+              "pump_id": "P1",
+              "hour": "2026-01-01T10:00:00Z",
+              "warning_hour_mean_differential_pressure": 4.0,
+              "warning_hour_mean_flow_rate": 12.0,
+              "warning_hour_mean_motor_power": 7.0,
+              "warning_hour_max_bearing_temperature": 95.0,
+              "warning_hour_max_vibration_rms": 5.0
+            }
+          ]
+        }
       }
     }
   },
   "op-operation_point_optimization-operating_point_recommendation-592f6c97": {
     "cases": {
       "basic": {
-        "inputs": {"dataset": [{"warning_hour_mean_differential_pressure": 4.0, "warning_hour_mean_flow_rate": 10.0, "warning_hour_mean_motor_power": 5.0, "warning_hour_max_bearing_temperature": 90.0, "warning_hour_max_vibration_rms": 3.0}]},
-        "expected": {"return": [{"warning_hour_mean_differential_pressure": 4.0, "warning_hour_mean_flow_rate": 10.0, "warning_hour_mean_motor_power": 5.0, "warning_hour_max_bearing_temperature": 90.0, "warning_hour_max_vibration_rms": 3.0, "operating_point_recommendation": {"recommended_flow_rate": 10.0, "recommended_differential_pressure": 4.0, "energy_cost_score": 0.5, "converged": false}}]}
+        "inputs": {
+          "dataset": [
+            {
+              "warning_hour_mean_differential_pressure": 4.0,
+              "warning_hour_mean_flow_rate": 10.0,
+              "warning_hour_mean_motor_power": 5.0,
+              "warning_hour_max_bearing_temperature": 90.0,
+              "warning_hour_max_vibration_rms": 3.0
+            },
+            {
+              "warning_hour_mean_differential_pressure": 6.0,
+              "warning_hour_mean_flow_rate": 20.0,
+              "warning_hour_mean_motor_power": 4.0,
+              "warning_hour_max_bearing_temperature": 80.0,
+              "warning_hour_max_vibration_rms": 3.0
+            },
+            {
+              "warning_hour_mean_differential_pressure": 2.0,
+              "warning_hour_mean_flow_rate": 8.0,
+              "warning_hour_mean_motor_power": 8.0,
+              "warning_hour_max_bearing_temperature": 85.0,
+              "warning_hour_max_vibration_rms": 4.5
+            }
+          ]
+        },
+        "expected": {
+          "return": [
+            {
+              "warning_hour_mean_differential_pressure": 4.0,
+              "warning_hour_mean_flow_rate": 10.0,
+              "warning_hour_mean_motor_power": 5.0,
+              "warning_hour_max_bearing_temperature": 90.0,
+              "warning_hour_max_vibration_rms": 3.0,
+              "operating_point_recommendation": {
+                "recommended_flow_rate": 10.0,
+                "recommended_differential_pressure": 4.0,
+                "energy_cost_score": 0.5,
+                "converged": false
+              }
+            },
+            {
+              "warning_hour_mean_differential_pressure": 6.0,
+              "warning_hour_mean_flow_rate": 20.0,
+              "warning_hour_mean_motor_power": 4.0,
+              "warning_hour_max_bearing_temperature": 80.0,
+              "warning_hour_max_vibration_rms": 3.0,
+              "operating_point_recommendation": {
+                "recommended_flow_rate": 20.0,
+                "recommended_differential_pressure": 6.0,
+                "energy_cost_score": 0.2,
+                "converged": true
+              }
+            },
+            {
+              "warning_hour_mean_differential_pressure": 2.0,
+              "warning_hour_mean_flow_rate": 8.0,
+              "warning_hour_mean_motor_power": 8.0,
+              "warning_hour_max_bearing_temperature": 85.0,
+              "warning_hour_max_vibration_rms": 4.5,
+              "operating_point_recommendation": {
+                "recommended_flow_rate": 8.0,
+                "recommended_differential_pressure": 2.0,
+                "energy_cost_score": 1.0,
+                "converged": false
+              }
+            }
+          ]
+        }
       }
     }
   },
   "op-LazyFrame.with_columns-recommended_flow_rate-a8655b67": {
     "cases": {
       "basic": {
-        "inputs": {"self": [{"warning_hour_mean_flow_rate": 10.0}]},
-        "expected": {"return": [{"warning_hour_mean_flow_rate": 10.0, "recommended_flow_rate": 10.0}]}
+        "inputs": {
+          "self": [
+            {
+              "warning_hour_mean_flow_rate": 10.0
+            },
+            {
+              "warning_hour_mean_flow_rate": 20.0
+            },
+            {
+              "warning_hour_mean_flow_rate": 8.0
+            }
+          ]
+        },
+        "expected": {
+          "return": [
+            {
+              "warning_hour_mean_flow_rate": 10.0,
+              "recommended_flow_rate": 10.0
+            },
+            {
+              "warning_hour_mean_flow_rate": 20.0,
+              "recommended_flow_rate": 20.0
+            },
+            {
+              "warning_hour_mean_flow_rate": 8.0,
+              "recommended_flow_rate": 8.0
+            }
+          ]
+        }
       }
     }
   },
   "op-extract_field-recommended_differential_pressure-4853a086": {
     "cases": {
       "basic": {
-        "inputs": {"dataset": [{"operating_point_recommendation": {"recommended_differential_pressure": 4.0}}]},
-        "expected": {"return": [{"operating_point_recommendation": {"recommended_differential_pressure": 4.0}, "recommended_differential_pressure": 4.0}]}
+        "inputs": {
+          "dataset": [
+            {
+              "operating_point_recommendation": {
+                "recommended_differential_pressure": 4.0
+              }
+            },
+            {
+              "operating_point_recommendation": {
+                "recommended_differential_pressure": 6.0
+              }
+            },
+            {
+              "operating_point_recommendation": {
+                "recommended_differential_pressure": 2.0
+              }
+            }
+          ]
+        },
+        "expected": {
+          "return": [
+            {
+              "operating_point_recommendation": {
+                "recommended_differential_pressure": 4.0
+              },
+              "recommended_differential_pressure": 4.0
+            },
+            {
+              "operating_point_recommendation": {
+                "recommended_differential_pressure": 6.0
+              },
+              "recommended_differential_pressure": 6.0
+            },
+            {
+              "operating_point_recommendation": {
+                "recommended_differential_pressure": 2.0
+              },
+              "recommended_differential_pressure": 2.0
+            }
+          ]
+        }
       }
     }
   },
   "op-extract_field-energy_cost_score-c41c3636": {
     "cases": {
       "basic": {
-        "inputs": {"dataset": [{"operating_point_recommendation": {"energy_cost_score": 0.5}}]},
-        "expected": {"return": [{"operating_point_recommendation": {"energy_cost_score": 0.5}, "energy_cost_score": 0.5}]}
+        "inputs": {
+          "dataset": [
+            {
+              "operating_point_recommendation": {
+                "energy_cost_score": 0.5
+              }
+            },
+            {
+              "operating_point_recommendation": {
+                "energy_cost_score": 0.2
+              }
+            },
+            {
+              "operating_point_recommendation": {
+                "energy_cost_score": 1.0
+              }
+            }
+          ]
+        },
+        "expected": {
+          "return": [
+            {
+              "operating_point_recommendation": {
+                "energy_cost_score": 0.5
+              },
+              "energy_cost_score": 0.5
+            },
+            {
+              "operating_point_recommendation": {
+                "energy_cost_score": 0.2
+              },
+              "energy_cost_score": 0.2
+            },
+            {
+              "operating_point_recommendation": {
+                "energy_cost_score": 1.0
+              },
+              "energy_cost_score": 1.0
+            }
+          ]
+        }
       }
     }
   },
   "op-extract_field-converged-e4dbfdeb": {
     "cases": {
       "basic": {
-        "inputs": {"dataset": [{"operating_point_recommendation": {"converged": false}}]},
-        "expected": {"return": [{"operating_point_recommendation": {"converged": false}, "converged": false}]}
+        "inputs": {
+          "dataset": [
+            {
+              "operating_point_recommendation": {
+                "converged": false
+              }
+            },
+            {
+              "operating_point_recommendation": {
+                "converged": true
+              }
+            },
+            {
+              "operating_point_recommendation": {
+                "converged": false
+              }
+            }
+          ]
+        },
+        "expected": {
+          "return": [
+            {
+              "operating_point_recommendation": {
+                "converged": false
+              },
+              "converged": false
+            },
+            {
+              "operating_point_recommendation": {
+                "converged": true
+              },
+              "converged": true
+            },
+            {
+              "operating_point_recommendation": {
+                "converged": false
+              },
+              "converged": false
+            }
+          ]
+        }
       }
     }
   }

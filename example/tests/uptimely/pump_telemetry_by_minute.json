@@ -2,8 +2,34 @@
   "aggregate_telemetry": {
     "cases": {
       "basic": {
-        "inputs": {"dataset": [{"pump_id": "P1", "minute": "2026-01-01T10:00:00Z", "bearing_temperature": 60.0}, {"pump_id": "P1", "minute": "2026-01-01T10:00:00Z", "bearing_temperature": 70.0}]},
-        "expected": {"return": [{"pump_id": "P1", "minute": "2026-01-01T10:00:00Z", "bearing_temperature_minute_max": 70.0}]}
+        "inputs": {
+          "dataset": [
+            {
+              "pump_id": "P1",
+              "minute": "2026-01-01T10:00:00Z",
+              "bearing_temperature": 60.0
+            },
+            {
+              "pump_id": "P1",
+              "minute": "2026-01-01T10:00:00Z",
+              "bearing_temperature": 70.0
+            },
+            {
+              "pump_id": "P1",
+              "minute": "2026-01-01T10:00:00Z",
+              "bearing_temperature": 65.0
+            }
+          ]
+        },
+        "expected": {
+          "return": [
+            {
+              "pump_id": "P1",
+              "minute": "2026-01-01T10:00:00Z",
+              "bearing_temperature_minute_max": 70.0
+            }
+          ]
+        }
       }
     }
   }
