@@ -5,7 +5,7 @@
 Without a source setting in `uptimely.toml` or CLI option, source discovery
 checks `spec/spec.py` and `spec/spec.json` beneath the project root:
 
-- If only `spec/spec.py` exists, it is selected automatically.
+- If only `spec/spec.py` exists, its `spec` variable is selected automatically.
 - If only `spec/spec.json` exists, it is selected automatically.
 - If both exist, the build fails as ambiguous. Select one with
   `--python-spec` or `--json-spec`.

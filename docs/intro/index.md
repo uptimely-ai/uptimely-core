@@ -156,14 +156,14 @@ from uptimely import (
     ref,
 )
 
-measurement_id = Dimension(
+measurement = Dimension(
     id="measurement_id",
-    resolutions=[Resolution(id="measurement_id", key="id", type="integer")],
+    resolutions=[Resolution(id="id", type="integer")],
 )
 
 
-class MyAnalyticalProfile(Profile):
-    grain = [measurement_id.at("measurement_id")]
+class CoolingPump(Profile):
+    grain = [measurement.at("id")]
     seed = "read_values"
 
     assembly = [
@@ -195,8 +195,8 @@ class MyAnalyticalProfile(Profile):
 
 
 spec = Spec(
-    profiles=[MyAnalyticalProfile],
-    name="Analytics Specification",
+    profiles=[CoolingPump],
+    name="Cooling Pump Specification",
 )
 ```
 
