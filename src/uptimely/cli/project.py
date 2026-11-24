@@ -49,6 +49,11 @@ def configure_test_parser(parser: argparse.ArgumentParser) -> None:
         option_help="Root for resolving the test folder",
     )
     common.configure_project_config_argument(parser)
+    parser.add_argument(
+        "--build",
+        action="store_true",
+        help="Build and publish the project before running tests",
+    )
     common.configure_log_level_argument(parser)
 
 
@@ -58,6 +63,10 @@ def run_test(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
     with common.apply_log_level(args.log_level):
         try:
             app = common.create_project(root, args.config)
+            if args.build:
+                logger.info("Start building the project bundle")
+                bundle = app.build()
+                logger.info("Build files created to %s", bundle.root)
             report = test_runner.TestRunner(app).run()
             for case in report.cases:
                 if case.status != "passed":
@@ -69,7 +78,14 @@ def run_test(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             logger.info("Test report saved to %s", app.root / test_runner.REPORT_PATH)
             if report.status != "passed":
                 parser.exit(1)
-        except (BuildError, BuildLockError, OSError, ValueError, TypeError) as error:
+        except (
+            BuildError,
+            BuildLockError,
+            ProjectBuildError,
+            OSError,
+            ValueError,
+            TypeError,
+        ) as error:
             common.exit_with_error(parser, error)
 
 
