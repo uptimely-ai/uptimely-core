@@ -59,14 +59,45 @@ execute analytical functions or sinks.
 ## `uptimely test`
 
 ```console
-uptimely test [PROJECT_ROOT] [--project-root PATH] [--config CONFIG_OR_PATH]
+uptimely test [PROJECT_ROOT] [--project-root PATH] [--config CONFIG_OR_PATH] [--log-level LEVEL]
 ```
 
-The command checks the `test.path` folder, defaulting to `tests/uptimely`
+The command reads JSON files from `test.path`, defaulting to `tests/uptimely`
 relative to the project root. Absolute paths are also supported. The project
 directory and config options follow the same rules as `uptimely build`.
+Build first. The command uses the saved plan and bundled source, not live
+project source, and requires a build containing project source.
 
-If the directory exists, the command reports `Folder found, not implemented`.
-If it does not exist or is not a directory, the command reports
-`Configured test folder <folder> not found`. Both cases exit with status 1
-because test execution is not implemented.
+Name each file `<profile_id>.json`. Each top-level key is an operator ID, with
+one or more named `cases`. `inputs` maps dataframe argument names to rows.
+`expected.return` contains the complete returned rows. Other binding arguments
+come from the saved plan and selected project configuration.
+
+```json
+{
+  "operator_id": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"value": 2.0}]},
+        "expected": {"return": [{"value": 2.0, "result": 4.0}]}
+      }
+    }
+  }
+}
+```
+
+Inputs must have at least one row and the same columns in each row. Dataframe
+types are inferred from JSON. Output rows are compared in order, ignoring
+column order and dataframe types, with Polars' default floating-point tolerance.
+An empty expected array checks for no rows, not column names or types.
+
+Only compute bindings returning dataframes are supported. Reader, writer, and
+workflow cases are rejected. Test cases do not run upstream operators or merges.
+Functions still execute Python code and are not sandboxed. Test only trusted
+builds, and keep side effects out of the selected functions.
+
+The command saves the latest results to `artifacts/test/test.json` without
+changing `artifacts/run/`. The report records case outcomes, errors, timestamps,
+and a fingerprint of the build manifest, Spec, and plan. The fingerprint does
+not include bundled code bytes. The command exits with status 0 when all cases
+pass and 1 for failed cases or invalid setup. At least one case is required.

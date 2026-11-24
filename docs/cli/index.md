@@ -28,7 +28,7 @@ for console output and error details.
 | --- | --- |
 | [`uptimely example`](examples.md) | Download runnable example projects. |
 | [`uptimely build`](project.md) | Build and publish a complete active bundle. |
-| [`uptimely test`](project.md#uptimely-test) | Check the configured project test folder. |
+| [`uptimely test`](project.md#uptimely-test) | Run project operator cases against the saved build. |
 | [`uptimely run`](engine.md) | Run an analytics workflow. |
 | [`uptimely explore`](explorer.md) | Preview the Analytics Explorer. |
 | [`uptimely export`](export.md) | Export a static Explorer site. |

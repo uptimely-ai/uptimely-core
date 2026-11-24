@@ -7,8 +7,9 @@ import time
 
 import polars as pl
 
-from uptimely.application import BuildBundle, BuildLockError, ProjectBuildError
+from uptimely.application import BuildBundle, BuildError, BuildLockError, ProjectBuildError
 from uptimely.cli import common
+from uptimely.test import runner as test_runner
 
 logger = logging.getLogger(__name__)
 
@@ -48,19 +49,28 @@ def configure_test_parser(parser: argparse.ArgumentParser) -> None:
         option_help="Root for resolving the test folder",
     )
     common.configure_project_config_argument(parser)
+    common.configure_log_level_argument(parser)
 
 
 def run_test(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
-    """Check the configured test folder."""
+    """Run isolated operator cases against the active build."""
     root = common.resolve_project_root(args, parser)
-    try:
-        app = common.create_project(root, args.config)
-        test_path = app.config.test.path
-        if not (app.root / test_path).is_dir():
-            raise FileNotFoundError(f"Configured test folder {test_path} not found")
-        raise NotImplementedError("Folder found, not implemented")
-    except (OSError, ValueError, NotImplementedError) as error:
-        common.exit_with_error(parser, error)
+    with common.apply_log_level(args.log_level):
+        try:
+            app = common.create_project(root, args.config)
+            report = test_runner.TestRunner(app).run()
+            for case in report.cases:
+                if case.status != "passed":
+                    logger.error(
+                        "%s/%s/%s: %s", case.profile, case.operator, case.case, case.message
+                    )
+            passed = sum(case.status == "passed" for case in report.cases)
+            logger.info("Test cases: %d passed, %d failed", passed, len(report.cases) - passed)
+            logger.info("Test report saved to %s", app.root / test_runner.REPORT_PATH)
+            if report.status != "passed":
+                parser.exit(1)
+        except (BuildError, BuildLockError, OSError, ValueError, TypeError) as error:
+            common.exit_with_error(parser, error)
 
 
 def _log_build_details(
