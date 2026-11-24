@@ -84,6 +84,7 @@ def main() -> None:
     project.configure_build_parser(
         commands.add_parser("build", help="Build a complete project bundle")
     )
+    project.configure_test_parser(commands.add_parser("test", help="Check project test folder"))
     engine.configure_run_parser(commands.add_parser("run", help="Run an analytics workflow"))
     explorer.configure_serve_parser(
         commands.add_parser("explore", help="Serve the Analytics Explorer frontend")
@@ -101,6 +102,8 @@ def main() -> None:
         engine.run(args, parser)
     elif args.command == "build":
         project.run(args, parser)
+    elif args.command == "test":
+        project.run_test(args, parser)
     elif args.command in ("explore", "export"):
         explorer.run(args, parser)
 

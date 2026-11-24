@@ -29,6 +29,8 @@ project/
 │   │   ├── profile.py
 │   │   └── features.py
 │   └── dimension.py
+├── tests/
+│   └── uptimely/
 └── artifacts/
     ├── build/
     │   ├── build.json
@@ -51,9 +53,10 @@ project/
 | `data/output/` | Results you want to keep, share, or reuse. |
 | `src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in Python or JSON. |
+| `tests/uptimely/` | Default folder for project tests. Test execution is not yet implemented. |
 | `requirements/` | Optional definition of package dependencies and laguage version. The Python runtime uses `requirements/pyproject.toml`. |
 | `artifacts/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
-| `uptimely.toml` | Project defaults and settings under `application`, `code`, `engine`, `paths`, and `params`. See [Configure a project](configuration.md). |
+| `uptimely.toml` | Project defaults and settings under `application`, `code`, `engine`, `test`, `paths`, and `params`. See [Configure a project](configuration.md). |
 | `pyproject.toml` | Project metadata and dependencies. It supplies Python runtime metadata unless another definition is selected or discovered under `requirements/`. |
 
 ## Source code

@@ -55,3 +55,18 @@ remains active.
 Rebuilding after changing callable contracts, operator bindings, or descriptive
 function categories regenerates the plan and Explorer snapshot. It does not
 execute analytical functions or sinks.
+
+## `uptimely test`
+
+```console
+uptimely test [PROJECT_ROOT] [--project-root PATH] [--config CONFIG_OR_PATH]
+```
+
+The command checks the `test.path` folder, defaulting to `tests/uptimely`
+relative to the project root. Absolute paths are also supported. The project
+directory and config options follow the same rules as `uptimely build`.
+
+If the directory exists, the command reports `Folder found, not implemented`.
+If it does not exist or is not a directory, the command reports
+`Configured test folder <folder> not found`. Both cases exit with status 1
+because test execution is not implemented.

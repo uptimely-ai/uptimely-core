@@ -43,6 +43,9 @@ language = "python"
 requirements = "pyproject.toml"
 src = "src"
 
+[test]
+path = "tests/uptimely"
+
 [engine]
 preview_rows = 5
 
@@ -88,6 +91,12 @@ configuration file in the first place.
 
 Feature selection, build-before-run, log level, and analytical runtime validation
 are command-specific options rather than project settings.
+
+### Test settings
+
+`test.path` selects the test directory relative to the project root or as an
+absolute path. It defaults to `tests/uptimely`. The `uptimely test` command
+checks the directory but does not yet execute tests.
 
 ### Runtime values
 
