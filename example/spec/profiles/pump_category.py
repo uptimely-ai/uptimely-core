@@ -31,7 +31,7 @@ class PumpCategory(Profile):
     name = "Cooling Pump Category"
     description = "Maximum motor-bearing temperature for each cooling-pump category."
     category = "Cooling System"
-    grain = [dimension.MACHINE_DIMENSION.resolution("machine_category")]
+    grain = [dimension.MACHINE_DIMENSION.at("machine_category")]
     scope = "Cooling-pump categories declared in the data-center asset registry"
     features = PumpCategoryFeatures()
     seed = "read_pump_category"

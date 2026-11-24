@@ -92,11 +92,11 @@ def test_python_spec_accepts_profile_classes_with_profile_grain() -> None:
 
     class Readings(profile.Profile):
         id = "readings"
-        grain = [pump.resolution("machine")]
+        grain = [pump.at("machine")]
 
     class Summary(profile.Profile):
         id = "summary"
-        grain = [pump.resolution("machine")]
+        grain = [pump.at("machine")]
 
     spec_definition = Spec(profiles=[Readings, Summary])
 
@@ -115,7 +115,7 @@ def test_python_spec_infers_selected_key_and_available_resolutions() -> None:
         ],
     )
     readings = _declaration("readings", "read")
-    readings.grain = [pump.resolution("machine")]
+    readings.grain = [pump.at("machine")]
     definition = Spec(profiles=[readings])
 
     document = definition.to_model()
@@ -130,7 +130,7 @@ def test_python_spec_infers_selected_key_and_available_resolutions() -> None:
     canonical = document.profiles["readings"]
     assert "pump" not in canonical.features
     assert canonical.assembly["readings_mapping"].interface.outputs == []
-    assert readings.grain == [pump.resolution("machine")]
+    assert readings.grain == [pump.at("machine")]
 
 
 def test_dimension_name_defaults_to_humanized_id_and_can_be_overridden() -> None:
@@ -160,7 +160,7 @@ def test_python_spec_rejects_unresolved_grain_resolutions() -> None:
         resolutions=[dimension.Resolution(id="machine", key="pump", type="string")],
     )
     with pytest.raises(ValueError, match="does not declare resolution 'fleet'"):
-        machine.resolution("fleet")
+        machine.at("fleet")
 
 
 def test_python_spec_rejects_duplicate_profiles_and_conflicting_metadata() -> None:
@@ -168,7 +168,7 @@ def test_python_spec_rejects_duplicate_profiles_and_conflicting_metadata() -> No
         id="pump",
         resolutions=[dimension.Resolution(id="machine", key="pump", type="string")],
     )
-    readings = profile.Profile(id="readings", grain=[pump.resolution("machine")])
+    readings = profile.Profile(id="readings", grain=[pump.at("machine")])
     with pytest.raises(ValueError, match="Duplicate profile id readings"):
         Spec(profiles=[readings, readings]).to_model()
     with pytest.raises(ValueError, match="Conflicting metadata for dimension 'pump'"):
@@ -183,7 +183,7 @@ def test_python_spec_rejects_duplicate_profiles_and_conflicting_metadata() -> No
                             resolutions=[
                                 dimension.Resolution(id="machine", key="pump_id", type="integer")
                             ],
-                        ).resolution("machine"),
+                        ).at("machine"),
                     ],
                 ),
             ],
@@ -212,7 +212,7 @@ def test_python_spec_infers_dimensions_in_profile_grain_order() -> None:
     )
     readings = profile.Profile(
         id="readings",
-        grain=[timestamp.resolution("timestamp"), pump.resolution("machine")],
+        grain=[timestamp.at("timestamp"), pump.at("machine")],
     )
     definition = Spec(profiles=[readings])
 

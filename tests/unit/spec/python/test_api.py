@@ -34,7 +34,7 @@ def test_root_authoring_api_compiles_and_executes(
             id="id",
             resolutions=[up.Resolution(id="id", type="integer")],
         )
-        grain = [id_dimension.resolution("id")]
+        grain = [id_dimension.at("id")]
         assembly = [
             up.Operator(
                 id="read",

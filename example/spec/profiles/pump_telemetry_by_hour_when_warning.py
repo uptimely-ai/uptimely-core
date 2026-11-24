@@ -68,8 +68,8 @@ class PumpTelemetryByHourWhenWarning(Profile):
     description = "Operating-point recommendations calculated from hourly warning telemetry."
     category = "Telemetry"
     grain = [
-        dimension.MACHINE_DIMENSION.resolution("machine"),
-        dimension.MACHINE_TIMESTAMP.resolution("hour"),
+        dimension.MACHINE_DIMENSION.at("machine"),
+        dimension.MACHINE_TIMESTAMP.at("hour"),
     ]
     scope = "Only telemetry records with pump_mode = warning."
     order = (Order(dimension.MACHINE_TIMESTAMP, "hour", direction="asc"),)

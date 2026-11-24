@@ -22,7 +22,8 @@ def test_resolution_display_name_survives_python_and_document_serialization() ->
     dimension = dimension_api.Dimension(id="machine", resolutions=[resolution])
     parsed = dimension.to_model()
 
-    assert dimension.resolution("pump").name == "Individual pump"
+    assert dimension.at("pump").name == "Individual pump"
+    assert dimension.at("pump") == dimension.at("pump")
     assert parsed.resolutions["pump"].name == "Individual pump"
     serialized = parsed.model_dump(exclude_none=True)
     assert serialized["resolutions"]["pump"]["name"] == "Individual pump"
@@ -300,8 +301,8 @@ def test_python_spec_infers_dimensions_and_resolutions_from_profile_grain() -> N
         ],
     )
     profiles = [
-        Profile(id="machine_readings", grain=[machine.resolution("machine")]),
-        Profile(id="fleet_summary", grain=[machine.resolution("fleet")]),
+        Profile(id="machine_readings", grain=[machine.at("machine")]),
+        Profile(id="fleet_summary", grain=[machine.at("fleet")]),
     ]
 
     document = Spec(profiles=profiles).to_model()
@@ -323,13 +324,13 @@ def test_python_spec_rejects_conflicting_or_unresolved_grain_declarations() -> N
     with pytest.raises(ValueError, match="Conflicting metadata for dimension 'machine'"):
         Spec(
             profiles=[
-                Profile(id="first", grain=[first.resolution("machine")]),
-                Profile(id="second", grain=[conflict.resolution("machine")]),
+                Profile(id="first", grain=[first.at("machine")]),
+                Profile(id="second", grain=[conflict.at("machine")]),
             ]
         ).to_model()
 
     with pytest.raises(ValueError, match="does not declare resolution 'missing'"):
-        Spec(profiles=[Profile(id="missing", grain=[first.resolution("missing")])]).to_model()
+        Spec(profiles=[Profile(id="missing", grain=[first.at("missing")])]).to_model()
 
     document = _document()
     document["dimensions"]["machine"]["resolutions"]["fleet"]["parent"] = "pump"

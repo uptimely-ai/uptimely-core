@@ -93,7 +93,7 @@ def test_profile_grain_supplies_dimension_resolution_metadata() -> None:
 
     class Example(authoring.Profile):
         id = "example"
-        grain = [identifier.resolution("machine")]
+        grain = [identifier.at("machine")]
         assembly = [
             authoring.Operator(
                 id="values",
@@ -182,7 +182,7 @@ def test_profile_grain_selector_is_preserved_and_typed_in_python_specs() -> None
     )
     declaration = authoring.Profile(
         id="example",
-        grain=[identifier.resolution("machine")],
+        grain=[identifier.at("machine")],
         assembly=[
             authoring.Operator(
                 id="read",

@@ -31,17 +31,17 @@ class PumpTelemetry(Profile):
     )
     category = "Telemetry"
     grain = [
-        dimension.MACHINE_DIMENSION.resolution("machine"),
-        dimension.MACHINE_TIMESTAMP.resolution("timestamp"),
+        dimension.MACHINE_DIMENSION.at("machine"),
+        dimension.MACHINE_TIMESTAMP.at("timestamp"),
     ]
     relations = [
-        dimension.FACILITY_DIMENSION.resolution("server_room"),
-        dimension.FACILITY_DIMENSION.resolution("data_center"),
-        dimension.MACHINE_DIMENSION.resolution("machine_series"),
-        dimension.MACHINE_DIMENSION.resolution("machine_category"),
-        dimension.MACHINE_TIMESTAMP.resolution("minute"),
-        dimension.MACHINE_TIMESTAMP.resolution("hour"),
-        dimension.MACHINE_TIMESTAMP.resolution("day"),
+        dimension.FACILITY_DIMENSION.at("server_room"),
+        dimension.FACILITY_DIMENSION.at("data_center"),
+        dimension.MACHINE_DIMENSION.at("machine_series"),
+        dimension.MACHINE_DIMENSION.at("machine_category"),
+        dimension.MACHINE_TIMESTAMP.at("minute"),
+        dimension.MACHINE_TIMESTAMP.at("hour"),
+        dimension.MACHINE_TIMESTAMP.at("day"),
     ]
     scope = "Synthetic data-center cooling pump telemetry for demonstration"
     order = (Order(dimension.MACHINE_TIMESTAMP, "timestamp", direction="asc"),)

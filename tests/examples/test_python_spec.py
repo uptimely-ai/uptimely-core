@@ -118,11 +118,11 @@ def test_pump_profiles_are_declared_in_spec_order() -> None:
         "pump_telemetry_by_day",
     ]
     assert pump_telemetry.PumpTelemetry.grain == [
-        pump_dimensions.MACHINE_DIMENSION.resolution("machine"),
-        pump_dimensions.MACHINE_TIMESTAMP.resolution("timestamp"),
+        pump_dimensions.MACHINE_DIMENSION.at("machine"),
+        pump_dimensions.MACHINE_TIMESTAMP.at("timestamp"),
     ]
     assert pump.Pump.grain == [
-        pump_dimensions.MACHINE_DIMENSION.resolution("machine"),
+        pump_dimensions.MACHINE_DIMENSION.at("machine"),
     ]
 
 
@@ -274,7 +274,7 @@ def test_sources_and_transforms_python_spec() -> None:
     )
     source = python_spec.profile.Profile(
         id="transformed_dataset",
-        grain=[id_dimension.resolution("id")],
+        grain=[id_dimension.at("id")],
         assembly=[
             python_spec.Operator(
                 id="read",
@@ -289,8 +289,8 @@ def test_sources_and_transforms_python_spec() -> None:
     target = python_spec.profile.Profile(
         id="target",
         grain=[
-            id_dimension.resolution("id"),
-            region_dimension.resolution("region"),
+            id_dimension.at("id"),
+            region_dimension.at("region"),
         ],
         assembly=[
             python_spec.Operator(
@@ -315,7 +315,7 @@ def test_sources_and_transforms_python_spec() -> None:
     )
     summary = python_spec.profile.Profile(
         id="summary",
-        grain=[id_dimension.resolution("id")],
+        grain=[id_dimension.at("id")],
         assembly=[
             python_spec.Operator(
                 id="collapse_data",

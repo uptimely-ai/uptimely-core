@@ -26,8 +26,8 @@ class PumpTelemetryByMinute(Profile):
     description = "Maximum motor-bearing temperature per cooling pump and minute."
     category = "Telemetry"
     grain = [
-        dimension.MACHINE_DIMENSION.resolution("machine"),
-        dimension.MACHINE_TIMESTAMP.resolution("minute"),
+        dimension.MACHINE_DIMENSION.at("machine"),
+        dimension.MACHINE_TIMESTAMP.at("minute"),
     ]
     features = PumpTelemetryByMinuteFeatures()
     seed = "aggregate_telemetry"

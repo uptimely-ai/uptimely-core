@@ -34,11 +34,11 @@ class PumpTelemetryWhenWarning(Profile):
     description = "Telemetry readings filtered to warning condition."
     category = "Telemetry"
     grain = [
-        dimension.MACHINE_DIMENSION.resolution("machine"),
-        dimension.MACHINE_TIMESTAMP.resolution("timestamp"),
+        dimension.MACHINE_DIMENSION.at("machine"),
+        dimension.MACHINE_TIMESTAMP.at("timestamp"),
     ]
     relations = [
-        dimension.MACHINE_TIMESTAMP.resolution("hour"),
+        dimension.MACHINE_TIMESTAMP.at("hour"),
     ]
     scope = "Only telemetry records with pump_mode = warning."
     order = (Order(dimension.MACHINE_TIMESTAMP, "timestamp", direction="asc"),)

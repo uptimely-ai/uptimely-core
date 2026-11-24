@@ -108,6 +108,10 @@ class DimensionReference(Reference):
         """Select a resolution within this dimension."""
         return ResolutionReference(kind=arg_types.STRING, value=f"{self.value}.resolutions.{name}")
 
+    def at(self, name: str) -> ResolutionReference:
+        """Select a resolution within this dimension."""
+        return self.resolution(name)
+
 
 class ResolutionReference(Reference):
     """A dimension-scoped resolution ID and its metadata."""

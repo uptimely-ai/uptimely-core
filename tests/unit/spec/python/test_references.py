@@ -5,6 +5,12 @@ import pytest
 from uptimely.spec.python import assembly, conversion, dimension, feature, merge, profile, ref
 
 
+def test_dimension_reference_at_selects_resolution_key() -> None:
+    assert (
+        ref.dimension("machine").at("pump").key.value == "$dimensions.machine.resolutions.pump.key"
+    )
+
+
 def test_profile_identifiers_include_only_selected_grain_resolutions() -> None:
     machines = dimension.Dimension(
         id="machines",
@@ -18,9 +24,7 @@ def test_profile_identifiers_include_only_selected_grain_resolutions() -> None:
         id="sites",
         resolutions=[dimension.Resolution(id="site", key="site_id", type="string")],
     )
-    declaration = profile.Profile(
-        id="pumps", grain=[machines.resolution("series"), sites.resolution("site")]
-    )
+    declaration = profile.Profile(id="pumps", grain=[machines.at("series"), sites.at("site")])
     dimensions = {item.id: item.to_model() for item in (machines, sites)}
     canonical = declaration.to_model()
 
@@ -43,9 +47,9 @@ def test_profile_identifier_properties_reject_unowned_resolutions() -> None:
         id="invalid", grain=[dimension.Resolution(id="pump", key="pump_id", type="string")]
     )
 
-    with pytest.raises(ValueError, match="Dimension.resolution"):
+    with pytest.raises(ValueError, match="Dimension.at"):
         _ = declaration.keys
-    with pytest.raises(ValueError, match="Dimension.resolution"):
+    with pytest.raises(ValueError, match="Dimension.at"):
         _ = declaration.key_types
 
 

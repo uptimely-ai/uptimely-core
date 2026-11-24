@@ -192,8 +192,8 @@ def test_profile_order_python_authoring_matches_json(
     declaration = python_spec.profile.Profile(
         id="observations",
         grain=[
-            dimensions[0].resolution("machine"),
-            dimensions[1].resolution("timestamp"),
+            dimensions[0].at("machine"),
+            dimensions[1].at("timestamp"),
         ],
         order=[
             python_spec.profile.Order(dimensions[0], "machine", direction="asc"),
@@ -224,7 +224,7 @@ def test_profile_order_python_authoring_validates_references() -> None:
             profiles=[
                 python_spec.profile.Profile(
                     id="observations",
-                    grain=[machine.resolution("machine")],
+                    grain=[machine.at("machine")],
                     order=[python_spec.profile.Order(machine, "fleet", direction="asc")],
                 )
             ]
@@ -240,7 +240,7 @@ def test_profile_order_does_not_change_plan_or_sort_engine_rows(
     )
     declaration = python_spec.profile.Profile(
         id="ordered_values",
-        grain=[identifier.resolution("id")],
+        grain=[identifier.at("id")],
         assembly=[
             python_spec.Operator(
                 id="read",
@@ -273,7 +273,7 @@ def test_profile_order_does_not_change_plan_or_sort_engine_rows(
             python_spec.profile.Profile(
                 id=declaration.id,
                 assembly=declaration.assembly,
-                grain=[identifier.resolution("id")],
+                grain=[identifier.at("id")],
                 order=[python_spec.profile.Order(identifier, "id", direction="desc")],
             )
         ]

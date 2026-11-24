@@ -46,7 +46,7 @@ def _spec(context=None, *, ordered=True, dimension_type="datetime"):
         profiles=[
             profile.Profile(
                 id="observations",
-                grain=[timestamp.resolution("timestamp")],
+                grain=[timestamp.at("timestamp")],
                 order=[profile.Order(timestamp, "timestamp", "asc")] if ordered else [],
                 assembly=[
                     assembly.Operator(
@@ -247,7 +247,7 @@ def test_collapse_functions_execute_without_row_context(
         profiles=[
             profile.Profile(
                 id=source.id,
-                grain=[timestamp.resolution("timestamp")],
+                grain=[timestamp.at("timestamp")],
                 assembly=source.assembly,
             ),
             profile.Profile(
