@@ -59,14 +59,17 @@ execute analytical functions or sinks.
 ## `uptimely test`
 
 ```console
-uptimely test [PROJECT_ROOT] [--project-root PATH] [--config CONFIG_OR_PATH] [--log-level LEVEL]
+uptimely test [PROJECT_ROOT] [--project-root PATH] [--config CONFIG_OR_PATH] \
+  [--build] [--log-level LEVEL]
 ```
 
 The command reads JSON files from `test.path`, defaulting to `tests/uptimely`
 relative to the project root. Absolute paths are also supported. The project
 directory and config options follow the same rules as `uptimely build`.
-Build first. The command uses the saved plan and bundled source, not live
-project source, and requires a build containing project source.
+The command uses the saved plan and bundled source, not live project source,
+and requires a build containing project source. Pass `--build` to publish a
+full project build using the selected configuration before testing. If that
+build fails, tests do not run and the previous test report remains unchanged.
 
 Name each file `<profile_id>.json`. Each top-level key is an operator ID, with
 one or more named `cases`. `inputs` maps dataframe argument names to rows.

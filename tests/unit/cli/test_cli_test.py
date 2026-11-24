@@ -5,7 +5,9 @@ import sys
 import pytest
 from support import examples as example_support
 
+from uptimely import application
 from uptimely.cli import cli
+from uptimely.test import runner
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -147,6 +149,54 @@ def test_test_command_uses_saved_source_and_preserves_run(
     assert len(report["cases"]) == 1
     assert "1 passed, 0 failed" in capsys.readouterr().out
     assert sentinel.read_text(encoding="utf-8") == "unchanged"
+
+
+def test_test_command_builds_before_running_cases(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    example_project_factory: example_support.ProjectFactory,
+) -> None:
+    project, case_path, suite = _case_project(tmp_path, example_project_factory)
+    source = project / "src" / "pump_analytics.py"
+    original = "getattr(pl.col(feature), method)().alias(rename.get(feature, feature))"
+    changed = "(getattr(pl.col(feature), method)() + 1.0).alias(rename.get(feature, feature))"
+    content = source.read_text(encoding="utf-8")
+    assert original in content
+    source.write_text(content.replace(original, changed), encoding="utf-8")
+    case = next(iter(suite.values()))["cases"]["basic"]
+    case["expected"]["return"][0]["bearing_temperature_series_max"] = 71.0
+    case_path.write_text(json.dumps(suite), encoding="utf-8")
+
+    invoke(monkeypatch, str(project), "--config", str(project / "case-config.toml"), "--build")
+
+    report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
+    assert report["status"] == "passed"
+    assert len(report["cases"]) == 1
+
+
+def test_test_command_does_not_run_after_build_failure(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    report = tmp_path / "artifacts" / "test" / "test.json"
+    report.parent.mkdir(parents=True)
+    report.write_text("previous report", encoding="utf-8")
+
+    def fail_build(self: application.Uptimely) -> application.BuildBundle:
+        raise application.ProjectBuildError("generation", "invalid source")
+
+    monkeypatch.setattr(application.Uptimely, "build", fail_build)
+    monkeypatch.setattr(
+        runner.TestRunner,
+        "run",
+        lambda *_args, **_kwargs: pytest.fail("Tests must not run after a failed build"),
+    )
+
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, str(tmp_path), "--build")
+
+    assert error.value.code == 1
+    assert "Project build generation failed: invalid source" in capsys.readouterr().err
+    assert report.read_text(encoding="utf-8") == "previous report"
 
 
 def test_test_command_saves_failures_and_continues(
