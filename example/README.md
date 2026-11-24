@@ -42,6 +42,7 @@ reading data or by transforming another profile.
 | `src/pump_merge.py` | Custom merge for external measurements. |
 | `src/pump_util.py` | Small helper used by the analytical functions. |
 | `spec/` | Dimensions, profile declarations, and the combined Python spec. |
+| `tests/uptimely/` | Provisional JSON input and expected output cases for non-I/O compute bindings. |
 | `uptimely.toml` | Project defaults, Engine settings, and configured input and output paths. |
 | `config/production.toml` | Production overrides for the project configuration. |
 | `artifacts/` | The active build, Explorer snapshot, and latest run metadata. |

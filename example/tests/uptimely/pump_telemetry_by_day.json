@@ -1,0 +1,10 @@
+{
+  "aggregate_telemetry": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"pump_id": "P1", "day": "2026-01-01T00:00:00Z", "bearing_temperature": 60.0}, {"pump_id": "P1", "day": "2026-01-01T00:00:00Z", "bearing_temperature": 70.0}]},
+        "expected": {"return": [{"pump_id": "P1", "day": "2026-01-01T00:00:00Z", "bearing_temperature_day_max": 70.0}]}
+      }
+    }
+  }
+}

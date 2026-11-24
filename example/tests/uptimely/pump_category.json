@@ -1,0 +1,10 @@
+{
+  "op-aggregate-bearing_temperature_category_max-c44c0486": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"machine_category_id": "C1", "bearing_temperature": 60.0}, {"machine_category_id": "C1", "bearing_temperature": 70.0}]},
+        "expected": {"return": [{"machine_category_id": "C1", "bearing_temperature_category_max": 70.0}]}
+      }
+    }
+  }
+}

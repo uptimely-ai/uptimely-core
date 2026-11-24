@@ -1,0 +1,14 @@
+{
+  "filter_warning": {
+    "cases": {
+      "basic": {
+        "inputs": {"dataset": [{"pump_id": "P1", "timestamp": "2026-01-01T10:00:00Z", "hour": "2026-01-01T10:00:00Z", "pump_mode": "warning", "differential_pressure": 4.0, "flow_rate": 10.0, "motor_power": 5.0, "bearing_temperature": 90.0, "vibration_rms": 3.0}]},
+        "expected": {"return": [{"pump_id": "P1", "timestamp": "2026-01-01T10:00:00Z", "hour": "2026-01-01T10:00:00Z", "pump_mode": "warning", "warning_differential_pressure": 4.0, "warning_flow_rate": 10.0, "warning_motor_power": 5.0, "warning_bearing_temperature": 90.0, "warning_vibration_rms": 3.0}]}
+      },
+      "no_warning": {
+        "inputs": {"dataset": [{"pump_id": "P1", "timestamp": "2026-01-01T10:00:00Z", "hour": "2026-01-01T10:00:00Z", "pump_mode": "operational", "differential_pressure": 4.0, "flow_rate": 10.0, "motor_power": 5.0, "bearing_temperature": 80.0, "vibration_rms": 3.0}]},
+        "expected": {"return": []}
+      }
+    }
+  }
+}
