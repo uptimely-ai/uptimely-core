@@ -1,5 +1,7 @@
 import json
+import os
 import pathlib
+import re
 import sys
 
 import polars as pl
@@ -7,8 +9,7 @@ import pytest
 from support import examples as example_support
 
 from uptimely import application
-from uptimely.cli import cli
-from uptimely.cli import project as cli_project
+from uptimely.cli import cli, test_display
 from uptimely.test import models, runner
 
 
@@ -243,6 +244,9 @@ def test_show_prints_all_case_inputs_and_expected_outputs(
     definition["cases"]["second"] = json.loads(json.dumps(case))
     definition["cases"]["second"]["expected"]["return"][0]["bearing_temperature_series_max"] = 66.0
     case_path.write_text(json.dumps(suite), encoding="utf-8")
+    monkeypatch.setattr(
+        test_display.shutil, "get_terminal_size", lambda **_: os.terminal_size((240, 24))
+    )
     args = (
         str(project),
         "--config",
@@ -263,26 +267,33 @@ def test_show_prints_all_case_inputs_and_expected_outputs(
     for case_id, fixture in definition["cases"].items():
         status = "failed" if mismatch and case_id == "basic" else "passed"
         section = output.split(f"Case: pump_series/{operator}/{case_id} ({status})\n", 1)[1]
-        inputs_text = section.split("Inputs:\n", 1)[1].split("Expected output:\n", 1)[0]
-        assert "dataset:" in inputs_text
-        assert "shape: (7, 2)" in inputs_text
-        assert "machine_series_id" in inputs_text
-        assert "bearing_temperature" in inputs_text
+        section = section.split("\nCase:", 1)[0]
+        assert "Input: dataset:" in section
+        assert "Expected output:" in section
+        assert "shape:" not in section
+        assert "machine_series_id" in section
+        assert "bearing_temperature" in section
         for row in fixture["inputs"]["dataset"]:
-            assert str(row["bearing_temperature"]) in inputs_text
-        expected_text = section.split("Expected output:\n", 1)[1].split("\nCase:", 1)[0]
-        assert "shape: (1, 2)" in expected_text
-        assert "bearing_temperature_series_max" in expected_text
-        assert (
-            str(fixture["expected"]["return"][0]["bearing_temperature_series_max"]) in expected_text
-        )
+            assert str(row["bearing_temperature"]) in section
+        assert "bearing_temperature_series_max" in section
+        assert str(fixture["expected"]["return"][0]["bearing_temperature_series_max"]) in section
+        if status == "failed":
+            assert "Actual output:" in section
+            assert "! 99.0" in section
+            assert "! 66.0" in section
+        else:
+            assert "Actual output:" not in section
 
     report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
     assert report["status"] == ("failed" if mismatch else "passed")
-    assert all("inputs" not in item and "expected" not in item for item in report["cases"])
+    assert all(
+        "inputs" not in item and "expected" not in item and "actual" not in item
+        for item in report["cases"]
+    )
 
 
 def test_show_displays_multiple_inputs_and_empty_output_without_truncation(
+    monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
 ) -> None:
     long_value = "x" * 100
@@ -297,15 +308,140 @@ def test_show_displays_multiple_inputs_and_empty_output_without_truncation(
     )
     result = models.CaseResult(profile="p", operator="o", case="c", status="passed")
 
+    monkeypatch.setattr(
+        test_display.shutil, "get_terminal_size", lambda **_: os.terminal_size((200, 24))
+    )
     with pl.Config(tbl_cols=1, tbl_rows=1, fmt_str_lengths=5):
-        cli_project._show_case(result, case)
+        test_display.show_case(result, case, None)
 
     output = capsys.readouterr().out
-    assert "first:\nshape: (1, 2)" in output
-    assert "second:\nshape: (1, 1)" in output
+    assert "Input: first:" in output
+    assert "Input: second:" in output
     assert long_value in output
     assert "[0, 1, 2, 3, 4, 5, 6, 7]" in output
-    assert "Expected output:\nshape: (0, 0)" in output
+    assert "Expected output:\n(no rows)" in output
+
+
+def test_show_wide_data_wraps_without_losing_values(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    value = "x" * 100
+    case = models.Case.model_validate(
+        {
+            "inputs": {"dataset": [{"long_column_name": value, "other": "å\nvalue"}]},
+            "expected": {"return": [{"long_column_name": value}]},
+        }
+    )
+    result = models.CaseResult(profile="p", operator="o", case="c", status="passed")
+    monkeypatch.setattr(
+        test_display.shutil, "get_terminal_size", lambda **_: os.terminal_size((40, 24))
+    )
+
+    test_display.show_case(result, case, None)
+
+    output = capsys.readouterr().out
+    assert all(len(line) <= 40 for line in output.splitlines())
+    assert "Row 1" not in output
+    assert output.count("row |") >= 2
+    assert "".join(re.findall(r"x{2,}", output)) == value * 2
+    assert r"\u00e5\nvalue" in output
+
+
+def test_show_places_input_and_expected_side_by_side_when_they_fit(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    case = models.Case.model_validate(
+        {
+            "inputs": {"dataset": [{"x": 1}, {"x": 3}, {"x": 2}]},
+            "expected": {"return": [{"max": 3}]},
+        }
+    )
+    result = models.CaseResult(profile="p", operator="o", case="c", status="passed")
+    monkeypatch.setattr(
+        test_display.shutil, "get_terminal_size", lambda **_: os.terminal_size((80, 24))
+    )
+
+    test_display.show_case(result, case, None)
+
+    lines = capsys.readouterr().out.splitlines()
+    assert any("independent row sets" in line for line in lines)
+    assert any("Input: dataset:" in line and "Expected output:" in line for line in lines)
+    assert any(line.startswith("3 ") for line in lines)
+
+
+def test_show_wide_tables_split_columns_and_repeat_rows(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    case = models.Case.model_validate(
+        {
+            "inputs": {
+                "dataset": [
+                    {"first_column": "a", "second_column": 1, "third_column": 11},
+                    {"first_column": "b", "second_column": 2, "third_column": 22},
+                ]
+            },
+            "expected": {"return": []},
+        }
+    )
+    result = models.CaseResult(profile="p", operator="o", case="c", status="passed")
+    monkeypatch.setattr(
+        test_display.shutil, "get_terminal_size", lambda **_: os.terminal_size((30, 24))
+    )
+
+    test_display.show_case(result, case, None)
+
+    lines = capsys.readouterr().out.splitlines()
+    assert all(len(line) <= 30 for line in lines)
+    assert sum(line.startswith("row |") for line in lines) >= 2
+    assert sum(line.startswith("1   |") for line in lines) >= 2
+    assert sum(line.startswith("2   |") for line in lines) >= 2
+    assert all(any(name in line for line in lines) for name in case.inputs["dataset"][0])
+
+
+def test_show_marks_differences_using_comparison_tolerance(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    case = models.Case.model_validate(
+        {
+            "inputs": {"dataset": [{"x": 1}]},
+            "expected": {"return": [{"close": 1.0, "different": 3.0, "missing": 8}]},
+        }
+    )
+    actual = pl.DataFrame({"close": [1.000001], "different": [4.0], "extra": [9]})
+    result = models.CaseResult(profile="p", operator="o", case="c", status="failed")
+    monkeypatch.setattr(
+        test_display.shutil, "get_terminal_size", lambda **_: os.terminal_size((120, 24))
+    )
+
+    test_display.show_case(result, case, actual)
+
+    output = capsys.readouterr().out
+    comparison = output.split("Comparison", 1)[1]
+    assert "! 3.0" in comparison
+    assert "! 4.0" in comparison
+    assert "! 8" in comparison
+    assert "! 9" in comparison
+    assert "! 1.0" not in comparison
+    assert all(len(line) <= 120 for line in output.splitlines())
+
+
+def test_show_marks_unexpected_rows(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    case = models.Case.model_validate(
+        {"inputs": {"dataset": [{"x": 1}]}, "expected": {"return": []}}
+    )
+    result = models.CaseResult(profile="p", operator="o", case="c", status="failed")
+    monkeypatch.setattr(
+        test_display.shutil, "get_terminal_size", lambda **_: os.terminal_size((80, 24))
+    )
+
+    test_display.show_case(result, case, pl.DataFrame({"x": [1, 2]}))
+
+    comparison = capsys.readouterr().out.split("Comparison", 1)[1]
+    assert "(no rows)" in comparison
+    assert "! 1" in comparison
+    assert "! 2" in comparison
 
 
 def test_show_reports_unrenderable_input_and_continues(
@@ -319,6 +455,9 @@ def test_show_reports_unrenderable_input_and_continues(
     cases["second"] = json.loads(json.dumps(cases["basic"]))
     cases["basic"]["inputs"]["dataset"][1]["bearing_temperature"] = [1, 2]
     case_path.write_text(json.dumps(suite), encoding="utf-8")
+    monkeypatch.setattr(
+        test_display.shutil, "get_terminal_size", lambda **_: os.terminal_size((200, 24))
+    )
 
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch, str(project), "--config", str(project / "case-config.toml"), "--show")

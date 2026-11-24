@@ -71,8 +71,15 @@ and requires a build containing project source. Pass `--build` to publish a
 full project build using the selected configuration before testing. If that
 build fails, tests do not run and the previous test report remains unchanged.
 Pass `--show` to print all input rows and expected output rows as dataframes for
-each case, including failed cases. Actual output is compared but not printed.
-This output is independent of the log level and may contain sensitive fixture data.
+each case, including failed cases. Tables appear side by side when they fit and
+stack otherwise. Wide tables are split into column panels with row numbers
+repeated for each panel. Long column names and values wrap within their cells.
+For mismatches, the expected and actual output are also compared with `!`
+marking differing or missing values. Comparison follows the same row order and
+floating-point tolerance as the test. The side-by-side input and output display
+does not imply that rows correspond. Strings and control characters are shown
+using JSON escapes. Output is independent of the log level and may contain
+sensitive fixture or actual data.
 
 Name each file `<profile_id>.json`. Each top-level key is an operator ID, with
 one or more named `cases`. `inputs` maps dataframe argument names to rows.
