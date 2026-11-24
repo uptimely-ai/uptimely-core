@@ -46,6 +46,7 @@ Thumbs.db
 
 *.html
 artifacts/*.html
+artifacts/.build.lock
 example/artifacts/output/
 *Identifier
 
