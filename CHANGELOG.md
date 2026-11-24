@@ -23,6 +23,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Discovered Python specs use a top-level `spec` variable instead of
+  `python_spec`.
 - Python `Bind` arguments use `ref.input()` and `ref.output()` instead of
   `Feature` instances for feature references.
 - Python bindings use `ref.input()` for input feature references. Input inference

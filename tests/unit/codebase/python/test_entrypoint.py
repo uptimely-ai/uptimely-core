@@ -79,11 +79,11 @@ def test_entrypoint_from_path_uses_dotted_module_path(tmp_path: pathlib.Path) ->
     entrypoint = shared_entrypoint.Entrypoint.from_path(
         tmp_path / "project" / "spec.py",
         tmp_path,
-        "python_spec",
+        "spec",
     )
 
     assert entrypoint.module.location == "project.spec"
-    assert entrypoint.function.name == "python_spec"
+    assert entrypoint.function.name == "spec"
 
 
 def test_entrypoint_formats_module_and_function_names() -> None:

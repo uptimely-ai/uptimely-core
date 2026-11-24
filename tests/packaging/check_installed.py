@@ -106,9 +106,7 @@ class InstalledImportsTest(unittest.TestCase):
 
     def test_installed_project_builds_and_executes_in_separate_processes(self) -> None:
         project = self.root / "project"
-        self.command(
-            "build", str(project), "--python-spec", "installed_analytics.declaration:python_spec"
-        )
+        self.command("build", str(project), "--python-spec", "installed_analytics.declaration:spec")
         build = project / "artifacts" / "build"
         plan = json.loads((build / "plan.json").read_text(encoding="utf-8"))
         self.assertEqual(
@@ -155,9 +153,7 @@ class InstalledImportsTest(unittest.TestCase):
 
     def test_missing_runtime_dependency_is_deferred_but_not_hidden(self) -> None:
         project = self.root / "project"
-        self.command(
-            "build", str(project), "--python-spec", "installed_analytics.declaration:python_spec"
-        )
+        self.command("build", str(project), "--python-spec", "installed_analytics.declaration:spec")
         build = project / "artifacts" / "build"
         source = json.loads((build / "spec.json").read_text(encoding="utf-8"))
         function = next(iter(source["functions"].values()))

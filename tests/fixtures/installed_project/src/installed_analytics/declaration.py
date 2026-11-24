@@ -34,4 +34,4 @@ class Values(Profile):
     ]
 
 
-python_spec = Spec(profiles=[Values], name="Installed analytics")
+spec = Spec(profiles=[Values], name="Installed analytics")

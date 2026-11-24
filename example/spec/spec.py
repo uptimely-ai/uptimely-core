@@ -13,7 +13,7 @@ from .profiles.pump_telemetry_by_hour_when_warning import PumpTelemetryByHourWhe
 from .profiles.pump_telemetry_by_minute import PumpTelemetryByMinute
 from .profiles.pump_telemetry_when_warning import PumpTelemetryWhenWarning
 
-python_spec = Spec(
+spec = Spec(
     profiles=[
         PumpTelemetry,
         Pump,

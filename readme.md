@@ -194,7 +194,7 @@ class MyAnalyticalProfile(Profile):
     ]
 
 
-python_spec = Spec(
+spec = Spec(
     profiles=[MyAnalyticalProfile],
     name="Analytics Specification",
 )
