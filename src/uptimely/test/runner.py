@@ -30,8 +30,13 @@ class TestRunner:
         """Bind the runner to a configured project."""
         self.app = app
 
-    def run(self) -> models.TestReport:
+    def run(
+        self, *, on_case: abc.Callable[[models.CaseResult, models.Case], None] | None = None
+    ) -> models.TestReport:
         """Execute all cases and atomically save the latest report.
+
+        Args:
+            on_case: Optional callback receiving each outcome and its case data.
 
         Returns:
             The completed report, including individual failures.
@@ -64,9 +69,12 @@ class TestRunner:
                     bundle.root, bundle.source_path, reserved_modules=("uptimely",)
                 ).expose():
                     for profile, operator, case_id, invocation, case in cases:
-                        report.cases.append(
-                            self._run_case(profile, operator, case_id, invocation, case, entries)
+                        result = self._run_case(
+                            profile, operator, case_id, invocation, case, entries
                         )
+                        report.cases.append(result)
+                        if on_case is not None:
+                            on_case(result, case)
                 report.status = (
                     "passed" if all(case.status == "passed" for case in report.cases) else "failed"
                 )

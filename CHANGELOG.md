@@ -15,6 +15,7 @@ While the version is `0.x`, minor releases may include breaking changes.
   Use `--build` to build first.
 - The example project includes provisional input and expected-output cases for
   non-I/O operator compute bindings.
+- `uptimely test --show` prints the input and expected output dataframes for each case.
 
 ## [0.12.0] - 2026-11-24
 

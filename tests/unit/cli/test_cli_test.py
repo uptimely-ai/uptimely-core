@@ -2,12 +2,14 @@ import json
 import pathlib
 import sys
 
+import polars as pl
 import pytest
 from support import examples as example_support
 
 from uptimely import application
 from uptimely.cli import cli
-from uptimely.test import runner
+from uptimely.cli import project as cli_project
+from uptimely.test import models, runner
 
 
 def invoke(monkeypatch: pytest.MonkeyPatch, *arguments: str) -> None:
@@ -147,7 +149,9 @@ def test_test_command_uses_saved_source_and_preserves_run(
     assert report["status"] == "passed"
     assert report["build"]["fingerprint"]
     assert len(report["cases"]) == 1
-    assert "1 passed, 0 failed" in capsys.readouterr().out
+    output = capsys.readouterr().out
+    assert "1 passed, 0 failed" in output
+    assert "Inputs:" not in output
     assert sentinel.read_text(encoding="utf-8") == "unchanged"
 
 
@@ -219,6 +223,112 @@ def test_test_command_saves_failures_and_continues(
     assert report["status"] == "failed"
     assert [case["status"] for case in report["cases"]] == ["failed", "passed"]
     assert "does not match expected" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("mismatch", [False, True])
+def test_show_prints_all_case_inputs_and_expected_outputs(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    example_project_factory: example_support.ProjectFactory,
+    mismatch: bool,
+) -> None:
+    project, case_path, suite = _case_project(tmp_path, example_project_factory)
+    operator, definition = next(iter(suite.items()))
+    case = definition["cases"]["basic"]
+    case["inputs"]["dataset"] = [
+        {"machine_series_id": "S1", "bearing_temperature": float(value)} for value in range(60, 67)
+    ]
+    case["expected"]["return"][0]["bearing_temperature_series_max"] = 99.0 if mismatch else 66.0
+    definition["cases"]["second"] = json.loads(json.dumps(case))
+    definition["cases"]["second"]["expected"]["return"][0]["bearing_temperature_series_max"] = 66.0
+    case_path.write_text(json.dumps(suite), encoding="utf-8")
+    args = (
+        str(project),
+        "--config",
+        str(project / "case-config.toml"),
+        "--show",
+        "--log-level",
+        "warning",
+    )
+
+    if mismatch:
+        with pytest.raises(SystemExit) as error:
+            invoke(monkeypatch, *args)
+        assert error.value.code == 1
+    else:
+        invoke(monkeypatch, *args)
+
+    output = capsys.readouterr().out
+    for case_id, fixture in definition["cases"].items():
+        status = "failed" if mismatch and case_id == "basic" else "passed"
+        section = output.split(f"Case: pump_series/{operator}/{case_id} ({status})\n", 1)[1]
+        inputs_text = section.split("Inputs:\n", 1)[1].split("Expected output:\n", 1)[0]
+        assert "dataset:" in inputs_text
+        assert "shape: (7, 2)" in inputs_text
+        assert "machine_series_id" in inputs_text
+        assert "bearing_temperature" in inputs_text
+        for row in fixture["inputs"]["dataset"]:
+            assert str(row["bearing_temperature"]) in inputs_text
+        expected_text = section.split("Expected output:\n", 1)[1].split("\nCase:", 1)[0]
+        assert "shape: (1, 2)" in expected_text
+        assert "bearing_temperature_series_max" in expected_text
+        assert (
+            str(fixture["expected"]["return"][0]["bearing_temperature_series_max"]) in expected_text
+        )
+
+    report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
+    assert report["status"] == ("failed" if mismatch else "passed")
+    assert all("inputs" not in item and "expected" not in item for item in report["cases"])
+
+
+def test_show_displays_multiple_inputs_and_empty_output_without_truncation(
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    long_value = "x" * 100
+    case = models.Case.model_validate(
+        {
+            "inputs": {
+                "first": [{"name": long_value, "values": list(range(8))}],
+                "second": [{"value": "second"}],
+            },
+            "expected": {"return": []},
+        }
+    )
+    result = models.CaseResult(profile="p", operator="o", case="c", status="passed")
+
+    with pl.Config(tbl_cols=1, tbl_rows=1, fmt_str_lengths=5):
+        cli_project._show_case(result, case)
+
+    output = capsys.readouterr().out
+    assert "first:\nshape: (1, 2)" in output
+    assert "second:\nshape: (1, 1)" in output
+    assert long_value in output
+    assert "[0, 1, 2, 3, 4, 5, 6, 7]" in output
+    assert "Expected output:\nshape: (0, 0)" in output
+
+
+def test_show_reports_unrenderable_input_and_continues(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+    example_project_factory: example_support.ProjectFactory,
+) -> None:
+    project, case_path, suite = _case_project(tmp_path, example_project_factory)
+    cases = next(iter(suite.values()))["cases"]
+    cases["second"] = json.loads(json.dumps(cases["basic"]))
+    cases["basic"]["inputs"]["dataset"][1]["bearing_temperature"] = [1, 2]
+    case_path.write_text(json.dumps(suite), encoding="utf-8")
+
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, str(project), "--config", str(project / "case-config.toml"), "--show")
+
+    assert error.value.code == 1
+    output = capsys.readouterr().out
+    assert "Cannot display dataframe:" in output
+    assert "/second (passed)" in output
+    report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
+    assert [case["status"] for case in report["cases"]] == ["error", "passed"]
 
 
 @pytest.mark.parametrize(
