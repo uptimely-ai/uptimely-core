@@ -10,6 +10,7 @@ import pydantic
 
 from uptimely.engine import config as engine_config
 from uptimely.project import config as project_config
+from uptimely.project import defaults as project_defaults
 
 
 class Params(pydantic.RootModel[dict[str, typing.Any]]):
@@ -78,6 +79,14 @@ class PythonCodeSettings(project_config.CodeSettings):
     language: typing.Literal["python"] = "python"
 
 
+class TestSettings(pydantic.BaseModel):
+    """Settings for project tests."""
+
+    model_config = pydantic.ConfigDict(extra="forbid", frozen=True, strict=True)
+
+    path: str = pydantic.Field(default=project_defaults.DEFAULT_TEST_PATH, min_length=1)
+
+
 class ProjectConfig(pydantic.BaseModel):
     """Project configuration with settings for individual components."""
 
@@ -88,6 +97,7 @@ class ProjectConfig(pydantic.BaseModel):
     params: Params = pydantic.Field(default_factory=lambda: Params(root={}))
     paths: Paths = pydantic.Field(default_factory=lambda: Paths(root={}))
     code: PythonCodeSettings = pydantic.Field(default_factory=PythonCodeSettings)
+    test: TestSettings = pydantic.Field(default_factory=TestSettings)
 
     @pydantic.model_validator(mode="before")
     @classmethod

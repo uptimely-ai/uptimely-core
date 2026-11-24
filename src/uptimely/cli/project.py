@@ -41,6 +41,28 @@ def configure_build_parser(parser: argparse.ArgumentParser) -> None:
     common.configure_log_level_argument(parser)
 
 
+def configure_test_parser(parser: argparse.ArgumentParser) -> None:
+    """Configure the project test command."""
+    common.configure_project_root_arguments(
+        parser,
+        option_help="Root for resolving the test folder",
+    )
+    common.configure_project_config_argument(parser)
+
+
+def run_test(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
+    """Check the configured test folder."""
+    root = common.resolve_project_root(args, parser)
+    try:
+        app = common.create_project(root, args.config)
+        test_path = app.config.test.path
+        if not (app.root / test_path).is_dir():
+            raise FileNotFoundError(f"Configured test folder {test_path} not found")
+        raise NotImplementedError("Folder found, not implemented")
+    except (OSError, ValueError, NotImplementedError) as error:
+        common.exit_with_error(parser, error)
+
+
 def _log_build_details(
     bundle: BuildBundle,
     duration: float,

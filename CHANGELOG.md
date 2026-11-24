@@ -8,6 +8,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Added
+
+- `uptimely test` checks a configurable project test folder, defaulting to
+  `tests/uptimely`. Test execution is not yet implemented.
+
 ## [0.12.0] - 2026-11-24
 
 ### Added
