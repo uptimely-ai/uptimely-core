@@ -47,6 +47,7 @@ const VIEWS = {
   profiles: catalog("profiles", true),
   dimensions: catalog("dimensions"),
   functions: catalog("functions", true),
+  signatures: catalog("signatures"),
   stages: catalog("stages"),
   lineage: {
     stylesheet: "lineage", lineageStyle: "feature_style",

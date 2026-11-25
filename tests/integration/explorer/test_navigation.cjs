@@ -134,7 +134,7 @@ test("preserves migrated hash bookmarks and reports missing, incompatible or unk
 
 test("internal navigation reuses the document, snapshot and libraries while remounting views", async () => {
   const app = await boot();
-  for (const view of ["features", "functions", "animation", "lineage", "topology", "home", "functions", "animation"]) {
+  for (const view of ["features", "functions", "signatures", "animation", "lineage", "topology", "home", "functions", "animation"]) {
     assert.equal(await app.click(`?view=${view}`), true);
     assert.equal(new URL(app.location.href).searchParams.get("view"), view);
     assert.match(app.body.innerHTML, new RegExp(`href="\\?view=${view}"`));

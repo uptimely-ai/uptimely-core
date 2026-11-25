@@ -916,7 +916,7 @@ test("feature lineage uses distinct feature and operator icons beside dimension 
     graphs: { feature_lineage: { nodes: [], links: [] }, feature_style: {} },
   }, false);
   assert.match(context, /class="lineage-control-groups">[\s\S]*data-dimension="3d"[\s\S]*class="ui-button lineage-operator-toggle"/);
-  assert.match(context, /class="lineage-legend-item"><i[^>]*data-lucide="variable" aria-hidden="true"><\/i><span>Feature<\/span>/);
+  assert.match(context, /class="lineage-legend-item"><i[^>]*data-lucide="hash" aria-hidden="true"><\/i><span>Feature<\/span>/);
   assert.match(context, /id="operator-legend"><i[^>]*data-lucide="sigma" aria-hidden="true"><\/i><span>Operator<\/span>/);
   assert.match(context, /<button class="ui-button lineage-operator-toggle" id="show-operators" type="button" aria-label="Show operators" title="Show operators" aria-pressed="true" aria-controls="lineage"><i[^>]*data-lucide="sigma" aria-hidden="true"><\/i><\/button>/);
   assert.doesNotMatch(context, /type="checkbox"|>Show operators</);
@@ -1143,7 +1143,8 @@ test("main menu preserves link order and marks only the current page active", ()
   const routes = groups.map(([, content]) => [...content.matchAll(/href="\?view=([^"]+)"/g)]
     .map(([, route]) => route));
   assert.deepEqual(routes, [
-    ["profiles", "features", "functions", "dimensions", "lineage"],
+    ["profiles", "features", "signatures", "dimensions", "lineage"],
+    ["functions"],
     ["test-info", "test-cases"],
     ["plan", "topology", "stages"],
     ["info", "logs", "preview", "animation"],
