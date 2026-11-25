@@ -1,4 +1,7 @@
-import { badge, contextGroup, contextHeader, contextLink, escape, heading, icon, page, typedName } from "./rendering/shared_markup.js";
+import {
+  badge, contextGroup, contextHeader, contextLink, escape, formatTimestamp, heading, icon, page,
+  typedName,
+} from "./rendering/shared_markup.js";
 
 const LOG_PAGE_SIZE = 1000;
 async function responseData(fetchData, url) {
@@ -124,27 +127,69 @@ export function testInfoPage(test) {
         <p>Run <code>uptimely test</code> to save test results.</p></section>`),
     };
   }
-  const counts = (test.cases || []).reduce((result, item) => {
+  const cases = test.cases || [];
+  const counts = cases.reduce((result, item) => {
     result[item.status] = (result[item.status] || 0) + 1;
     return result;
   }, {});
+  const totalCases = cases.length;
+  const statuses = [
+    ["passed", "Passed"],
+    ["failed", "Failed"],
+    ["error", "Errors"],
+  ];
+  const resultDescription = totalCases
+    ? `${counts.passed || 0} passed, ${counts.failed || 0} failed, ${counts.error || 0} error${counts.error === 1 ? "" : "s"}`
+    : "No test cases";
+  const results = `<section class="engine-test-results" aria-label="Test case results">
+    <h2 class="ui-section-title">Summary</h2>
+    <div class="engine-test-summary">
+      <div class="engine-test-summary-total"><span>Total cases</span><strong>${totalCases}</strong></div>
+      <div class="engine-test-progress" role="img"
+        aria-label="${escape(resultDescription)}">
+        ${statuses.filter(([status]) => (counts[status] || 0) > 0).map(([status]) =>
+          `<span class="engine-test-progress-${status}" style="flex-grow:${counts[status]}"></span>`).join("")}
+      </div>
+      <ul class="engine-test-legend">${statuses.map(([status, label]) => `<li>
+        <span class="engine-test-legend-label"><i class="engine-test-legend-${status}" aria-hidden="true"></i>${label}</span>
+        <strong>${counts[status] || 0}</strong>
+      </li>`).join("")}</ul>
+    </div>
+  </section>`;
   const duration = test.started_at && test.finished_at
     ? (new Date(test.finished_at) - new Date(test.started_at)) / 1000 : NaN;
-  const details = `<dl class="engine-fields">
-    ${field("Status", test.status)}${field("Started", test.started_at)}
-    ${field("Finished", test.finished_at)}
-    ${field("Duration", Number.isFinite(duration) && duration >= 0 ? `${duration.toFixed(3)} s` : null)}
-    ${field("Cases", test.cases.length)}
-    ${field("Passed", counts.passed || 0)}${field("Failed", counts.failed || 0)}
-    ${field("Errors", counts.error || 0)}${field("Report version", test.version)}
-    ${field("Build fingerprint", test.build?.fingerprint)}
-    ${field("Built feature scope", test.build ? test.build.manifest?.features?.join(", ") || "All features" : null)}
-    </dl>${test.error ? `<p class="engine-error-text">${escape(test.error)}</p>` : ""}`;
+  const durationText = Number.isFinite(duration) && duration >= 0 ? `${duration.toFixed(3)} s` : "—";
+  const timelineTime = value => value
+    ? `<time datetime="${escape(value)}">${escape(formatTimestamp(value))}</time>` : "<span>—</span>";
+  const timeline = `<section class="engine-test-timing">
+    <h2 class="ui-section-title">Timeline</h2>
+    <div class="engine-test-timeline" role="group" aria-label="Test timing">
+      <div class="engine-test-timeline-event">
+        <span class="engine-test-timeline-label">Started</span>${timelineTime(test.started_at)}
+      </div>
+      <div class="engine-test-timeline-duration">
+        <span>Duration</span><strong>${escape(durationText)}</strong>
+      </div>
+      <div class="engine-test-timeline-event">
+        <span class="engine-test-timeline-label">Finished</span>${timelineTime(test.finished_at)}
+      </div>
+    </div>
+  </section>`;
+  const additionalDetails = `<section class="engine-test-additional-details" aria-label="Details">
+    <h2 class="ui-section-title">Details</h2>
+    <dl class="engine-fields">
+      ${field("Report version", test.version)}
+      ${field("Build fingerprint", test.build?.fingerprint)}
+      ${field("Built feature scope", test.build ? test.build.manifest?.features?.join(", ") || "All features" : null)}
+    </dl>
+  </section>`;
+  const details = `${results}${timeline}${additionalDetails}`
+    + (test.error ? `<p class="engine-error-text">${escape(test.error)}</p>` : "");
   return {
     context: "",
     content: page(heading("Info", "Information about the latest saved test.") +
       `<section class="engine-run-banner engine-status-${escape(test.status)}">
-        <span>Latest test</span><strong>${escape(test.status)}</strong></section>${panel("Test details", details)}`),
+        <span>Latest test</span><strong>${escape(test.status)}</strong></section>${details}`),
   };
 }
 

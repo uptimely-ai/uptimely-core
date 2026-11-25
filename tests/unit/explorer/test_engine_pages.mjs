@@ -27,9 +27,9 @@ const preview = {
   rows: [[12.5], [null], ["<script>"]],
 };
 
-test("test pages group cases by operator within each selectable profile", () => {
+test("test info formats timestamps and summarizes outcomes in one status bar", async () => {
   const report = {
-    status: "failed", version: 1, started_at: "2026-11-25T00:00:00Z", finished_at: null,
+    status: "failed", version: 1, started_at: "2026-11-25T00:00:00Z", finished_at: "2026-11-25T00:01:02Z",
     build: { fingerprint: "build-1", manifest: { features: ["temperature"] } },
     cases: [
       { profile: "first", operator: "aggregate", case: "good", status: "passed",
@@ -44,8 +44,44 @@ test("test pages group cases by operator within each selectable profile", () => 
   const info = testInfoPage(report).content;
   assert.match(info, /build-1/);
   assert.match(info, /temperature/);
-  assert.match(info, /<dt>Passed<\/dt><dd>1<\/dd>/);
-  assert.match(info, /<dt>Failed<\/dt><dd>1<\/dd>/);
+  assert.match(info, /<section class="engine-test-results" aria-label="Test case results">\s*<h2 class="ui-section-title">Summary<\/h2>\s*<div class="engine-test-summary">/);
+  assert.match(info, /<span>Total cases<\/span><strong>3<\/strong>/);
+  assert.match(info, /class="engine-test-progress" role="img"\s+aria-label="1 passed, 1 failed, 1 error"/);
+  for (const status of ["passed", "failed", "error"]) {
+    assert.match(info, new RegExp(`engine-test-progress-${status}`));
+    assert.match(info, new RegExp(`engine-test-legend-${status}`));
+  }
+  assert.match(info, /engine-test-legend-passed" aria-hidden="true"><\/i>Passed<\/span>\s*<strong>1<\/strong>/);
+  assert.match(info, /engine-test-legend-failed" aria-hidden="true"><\/i>Failed<\/span>\s*<strong>1<\/strong>/);
+  assert.match(info, /engine-test-legend-error" aria-hidden="true"><\/i>Errors<\/span>\s*<strong>1<\/strong>/);
+  const timeline = info.match(/<section class="engine-test-timing">\s*<h2 class="ui-section-title">Timeline<\/h2>[\s\S]*?<section class="engine-test-additional-details"/)[0];
+  assert.match(timeline, /class="engine-test-timeline-label">Started<\/span><time datetime="[^"]+">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
+  assert.match(timeline, /class="engine-test-timeline-duration">[\s\S]*?<span>Duration<\/span><strong>62\.000 s<\/strong>/);
+  assert.match(timeline, /class="engine-test-timeline-label">Finished<\/span><time datetime="[^"]+">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
+  assert.match(info, /<section class="engine-test-additional-details" aria-label="Details">\s*<h2 class="ui-section-title">Details<\/h2>\s*<dl class="engine-fields">[\s\S]*?Report version[\s\S]*?Build fingerprint[\s\S]*?Built feature scope[\s\S]*?<\/dl>\s*<\/section>/);
+  assert.doesNotMatch(info, /<dt>Status<\/dt>|<dt>Passed<\/dt>|<dt>Failed<\/dt>|<dt>Errors<\/dt>/);
+  const engineCss = await readFile(new URL("../css/engine.css", root), "utf8");
+  assert.match(engineCss, /\.engine-test-results\s*\{[^}]*margin:\s*20px 0 16px/);
+  for (const status of ["passed", "failed", "error"]) {
+    assert.match(engineCss, new RegExp(`\\.engine-test-progress-${status}[^}]*background:`));
+  }
+});
+
+test("test pages group cases by operator within each selectable profile", () => {
+  const report = {
+    status: "failed", version: 1, started_at: "2026-11-25T00:00:00Z", finished_at: null,
+    build: { fingerprint: "build-1", manifest: { features: ["temperature"] } },
+    cases: [
+      { profile: "first", operator: "aggregate", case: "good", status: "passed",
+        data: { inputs: { dataset: [{ value: "<unsafe>" }] }, expected: { return: [{ value: 1 }] } },
+        actual: [{ value: 1.000001 }] },
+      { profile: "first", operator: "aggregate", case: "bad", status: "failed",
+        message: "Mismatch", data: { inputs: { dataset: [{ value: 2 }] }, expected: { return: [{ value: 3 }] } },
+        actual: [{ value: 4 }] },
+      { profile: "second", operator: "other", case: "old", status: "error", data: null },
+    ],
+  };
+
   const { context, content } = testCasesPage(data, report);
   assert.match(context, /Pump readings/);
   assert.match(context, /Daily totals/);

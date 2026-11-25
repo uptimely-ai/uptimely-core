@@ -1,4 +1,6 @@
-import { contextHeader, distribution, escape, heading, href, icon, page } from "./shared_markup.js";
+import {
+  contextHeader, distribution, escape, formatTimestamp, heading, href, icon, page,
+} from "./shared_markup.js";
 import { UNASSIGNED_DATASET } from "../lineage/lineage_config.js";
 
 export function dashboard(data, { run = null, test = null } = {}) {
@@ -41,16 +43,8 @@ export function dashboard(data, { run = null, test = null } = {}) {
     : '<span class="ui-badge">Not run</span>';
   const runStatus = run ? statusIndicator(run.status, runTone)
     : '<span class="ui-badge">Not run</span>';
-  const formattedTime = value => {
-    if (!value) return "—";
-    const date = new Date(value);
-    if (Number.isNaN(date.getTime())) return String(value);
-    const pad = number => String(number).padStart(2, "0");
-    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
-      + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
-  };
   const time = value => value
-    ? `<time datetime="${escape(value)}">${escape(formattedTime(value))}</time>` : "—";
+    ? `<time datetime="${escape(value)}">${escape(formatTimestamp(value))}</time>` : "—";
   const latest = value => `<p class="dashboard-result-meta">${time(value)}</p>`;
   const elapsed = (started, finished) => {
     const duration = (new Date(finished) - new Date(started)) / 1000;
@@ -118,8 +112,8 @@ export function dashboard(data, { run = null, test = null } = {}) {
           <h2>Test</h2>${latest(test?.finished_at || test?.started_at)}</div>${testStatus}</div>
         ${test ? `${statistics(testMetrics, "Latest test results", "dashboard-result-stats--test")}${testProgress}
           ${details("test", [
-            ["Started", formattedTime(test.started_at)],
-            ["Finished", formattedTime(test.finished_at)],
+            ["Started", formatTimestamp(test.started_at)],
+            ["Finished", formatTimestamp(test.finished_at)],
             ["Duration", testDuration],
             ["Build fingerprint", test.build?.fingerprint || "—"],
             ...(test.error ? [["Error", test.error]] : []),
@@ -131,8 +125,8 @@ export function dashboard(data, { run = null, test = null } = {}) {
           <h2>Run</h2>${latest(run?.finished_at || run?.started_at)}</div>${runStatus}</div>
         ${run ? `${statistics(runMetrics, "Latest run results")}${details("run", [
           ["Run ID", run.run_id],
-          ["Started", formattedTime(run.started_at)],
-          ["Finished", formattedTime(run.finished_at)],
+          ["Started", formatTimestamp(run.started_at)],
+          ["Finished", formatTimestamp(run.finished_at)],
           ["Duration", `${run.duration_seconds.toFixed(3)} s`],
           ["Uptimely version", run.uptimely_version],
           ["Runtime validation", run.runtime_validation ? "Enabled" : "Disabled"],

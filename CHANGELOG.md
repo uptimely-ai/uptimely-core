@@ -31,6 +31,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Explorer Test Info presents timing in a timeline, case results in a color-coded bar with counts, and always-visible report and build details.
 - Explorer highlights output columns absent from test case inputs.
 - The example project's operators have descriptive IDs in Explorer and test cases.
 
