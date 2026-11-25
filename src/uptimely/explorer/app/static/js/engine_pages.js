@@ -59,6 +59,31 @@ export async function loadTest(fetchData, configuration = {}) {
   return responseData(fetchData, configuration.testDataUrl || "/api/test");
 }
 
+export async function loadTestCases(fetchData, configuration = {}) {
+  const report = await loadTest(fetchData, configuration);
+  if (!report || report.version < 4) return report;
+  const profiles = [...new Set(report.cases.map(item => item.profile))];
+  const files = await Promise.all(profiles.map(async profile => {
+    const url = configuration.testDataUrl
+      ? `${configuration.testCasesUrl}/${encodeURIComponent(profile)}.json`
+      : `/api/test/cases/${encodeURIComponent(profile)}?${new URLSearchParams({ started_at: report.started_at })}`;
+    return [profile, await responseData(fetchData, url)];
+  }));
+  const suites = new Map(files);
+  return {
+    ...report,
+    cases: report.cases.map(item => {
+      const operators = suites.get(item.profile);
+      const operator = Object.hasOwn(operators, item.operator) ? operators[item.operator] : null;
+      const details = operator && Object.hasOwn(operator.cases, item.case)
+        ? operator.cases[item.case] : null;
+      if (!details) throw new Error(`Missing saved test case: ${item.profile}/${item.operator}/${item.case}`);
+      return { ...item, data: { inputs: details.inputs, expected: details.expected },
+        actual: details.actual, call: details.call };
+    }),
+  };
+}
+
 export async function loadLogs(fetchData, configuration = {}) {
   if (configuration.runDataUrl) {
     const snapshot = await responseData(fetchData, configuration.runDataUrl);
@@ -171,7 +196,8 @@ export function testCasesPage(data, test) {
       ? `${Object.entries(item.data.inputs).map(([name, rows]) =>
         casePanel(name === "dataset" ? "Input" : `Input: ${name}`, "input", caseTable(rows, `Input: ${name}`))).join("")}
         ${casePanel(item.status === "passed" ? "Output" : "Expected output", "output",
-          caseTable(item.data.expected.return, "Expected output"))}
+          caseTable(item.status === "passed" ? item.actual ?? item.data.expected.return : item.data.expected.return,
+            item.status === "passed" ? "Output" : "Expected output"))}
         ${item.status === "failed" ? casePanel("Actual output", "output", item.actual === null || item.actual === undefined
           ? "<p>Actual output was not saved for this case.</p>"
           : caseTable(item.actual, "Actual output")) : ""}`

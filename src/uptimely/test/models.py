@@ -33,6 +33,27 @@ class OperatorCases(_Model):
     cases: dict[str, Case] = pydantic.Field(min_length=1)
 
 
+class ResolvedCall(_Model):
+    """Entrypoint and resolved arguments for a case invocation."""
+
+    function: str
+    arguments: dict[str, pydantic.JsonValue]
+    dataframe_inputs: dict[str, str] = pydantic.Field(default_factory=dict)
+
+
+class CaseArtifact(Case):
+    """Case inputs, outputs, and resolved call saved for a test run."""
+
+    actual: list[dict[str, pydantic.JsonValue]] | None = None
+    call: ResolvedCall | None = None
+
+
+class OperatorCaseArtifacts(_Model):
+    """Saved cases for one operator."""
+
+    cases: dict[str, CaseArtifact]
+
+
 class CaseResult(_Model):
     """Outcome of one operator case."""
 
@@ -43,12 +64,13 @@ class CaseResult(_Model):
     message: str | None = None
     data: Case | None = None
     actual: list[dict[str, pydantic.JsonValue]] | None = None
+    call: ResolvedCall | None = None
 
 
 class TestReport(_Model):
     """Results of one completed or incomplete test run."""
 
-    version: typing.Literal[1, 2] = 2
+    version: typing.Literal[1, 2, 3, 4] = 4
     started_at: datetime.datetime
     finished_at: datetime.datetime | None = None
     status: typing.Literal["running", "passed", "failed", "error"]

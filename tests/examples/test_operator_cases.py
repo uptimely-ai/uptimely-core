@@ -48,3 +48,15 @@ def test_example_cases_run_from_saved_build(
     saved = json.loads((root / runner.REPORT_PATH).read_text(encoding="utf-8"))
     assert saved["status"] == "passed"
     assert len(saved["cases"]) == len(report.cases)
+    for profile in {case.profile for case in report.cases}:
+        source = json.loads((CASE_DIR / f"{profile}.json").read_text(encoding="utf-8"))
+        artifacts = json.loads(
+            (root / "artifacts" / "test" / "cases" / f"{profile}.json").read_text(encoding="utf-8")
+        )
+        for operator, suite in source.items():
+            for name, case in suite["cases"].items():
+                saved_case = artifacts[operator]["cases"][name]
+                assert saved_case["inputs"] == case["inputs"]
+                assert saved_case["expected"] == case["expected"]
+                assert saved_case["actual"] is not None
+                assert saved_case["call"] is not None

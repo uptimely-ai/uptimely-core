@@ -109,11 +109,23 @@ workflow cases are rejected. Test cases do not run upstream operators or merges.
 Functions still execute Python code and are not sandboxed. Test only trusted
 builds, and keep side effects out of the selected functions.
 
-The command saves the latest results to `artifacts/test/test.json` and copies
-the JSON case files used for that run to `artifacts/test/data/`, without
-changing `artifacts/run/`. The report records case inputs, expected outputs,
-actual outputs for mismatches, outcomes, errors, timestamps, and a fingerprint
-of the build manifest, Spec, and plan. The fingerprint does not include bundled
-code bytes.
-exits with status 0 when all cases pass and 1 for failed cases or invalid setup.
-At least one case is required.
+The command saves the latest outcomes, errors, timestamps, and build fingerprint
+to `artifacts/test/test.json`. Case inputs, expected and actual outputs, and
+resolved calls are saved in `artifacts/test/cases/<profile_id>.json`, grouped
+by operator and case. A call records its function entrypoint and arguments
+before execution. Dataframe arguments are shown as `$<argument name>`, such as
+`$dataset`, in `call.arguments`. The `call.dataframe_inputs` field maps their
+JSON Pointers to names in `inputs`. Only paths in that mapping represent
+dataframe inputs, so literal strings that look like input markers remain
+distinguishable. Earlier case artifacts may use `null`, `$input`, or
+`$input.<name>` at those paths. If arguments cannot be resolved or recorded, the
+case reports an error without a call. A call remains available if the function
+or output comparison fails. Actual output is saved when the returned dataframe
+can be collected and serialized. Case artifacts and Explorer exports may
+contain sensitive configuration values and case data.
+The report uses format version 4. Explorer also reads versions 1, 2, and 3.
+
+The fingerprint covers the build manifest, Spec, and plan, but not bundled code
+bytes. The command does not change `artifacts/run/` and exits with
+status 0 when all cases pass and 1 for failed cases or invalid setup. At least
+one case is required.

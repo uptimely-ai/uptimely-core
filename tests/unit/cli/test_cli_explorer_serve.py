@@ -19,6 +19,7 @@ from uptimely.cli import explorer
 from uptimely.explorer import server as explorer_server
 from uptimely.run import store as run_store
 from uptimely.test import models as test_models
+from uptimely.test import store as test_store
 
 
 def _snapshot(name: str = "Example project") -> dict[str, object]:
@@ -160,7 +161,10 @@ def test_run_api_reads_fresh_metadata_previews_and_logs(
     assert _get(app, f"/api/run/logs?run_id={run_id}")[0] == 409
 
 
-def test_test_api_reads_latest_valid_report_without_caching(tmp_path: pathlib.Path) -> None:
+@pytest.mark.parametrize("old_version", [1, 2, 3])
+def test_test_api_reads_latest_valid_report_without_caching(
+    tmp_path: pathlib.Path, old_version: int
+) -> None:
     app = explorer_server.create_app(tmp_path)
     assert _get(app, "/api/test")[0] == 404
     report = test_models.TestReport(
@@ -177,25 +181,44 @@ def test_test_api_reads_latest_valid_report_without_caching(tmp_path: pathlib.Pa
                     {"inputs": {"dataset": [{"x": 1}]}, "expected": {"return": [{"x": 2}]}}
                 ),
                 actual=[{"x": 3}],
+                call=test_models.ResolvedCall(
+                    function="example:calculate",
+                    arguments={"dataset": "$dataset", "limit": 7},
+                    dataframe_inputs={"/dataset": "dataset"},
+                ),
             )
         ],
     )
     report_path = tmp_path / "artifacts" / "test" / "test.json"
-    report_path.parent.mkdir(parents=True)
-    report_path.write_text(report.model_dump_json(by_alias=True), encoding="utf-8")
+    tests = test_store.TestStore(tmp_path)
+    tests.save_cases(report)
+    tests.save_report(report)
 
     status, body, headers = _get(app, "/api/test")
 
     assert status == 200
     assert headers["cache-control"] == "no-store"
     case = json.loads(body)["cases"][0]
-    assert case["data"]["expected"]["return"] == [{"x": 2}]
-    assert case["actual"] == [{"x": 3}]
+    assert "data" not in case
+    status, body, _ = _get(app, "/api/test/cases/pump?started_at=2026-11-24T00%3A00%3A00Z")
+    assert status == 200
+    details = json.loads(body)["calculate"]["cases"]["basic"]
+    assert details["expected"]["return"] == [{"x": 2}]
+    assert details["actual"] == [{"x": 3}]
+    assert details["call"] == {
+        "function": "example:calculate",
+        "arguments": {"dataset": "$dataset", "limit": 7},
+        "dataframe_inputs": {"/dataset": "dataset"},
+    }
+    assert _get(app, "/api/test/cases/pump?started_at=2026-11-23T00%3A00%3A00Z")[0] == 409
+    assert _get(app, "/api/test/cases/other?started_at=2026-11-24T00%3A00%3A00Z")[0] == 404
+    (tmp_path / "artifacts" / "test" / "cases" / "pump.json").unlink()
+    assert _get(app, "/api/test/cases/pump?started_at=2026-11-24T00%3A00%3A00Z")[0] == 503
 
     report_path.write_text(
         json.dumps(
             {
-                "version": 1,
+                "version": old_version,
                 "started_at": "2026-11-24T00:00:00Z",
                 "status": "passed",
                 "cases": [
@@ -213,6 +236,7 @@ def test_test_api_reads_latest_valid_report_without_caching(tmp_path: pathlib.Pa
     status, body, _ = _get(app, "/api/test")
     assert status == 200
     assert json.loads(body)["cases"][0]["data"] is None
+    assert json.loads(body)["cases"][0]["call"] is None
 
 
 @pytest.mark.parametrize("damage", ["missing", "corrupt"])

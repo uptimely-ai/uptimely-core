@@ -8,8 +8,9 @@ import polars as pl
 import pytest
 from support import examples as example_support
 
-from uptimely import application
+from uptimely import application, plan
 from uptimely.cli import cli, test_display
+from uptimely.codebase.python import entrypoint
 from uptimely.test import models, runner
 
 
@@ -135,13 +136,16 @@ def test_test_command_uses_saved_source_and_preserves_run(
     capsys: pytest.CaptureFixture[str],
     example_project_factory: example_support.ProjectFactory,
 ) -> None:
-    project, case_path, _ = _case_project(tmp_path, example_project_factory)
+    project, case_path, suite = _case_project(tmp_path, example_project_factory)
     (project / "src" / "pump_analytics.py").write_text(
         'raise RuntimeError("live source must not be used")\n', encoding="utf-8"
     )
     test_data = project / "artifacts" / "test" / "data"
     test_data.mkdir(parents=True)
     (test_data / "stale.json").write_text("{}", encoding="utf-8")
+    case_artifacts = project / "artifacts" / "test" / "cases"
+    case_artifacts.mkdir()
+    (case_artifacts / "stale.json").write_text("{}", encoding="utf-8")
     run_path = project / "artifacts" / "run"
     run_path.mkdir(parents=True, exist_ok=True)
     sentinel = run_path / "sentinel"
@@ -150,12 +154,29 @@ def test_test_command_uses_saved_source_and_preserves_run(
     invoke(monkeypatch, str(project), "--config", str(project / "case-config.toml"))
 
     report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
-    copied_case = test_data / case_path.name
+    saved_cases = json.loads((case_artifacts / case_path.name).read_text(encoding="utf-8"))
+    operator = next(iter(suite))
+    saved_case = saved_cases[operator]["cases"]["basic"]
     assert report["status"] == "passed"
     assert report["build"]["fingerprint"]
     assert len(report["cases"]) == 1
-    assert copied_case.read_bytes() == case_path.read_bytes()
-    assert not (test_data / "stale.json").exists()
+    assert set(report["cases"][0]) == {"profile", "operator", "case", "status", "message"}
+    assert saved_case["inputs"] == suite[operator]["cases"]["basic"]["inputs"]
+    assert saved_case["expected"] == suite[operator]["cases"]["basic"]["expected"]
+    assert saved_case["actual"] == saved_case["expected"]["return"]
+    call = saved_case["call"]
+    assert call == {
+        "function": "pump_analytics:aggregate",
+        "arguments": {
+            "dataset": "$dataset",
+            "aggregations": {"bearing_temperature": "max"},
+            "dimensions": ["machine_series_id"],
+            "rename": {"bearing_temperature": "bearing_temperature_series_max"},
+        },
+        "dataframe_inputs": {"/dataset": "dataset"},
+    }
+    assert not test_data.exists()
+    assert not (case_artifacts / "stale.json").exists()
     output = capsys.readouterr().out
     assert "1 passed, 0 failed" in output
     assert "Inputs:" not in output
@@ -183,6 +204,45 @@ def test_test_command_builds_before_running_cases(
     report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
     assert report["status"] == "passed"
     assert len(report["cases"]) == 1
+
+
+def test_legacy_data_is_preserved_when_configured_as_source(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    example_project_factory: example_support.ProjectFactory,
+) -> None:
+    project, case_path, _ = _case_project(tmp_path, example_project_factory)
+    source = project / "artifacts" / "test" / "data"
+    source.mkdir(parents=True)
+    source_case = source / case_path.name
+    source_case.write_bytes(case_path.read_bytes())
+    config = project / "case-config.toml"
+    config.write_text('[test]\npath = "artifacts/test/data"\n', encoding="utf-8")
+
+    invoke(monkeypatch, str(project), "--config", str(config))
+
+    assert source_case.read_bytes() == case_path.read_bytes()
+    assert (project / "artifacts" / "test" / "cases" / case_path.name).is_file()
+
+
+def test_case_artifact_folder_cannot_be_used_as_source(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    example_project_factory: example_support.ProjectFactory,
+) -> None:
+    project, case_path, _ = _case_project(tmp_path, example_project_factory)
+    source = project / "artifacts" / "test" / "cases"
+    source.mkdir(parents=True)
+    source_case = source / case_path.name
+    source_case.write_bytes(case_path.read_bytes())
+    config = project / "case-config.toml"
+    config.write_text('[test]\npath = "artifacts/test/cases"\n', encoding="utf-8")
+
+    with pytest.raises(SystemExit) as error:
+        invoke(monkeypatch, str(project), "--config", str(config))
+
+    assert error.value.code == 1
+    assert source_case.read_bytes() == case_path.read_bytes()
 
 
 def test_test_command_does_not_run_after_build_failure(
@@ -229,7 +289,166 @@ def test_test_command_saves_failures_and_continues(
     report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
     assert report["status"] == "failed"
     assert [case["status"] for case in report["cases"]] == ["failed", "passed"]
+    saved = json.loads(
+        (project / "artifacts" / "test" / "cases" / case_path.name).read_text(encoding="utf-8")
+    )
+    assert all(case["call"] is not None for case in next(iter(saved.values()))["cases"].values())
     assert "does not match expected" in capsys.readouterr().out
+
+
+@pytest.mark.parametrize("fail", [False, True])
+def test_case_saves_resolved_arguments_before_call(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, fail: bool
+) -> None:
+    (tmp_path / "uptimely.toml").write_text("[params]\nlimit = 7\n", encoding="utf-8")
+    invocation = plan.Invocation(
+        id="calculate",
+        entrypoint="test:calculate",
+        arguments={
+            "dataset": "$datasets.pump.read",
+            "options": {
+                "limit": "$params.limit",
+                "a/b~c": ["$datasets.pump.read", None],
+                "literal": {"$case_input": "dataset"},
+                "literal_marker": "$dataset",
+            },
+        },
+        returns=None,
+    )
+    case = models.Case.model_validate(
+        {"inputs": {"dataset": [{"x": 1}]}, "expected": {"return": [{"x": 1}]}}
+    )
+    calls = []
+
+    def calculate(dataset: pl.LazyFrame, options: dict) -> pl.LazyFrame:
+        calls.append(options["limit"])
+        assert options["a/b~c"][0] is dataset
+        options["limit"] = 99
+        if fail:
+            raise RuntimeError("function failed")
+        return dataset
+
+    monkeypatch.setattr(entrypoint.Entrypoint, "load", lambda self: calculate)
+    test_runner = runner.TestRunner(application.Uptimely(tmp_path))
+
+    result, _ = test_runner._run_case(
+        "pump",
+        "calculate",
+        "basic",
+        invocation,
+        case,
+        {"test:calculate": entrypoint.Entrypoint("test:calculate")},
+    )
+
+    assert calls == [7]
+    assert result.status == ("error" if fail else "passed")
+    assert result.call is not None
+    assert result.call.model_dump() == {
+        "function": "test:calculate",
+        "arguments": {
+            "dataset": "$dataset",
+            "options": {
+                "limit": 7,
+                "a/b~c": ["$dataset", None],
+                "literal": {"$case_input": "dataset"},
+                "literal_marker": "$dataset",
+            },
+        },
+        "dataframe_inputs": {"/dataset": "dataset", "/options/a~1b~0c/0": "dataset"},
+    }
+
+
+def test_unresolved_arguments_do_not_record_or_execute_call(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    invocation = plan.Invocation(
+        id="calculate",
+        entrypoint="test:calculate",
+        arguments={"dataset": "$datasets.pump.read", "limit": "$params.missing"},
+        returns=None,
+    )
+    case = models.Case.model_validate(
+        {"inputs": {"dataset": [{"x": 1}]}, "expected": {"return": [{"x": 1}]}}
+    )
+    monkeypatch.setattr(entrypoint.Entrypoint, "load", lambda self: pytest.fail("Must not execute"))
+    result, _ = runner.TestRunner(application.Uptimely(tmp_path))._run_case(
+        "pump",
+        "calculate",
+        "basic",
+        invocation,
+        case,
+        {"test:calculate": entrypoint.Entrypoint("test:calculate")},
+    )
+
+    assert result.status == "error"
+    assert "Unresolved parameter: missing" in result.message
+    assert result.call is None
+
+
+def test_case_call_marks_each_dataframe_with_its_argument_name(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    invocation = plan.Invocation(
+        id="calculate",
+        entrypoint="test:calculate",
+        arguments={"left": "$datasets.a.read", "right": "$datasets.b.read"},
+        returns=None,
+    )
+    case = models.Case.model_validate(
+        {
+            "inputs": {"left": [{"x": 1}], "right": [{"x": 2}]},
+            "expected": {"return": [{"x": 1}, {"x": 2}]},
+        }
+    )
+
+    def calculate(left: pl.LazyFrame, right: pl.LazyFrame) -> pl.LazyFrame:
+        return pl.concat([left, right])
+
+    monkeypatch.setattr(entrypoint.Entrypoint, "load", lambda self: calculate)
+    result, _ = runner.TestRunner(application.Uptimely(tmp_path))._run_case(
+        "p",
+        "calculate",
+        "basic",
+        invocation,
+        case,
+        {"test:calculate": entrypoint.Entrypoint("test:calculate")},
+    )
+
+    assert result.status == "passed"
+    assert result.call is not None
+    assert result.call.arguments == {"left": "$left", "right": "$right"}
+    assert result.call.dataframe_inputs == {"/left": "left", "/right": "right"}
+
+
+@pytest.mark.parametrize("value", [object(), float("nan")])
+def test_unserializable_arguments_report_case_error_without_execution(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, value: object
+) -> None:
+    app = application.Uptimely(tmp_path)
+    app.config.params.root["limit"] = value
+    invocation = plan.Invocation(
+        id="calculate",
+        entrypoint="test:calculate",
+        arguments={"dataset": "$datasets.pump.read", "limit": "$params.limit"},
+        returns=None,
+    )
+    case = models.Case.model_validate(
+        {"inputs": {"dataset": [{"x": 1}]}, "expected": {"return": [{"x": 1}]}}
+    )
+    monkeypatch.setattr(entrypoint.Entrypoint, "load", lambda self: pytest.fail("Must not execute"))
+
+    result, _ = runner.TestRunner(app)._run_case(
+        "pump",
+        "calculate",
+        "basic",
+        invocation,
+        case,
+        {"test:calculate": entrypoint.Entrypoint("test:calculate")},
+    )
+
+    assert result.status == "error"
+    assert result.message
+    assert result.call is None
 
 
 def test_test_command_saves_actual_rows_when_empty_output_was_expected(
@@ -244,8 +463,10 @@ def test_test_command_saves_actual_rows_when_empty_output_was_expected(
     with pytest.raises(SystemExit):
         invoke(monkeypatch, str(project), "--config", str(project / "case-config.toml"))
 
-    report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
-    assert report["cases"][0]["actual"] == [
+    saved = json.loads(
+        (project / "artifacts" / "test" / "cases" / case_path.name).read_text(encoding="utf-8")
+    )
+    assert next(iter(saved.values()))["cases"]["basic"]["actual"] == [
         {"machine_series_id": "S1", "bearing_temperature_series_max": 70.0}
     ]
 
@@ -309,17 +530,19 @@ def test_show_prints_all_case_inputs_and_expected_outputs(
             assert "Actual output:" not in section
 
     report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
-    assert report["version"] == 2
+    assert report["version"] == 4
     assert report["status"] == ("failed" if mismatch else "passed")
+    saved = json.loads(
+        (project / "artifacts" / "test" / "cases" / case_path.name).read_text(encoding="utf-8")
+    )
     for item in report["cases"]:
         fixture = definition["cases"][item["case"]]
-        assert item["data"] == fixture
-        if item["status"] == "failed":
-            assert item["actual"] == [
-                {"machine_series_id": "S1", "bearing_temperature_series_max": 66.0}
-            ]
-        else:
-            assert item["actual"] is None
+        details = saved[operator]["cases"][item["case"]]
+        assert details["inputs"] == fixture["inputs"]
+        assert details["expected"] == fixture["expected"]
+        assert details["actual"] == [
+            {"machine_series_id": "S1", "bearing_temperature_series_max": 66.0}
+        ]
 
 
 def test_show_displays_multiple_inputs_and_empty_output_without_truncation(

@@ -15,6 +15,7 @@ from uptimely import plan as execution_plan
 from uptimely.explorer import export, presentation
 from uptimely.run import models, store
 from uptimely.test import models as test_models
+from uptimely.test import store as test_store
 
 
 def _write_snapshot(
@@ -144,12 +145,17 @@ def test_export_includes_validated_run_previews_and_all_log_pages(
                     {"inputs": {"dataset": [{"x": 1}]}, "expected": {"return": [{"x": 2}]}}
                 ),
                 actual=[{"x": 3}],
+                call=test_models.ResolvedCall(
+                    function="example:calculate",
+                    arguments={"dataset": "$dataset", "limit": 7},
+                    dataframe_inputs={"/dataset": "dataset"},
+                ),
             )
         ],
     )
-    test_path = project_root / "artifacts" / "test" / "test.json"
-    test_path.parent.mkdir(parents=True)
-    test_path.write_text(test_report.model_dump_json(by_alias=True), encoding="utf-8")
+    tests = test_store.TestStore(project_root)
+    tests.save_cases(test_report)
+    tests.save_report(test_report)
     runs = store.RunStore(project_root)
     manifest = runs.read_manifest()
     entries = [
@@ -180,10 +186,19 @@ def test_export_includes_validated_run_previews_and_all_log_pages(
     if suffix:
         with zipfile.ZipFile(output) as archive:
             exported_test = json.loads(archive.read("data/test.json"))
+            exported_cases = json.loads(archive.read("data/test/cases/pump.json"))
     else:
         exported_test = json.loads((output / "data/test.json").read_bytes())
-    assert exported_test == test_report.model_dump(mode="json", by_alias=True)
+        exported_cases = json.loads((output / "data/test/cases/pump.json").read_bytes())
+    assert exported_test == json.loads(tests.report_json(test_report))
+    assert exported_cases["calculate"]["cases"]["basic"]["actual"] == [{"x": 3}]
+    assert exported_cases["calculate"]["cases"]["basic"]["call"]["function"] == "example:calculate"
 
+    (project_root / "artifacts" / "test" / "cases" / "pump.json").unlink()
+    with pytest.raises(FileNotFoundError):
+        export.export_static(project_root, tmp_path / "incomplete-cases")
+
+    tests.save_cases(test_report)
     (runs.root / manifest.profiles["telemetry"].preview_path).unlink()
     with pytest.raises(FileNotFoundError):
         export.export_static(project_root, tmp_path / "incomplete")

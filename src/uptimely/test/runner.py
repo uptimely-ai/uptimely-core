@@ -2,10 +2,8 @@
 
 import datetime
 import json
-import os
+import math
 import pathlib
-import shutil
-import tempfile
 import typing
 from collections import abc
 
@@ -19,10 +17,12 @@ from uptimely.engine.runtime import execution, state
 from uptimely.project import paths
 from uptimely.run import models as run_models
 
-from . import models
+from . import models, store
 
 REPORT_PATH = paths.TEST_REPORT_FILE
 EXCLUDED_CATEGORIES = frozenset({"read", "write", "workflow"})
+JSON_VALUE = pydantic.TypeAdapter(pydantic.JsonValue)
+CASE_INPUT_PREFIX = "$"
 
 
 class TestRunner:
@@ -51,14 +51,16 @@ class TestRunner:
             ValueError: Configuration, build, or case definitions are invalid.
         """
         report = models.TestReport(started_at=datetime.datetime.now(datetime.UTC), status="running")
-        self._save(report)
+        artifacts = store.TestStore(self.app.root)
+        artifacts.save_report(report)
         try:
             folder = self.app.root / self.app.config.test.path
             if not folder.is_dir():
                 raise FileNotFoundError(
                     f"Configured test folder {self.app.config.test.path} not found"
                 )
-            self._copy_test_data(folder)
+            if folder.resolve() == (self.app.root / paths.TEST_CASES_DIR).resolve():
+                raise ValueError("The test source folder cannot be the case artifact folder")
             with self.app.read_build_bundle() as bundle:
                 report.build = run_models.BuildIdentity.from_bundle(bundle)
                 if bundle.source_path is None:
@@ -84,6 +86,8 @@ class TestRunner:
                 report.status = (
                     "passed" if all(case.status == "passed" for case in report.cases) else "failed"
                 )
+                artifacts.save_cases(report)
+                self._remove_legacy_data(folder)
         except (
             application.BuildError,
             application.BuildLockError,
@@ -94,10 +98,10 @@ class TestRunner:
             report.status = "error"
             report.error = f"{type(error).__name__}: {error}"
             report.finished_at = datetime.datetime.now(datetime.UTC)
-            self._save(report)
+            artifacts.save_report(report)
             raise
         report.finished_at = datetime.datetime.now(datetime.UTC)
-        self._save(report)
+        artifacts.save_report(report)
         return report
 
     def _load_cases(
@@ -149,17 +153,16 @@ class TestRunner:
                     cases.append((path.stem, operator, case_id, invocation, case))
         return cases
 
-    def _copy_test_data(self, folder: pathlib.Path) -> None:
-        """Copy the current JSON case files to the test artifact directory."""
-        target = self.app.root / paths.TEST_DATA_DIR
-        source_files = sorted(folder.glob("*.json"))
-        source_names = {path.name for path in source_files}
-        target.mkdir(parents=True, exist_ok=True)
-        for stale_file in target.glob("*.json"):
-            if stale_file.name not in source_names:
-                stale_file.unlink()
-        for source in source_files:
-            shutil.copy2(source, target / source.name)
+    def _remove_legacy_data(self, source: pathlib.Path) -> None:
+        """Remove old copied JSON artifacts without removing source case files."""
+        folder = self.app.root / paths.TEST_OUTPUT_DIR / "data"
+        if folder.is_symlink() or source.resolve().is_relative_to(folder.resolve()):
+            return
+        if folder.is_dir():
+            for path in folder.glob("*.json"):
+                path.unlink()
+            if not any(folder.iterdir()):
+                folder.rmdir()
 
     @staticmethod
     def _unique_keys(pairs: list[tuple[str, typing.Any]]) -> dict[str, typing.Any]:
@@ -196,11 +199,14 @@ class TestRunner:
             }
             if set(case.inputs) != set(dataframe_args):
                 raise ValueError(f"Expected dataframe inputs: {', '.join(sorted(dataframe_args))}")
+            frames: dict[int, str] = {}
             for name, reference in dataframe_args.items():
                 rows = case.inputs[name]
                 if not rows or any(set(row) != set(rows[0]) for row in rows):
                     raise ValueError(f"Input {name} must have nonempty rows with matching columns")
-                runtime_state.store(reference, pl.DataFrame(rows).lazy())
+                frame = pl.DataFrame(rows).lazy()
+                frames[id(frame)] = name
+                runtime_state.store(reference, frame)
             executor = execution.InvocationExecutor(
                 entries,
                 self.app.config.params.root,
@@ -208,21 +214,58 @@ class TestRunner:
                 paths={},
                 project_root=self.app.root,
             )
-            actual = executor.execute(invocation, executor.resolve_arguments(invocation))
+            arguments = executor.resolve_arguments(invocation)
+            result.call = self._resolved_call(invocation.entrypoint, arguments, frames)
+            actual = executor.execute(invocation, arguments)
             if not isinstance(actual, (pl.LazyFrame, pl.DataFrame)):
                 raise TypeError("Compute binding did not return a dataframe")
             frame = actual.collect() if isinstance(actual, pl.LazyFrame) else actual
+            result.actual = self._frame_rows(frame)
             try:
                 self._compare(frame, case.expected.return_)
             except AssertionError:
                 result.status = "failed"
                 result.message = "Returned dataframe does not match expected rows"
-                result.actual = self._frame_rows(frame)
                 mismatch = frame
         except Exception as error:
             result.status = "error"
             result.message = f"{type(error).__name__}: {str(error)[:500]}"
         return result, mismatch
+
+    @staticmethod
+    def _resolved_call(
+        function: str, arguments: dict[str, object], frames: dict[int, str]
+    ) -> models.ResolvedCall:
+        dataframe_inputs: dict[str, str] = {}
+
+        def encode(value: object, pointer: str) -> pydantic.JsonValue:
+            if isinstance(value, (pl.LazyFrame, pl.DataFrame)):
+                if id(value) not in frames:
+                    raise ValueError(f"Resolved dataframe at {pointer} is not a case input")
+                dataframe_inputs[pointer] = frames[id(value)]
+                return f"{CASE_INPUT_PREFIX}{frames[id(value)]}"
+            if isinstance(value, list):
+                return [encode(item, f"{pointer}/{index}") for index, item in enumerate(value)]
+            if isinstance(value, dict):
+                encoded_object: dict[str, pydantic.JsonValue] = {}
+                for key, item in value.items():
+                    if not isinstance(key, str):
+                        raise TypeError("Resolved argument object keys must be strings")
+                    encoded_object[key] = encode(
+                        item, f"{pointer}/{key.replace('~', '~0').replace('/', '~1')}"
+                    )
+                return encoded_object
+            if isinstance(value, float) and not math.isfinite(value):
+                raise ValueError(f"Non-finite resolved argument at {pointer}")
+            return JSON_VALUE.validate_python(value, strict=True)
+
+        encoded = {
+            name: encode(value, f"/{name.replace('~', '~0').replace('/', '~1')}")
+            for name, value in arguments.items()
+        }
+        return models.ResolvedCall(
+            function=function, arguments=encoded, dataframe_inputs=dataframe_inputs
+        )
 
     @staticmethod
     def _compare(actual: pl.DataFrame, expected: list[dict[str, pydantic.JsonValue]]) -> None:
@@ -246,18 +289,3 @@ class TestRunner:
             raise TypeError(f"Unsupported dataframe value: {type(value).__name__}")
 
         return json.loads(json.dumps(frame.to_dicts(), default=encode, allow_nan=False))
-
-    def _save(self, report: models.TestReport) -> None:
-        path = self.app.root / REPORT_PATH
-        path.parent.mkdir(parents=True, exist_ok=True)
-        temporary: pathlib.Path | None = None
-        try:
-            with tempfile.NamedTemporaryFile(
-                mode="w", encoding="utf-8", dir=path.parent, prefix=".test-", delete=False
-            ) as file:
-                temporary = pathlib.Path(file.name)
-                file.write(report.model_dump_json(indent=2, by_alias=True) + "\n")
-            os.replace(temporary, path)
-        finally:
-            if temporary is not None:
-                temporary.unlink(missing_ok=True)

@@ -6,15 +6,15 @@ import zipfile
 
 from uptimely.build import bundle, errors
 from uptimely.explorer import presentation
-from uptimely.project import paths
 from uptimely.run import store as run_store
-from uptimely.test import models as test_models
+from uptimely.test import store as test_store
 
 _BUILD_INSTRUCTION = "Run 'uptimely build' to generate a valid Explorer snapshot."
 _STATIC_CONFIG_FILE = pathlib.Path("config.js")
 _EXPORTED_DATA_FILE = pathlib.Path("data") / "explorer.json"
 _EXPORTED_RUN_FILE = pathlib.Path("data") / "run.json"
 _EXPORTED_TEST_FILE = pathlib.Path("data") / "test.json"
+_EXPORTED_TEST_CASES_DIR = pathlib.Path("data") / "test" / "cases"
 _LOG_PAGE_SIZE = 1000
 
 
@@ -44,17 +44,22 @@ def _read_run_snapshot(project_root: pathlib.Path) -> bytes:
     ).encode("utf-8")
 
 
-def _read_test_snapshot(project_root: pathlib.Path) -> bytes:
-    """Validate the latest operator test report for static hosting."""
+def _read_test_snapshot(project_root: pathlib.Path) -> tuple[bytes, dict[str, bytes]]:
+    """Validate the latest operator test report and its cases for static hosting."""
+    tests = test_store.TestStore(project_root)
     try:
-        content = (project_root / paths.TEST_REPORT_FILE).read_bytes()
+        report = tests.read_report()
     except FileNotFoundError:
-        return b"null\n"
-    return (
-        test_models.TestReport.model_validate_json(content)
-        .model_dump_json(by_alias=True)
-        .encode("utf-8")
-    )
+        return b"null\n", {}
+    cases = {}
+    if report.version >= 4:
+        for profile in {case.profile for case in report.cases}:
+            cases[profile] = test_store.CASE_ARTIFACTS.dump_json(
+                tests.read_cases(report, profile), by_alias=True
+            )
+        if tests.read_report().started_at != report.started_at:
+            raise ValueError("The latest test changed. Export the Explorer again.")
+    return tests.report_json(report).encode("utf-8"), cases
 
 
 def _read_snapshot(project_root: pathlib.Path) -> bytes:
@@ -83,6 +88,7 @@ def _static_config() -> str:
                 "dataUrl": "./data/explorer.json",
                 "runDataUrl": "./data/run.json",
                 "testDataUrl": "./data/test.json",
+                "testCasesUrl": "./data/test/cases",
             }
         )
         + ");\n"
@@ -103,6 +109,7 @@ def _write_directory_export(
     snapshot: bytes,
     run_snapshot: bytes,
     test_snapshot: bytes,
+    test_cases: dict[str, bytes],
 ) -> None:
     """Write frontend assets and the snapshot to an export directory."""
     output.mkdir(parents=True, exist_ok=True)
@@ -117,6 +124,14 @@ def _write_directory_export(
     data_target.write_bytes(snapshot)
     (output / _EXPORTED_RUN_FILE).write_bytes(run_snapshot)
     (output / _EXPORTED_TEST_FILE).write_bytes(test_snapshot)
+    case_dir = output / _EXPORTED_TEST_CASES_DIR
+    case_dir.mkdir(parents=True, exist_ok=True)
+    names = {f"{profile}.json" for profile in test_cases}
+    for path in case_dir.glob("*.json"):
+        if path.name not in names:
+            path.unlink()
+    for profile, content in test_cases.items():
+        (case_dir / f"{profile}.json").write_bytes(content)
 
 
 def _write_zip_export(
@@ -126,6 +141,7 @@ def _write_zip_export(
     snapshot: bytes,
     run_snapshot: bytes,
     test_snapshot: bytes,
+    test_cases: dict[str, bytes],
 ) -> None:
     """Write frontend assets and the snapshot to a ZIP archive."""
     if output.exists() and output.is_dir():
@@ -141,6 +157,8 @@ def _write_zip_export(
         archive.writestr(_EXPORTED_DATA_FILE.as_posix(), snapshot)
         archive.writestr(_EXPORTED_RUN_FILE.as_posix(), run_snapshot)
         archive.writestr(_EXPORTED_TEST_FILE.as_posix(), test_snapshot)
+        for profile, content in test_cases.items():
+            archive.writestr((_EXPORTED_TEST_CASES_DIR / f"{profile}.json").as_posix(), content)
 
 
 def export_static(
@@ -177,10 +195,14 @@ def export_static(
 
     snapshot = _read_snapshot(root)
     run_snapshot = _read_run_snapshot(root)
-    test_snapshot = _read_test_snapshot(root)
+    test_snapshot, test_cases = _read_test_snapshot(root)
     files = sorted(path for path in static_root.rglob("*") if path.is_file())
     if output.suffix.lower() == ".zip":
-        _write_zip_export(files, static_root, output, snapshot, run_snapshot, test_snapshot)
+        _write_zip_export(
+            files, static_root, output, snapshot, run_snapshot, test_snapshot, test_cases
+        )
     else:
-        _write_directory_export(files, static_root, output, snapshot, run_snapshot, test_snapshot)
+        _write_directory_export(
+            files, static_root, output, snapshot, run_snapshot, test_snapshot, test_cases
+        )
     return output
