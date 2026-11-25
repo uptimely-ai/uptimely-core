@@ -18,7 +18,9 @@ BUILD_LOCK_FILE: typing.Final = ARTIFACTS_DIR / ".build.lock"
 
 RUN_OUTPUT_DIR: typing.Final = ARTIFACTS_DIR / "run"
 RUN_MANIFEST_FILE: typing.Final = RUN_OUTPUT_DIR / "run.json"
-TEST_REPORT_FILE: typing.Final = ARTIFACTS_DIR / "test" / "test.json"
+TEST_OUTPUT_DIR: typing.Final = ARTIFACTS_DIR / "test"
+TEST_DATA_DIR: typing.Final = TEST_OUTPUT_DIR / "data"
+TEST_REPORT_FILE: typing.Final = TEST_OUTPUT_DIR / "test.json"
 
 BUILD_OUTPUT_DIR: typing.Final = ARTIFACTS_DIR / "build"
 BUILD_MANIFEST_FILE: typing.Final = BUILD_OUTPUT_DIR / "build.json"
