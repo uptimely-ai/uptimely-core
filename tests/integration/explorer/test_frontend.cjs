@@ -454,7 +454,7 @@ test("profile operators expose engineering contracts and spec argument values", 
   assert.match(html, /href="\?view=functions#function-aggregate">Maximum &lt;reading&gt;<\/a>/);
   assert.match(html, /Input features<\/dt><dd><code>raw<\/code>/);
   assert.match(html, /Output features<\/dt><dd><code>&lt;Value&gt;<\/code>/);
-  assert.match(html, /<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments<\/summary>/);
+  assert.match(html, /<details class="profile-operator-bindings profile-operator-bindings-inline ui-disclosure ui-disclosure--inline"><summary>Arguments<\/summary>/);
   assert.match(html, /<th scope="col">Argument<\/th><th scope="col">Spec value<\/th>/);
   assert.doesNotMatch(html, /Resolved value|profile-operator-engine-bind|This value will be bound only during the engine execution/);
   assert.match(html, /<span class="ui-badge profile-operator-argument-value"><code class="language-json">\$profiles\.source\.dataset<\/code><\/span>/);
@@ -562,7 +562,7 @@ test("lineage views expose original canvases, controls and script-safe graph dat
   assert.match(feature.content, /id="lineage-3d"/);
   assert.match(feature.context, /data-dimension="3d"/);
   assert.match(feature.context, /id="node-details"/);
-  assert.match(feature.context, /<details class="lineage-legend-panel"><summary>/);
+  assert.match(feature.context, /<details class="lineage-legend-panel ui-disclosure"><summary>/);
   assert.match(feature.context, /Graph legend/);
   assert.equal((feature.context.match(/class="lineage-legend-note"/g) || []).length, 1);
   assert.match(feature.context, /Colors show profiles, not run status\. Arrows show dependencies\./);

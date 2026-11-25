@@ -383,6 +383,11 @@ test("feature and function type displays use matching data type icons", () => {
   assert.match(featureOperator, /<summary>Arguments<\/summary>/);
   assert.match(featureOperator, /<th scope="col">Argument<\/th><th scope="col">Spec value<\/th>/);
   assert.doesNotMatch(featureOperator, /Resolved value/);
+  const featureComputeBox = featureOperator.slice(
+    featureOperator.indexOf('<div class="profile-operator-compute">'),
+    featureOperator.indexOf('<span class="profile-operator-flow-arrow"', featureOperator.indexOf('<div class="profile-operator-compute">')),
+  );
+  assert.match(featureComputeBox, /<details class="profile-operator-bindings profile-operator-bindings-inline ui-disclosure ui-disclosure--inline"><summary>Arguments<\/summary>/);
   assert.match(featureOperator, /<td><code class="language-json">telemetry\.csv<\/code><\/td>/);
   assert.match(featureOperator, /class="profile-operator-signature" title="Function signature: read"\s+aria-label="Function signature: read"[\s\S]*?class="site-icon icon--read profile-operator-signature-icon" data-lucide="file-input"/);
   assert.match(featureOperator, /<div class="profile-operator-function-link">\s*<i[^>]*class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
@@ -397,9 +402,9 @@ test("feature and function type displays use matching data type icons", () => {
   assert.ok(featureOperator.indexOf("profile-operator-compute") < featureOperator.indexOf("Output features"));
   assert.equal((featureOperator.match(/class="profile-operator-flow-arrow"/g) || []).length, 4);
   assert.match(featureOperator, /role="group" aria-label="Operator data flow"/);
-  assert.ok(featureOperator.indexOf("Output features") < featureOperator.indexOf("<summary>Arguments</summary>"));
+  assert.ok(featureOperator.indexOf("<summary>Arguments</summary>") < featureOperator.indexOf("Output features"));
   const withoutInvocations = renderCatalog({ ...data, stages: [] }, "profiles").content;
-  assert.match(withoutInvocations, /<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments<\/summary>[\s\S]*?<dt>source<\/dt><dd><code>telemetry\.csv<\/code>/);
+  assert.match(withoutInvocations, /<details class="profile-operator-bindings profile-operator-bindings-inline ui-disclosure ui-disclosure--inline"><summary>Arguments<\/summary>[\s\S]*?<dt>source<\/dt><dd><code>telemetry\.csv<\/code>/);
   assert.match(featureContent, /data-category="float64" data-count="1"/);
   assert.match(featureContent, /data-lucide="hash"[^>]*><\/i><span>Temperature<\/span>/);
   assert.match(featureContext, /href="#feature-telemetry-temperature"[\s\S]*?data-lucide="hash"/);
@@ -944,7 +949,7 @@ test("every lineage and topology graph control has a tooltip matching its access
         invocation_lineage: { nodes: [], links: [] }, invocation_style: {} },
     }, topology);
     const controls = context.slice(context.indexOf('<div class="lineage-control-groups">'),
-      context.indexOf('<details class="lineage-legend-panel"'));
+      context.indexOf('<details class="lineage-legend-panel ui-disclosure"'));
     const buttons = [...controls.matchAll(/<button\b[^>]*>/g)].map(match => match[0]);
     assert.equal(buttons.length, 6);
     for (const button of buttons) {
@@ -1071,7 +1076,11 @@ test("stage argument bindings prefix names with type icons and preserve typed va
   assert.match(content, /data-lucide="hash"[^>]*><\/i><span>input<\/span>/);
   assert.match(content, /<th scope="col">Argument<\/th><th scope="col">Resolved value<\/th>/);
   assert.match(content, /&lt;unsafe&gt;/);
-  assert.match(content, /Output features[\s\S]*?<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments<\/summary>[\s\S]*?&lt;unsafe&gt;/);
+  const operator = content.match(/<article id="invocation-"[\s\S]*?<\/article>/)[0];
+  const computeBoxStart = operator.indexOf('<div class="profile-operator-compute">');
+  const flowArrowStart = operator.indexOf('<span class="profile-operator-flow-arrow"', computeBoxStart);
+  const computeBox = operator.slice(computeBoxStart, flowArrowStart);
+  assert.match(computeBox, /<details class="profile-operator-bindings profile-operator-bindings-inline ui-disclosure ui-disclosure--inline"><summary>Arguments<\/summary>[\s\S]*?&lt;unsafe&gt;/);
   assert.match(content, /data-lucide="case-sensitive"[^>]*><\/i><span>source<\/span>/);
   const table = content.match(/<table class="ui-table">[\s\S]*?<\/table>/)[0];
   assert.doesNotMatch(table, /Data type|Binding type|Function type|Engine type|data-type-label-text|>float<|>string</);
@@ -1087,6 +1096,18 @@ test("operator cards use a responsive input-function-output flow", async () => {
   assert.match(styles, /@container \(max-width: 680px\) \{[\s\S]*?\.profile-operator-flow \{ flex-direction: column;/);
   assert.match(styles, /@container \(max-width: 680px\) \{[\s\S]*?\.profile-operator-flow-arrow \{ display: none; \}/);
   assert.match(styles, /@container \(max-width: 900px\) \{[\s\S]*?\.profile-operator-flow-with-merge \{ flex-direction: column;/);
+});
+
+test("expandable panels use shared card-style disclosures", async () => {
+  const styles = await readFile(new URL("../css/base.css", root), "utf8");
+  const specStyles = await readFile(new URL("../css/spec.css", root), "utf8");
+  assert.match(styles, /\.ui-disclosure \{[^}]*border: 1px solid var\(--color-border\)[^}]*border-radius: 8px/);
+  assert.match(styles, /\.ui-disclosure > summary \{ display: flex; align-items: center; gap: 8px;/);
+  assert.match(styles, /\.ui-disclosure\[open\] > summary \{ border-bottom: 1px solid var\(--color-border\)/);
+  assert.match(styles, /\.ui-disclosure--inline \{ overflow: hidden; border: 1px solid #155e75;[\s\S]*?background: #0c202a;/);
+  assert.match(styles, /\.ui-disclosure--inline > summary \{ box-sizing: border-box; width: 100%;/);
+  const computeRule = specStyles.match(/\.profile-operator-compute \{([^}]*)\}/)[1];
+  assert.doesNotMatch(computeRule, /border-left:/);
 });
 
 test("Spec navigation no longer links to the removed overview", () => {

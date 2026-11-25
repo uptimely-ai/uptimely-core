@@ -496,6 +496,7 @@ function operatorCard({ attributes, title, mergeFunction, relationships, profile
             </span>
           </div>
         </div>
+        ${argumentsMarkup}
       </div>
       ${arrow}
       <div class="profile-operator-flow-side profile-operator-output${compactFlowSide ? " profile-operator-flow-side--compact" : ""}">
@@ -513,7 +514,6 @@ function operatorCard({ attributes, title, mergeFunction, relationships, profile
       </div>` : ""}
     </div>
     ${uncontrolled ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; these outputs are not materialized as dataframe columns. Dataframes are passed only through explicit arguments, and the return value is ignored.</div>' : ""}
-    ${argumentsMarkup}
   </article>`;
 }
 
@@ -554,7 +554,7 @@ function profileOperatorCards(
     const resolvedNames = new Set(invocations.flatMap(invocation => Object.keys(invocation.args || {})));
     const unresolved = Object.entries(operator.compute.args || {}).filter(([name]) => !resolvedNames.has(name));
     if (!invocations.length && !unresolved.length) return "";
-    return `<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments</summary>
+    return `<details class="profile-operator-bindings profile-operator-bindings-inline ui-disclosure ui-disclosure--inline"><summary>Arguments</summary>
       ${invocations.map(invocation => `<div class="ui-table-scroll" tabindex="0" role="region" aria-label="Arguments for ${escape(operatorId)}">
         <table class="ui-table"><caption class="sr-only">Arguments for ${escape(operatorId)}</caption>
           <thead><tr><th scope="col">Argument</th><th scope="col">Spec value</th></tr></thead>
@@ -774,7 +774,7 @@ export function stageCards(data) {
       <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">${visibleSteps.length} invocation${visibleSteps.length === 1 ? "" : "s"}</span></div>
     <div class="profile-operator-list">${visibleSteps.map(step => {
       const argumentsMarkup = Object.keys(step.args).length
-        ? `<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments</summary>
+        ? `<details class="profile-operator-bindings profile-operator-bindings-inline ui-disclosure ui-disclosure--inline"><summary>Arguments</summary>
           <div class="ui-table-scroll" tabindex="0" role="region" aria-label="Argument bindings for ${escape(step.title)}"><table class="ui-table">
           <caption class="sr-only">Argument bindings for ${escape(step.title)}</caption>
           <thead><tr>${["Argument", "Resolved value"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
