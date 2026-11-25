@@ -12,10 +12,15 @@ test("navigation shows model, plan and run results with project identity and bui
   assert.match(html, /href="\?view=functions" aria-current="page"/);
   const specNavigation = html.match(/aria-label="Analytical model sections">([^]*?)<\/div>/)[1];
   assert.deepEqual([...specNavigation.matchAll(/<span>([^<]+)<\/span>/g)].map(match => match[1]),
-    ["Profiles", "Features", "Functions", "Dimensions", "Lineage"]);
+    ["Profiles", "Features", "Signatures", "Dimensions", "Lineage"]);
+  const codebaseNavigation = html.match(/aria-label="CODEBASE sections">([^]*?)<\/div>/)[1];
+  assert.deepEqual([...codebaseNavigation.matchAll(/<span>([^<]+)<\/span>/g)].map(match => match[1]),
+    ["Functions"]);
+  assert.match(specNavigation, /icon--features[^>]*data-lucide="hash"/);
   assert.match(specNavigation, /icon--profiles[^>]*data-lucide="layers-2"/);
   assert.match(specNavigation, /icon--dimensions[^>]*data-lucide="axis-3d"/);
-  assert.match(specNavigation, /icon--functions[^>]*data-lucide="square-function"/);
+  assert.match(specNavigation, /icon--signatures[^>]*data-lucide="variable"/);
+  assert.match(codebaseNavigation, /icon--functions[^>]*data-lucide="square-function"/);
   assert.match(html, /icon--invocation-lineage[^>]*data-lucide="layout-arrow-right"/);
   assert.match(html, /icon--data-lineage[^>]*data-lucide="monitor-play"/);
   assert.doesNotMatch(html, /icon--home/);
@@ -27,19 +32,45 @@ test("navigation shows model, plan and run results with project identity and bui
 
 test("catalogs restore contextual browsing, overview charts and escaped item details", async () => {
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
-  for (const view of ["features", "profiles", "dimensions", "functions", "stages"]) {
+  for (const view of ["features", "profiles", "dimensions", "functions", "signatures", "stages"]) {
     const { content, context } = renderCatalog(sampleData(), view);
     assert.match(context, /id="catalog-context"/);
-    assert.match(context, /href="#overview"/);
-    assert.match(content, /id="overview" data-context-item/);
+    if (view === "signatures") {
+      assert.doesNotMatch(context, /href="#overview"|>Overview</);
+      assert.doesNotMatch(content, /id="overview"/);
+      assert.match(context, /href="#function-calculate"/);
+    } else {
+      assert.match(context, /href="#overview"/);
+      assert.match(content, /id="overview" data-context-item/);
+    }
     if (view === "profiles") {
       assert.match(content, /class="profile-summary-category-heading"/);
+    } else if (view === "signatures") {
+      assert.match(content, /<article id="function-calculate" data-context-item>/);
+      assert.match(content, /<h2 class="font-display text-2xl font-semibold text-white">&lt;Calculate&gt;<\/h2>/);
     } else {
       assert.match(content, /data-category=/);
     }
     assert.ok(!content.includes("<Calculate>"));
     assert.ok(!content.includes("<input>"));
   }
+  const declaredFunctionData = sampleData();
+  declaredFunctionData.catalogs.configuration.functions.calculate.args = {
+    frame: { type: "dataframe" }, threshold: { type: "float" },
+  };
+  declaredFunctionData.catalogs.configuration.functions.calculate.returns = "none";
+  declaredFunctionData.catalogs.configuration.functions.calculate.return_type = "ImplementationOnly";
+  declaredFunctionData.catalogs.configuration.functions.calculate.entrypoint = "implementation:detail";
+  const signatures = renderCatalog(declaredFunctionData, "signatures");
+  assert.match(signatures.content, /<h2 class="font-display text-2xl font-semibold text-white">&lt;Calculate&gt;<\/h2>/);
+  assert.match(signatures.content, /<th scope="row"><code>frame<\/code><\/th><td><span class="data-type-label">\s*<i data-lucide="table-2" class="data-type-label-icon" data-type="dataframe"/);
+  assert.match(signatures.content, /<th scope="row"><code>threshold<\/code><\/th><td><span class="data-type-label">\s*<i data-lucide="hash" class="data-type-label-icon" data-type="float"/);
+  assert.match(signatures.content, /<section class="mt-6" aria-label="Arguments">\s*<h3 class="ui-section-title">Arguments<\/h3>/);
+  assert.match(signatures.content, /<section class="mt-6" aria-label="Returns">\s*<h3 class="ui-section-title">Returns<\/h3>\s*<p class="mt-3 text-sm text-slate-400"><span class="data-type-label">[\s\S]*?<span class="data-type-label-text">none<\/span>/);
+  assert.doesNotMatch(signatures.content, /ImplementationOnly|implementation:detail|Calculate &lt;values&gt;|data-section-count/);
+  const dataframeReturnData = sampleData();
+  const dataframeReturns = renderCatalog(dataframeReturnData, "signatures").content;
+  assert.match(dataframeReturns, /aria-label="Returns"[\s\S]*?data-lucide="table-2" class="data-type-label-icon" data-type="dataframe"/);
   const functions = renderCatalog(sampleData(), "functions");
   assert.match(functions.content, /data-function-group="Uncategorized"/);
   assert.match(functions.content, /language-python/);

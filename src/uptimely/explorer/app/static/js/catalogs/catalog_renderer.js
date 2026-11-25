@@ -112,6 +112,10 @@ const contextLinks = {
           contextLink(`function-${id}`, label(id, item), dataframeSignatureIcon(item))),
       )).join("");
   },
+  signatures(data) {
+    return Object.entries(data.catalogs.configuration.functions).map(([id, item]) =>
+      contextLink(`function-${id}`, label(id, item), "signatures")).join("");
+  },
   stages(data) {
     return data.stages.map(stage =>
       contextLink(`stage-${stage.stage}`, `Stage ${stage.stage}`, "stages", stage.steps.length)).join("");
@@ -137,12 +141,13 @@ const contextLinks = {
 export function catalogContext(data, view) {
   const links = contextLinks[view](data);
   const title = view[0].toUpperCase() + view.slice(1);
+  const overviewLink = view === "signatures" ? "" : `${contextLink(
+    "overview", "Overview", "overview",
+  )}<hr class="context-separator">`;
   return `<aside class="site-context" id="catalog-context" aria-label="${title} context" data-context-label="${view}">
     ${contextHeader(title, view, "catalog-context")}
-    <nav class="context-links" aria-label="${title} on this page">${contextLink(
-      "overview", "Overview", "overview",
-    )}
-      <hr class="context-separator">${links || `<p class="context-empty">No ${view}.</p>`}
+    <nav class="context-links" aria-label="${title} on this page">${overviewLink}
+      ${links || `<p class="context-empty">No ${view}.</p>`}
     </nav></aside>`;
 }
 
@@ -801,6 +806,30 @@ export function stageCards(data) {
   }).join("");
 }
 
+function signatureCards(data) {
+  const functions = Object.entries(data.catalogs.configuration.functions);
+  return functions.map(([id, fn]) => `<article id="function-${escape(id)}" data-context-item>
+    <h2 class="font-display text-2xl font-semibold text-white">${escape(label(id, fn))}</h2>
+    <section class="mt-6" aria-label="Arguments">
+      ${subheading("Arguments")}
+      ${Object.keys(fn.args || {}).length
+        ? `<div class="ui-table-scroll mt-3" tabindex="0" role="region" aria-label="Arguments for ${escape(label(id, fn))}">
+          <table class="ui-table">
+            <thead><tr><th scope="col">Argument</th><th scope="col">Type</th></tr></thead>
+            <tbody>${Object.entries(fn.args || {}).map(([argument, value]) => `<tr>
+              <th scope="row"><code>${escape(argument)}</code></th><td>${dataTypeLabel(value.type)}</td>
+            </tr>`).join("")}</tbody>
+          </table>
+        </div>`
+        : '<p class="mt-3 text-sm text-slate-400">No arguments.</p>'}
+    </section>
+    <section class="mt-6" aria-label="Returns">
+      ${subheading("Returns")}
+      <p class="mt-3 text-sm text-slate-400">${dataTypeLabel(fn.returns)}</p>
+    </section>
+  </article>`).join("") || '<p class="text-sm text-slate-400">No function signatures are defined.</p>';
+}
+
 export function renderCatalog(data, view) {
   const config = data.catalogs.configuration;
   const invocations = (data.stages || []).flatMap(stage => stage.steps);
@@ -810,6 +839,7 @@ export function renderCatalog(data, view) {
   const title = view[0].toUpperCase() + view.slice(1);
   const descriptions = {
     functions: "Browse the function catalog, argument types, return signatures, and source entrypoints.",
+    signatures: "Declared function names, argument types, and return values in the analytical model.",
     dimensions: "Inspect dimension resolutions, dataframe keys, and their parent relationships.",
     features: "",
     profiles: "A profile defines computational operators required to assemble a dataset at a specific grain.",
@@ -820,6 +850,9 @@ export function renderCatalog(data, view) {
       ${view === "stages" ? '<p class="mb-2 font-mono text-[10px] uppercase tracking-[.2em] text-slate-500">Execution plan</p>' : ""}
       ${view === "dimensions" ? '<p data-dimension-label class="dimension-detail-label" hidden>Dimension</p>' : ""}
       ${heading(title, descriptions[view] ?? null, view, view === "features" ? data.catalogs.summary.feature_count : null)}
-      ${catalogOverview(data, view)}<div class="space-y-8">${renderers[view]()}</div></section>`),
+      ${view === "signatures"
+        ? `<div class="space-y-8">${signatureCards(data)}</div>`
+        : `${catalogOverview(data, view)}<div class="space-y-8">${renderers[view]()}</div>`}
+    </section>`),
   };
 }

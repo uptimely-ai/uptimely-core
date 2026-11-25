@@ -3,9 +3,10 @@ export const ICONS = {
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
   execution: "play", test: "flask-conical", cases: "list-checks",
   info: "info", logs: "scroll-text", preview: "table-properties",
-  overview: "layout-grid", features: "variable", operators: "sigma",
+  overview: "layout-grid", features: "hash", operators: "sigma",
   profiles: "layers-2", datasets: "table-2",
-  dimensions: "axis-3d", resolutions: "scan-square", functions: "square-function", source: "code-xml",
+  dimensions: "axis-3d", resolutions: "scan-square", functions: "square-function",
+  signatures: "variable", source: "code-xml",
   "source-origin": "map-pin", "source-package": "package", "source-module": "file-code-2",
   grain: "rows-3", scope: "filter", order: "list-ordered",
   schema: "table-2", assembly: "blocks", key: "key-round", "data-type": "braces",
@@ -223,9 +224,12 @@ export function shell(data, view, context, content) {
   const navigationGroups = [
     ["spec", "Analytical model", [
       ["profiles", "Profiles", "profiles"],
-      ["features", "Features", "features"], ["functions", "Functions", "functions"],
+      ["features", "Features", "features"], ["signatures", "Signatures", "signatures"],
       ["dimensions", "Dimensions", "dimensions"],
       ["lineage", "Lineage", "feature-lineage"],
+    ]],
+    ["codebase", "CODEBASE", [
+      ["functions", "Functions", "functions"],
     ]],
     ["test", "Test", [
       ["test-info", "Info", "info"], ["test-cases", "Cases", "cases"],
