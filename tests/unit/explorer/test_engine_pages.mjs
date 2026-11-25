@@ -3,17 +3,20 @@ import { readFile } from "node:fs/promises";
 import test from "node:test";
 
 const root = new URL("../../../src/uptimely/explorer/app/static/js/", import.meta.url);
-const shared = await readFile(new URL("rendering/shared_markup.js", root), "utf8");
+const dataModule = source => `data:text/javascript;base64,${Buffer.from(source).toString("base64")}`;
+const shared = dataModule(await readFile(new URL("rendering/shared_markup.js", root), "utf8"));
+const resultComponents = dataModule((await readFile(
+  new URL("rendering/result_components.js", root), "utf8",
+)).replace("./shared_markup.js", shared));
 const source = await readFile(new URL("engine_pages.js", root), "utf8");
-const moduleSource = source.replace(
-  "./rendering/shared_markup.js",
-  `data:text/javascript;base64,${Buffer.from(shared).toString("base64")}`,
-);
+const moduleSource = source
+  .replace("./rendering/shared_markup.js", shared)
+  .replace("./rendering/result_components.js", resultComponents);
 const {
   previewPage, initializePreview, infoPage, logsPage, loadDashboard, loadInfo, loadLogs, loadPreviews,
   loadTest, loadTestCases, testInfoPage, testCasesPage, initializeTestCases,
 } = await import(
-  `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`
+  dataModule(moduleSource)
 );
 
 const data = {
