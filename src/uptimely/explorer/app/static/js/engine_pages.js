@@ -148,11 +148,15 @@ export function testInfoPage(test) {
   };
 }
 
-function caseTable(rows, label) {
+function caseTable(rows, label, inputColumns = null) {
   const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
-  const headers = columns.map(column => `<th scope="col">${escape(column)}</th>`).join("");
+  const cellClass = column => inputColumns && !inputColumns.has(column)
+    ? ' class="engine-case-new-column"' : "";
+  const headers = columns.map(column =>
+    `<th scope="col"${cellClass(column)}${inputColumns && !inputColumns.has(column)
+      ? ` title="New output column" aria-label="${escape(`${column} (new output column)`)}"` : ""}>${escape(column)}</th>`).join("");
   const body = rows.map(row => `<tr>${columns.map(column =>
-    `<td>${Object.hasOwn(row, column) ? escape(formatValue(row[column])) : "—"}</td>`).join("")}</tr>`).join("");
+    `<td${cellClass(column)}>${Object.hasOwn(row, column) ? escape(formatValue(row[column])) : "—"}</td>`).join("")}</tr>`).join("");
   return `<div class="ui-table-scroll engine-preview-surface" tabindex="0" role="region" aria-label="${escape(label)}">
     <table class="ui-table engine-preview-table"><thead><tr>${headers || "<th>No columns</th>"}</tr></thead>
     <tbody>${body || `<tr><td colspan="${Math.max(columns.length, 1)}">No rows.</td></tr>`}</tbody></table></div>`;
@@ -214,15 +218,18 @@ export function testCasesPage(data, test) {
     const status = item.status === "passed"
       ? '<span class="engine-case-success" role="img" aria-label="Passed" title="Passed"><i data-lucide="circle-check" aria-hidden="true"></i></span>'
       : badge(item.status, "red");
+    const inputColumns = new Set(item.data
+      ? Object.values(item.data.inputs).flatMap(rows => rows.flatMap(row => Object.keys(row)))
+      : []);
     const details = item.data
       ? `${Object.entries(item.data.inputs).map(([name, rows]) =>
         casePanel(name === "dataset" ? "Input" : `Input: ${name}`, "input", caseTable(rows, `Input: ${name}`))).join("")}
         ${casePanel(item.status === "passed" ? "Output" : "Expected output", "output",
           caseTable(item.status === "passed" ? item.actual ?? item.data.expected.return : item.data.expected.return,
-            item.status === "passed" ? "Output" : "Expected output"))}
+            item.status === "passed" ? "Output" : "Expected output", inputColumns))}
         ${item.status === "failed" ? casePanel("Actual output", "output", item.actual === null || item.actual === undefined
           ? "<p>Actual output was not saved for this case.</p>"
-          : caseTable(item.actual, "Actual output")) : ""}`
+          : caseTable(item.actual, "Actual output", inputColumns)) : ""}`
       : '<section class="ui-panel engine-empty"><p>Case data is unavailable. Run uptimely test again to save it.</p></section>';
     return `<section class="engine-test-case" id="case-${index}" data-test-profile="${profileIndexes.get(item.profile)}" hidden>
       <header class="engine-profile-heading"><div><p class="engine-kicker">${escape(item.profile)} / ${escape(item.operator)}</p>

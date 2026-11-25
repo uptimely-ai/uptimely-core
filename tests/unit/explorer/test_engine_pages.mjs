@@ -151,6 +151,32 @@ test("case pages show saved calls above inputs and distinguish injected datafram
   assert.match(content, /Function call unavailable\./);
 });
 
+test("case output highlights columns absent from every input", () => {
+  const inputs = { left: [{ first: 1 }], right: [{ second: 2 }] };
+  const report = { cases: [
+    { profile: "first", operator: "calculate", case: "passed", status: "passed",
+      data: { inputs, expected: { return: [{ first: 1, second: 2, old: 3 }] } },
+      actual: [{ first: 1, second: 2, "new<&": 4 }] },
+    { profile: "first", operator: "calculate", case: "failed", status: "failed",
+      data: { inputs, expected: { return: [{ first: 1, expected_new: 3 }] } },
+      actual: [{ second: 2, actual_new: 4 }] },
+    { profile: "first", operator: "calculate", case: "empty", status: "failed",
+      data: { inputs, expected: { return: [] } }, actual: null },
+  ] };
+  const { content } = testCasesPage(data, report);
+  const table = label => content.split(`aria-label="${label}">`)[1].split("</table>")[0];
+  assert.doesNotMatch(table("Input: left"), /engine-case-new-column/);
+  assert.doesNotMatch(table("Input: right"), /engine-case-new-column/);
+  const output = table("Output");
+  assert.match(output, /<th scope="col">first<\/th><th scope="col">second<\/th>/);
+  assert.match(output, /class="engine-case-new-column" title="New output column" aria-label="new&lt;&amp; \(new output column\)">new&lt;&amp;<\/th>/);
+  assert.match(output, /<td class="engine-case-new-column">4<\/td>/);
+  assert.doesNotMatch(output, />old<\/th>/);
+  assert.match(table("Expected output"), /aria-label="expected_new \(new output column\)">expected_new<\/th>/);
+  assert.match(table("Actual output"), /aria-label="actual_new \(new output column\)">actual_new<\/th>/);
+  assert.match(content, /Actual output was not saved for this case/);
+});
+
 test("test data loads through live and static URLs", async () => {
   const urls = [];
   const fetchData = async url => {

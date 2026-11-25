@@ -24,6 +24,7 @@ In Test > Cases, choose a profile to browse its cases grouped by operator.
 Each case shows its resolved function call, inputs, and output, with expected
 and actual output for a mismatch. Dataframe arguments use input markers such as
 `$dataset`. The call is illustrative rather than executable Python.
+Output columns absent from all case inputs are highlighted in blue.
 
 ## Export a static site
 
