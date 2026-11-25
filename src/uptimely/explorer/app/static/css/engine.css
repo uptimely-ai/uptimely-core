@@ -15,42 +15,52 @@
 .engine-field dt, .engine-kicker { color: #94a3b8; font: 10px "JetBrains Mono", monospace;
   letter-spacing: .08em; text-transform: uppercase; }
 .engine-field dd { margin: 7px 0 0; color: #e2e8f0; overflow-wrap: anywhere; }
-.engine-test-results { margin: 20px 0 16px; }
-.engine-test-results > .ui-section-title { margin: 0 0 8px; }
-.engine-test-summary { padding: 14px; border: 1px solid #1e293b; border-radius: 10px; }
-.engine-test-summary-total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
-.engine-test-summary-total span { color: #94a3b8; font-size: 12px; }
-.engine-test-summary-total strong { color: #f8fafc; font: 600 20px "Space Grotesk", sans-serif; }
-.engine-test-progress { display: flex; height: 10px; overflow: hidden; margin-top: 12px;
+.engine-outcome-group { margin: 20px 0 16px; }
+.engine-outcome-group > .ui-section-title { margin: 0 0 8px; }
+.engine-outcome-summary { padding: 14px; border: 1px solid #1e293b; border-radius: 10px; }
+.engine-outcome-total { display: flex; align-items: baseline; justify-content: space-between; gap: 12px; }
+.engine-outcome-total span { color: #94a3b8; font-size: 12px; }
+.engine-outcome-total strong { color: #f8fafc; font: 600 20px "Space Grotesk", sans-serif; }
+.engine-outcome-progress { display: flex; height: 10px; overflow: hidden; margin-top: 12px;
   border-radius: 999px; background: #1e293b; }
-.engine-test-progress span { flex: 0 1 auto; flex-basis: 0; min-width: 0; }
-.engine-test-progress-passed, .engine-test-legend-passed { background: #10b981; }
-.engine-test-progress-failed, .engine-test-legend-failed { background: #ef4444; }
-.engine-test-progress-error, .engine-test-legend-error { background: #f59e0b; }
-.engine-test-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
+.engine-outcome-progress span { flex: 0 1 auto; flex-basis: 0; min-width: 0; }
+.engine-outcome-progress-passed, .engine-outcome-progress-succeeded,
+.engine-outcome-legend-passed, .engine-outcome-legend-succeeded { background: #10b981; }
+.engine-outcome-progress-failed, .engine-outcome-legend-failed { background: #ef4444; }
+.engine-outcome-progress-error, .engine-outcome-legend-error,
+.engine-outcome-progress-skipped, .engine-outcome-legend-skipped { background: #f59e0b; }
+.engine-outcome-legend { display: grid; grid-template-columns: repeat(auto-fit, minmax(100px, 1fr));
   gap: 8px 16px; margin: 12px 0 0; padding: 0; list-style: none; }
-.engine-test-legend li, .engine-test-legend-label { display: flex; align-items: center; gap: 7px; }
-.engine-test-legend li { color: #cbd5e1; font-size: 12px; }
-.engine-test-legend-label i { width: 8px; height: 8px; border-radius: 50%; }
-.engine-test-legend strong { color: #f8fafc; font-variant-numeric: tabular-nums; }
-.engine-test-timing { margin-top: 16px; }
-.engine-test-timing > .ui-section-title { margin: 0 0 8px; }
-.engine-test-timeline { position: relative; display: grid; gap: 12px; margin-bottom: 16px; padding: 4px 0; }
-.engine-test-timeline::before { position: absolute; top: 12px; bottom: 12px; left: 5px;
+.engine-outcome-legend li, .engine-outcome-legend-label { display: flex; align-items: center; gap: 7px; }
+.engine-outcome-legend li { color: #cbd5e1; font-size: 12px; }
+.engine-outcome-legend-label i { width: 8px; height: 8px; border-radius: 50%; }
+.engine-outcome-legend strong { color: #f8fafc; font-variant-numeric: tabular-nums; }
+.engine-timing { margin-top: 16px; }
+.engine-timing > .ui-section-title { margin: 0 0 8px; }
+.engine-timeline { position: relative; display: grid; gap: 12px; margin-bottom: 16px; padding: 4px 0; }
+.engine-timeline::before { position: absolute; top: 12px; bottom: 12px; left: 5px;
   width: 2px; background: #334155; content: ""; }
-.engine-test-timeline-event { position: relative; display: grid; gap: 4px; padding-left: 22px; }
-.engine-test-timeline-event::before { position: absolute; top: 3px; left: 0; width: 10px; height: 10px;
+.engine-timeline-event { position: relative; display: grid; gap: 4px; padding-left: 22px; }
+.engine-timeline-event::before { position: absolute; top: 3px; left: 0; width: 10px; height: 10px;
   border: 2px solid #22d3ee; border-radius: 50%; background: #0f172a; content: ""; }
-.engine-test-timeline-label, .engine-test-timeline-duration > span {
+.engine-timeline-label, .engine-timeline-duration > span {
   color: #94a3b8; font: 10px "JetBrains Mono", monospace; letter-spacing: .08em; text-transform: uppercase;
 }
-.engine-test-timeline-event time, .engine-test-timeline-event > span:last-child {
+.engine-timeline-event time, .engine-timeline-event > span:last-child {
   color: #e2e8f0; font: 12px/1.5 "JetBrains Mono", monospace; overflow-wrap: anywhere;
 }
-.engine-test-timeline-duration { display: flex; align-items: baseline; gap: 10px; margin-left: 22px; padding-left: 12px; }
-.engine-test-timeline-duration strong { color: #f8fafc; font: 600 14px "Space Grotesk", sans-serif; }
-.engine-test-additional-details { margin-top: 16px; }
-.engine-test-additional-details > .ui-section-title { margin-bottom: 12px; }
+.engine-timeline-duration { display: flex; align-items: baseline; gap: 10px; margin-left: 22px; padding-left: 12px; }
+.engine-timeline-duration strong { color: #f8fafc; font: 600 14px "Space Grotesk", sans-serif; }
+.engine-details { margin-top: 16px; }
+.engine-details > .ui-section-title { margin-bottom: 12px; }
+.engine-invocation-outcomes { margin-top: 24px; }
+.engine-invocation-outcomes > .ui-section-title { margin-bottom: 12px; }
+.engine-invocation-results { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
+.engine-invocation-result { padding: 14px; border: 1px solid #263449; border-radius: 10px; background: #0f172a; }
+.engine-invocation-result-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 12px; }
+.engine-invocation-result-heading h3 { margin: 3px 0 0; color: #f1f5f9; font: 600 14px "Space Grotesk", sans-serif; }
+.engine-invocation-id { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; margin: 8px 0 0; color: #94a3b8; font-size: 11px; }
+.engine-invocation-id code { color: #cbd5e1; font-family: var(--font-mono); overflow-wrap: anywhere; }
 .engine-run-banner { display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 16px 20px; border: 1px solid #334155; border-radius: 12px;
   background: #0f172a; color: #cbd5e1; text-transform: capitalize; }

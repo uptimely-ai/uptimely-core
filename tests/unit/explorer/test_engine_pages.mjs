@@ -44,27 +44,29 @@ test("test info formats timestamps and summarizes outcomes in one status bar", a
   const info = testInfoPage(report).content;
   assert.match(info, /build-1/);
   assert.match(info, /temperature/);
-  assert.match(info, /<section class="engine-test-results" aria-label="Test case results">\s*<h2 class="ui-section-title">Summary<\/h2>\s*<div class="engine-test-summary">/);
+  assert.match(info, /<section class="engine-outcome-group" aria-label="Test case results">\s*<h2 class="ui-section-title">Summary<\/h2>\s*<div class="engine-outcome-summary">/);
   assert.match(info, /<span>Total cases<\/span><strong>3<\/strong>/);
-  assert.match(info, /class="engine-test-progress" role="img"\s+aria-label="1 passed, 1 failed, 1 error"/);
+  assert.match(info, /class="engine-outcome-progress" role="img" aria-label="1 passed, 1 failed, 1 error"/);
   for (const status of ["passed", "failed", "error"]) {
-    assert.match(info, new RegExp(`engine-test-progress-${status}`));
-    assert.match(info, new RegExp(`engine-test-legend-${status}`));
+    assert.match(info, new RegExp(`engine-outcome-progress-${status}`));
+    assert.match(info, new RegExp(`engine-outcome-legend-${status}`));
   }
-  assert.match(info, /engine-test-legend-passed" aria-hidden="true"><\/i>Passed<\/span>\s*<strong>1<\/strong>/);
-  assert.match(info, /engine-test-legend-failed" aria-hidden="true"><\/i>Failed<\/span>\s*<strong>1<\/strong>/);
-  assert.match(info, /engine-test-legend-error" aria-hidden="true"><\/i>Errors<\/span>\s*<strong>1<\/strong>/);
-  const timeline = info.match(/<section class="engine-test-timing">\s*<h2 class="ui-section-title">Timeline<\/h2>[\s\S]*?<section class="engine-test-additional-details"/)[0];
-  assert.match(timeline, /class="engine-test-timeline-label">Started<\/span><time datetime="[^"]+">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
-  assert.match(timeline, /class="engine-test-timeline-duration">[\s\S]*?<span>Duration<\/span><strong>62\.000 s<\/strong>/);
-  assert.match(timeline, /class="engine-test-timeline-label">Finished<\/span><time datetime="[^"]+">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
-  assert.match(info, /<section class="engine-test-additional-details" aria-label="Details">\s*<h2 class="ui-section-title">Details<\/h2>\s*<dl class="engine-fields">[\s\S]*?Report version[\s\S]*?Build fingerprint[\s\S]*?Built feature scope[\s\S]*?<\/dl>\s*<\/section>/);
+  assert.match(info, /engine-outcome-legend-passed" aria-hidden="true"><\/i>Passed<\/span>\s*<strong>1<\/strong>/);
+  assert.match(info, /engine-outcome-legend-failed" aria-hidden="true"><\/i>Failed<\/span>\s*<strong>1<\/strong>/);
+  assert.match(info, /engine-outcome-legend-error" aria-hidden="true"><\/i>Errors<\/span>\s*<strong>1<\/strong>/);
+  const timeline = info.match(/<section class="engine-timing">\s*<h2 class="ui-section-title">Timeline<\/h2>[\s\S]*?<section class="engine-details"/)[0];
+  assert.match(timeline, /class="engine-timeline-label">Started<\/span><time datetime="[^"]+">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
+  assert.match(timeline, /class="engine-timeline-duration">[\s\S]*?<span>Duration<\/span><strong>62\.000 s<\/strong>/);
+  assert.match(timeline, /class="engine-timeline-label">Finished<\/span><time datetime="[^"]+">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
+  assert.match(info, /<section class="engine-details" aria-label="Details">\s*<h2 class="ui-section-title">Details<\/h2>\s*<dl class="engine-fields">[\s\S]*?Report version[\s\S]*?Build fingerprint[\s\S]*?Built feature scope[\s\S]*?<\/dl>\s*<\/section>/);
   assert.doesNotMatch(info, /<dt>Status<\/dt>|<dt>Passed<\/dt>|<dt>Failed<\/dt>|<dt>Errors<\/dt>/);
   const engineCss = await readFile(new URL("../css/engine.css", root), "utf8");
-  assert.match(engineCss, /\.engine-test-results\s*\{[^}]*margin:\s*20px 0 16px/);
+  assert.match(engineCss, /\.engine-outcome-group\s*\{[^}]*margin:\s*20px 0 16px/);
   for (const status of ["passed", "failed", "error"]) {
-    assert.match(engineCss, new RegExp(`\\.engine-test-progress-${status}[^}]*background:`));
+    assert.match(engineCss, new RegExp(`\\.engine-outcome-progress-${status}[^}]*background:`));
   }
+  assert.match(engineCss, /\.engine-timeline::before\s*\{/);
+  assert.match(engineCss, /\.engine-invocation-result\s*\{[^}]*border:/);
 });
 
 test("test pages group cases by operator within each selectable profile", () => {
@@ -426,7 +428,7 @@ test("run pages use shared panels and avoid duplicate empty-state icons or misle
   assert.match(rendered, /class="ui-badge ui-badge--green">succeeded/);
 });
 
-test("saved run details show compute and merge outcomes independently", () => {
+test("run overview visualizes invocation outcomes, timing and run details", () => {
   const run = {
     status: "failed",
     started_at: "2026-11-07T10:00:00Z",
@@ -457,6 +459,15 @@ test("saved run details show compute and merge outcomes independently", () => {
     },
   ] }];
   const { content } = infoPage({ run }, stages);
+  assert.match(content, /<section class="engine-outcome-group" aria-label="Invocation outcomes">\s*<h2 class="ui-section-title">Summary<\/h2>\s*<div class="engine-outcome-summary">/);
+  assert.match(content, /<span>Total invocations<\/span><strong>2<\/strong>/);
+  assert.match(content, /class="engine-outcome-progress" role="img" aria-label="1 succeeded, 1 failed, 0 skipped"/);
+  assert.match(content, /engine-outcome-progress-succeeded/);
+  assert.match(content, /engine-outcome-progress-failed/);
+  assert.match(content, /engine-outcome-legend-skipped" aria-hidden="true"><\/i>Skipped<\/span>\s*<strong>0<\/strong>/);
+  assert.match(content, /<section class="engine-timing">\s*<h2 class="ui-section-title">Timeline<\/h2>[\s\S]*?class="engine-timeline-label">Started<\/span><time datetime="[^"]+">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>[\s\S]*?Duration<\/span><strong>1\.000 s<\/strong>[\s\S]*?class="engine-timeline-label">Finished<\/span><time datetime="[^"]+">\d{4}-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
+  assert.match(content, /<section class="engine-details" aria-label="Details">\s*<h2 class="ui-section-title">Details<\/h2>[\s\S]*?Uptimely version[\s\S]*?Runtime validation[\s\S]*?Run ID[\s\S]*?Build fingerprint[\s\S]*?Built feature scope/);
+  assert.doesNotMatch(content, /<dt>Status<\/dt>|<dt>Started<\/dt>|<dt>Finished<\/dt>|<dt>Duration<\/dt>/);
   assert.match(content, /Invocation outcomes/);
   assert.match(content, /data-phase="compute" data-status="succeeded"/);
   assert.match(content, /data-phase="merge" data-status="failed"/);
