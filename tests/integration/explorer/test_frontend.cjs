@@ -23,6 +23,8 @@ test("navigation shows model, plan and run results with project identity and bui
   assert.match(codebaseNavigation, /icon--functions[^>]*data-lucide="square-function"/);
   assert.match(html, /icon--invocation-lineage[^>]*data-lucide="layout-arrow-right"/);
   assert.match(html, /icon--data-lineage[^>]*data-lucide="monitor-play"/);
+  assert.match(html, /href="\?view=test-info"[^]*?icon--test nav-icon" data-lucide="flask-conical"/);
+  assert.match(html, /href="\?view=info"[^]*?icon--execution nav-icon" data-lucide="play"/);
   assert.doesNotMatch(html, /icon--home/);
   assert.match(html, /&lt;Test project&gt;/);
   assert.match(html, /Full build/);

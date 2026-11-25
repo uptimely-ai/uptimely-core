@@ -232,14 +232,14 @@ export function shell(data, view, context, content) {
       ["functions", "Functions", "functions"],
     ]],
     ["test", "Test", [
-      ["test-info", "Info", "info"], ["test-cases", "Cases", "cases"],
+      ["test-info", "Info", "test"], ["test-cases", "Cases", "cases"],
     ]],
     ["plan", "Execution plan", [
       ["plan", "Overview", "overview"], ["topology", "Topology", "invocation-lineage"],
       ["stages", "Stages", "stages"],
     ]],
     ["execution", "Run results", [
-      ["info", "Info", "info"], ["logs", "Log", "logs"],
+      ["info", "Info", "execution"], ["logs", "Log", "logs"],
       ["preview", "Preview", "preview"],
       ["animation", "Animation", "data-lineage"],
     ]],
