@@ -49,6 +49,9 @@ jobs:
           "$UPTIMELY" run
           "$UPTIMELY" export . --output "$RUNNER_TEMP/example-explorer.zip"
           test -s "$RUNNER_TEMP/example-explorer.zip"
+      - name: Test pump analytics demo
+        run: |
+          poetry run uptimely test example
       - name: Export static Explorer to the docs
         run: |
           poetry run uptimely export \
