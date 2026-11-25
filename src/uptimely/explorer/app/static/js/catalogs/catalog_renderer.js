@@ -209,7 +209,7 @@ function profileOverview(data) {
   const maximumOperators = Math.max(
     0, ...profileItems.map(({ profile }) => Object.keys(profile.assembly).length),
   );
-  const cards = profileItems.map(({ id, profile }) => {
+  const profileCard = ({ id, profile }) => {
     const operatorCount = Object.keys(profile.assembly).length;
     const grain = profileGrain(config, profile.grain);
     const width = maximumOperators ? operatorCount / maximumOperators * 100 : 0;
@@ -217,7 +217,6 @@ function profileOverview(data) {
       aria-label="${escape(`${label(id, profile)}: ${operatorCount} operator${operatorCount === 1 ? "" : "s"}`)}">
       <header class="profile-summary-header">
         <div class="profile-summary-identity">
-          <span class="profile-summary-category">${escape(profile.category || "Uncategorized")}</span>
           <h3>${escape(label(id, profile))}</h3>
         </div>
       </header>
@@ -231,9 +230,20 @@ function profileOverview(data) {
         ${profileGrainMarkup(grain, true)}
       </div>
     </a>`;
-  });
+  };
+  const categories = new Map();
+  for (const item of profileItems) {
+    const category = item.profile.category || "Uncategorized";
+    if (!categories.has(category)) categories.set(category, []);
+    categories.get(category).push(item);
+  }
+  const groups = [...categories].map(([category, items]) => `<section
+      class="profile-summary-category-group" data-profile-category="${escape(category)}">
+      <h2 class="profile-summary-category-heading">${escape(category)}</h2>
+      <div class="profile-summary-grid">${items.map(profileCard).join("")}</div>
+    </section>`).join("");
   return `<section id="overview" data-context-item aria-label="Profiles overview" class="mb-12">
-    <div class="profile-summary-grid">${cards.join("") || '<p class="text-sm text-slate-400">No profiles are defined.</p>'}</div>
+    ${groups || '<p class="text-sm text-slate-400">No profiles are defined.</p>'}
   </section>`;
 }
 

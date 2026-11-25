@@ -87,6 +87,31 @@ test("function usage groups named operators by profile without semantic metadata
   assert.doesNotMatch(usage, /function-usage-role|binding|compute \+ merge|not_applicable/);
 });
 
+test("profile overview groups cards by category and collects uncategorized profiles", () => {
+  const { content } = renderCatalog({ catalogs: { summary: {}, configuration: {
+    dimensions: {}, functions: {}, profiles: {
+      first: { name: "First", category: "Batch & <source>", grain: [], features: {}, assembly: {} },
+      second: { name: "Second", category: "Realtime", grain: [], features: {}, assembly: {} },
+      third: { name: "Third", category: "Batch & <source>", grain: [], features: {}, assembly: {} },
+      fourth: { name: "Fourth", grain: [], features: {}, assembly: {} },
+    },
+  } } }, "profiles");
+  const overview = content.slice(0, content.indexOf('<div class="space-y-8">'));
+  const groups = [...overview.matchAll(
+    /<section\s+class="profile-summary-category-group" data-profile-category="([^"]+)">([\s\S]*?)<\/section>/g,
+  )];
+
+  assert.deepEqual(groups.map(([, category]) => category), [
+    "Batch &amp; &lt;source&gt;", "Realtime", "Uncategorized",
+  ]);
+  assert.match(groups[0][2], /<h2 class="profile-summary-category-heading">Batch &amp; &lt;source&gt;<\/h2>/);
+  assert.deepEqual(
+    groups.map(([, , group]) => [...group.matchAll(/href="#profile-([^"]+)"/g)].map(([, id]) => id)),
+    [["first", "third"], ["second"], ["fourth"]],
+  );
+  assert.equal((overview.match(/class="profile-summary-card"/g) || []).length, 4);
+});
+
 test("function source and signature share a responsive grid", async () => {
   const css = await readFile(new URL("../css/spec.css", root), "utf8");
   assert.match(css, /\.function-detail\s*\{[^}]*container-type:\s*inline-size/);

@@ -20,7 +20,7 @@ Techncally it would have all capabilities to do so.
 
 Resource | Description
 --- | ---
-Logical layer | Profiles, features, dimensions, operators
+Logical layer | Profiles organized by category, features, dimensions, operators
 Physical layer | Datasets and functions
 Lineage | Feature level lineage, swimlane by profile
 Compilation | Execution graph in topological visualization

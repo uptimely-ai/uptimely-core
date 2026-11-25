@@ -33,7 +33,7 @@ test("catalogs restore contextual browsing, overview charts and escaped item det
     assert.match(context, /href="#overview"/);
     assert.match(content, /id="overview" data-context-item/);
     if (view === "profiles") {
-      assert.match(content, /class="profile-summary-category"/);
+      assert.match(content, /class="profile-summary-category-heading"/);
     } else {
       assert.match(content, /data-category=/);
     }
