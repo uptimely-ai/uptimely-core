@@ -6,11 +6,11 @@ test("navigation shows model, plan and run results with project identity and bui
   const { shell } = await moduleAt("rendering/shared_markup.js");
   const data = sampleData();
   const html = shell(data, "functions", "", "");
-  for (const section of ["Analytical model sections", "Execution plan sections", "Run results sections"]) assert.ok(html.includes(section));
+  for (const section of ["Specification sections", "Execution plan sections", "Run results sections"]) assert.ok(html.includes(section));
   assert.match(html, /id="explorer-navigation"/);
   assert.match(html, /nav-label-toggle/);
   assert.match(html, /href="\?view=functions" aria-current="page"/);
-  const specNavigation = html.match(/aria-label="Analytical model sections">([^]*?)<\/div>/)[1];
+  const specNavigation = html.match(/aria-label="Specification sections">([^]*?)<\/div>/)[1];
   assert.deepEqual([...specNavigation.matchAll(/<span>([^<]+)<\/span>/g)].map(match => match[1]),
     ["Profiles", "Features", "Signatures", "Dimensions", "Lineage"]);
   const codebaseNavigation = html.match(/aria-label="CODEBASE sections">([^]*?)<\/div>/)[1];
