@@ -118,6 +118,42 @@ const field = (label, value) => `<div class="engine-field"><dt>${escape(label)}<
 const formatValue = value => value == null ? "null"
   : typeof value === "object" ? JSON.stringify(value) : String(value);
 
+function outcomeSummary(title, totalLabel, total, counts, statuses, description) {
+  return `<section class="engine-outcome-group" aria-label="${escape(title)}">
+    <h2 class="ui-section-title">Summary</h2>
+    <div class="engine-outcome-summary">
+      <div class="engine-outcome-total"><span>${escape(totalLabel)}</span><strong>${total}</strong></div>
+      <div class="engine-outcome-progress" role="img" aria-label="${escape(description)}">
+        ${statuses.filter(([status]) => (counts[status] || 0) > 0).map(([status]) =>
+          `<span class="engine-outcome-progress-${escape(status)}" style="flex-grow:${counts[status]}"></span>`).join("")}
+      </div>
+      <ul class="engine-outcome-legend">${statuses.map(([status, label]) => `<li>
+        <span class="engine-outcome-legend-label"><i class="engine-outcome-legend-${escape(status)}" aria-hidden="true"></i>${escape(label)}</span>
+        <strong>${counts[status] || 0}</strong>
+      </li>`).join("")}</ul>
+    </div>
+  </section>`;
+}
+
+function timingTimeline(title, startedAt, duration, finishedAt) {
+  const timestamp = value => value
+    ? `<time datetime="${escape(value)}">${escape(formatTimestamp(value))}</time>` : "<span>—</span>";
+  return `<section class="engine-timing">
+    <h2 class="ui-section-title">Timeline</h2>
+    <div class="engine-timeline" role="group" aria-label="${escape(title)}">
+      <div class="engine-timeline-event">
+        <span class="engine-timeline-label">Started</span>${timestamp(startedAt)}
+      </div>
+      <div class="engine-timeline-duration">
+        <span>Duration</span><strong>${escape(duration)}</strong>
+      </div>
+      <div class="engine-timeline-event">
+        <span class="engine-timeline-label">Finished</span>${timestamp(finishedAt)}
+      </div>
+    </div>
+  </section>`;
+}
+
 export function testInfoPage(test) {
   if (!test) {
     return {
@@ -141,41 +177,12 @@ export function testInfoPage(test) {
   const resultDescription = totalCases
     ? `${counts.passed || 0} passed, ${counts.failed || 0} failed, ${counts.error || 0} error${counts.error === 1 ? "" : "s"}`
     : "No test cases";
-  const results = `<section class="engine-test-results" aria-label="Test case results">
-    <h2 class="ui-section-title">Summary</h2>
-    <div class="engine-test-summary">
-      <div class="engine-test-summary-total"><span>Total cases</span><strong>${totalCases}</strong></div>
-      <div class="engine-test-progress" role="img"
-        aria-label="${escape(resultDescription)}">
-        ${statuses.filter(([status]) => (counts[status] || 0) > 0).map(([status]) =>
-          `<span class="engine-test-progress-${status}" style="flex-grow:${counts[status]}"></span>`).join("")}
-      </div>
-      <ul class="engine-test-legend">${statuses.map(([status, label]) => `<li>
-        <span class="engine-test-legend-label"><i class="engine-test-legend-${status}" aria-hidden="true"></i>${label}</span>
-        <strong>${counts[status] || 0}</strong>
-      </li>`).join("")}</ul>
-    </div>
-  </section>`;
+  const results = outcomeSummary("Test case results", "Total cases", totalCases, counts, statuses, resultDescription);
   const duration = test.started_at && test.finished_at
     ? (new Date(test.finished_at) - new Date(test.started_at)) / 1000 : NaN;
   const durationText = Number.isFinite(duration) && duration >= 0 ? `${duration.toFixed(3)} s` : "—";
-  const timelineTime = value => value
-    ? `<time datetime="${escape(value)}">${escape(formatTimestamp(value))}</time>` : "<span>—</span>";
-  const timeline = `<section class="engine-test-timing">
-    <h2 class="ui-section-title">Timeline</h2>
-    <div class="engine-test-timeline" role="group" aria-label="Test timing">
-      <div class="engine-test-timeline-event">
-        <span class="engine-test-timeline-label">Started</span>${timelineTime(test.started_at)}
-      </div>
-      <div class="engine-test-timeline-duration">
-        <span>Duration</span><strong>${escape(durationText)}</strong>
-      </div>
-      <div class="engine-test-timeline-event">
-        <span class="engine-test-timeline-label">Finished</span>${timelineTime(test.finished_at)}
-      </div>
-    </div>
-  </section>`;
-  const additionalDetails = `<section class="engine-test-additional-details" aria-label="Details">
+  const timeline = timingTimeline("Test timing", test.started_at, durationText, test.finished_at);
+  const additionalDetails = `<section class="engine-details" aria-label="Details">
     <h2 class="ui-section-title">Details</h2>
     <dl class="engine-fields">
       ${field("Report version", test.version)}
@@ -369,7 +376,27 @@ export function infoPage({ run }, stages = []) {
     const secondPosition = stepPositions.get(second) ?? Number.MAX_SAFE_INTEGER;
     return firstPosition - secondPosition || first.localeCompare(second);
   });
-  const invocationOutcomes = invocationResults.length ? panel("Invocation outcomes", `
+  const invocationStatuses = [
+    ["succeeded", "Succeeded"],
+    ["failed", "Failed"],
+    ["skipped", "Skipped"],
+  ];
+  const invocationCounts = invocationResults.reduce((counts, [, result]) => {
+    counts[result.status] = (counts[result.status] || 0) + 1;
+    return counts;
+  }, {});
+  const invocationDescription = invocationResults.length
+    ? `${invocationCounts.succeeded || 0} succeeded, ${invocationCounts.failed || 0} failed, ${invocationCounts.skipped || 0} skipped`
+    : "No invocations";
+  const summary = outcomeSummary(
+    "Invocation outcomes", "Total invocations", invocationResults.length, invocationCounts,
+    invocationStatuses, invocationDescription,
+  );
+  const durationText = Number.isFinite(run.duration_seconds) && run.duration_seconds >= 0
+    ? `${run.duration_seconds.toFixed(3)} s` : "—";
+  const timeline = timingTimeline("Run timing", run.started_at, durationText, run.finished_at);
+  const invocationOutcomes = invocationResults.length ? `<section class="engine-invocation-outcomes">
+    <h2 class="ui-section-title">Invocation outcomes</h2>
     <ol class="engine-invocation-results">${invocationResults.map(([id, result]) => {
       const step = stepsById.get(id);
       const phase = step?.phase || (id.split(":")[1] === "merge" ? "merge" : "compute");
@@ -386,21 +413,21 @@ export function infoPage({ run }, stages = []) {
         <p class="engine-invocation-id"><code>${escape(id)}</code><span>Duration: ${escape(duration)}</span></p>
         ${result.error ? `<p class="engine-error-text">${escape(result.error)}</p>` : ""}
       </li>`;
-    }).join("")}</ol>`) : "";
-  const runDetails = `<dl class="engine-fields">
-      ${field("Status", run.status)}${field("Started", run.started_at)}
-      ${field("Finished", run.finished_at)}${field("Duration", `${run.duration_seconds.toFixed(3)} s`)}
+    }).join("")}</ol></section>` : "";
+  const runDetails = `<section class="engine-details" aria-label="Details">
+    <h2 class="ui-section-title">Details</h2>
+    <dl class="engine-fields">
       ${field("Uptimely version", run.uptimely_version)}${field("Runtime validation", run.runtime_validation)}
       ${field("Preview row limit", run.preview_rows)}${field("Run ID", run.run_id)}
       ${field("Build fingerprint", run.build.fingerprint)}
       ${field("Built feature scope", run.build.manifest.features?.join(", ") || "All features")}
-    </dl>
+    </dl></section>
     <div class="engine-run-error">${run.error ? `<p class="engine-error-text">${escape(run.error)}</p>` : ""}</div>`;
   return {
     context: "",
     content: page(`<section id="run-overview">${heading("Info", "Information about the latest saved run.")}
         <section class="engine-run-banner ${statusClass}"><span>Latest run</span><strong>${escape(run.status)}</strong></section>
-        ${panel("Run details", runDetails)}
+        ${summary}${timeline}${runDetails}
         ${invocationOutcomes}
       </section>`),
   };
