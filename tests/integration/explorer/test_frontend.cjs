@@ -247,7 +247,7 @@ test("function source and operator usage handle qualified, missing and escaped v
   assert.match(empty, /Not used by any operator/);
 });
 
-test("merge phases expose their invocation metadata and owning operator", async () => {
+test("merge phases remain represented in profile badges and invocation lineage", async () => {
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const { lineage } = await moduleAt("rendering/page_renderer.js");
   const data = sampleData();
@@ -317,14 +317,11 @@ test("merge phases expose their invocation metadata and owning operator", async 
   const stages = renderCatalog(data, "stages").content;
   const profiles = renderCatalog(data, "profiles").content;
   const topology = lineage(data, true).content;
-  assert.match(stages, /data-role="merge"/);
-  assert.match(stages, /Merge dataset/);
-  assert.match(stages, /Fragment source/);
-  assert.match(stages, /Merge keys/);
+  assert.doesNotMatch(stages, /data-role="merge"|Merge dataset|Fragment source|Merge keys/);
   assert.match(profiles, /id="operator-readings-calculate"/);
   assert.match(profiles, /data-execution-form="compute \+ merge"/);
-  assert.match(profiles, /profile-operator-relationship-indicator[^]*?data-lucide="git-merge"/);
-  assert.match(profiles, /The resulting fragment is merged into this profile&#39;s dataset\. Grain relationships:/);
+  assert.match(profiles, /profile-operator-merge-badge-icon" data-lucide="git-merge"[^]*?Merge<\/span>/);
+  assert.doesNotMatch(profiles, /Output fragment|class="profile-operator-merge"|Output dataset/);
   assert.match(topology, /"role":"merge"/);
   assert.match(topology, /"dependency_type":"fragment"/);
 });
@@ -407,7 +404,7 @@ test("profile scope and logical order share a responsive row only when both exis
   assert.doesNotMatch(renderCatalog(data, "profiles").content, /data-profile-context/);
 });
 
-test("profile operator expose engineering contracts and inspectable bindings", async () => {
+test("profile operators expose engineering contracts and spec argument values", async () => {
   const { renderCatalog } = await moduleAt("catalogs/catalog_renderer.js");
   const data = sampleData();
   const config = data.catalogs.configuration;
@@ -458,18 +455,17 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.match(html, /Input features<\/dt><dd><code>raw<\/code>/);
   assert.match(html, /Output features<\/dt><dd><code>&lt;Value&gt;<\/code>/);
   assert.match(html, /<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments<\/summary>/);
-  assert.match(html, /<th scope="col">Argument<\/th><th scope="col">Spec value<\/th><th scope="col">Resolved value<\/th>/);
+  assert.match(html, /<th scope="col">Argument<\/th><th scope="col">Spec value<\/th>/);
+  assert.doesNotMatch(html, /Resolved value|profile-operator-engine-bind|This value will be bound only during the engine execution/);
   assert.match(html, /<span class="ui-badge profile-operator-argument-value"><code class="language-json">\$profiles\.source\.dataset<\/code><\/span>/);
   assert.match(html, /class="ui-badge profile-operator-argument-value"><code class="language-json">\[\n\s+\$features\.bearing_temperature_delta,\n\s+\$features\.pressure_flow_efficiency\n\s*\]<\/code><\/span>/);
   const aggregateTable = html.match(/<article id="operator-readings-aggregate"[^]*?<table class="ui-table">([^]*?)<\/table>/)[1];
   const optionsRow = [...aggregateTable.matchAll(/<tr>([\s\S]*?)<\/tr>/g)]
     .map(([, row]) => row).find(row => row.includes("<span>options</span>"));
   assert.match(optionsRow, /<\/th>\s*<td><code class="language-json">\{\n\s+&quot;method&quot;: &quot;&lt;max&gt;&quot;\n\s*\}<\/code>/);
-  assert.match(html, /This value will be bound only during the engine execution\./);
   const datasetRow = [...aggregateTable.matchAll(/<tr>([\s\S]*?)<\/tr>/g)]
     .map(([, row]) => row).find(row => row.includes("<span>dataset</span>"));
-  assert.match(datasetRow, /<span class="ui-badge profile-operator-argument-value"><span class="profile-operator-engine-bind"[\s\S]*?<\/span><code class="language-json">\$profiles\.source\.dataset<\/code><\/span>/);
-  assert.doesNotMatch(datasetRow, /<\/span><span class="profile-operator-engine-bind"/);
+  assert.match(datasetRow, /<span class="ui-badge profile-operator-argument-value"><code class="language-json">\$profiles\.source\.dataset<\/code><\/span>/);
   assert.doesNotMatch(html, /Group by grain keys:/);
   assert.match(html, /Output features \(logical\)<\/dt><dd><code>&lt;logical&gt;<\/code>/);
   assert.match(html, /None declared/);
@@ -477,7 +473,8 @@ test("profile operator expose engineering contracts and inspectable bindings", a
   assert.match(html, /data-profile-operator="calculate" data-execution-form="compute"/);
   const operator = html.match(/<article id="operator-readings-aggregate"[^]*?<\/article>/)[0];
   assert.match(operator, /profile-operator-header[^]*profile-operator-contract[^]*profile-operator-compute/);
-  assert.match(operator, /class="site-icon icon--read profile-operator-function-icon" data-lucide="file-input"/);
+  assert.match(operator, /class="site-icon icon--read profile-operator-signature-icon" data-lucide="file-input"/);
+  assert.match(operator, /class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"/);
   assert.doesNotMatch(operator, /profile-operator-flow-node/);
   assert.ok(operator.indexOf("Input features") < operator.indexOf("profile-operator-compute"));
   assert.ok(operator.indexOf("profile-operator-compute") < operator.indexOf("Output features"));
