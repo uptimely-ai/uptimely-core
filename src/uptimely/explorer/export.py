@@ -6,12 +6,15 @@ import zipfile
 
 from uptimely.build import bundle, errors
 from uptimely.explorer import presentation
+from uptimely.project import paths
 from uptimely.run import store as run_store
+from uptimely.test import models as test_models
 
 _BUILD_INSTRUCTION = "Run 'uptimely build' to generate a valid Explorer snapshot."
 _STATIC_CONFIG_FILE = pathlib.Path("config.js")
 _EXPORTED_DATA_FILE = pathlib.Path("data") / "explorer.json"
 _EXPORTED_RUN_FILE = pathlib.Path("data") / "run.json"
+_EXPORTED_TEST_FILE = pathlib.Path("data") / "test.json"
 _LOG_PAGE_SIZE = 1000
 
 
@@ -41,6 +44,15 @@ def _read_run_snapshot(project_root: pathlib.Path) -> bytes:
     ).encode("utf-8")
 
 
+def _read_test_snapshot(project_root: pathlib.Path) -> bytes:
+    """Validate the latest operator test report for static hosting."""
+    try:
+        content = (project_root / paths.TEST_REPORT_FILE).read_bytes()
+    except FileNotFoundError:
+        return b"null\n"
+    return test_models.TestReport.model_validate_json(content).model_dump_json().encode("utf-8")
+
+
 def _read_snapshot(project_root: pathlib.Path) -> bytes:
     """Read and validate the snapshot once, preserving its original JSON bytes."""
     try:
@@ -62,7 +74,13 @@ def _static_config() -> str:
     """Return a static-host data configuration with a relative URL."""
     return (
         "window.UTIMELY_EXPLORER_CONFIG = Object.freeze("
-        + json.dumps({"dataUrl": "./data/explorer.json", "runDataUrl": "./data/run.json"})
+        + json.dumps(
+            {
+                "dataUrl": "./data/explorer.json",
+                "runDataUrl": "./data/run.json",
+                "testDataUrl": "./data/test.json",
+            }
+        )
         + ");\n"
     )
 
@@ -80,6 +98,7 @@ def _write_directory_export(
     output: pathlib.Path,
     snapshot: bytes,
     run_snapshot: bytes,
+    test_snapshot: bytes,
 ) -> None:
     """Write frontend assets and the snapshot to an export directory."""
     output.mkdir(parents=True, exist_ok=True)
@@ -93,6 +112,7 @@ def _write_directory_export(
     data_target.parent.mkdir(parents=True, exist_ok=True)
     data_target.write_bytes(snapshot)
     (output / _EXPORTED_RUN_FILE).write_bytes(run_snapshot)
+    (output / _EXPORTED_TEST_FILE).write_bytes(test_snapshot)
 
 
 def _write_zip_export(
@@ -101,6 +121,7 @@ def _write_zip_export(
     output: pathlib.Path,
     snapshot: bytes,
     run_snapshot: bytes,
+    test_snapshot: bytes,
 ) -> None:
     """Write frontend assets and the snapshot to a ZIP archive."""
     if output.exists() and output.is_dir():
@@ -115,6 +136,7 @@ def _write_zip_export(
             )
         archive.writestr(_EXPORTED_DATA_FILE.as_posix(), snapshot)
         archive.writestr(_EXPORTED_RUN_FILE.as_posix(), run_snapshot)
+        archive.writestr(_EXPORTED_TEST_FILE.as_posix(), test_snapshot)
 
 
 def export_static(
@@ -151,9 +173,10 @@ def export_static(
 
     snapshot = _read_snapshot(root)
     run_snapshot = _read_run_snapshot(root)
+    test_snapshot = _read_test_snapshot(root)
     files = sorted(path for path in static_root.rglob("*") if path.is_file())
     if output.suffix.lower() == ".zip":
-        _write_zip_export(files, static_root, output, snapshot, run_snapshot)
+        _write_zip_export(files, static_root, output, snapshot, run_snapshot, test_snapshot)
     else:
-        _write_directory_export(files, static_root, output, snapshot, run_snapshot)
+        _write_directory_export(files, static_root, output, snapshot, run_snapshot, test_snapshot)
     return output

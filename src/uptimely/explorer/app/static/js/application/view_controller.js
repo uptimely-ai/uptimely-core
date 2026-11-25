@@ -9,8 +9,8 @@ import { initializeInvocationLineage } from "../lineage/invocation_lineage.js";
 import { initializeDataLineage } from "../animation/playback_controller.js";
 import { initializeHighlighting } from "../catalogs/function_highlighting.js";
 import {
-  infoPage, initializeLogs, initializePreview, loadInfo, loadLogs, loadPreviews, logsPage,
-  previewPage,
+  infoPage, initializeLogs, initializePreview, loadDashboard, loadInfo, loadLogs, loadPreviews,
+  logsPage, previewPage,
 } from "../engine_pages.js";
 
 const INITIALIZERS = {
@@ -28,7 +28,10 @@ const catalog = (name, highlight = false) => ({
 });
 const content = render => data => ({ context: "", content: render(data) });
 const VIEWS = {
-  home: { stylesheet: "dashboard", initialize: icons, render: content(dashboard) },
+  home: {
+    stylesheet: "dashboard", initialize: icons, load: loadDashboard,
+    render: (data, homeData) => ({ context: "", content: dashboard(data, homeData) }),
+  },
   plan: { stylesheet: "spec", initialize: icons, render: content(planOverview) },
   features: catalog("features", true),
   profiles: catalog("profiles", true),

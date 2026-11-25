@@ -1,8 +1,77 @@
 import { contextHeader, distribution, escape, heading, href, icon, page } from "./shared_markup.js";
 import { UNASSIGNED_DATASET } from "../lineage/lineage_config.js";
 
-export function dashboard(data) {
+export function dashboard(data, { run = null, test = null } = {}) {
   const summary = data.catalogs.summary;
+  const build = data.build || {};
+  const featureScope = build.features?.length
+    ? `<p>Selected features: ${escape(build.features.join(", "))}</p>` : "";
+  const testCounts = (test?.cases || []).reduce((counts, item) => {
+    counts[item.status] = (counts[item.status] || 0) + 1;
+    return counts;
+  }, {});
+  const testCaseCount = test?.cases?.length || 0;
+  const invocationCount = Object.keys(run?.invocations || {}).length;
+  const profileCount = Object.keys(run?.profiles || {}).length;
+  const passedCount = testCounts.passed || 0;
+  const failedCount = testCounts.failed || 0;
+  const errorCount = testCounts.error || 0;
+  const buildMetrics = [["Profiles", summary.profile_count], ["Features", summary.feature_count],
+    ["Functions", summary.function_count]];
+  const testMetrics = test ? [
+    ["Cases", testCaseCount],
+    ["Passed", passedCount],
+    ["Failed", failedCount],
+    ["Errors", errorCount],
+  ] : [];
+  const runMetrics = [
+    ["Invocations", invocationCount],
+    ["Profiles", profileCount],
+    ["Duration", run ? `${run.duration_seconds.toFixed(3)} s` : "—"],
+  ];
+  const testTone = test?.status === "passed" ? "green"
+    : test?.status === "failed" || test?.status === "error" ? "red" : "amber";
+  const runTone = run?.status === "succeeded" ? "green"
+    : run?.status === "failed" || run?.status === "interrupted" ? "red" : "amber";
+  const statusIndicator = (status, tone) => tone === "green"
+    ? `<span class="dashboard-status-indicator" role="img" aria-label="${escape(status)}" title="${escape(status)}">
+      <i data-lucide="circle-check" class="dashboard-status-icon" aria-hidden="true"></i></span>`
+    : `<span class="ui-badge ui-badge--${tone}">${escape(status)}</span>`;
+  const testStatus = test ? statusIndicator(test.status, testTone)
+    : '<span class="ui-badge">Not run</span>';
+  const runStatus = run ? statusIndicator(run.status, runTone)
+    : '<span class="ui-badge">Not run</span>';
+  const formattedTime = value => {
+    if (!value) return "—";
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return String(value);
+    const pad = number => String(number).padStart(2, "0");
+    return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())} `
+      + `${pad(date.getHours())}:${pad(date.getMinutes())}:${pad(date.getSeconds())}`;
+  };
+  const time = value => value
+    ? `<time datetime="${escape(value)}">${escape(formattedTime(value))}</time>` : "—";
+  const latest = value => `<p class="dashboard-result-meta">${time(value)}</p>`;
+  const elapsed = (started, finished) => {
+    const duration = (new Date(finished) - new Date(started)) / 1000;
+    return started && finished && Number.isFinite(duration) && duration >= 0
+      ? `${duration.toFixed(3)} s` : "—";
+  };
+  const statistics = (metrics, label, className = "") => `<dl class="dashboard-result-stats${className
+    ? ` ${escape(className)}` : ""}" aria-label="${escape(label)}">
+    ${metrics.map(([name, value]) => `<div data-stat="${escape(name)}" data-value="${escape(value)}">
+      <dt>${escape(name)}</dt><dd>${escape(value)}</dd></div>`).join("")}</dl>`;
+  const details = (label, fields) => `<details class="dashboard-result-details">
+    <summary>Details</summary>
+    <dl>${fields.map(([name, value]) => `<div><dt>${escape(name)}</dt><dd>${escape(value)}</dd></div>`).join("")}</dl>
+  </details>`;
+  const testProgress = test ? `<div class="dashboard-test-progress" role="img"
+    aria-label="${testCaseCount ? `${passedCount} passed, ${failedCount} failed, ${errorCount} errors` : "No test cases"}">
+    ${[["passed", passedCount], ["failed", failedCount], ["error", errorCount]]
+      .filter(([, count]) => count > 0)
+      .map(([status, count]) => `<span class="dashboard-test-progress-${status}" style="flex-grow:${count}"></span>`)
+      .join("")}</div>` : "";
+  const testDuration = test ? elapsed(test.started_at, test.finished_at) : "—";
   return `<main class="dashboard">
     <header class="dashboard-hero"><div>
       <p class="eyebrow">Project explorer</p>
@@ -30,24 +99,49 @@ export function dashboard(data) {
       <path d="M314 193H350M314 208H338M314 223H326" stroke="#e879f9" stroke-width="3" stroke-linecap="round"/>
       <circle cx="156" cy="208" r="4" fill="#67e8f9"/><circle cx="264" cy="72" r="4" fill="#e879f9"/>
     </svg></header>
-    <dl class="dashboard-metrics" aria-label="Project counts">${[
-      ["Profiles", summary.profile_count],
-      ["Features", summary.feature_count], ["Functions", summary.function_count],
-      ["Invocations", data.plan.invocation_count], ["Stages", data.plan.stage_count],
-    ].map(([label, count]) => `<div data-stat="${label}" data-value="${count}"><dt>${label}</dt><dd>${count}</dd></div>`).join("")}</dl>
-    <section aria-labelledby="journey-heading"><p class="eyebrow">Three perspectives. One project.</p>
-      <h2 class="dashboard-section-title" id="journey-heading">Follow the analytics journey</h2>
-      <p class="dashboard-section-intro">Start with the declarations, inspect the compiled plan, then explore execution.</p>
-      <ol class="spec-journey" aria-label="Spec journey">${[
-        ["spec", "01", "Analytical model", "Browse profiles, features, dimensions, and the functions bound to them.", "features", "Explore the model"],
-        ["plan", "02", "Execution plan", "Inspect compiled operations, argument bindings, and dependency-ordered stages.", "plan", "Inspect the plan"],
-        ["execution", "03", "Run results", "Inspect the latest saved run, its logs, and profile dataset previews.", "info", "View run results"],
-      ].map(([key, number, title, description, view, operator]) => `<li class="journey-step ${key} icon--${key}">
-        <div class="journey-step-header"><span class="journey-icon">${icon(key)}</span><span class="journey-number" aria-hidden="true">${number}</span></div>
-        <h3>${title}</h3><p>${description}</p><a href="${href(view)}">${operator}<i data-lucide="arrow-right" aria-hidden="true"></i></a></li>`).join("")}</ol>
+    <section class="dashboard-results" aria-label="Build and latest results">
+      <article class="dashboard-result-card">
+        <div class="dashboard-result-heading"><div class="dashboard-result-title">
+          <h2>Build</h2>${latest(build.built_at)}</div>
+          ${statusIndicator("Succeeded", "green")}</div>
+        ${featureScope}
+        ${statistics(buildMetrics, "Compiled project counts")}
+        ${details("build", [
+          ["Uptimely version", build.uptimely_version || "—"],
+          ["Build format", build.build_version ?? "—"],
+          ["Spec source", build.spec_source || "—"],
+          ["Code language", build.code_language || "—"],
+        ])}
+      </article>
+      <article class="dashboard-result-card">
+        <div class="dashboard-result-heading"><div class="dashboard-result-title">
+          <h2>Test</h2>${latest(test?.finished_at || test?.started_at)}</div>${testStatus}</div>
+        ${test ? `${statistics(testMetrics, "Latest test results", "dashboard-result-stats--test")}${testProgress}
+          ${details("test", [
+            ["Started", formattedTime(test.started_at)],
+            ["Finished", formattedTime(test.finished_at)],
+            ["Duration", testDuration],
+            ["Build fingerprint", test.build?.fingerprint || "—"],
+            ...(test.error ? [["Error", test.error]] : []),
+          ])}`
+          : '<p>No saved test report. Run <code>uptimely test</code> to record test results.</p>'}
+      </article>
+      <article class="dashboard-result-card">
+        <div class="dashboard-result-heading"><div class="dashboard-result-title">
+          <h2>Run</h2>${latest(run?.finished_at || run?.started_at)}</div>${runStatus}</div>
+        ${run ? `${statistics(runMetrics, "Latest run results")}${details("run", [
+          ["Run ID", run.run_id],
+          ["Started", formattedTime(run.started_at)],
+          ["Finished", formattedTime(run.finished_at)],
+          ["Duration", `${run.duration_seconds.toFixed(3)} s`],
+          ["Uptimely version", run.uptimely_version],
+          ["Runtime validation", run.runtime_validation ? "Enabled" : "Disabled"],
+          ["Preview row limit", run.preview_rows],
+          ["Build fingerprint", run.build?.fingerprint || "—"],
+        ])}`
+          : '<p>No saved run. Run <code>uptimely run</code> to record execution results.</p>'}
+      </article>
     </section>
-    <p class="dashboard-note">Counts describe the analytical model and its compiled plan.
-      Run results are saved by <code>uptimely run</code>; browsing the Explorer does not execute analytical operations.</p>
   </main>`;
 }
 

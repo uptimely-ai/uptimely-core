@@ -1,6 +1,7 @@
 """Tests for JSON-ready Explorer presentation data."""
 
 import dataclasses
+import datetime
 import json
 import pathlib
 
@@ -26,6 +27,7 @@ def test_build_presentation_data_returns_versioned_json_structures(
     serialized = json.dumps(data)
 
     assert data["format_version"] == presentation.EXPLORER_FORMAT_VERSION
+    datetime.datetime.fromisoformat(data["build"]["built_at"])
     assert data["project"]["name"] == bundle.spec_definition.name
     assert data["scope"]["features"] == ["health_signal_normalized"]
     assert data["scope"]["is_scoped"]
@@ -133,10 +135,13 @@ def test_saved_explorer_snapshot_matches_rebuilt_spec_and_plan(
         pump_bundle.execution_plan,
         features=pump_bundle.manifest.features,
         project_root=pump_bundle.project_root,
+        build_manifest=pump_bundle.manifest,
     )
 
+    rebuilt["build"]["built_at"] = saved["build"]["built_at"]
     assert saved == json.loads(presentation.serialize_presentation_data(rebuilt))
-    assert saved["format_version"] == 3
+    assert saved["format_version"] == 5
+    assert saved["build"]["uptimely_version"] == pump_bundle.manifest.uptimely_version
 
 
 def test_presentation_follows_referenced_results_and_stage_order(

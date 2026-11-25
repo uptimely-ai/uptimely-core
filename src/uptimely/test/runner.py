@@ -15,11 +15,12 @@ import pydantic
 from uptimely import application, plan
 from uptimely.codebase.python import codebase, entrypoint, imports, runtime
 from uptimely.engine.runtime import execution, state
+from uptimely.project import paths
 from uptimely.run import models as run_models
 
 from . import models
 
-REPORT_PATH = pathlib.Path("artifacts/test/test.json")
+REPORT_PATH = paths.TEST_REPORT_FILE
 EXCLUDED_CATEGORIES = frozenset({"read", "write", "workflow"})
 
 

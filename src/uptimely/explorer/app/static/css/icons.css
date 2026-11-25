@@ -3,11 +3,6 @@
   --icon-tint: #1e293b80;
 }
 
-.journey-step {
-  --icon-color: var(--color-accent);
-  --icon-tint: #164e634d;
-}
-
 .data-lineage-node {
   --icon-color: #fcd34d;
 }

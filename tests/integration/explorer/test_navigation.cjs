@@ -14,7 +14,12 @@ async function boot(options = {}) {
 test("boots from configurable live or nested-export data URLs without changing the snapshot contract", async () => {
   for (const dataUrl of ["/api/explorer", "./data/explorer.json"]) {
     const result = await boot({ dataUrl });
-    assert.deepEqual(result.fetched, [[dataUrl, "no-store"]]);
+    assert.deepEqual(result.fetched, [
+      [dataUrl, "no-store"],
+      ...(dataUrl.startsWith("./") ? [
+        ["./data/run.json", "no-store"], ["./data/test.json", "no-store"],
+      ] : [["/api/run", "no-store"], ["/api/test", "no-store"]]),
+    ]);
     assert.match(result.body.innerHTML, /dashboard-hero/);
     assert.equal(result.errors.length, 0);
     assert.ok(result.scripts.some(url => url.includes("lucide@")));
@@ -39,11 +44,16 @@ test("nested static exports navigate run pages without contacting live APIs", as
     },
   };
   app.browser.UTIMELY_EXPLORER_CONFIG.runDataUrl = "./data/run.json";
+  app.browser.UTIMELY_EXPLORER_CONFIG.testDataUrl = "./data/test.json";
   app.browser.document.querySelectorAll = () => [];
   app.browser.fetch = async (url, options) => {
-    assert.ok(["./data/explorer.json", "./data/run.json"].includes(url), url);
+    assert.ok(["./data/explorer.json", "./data/run.json", "./data/test.json"].includes(url), url);
     app.fetched.push([url, options.cache]);
-    return { ok: true, json: async () => url === "./data/run.json" ? snapshot : data };
+    return {
+      ok: true,
+      json: async () => url === "./data/run.json" ? snapshot
+        : url === "./data/test.json" ? null : data,
+    };
   };
   app.explorer = new Explorer(app.browser, app.initializers);
   await app.explorer.start();
@@ -56,7 +66,8 @@ test("nested static exports navigate run pages without contacting live APIs", as
     assert.match(app.body.innerHTML, expected);
   }
   assert.deepEqual(app.fetched, [
-    ["./data/explorer.json", "no-store"], ...Array(3).fill(["./data/run.json", "no-store"]),
+    ["./data/explorer.json", "no-store"], ["./data/run.json", "no-store"],
+    ["./data/test.json", "no-store"], ...Array(3).fill(["./data/run.json", "no-store"]),
   ]);
   assert.deepEqual(app.errors, []);
 });
@@ -81,7 +92,7 @@ test("internal navigation reuses the document, snapshot and libraries while remo
     assert.equal(new URL(app.location.href).searchParams.get("view"), view);
     assert.match(app.body.innerHTML, new RegExp(`href="\\?view=${view}"`));
   }
-  assert.equal(app.fetched.length, 1);
+  assert.equal(app.fetched.length, 5);
   assert.equal(new Set(app.scripts).size, app.scripts.length);
   for (const instance of app.mounted.slice(0, -2)) assert.equal(instance.signal.aborted, true, instance.name);
   assert.equal(app.mounted.at(-1).name, "animation");
@@ -109,7 +120,7 @@ test("browser back/forward and item hashes update the active view without stale 
   await app.forward();
   await app.forward();
   assert.equal(app.mounted.at(-1).name, "animation");
-  assert.equal(app.fetched.length, 1);
+  assert.equal(app.fetched.length, 3);
   assert.deepEqual(app.errors, []);
 });
 
@@ -168,7 +179,7 @@ test("failed dependencies report an error and allow returning to the active page
   assert.equal(app.elements["error-status"], undefined);
   assert.match(app.body.innerHTML, /Functions overview/);
   assert.equal(app.scripts.filter(url => url.includes("highlight.min.js")).length, 2);
-  assert.equal(app.fetched.length, 1);
+  assert.equal(app.fetched.length, 3);
 });
 
 test("disposing the application cancels pending routes and removes navigation listeners", async () => {

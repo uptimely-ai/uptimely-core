@@ -10,6 +10,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Explorer home cards show formatted timestamps, success indicators, test
+  outcome bars, and expandable build, test, and run metadata. Static exports
+  include build timestamps and the latest test report. Rebuild existing project
+  artifacts to refresh their Explorer snapshot.
 - `uptimely test` runs JSON operator cases from a configurable test folder
   against the saved build and saves the latest results under `artifacts/test/`.
   Use `--build` to build first.

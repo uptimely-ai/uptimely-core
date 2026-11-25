@@ -766,16 +766,56 @@ test("chart category labels are explicitly left aligned in the shared chart styl
   assert.doesNotMatch(styles, /a\.ui-chart-row\s*\{[^}]*padding:/);
 });
 
-test("home journey matches menu sections and distinguishes saved results from animation", () => {
+test("dashboard shows build, test and run summaries without an analytics journey section", () => {
   const content = dashboard({
     project: { name: "Example", spec_version: 3 },
-    catalogs: { summary: {} }, plan: {},
+    build: {
+      built_at: "2026-11-25T09:00:00+03:00",
+      build_version: 6, uptimely_version: "0.12.0", features: null,
+      spec_source: "spec.spec:spec", code_language: "python",
+    },
+    catalogs: { summary: {} }, plan: { invocation_count: 2, stage_count: 1 },
+  }, {
+    test: {
+      status: "failed",
+      started_at: "2026-11-24T10:00:00Z",
+      finished_at: "2026-11-24T10:00:01Z",
+      cases: [{ status: "passed" }, { status: "failed" }],
+    },
+    run: {
+      status: "succeeded", finished_at: "2026-11-24T11:00:00Z",
+      duration_seconds: 1.2, invocations: { first: {} }, profiles: { pump: {} },
+    },
   });
-  for (const title of ["Analytical model", "Execution plan", "Run results"]) {
-    assert.match(content, new RegExp(`<h3>${title}</h3>`));
-  }
-  assert.match(content, /href="\?view=info"/);
+  assert.doesNotMatch(content, /View run information|href="\?view=info"/);
+  assert.equal((content.match(/<summary>Details<\/summary>/g) || []).length, 3);
+  assert.match(content, /Uptimely version/);
+  assert.match(content, /<h2>Build<\/h2><p class="dashboard-result-meta"><time datetime="2026-11-25T09:00:00\+03:00">2026-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
+  assert.match(content, /<h2>Test<\/h2><p class="dashboard-result-meta"><time datetime="2026-11-24T10:00:01Z">2026-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
+  assert.match(content, /<h2>Run<\/h2><p class="dashboard-result-meta"><time datetime="2026-11-24T11:00:00Z">2026-\d{2}-\d{2} \d{2}:\d{2}:\d{2}<\/time>/);
+  assert.match(content, /dashboard-status-indicator" role="img" aria-label="Succeeded" title="Succeeded">[\s\S]*?circle-check/);
+  assert.match(content, /<h2>Test<\/h2>[\s\S]*?ui-badge ui-badge--red">[\s\S]*?failed/);
+  assert.match(content, /dashboard-status-indicator" role="img" aria-label="succeeded" title="succeeded">[\s\S]*?circle-check/);
+  assert.doesNotMatch(content, /ui-badge[^>]*green/);
+  assert.match(content, /data-stat="Cases"/);
+  assert.match(content, /class="dashboard-result-stats dashboard-result-stats--test"/);
+  assert.match(content, /data-stat="Passed" data-value="1"/);
+  assert.match(content, /data-stat="Failed" data-value="1"/);
+  assert.match(content, /data-stat="Errors" data-value="0"/);
+  assert.match(content, /data-stat="Duration" data-value="1\.200 s"/);
+  assert.match(content, /class="dashboard-test-progress" role="img"[\s\S]*?1 passed, 1 failed, 0 errors/);
+  assert.doesNotMatch(content, /Planned invocations|Stages/);
+  assert.doesNotMatch(content, /Follow the analytics journey|spec-journey/);
   assert.doesNotMatch(content, /not a live execution monitor/);
+
+  const successfulTest = dashboard({
+    project: { name: "Example", spec_version: 3 },
+    build: { built_at: "2026-11-25T09:00:00+03:00" },
+    catalogs: { summary: {} },
+    plan: { invocation_count: 0, stage_count: 0 },
+  }, { test: { status: "passed", cases: [] } });
+  assert.match(successfulTest, /dashboard-status-indicator" role="img" aria-label="passed" title="passed">[\s\S]*?circle-check/);
+  assert.doesNotMatch(successfulTest, /ui-badge[^>]*green|>passed<\/span>/);
 });
 
 test("topology controls use topology labels while retaining graph hooks", () => {
@@ -1034,7 +1074,6 @@ test("icons and data type labels share neutral color and consistent typography",
   assert.match(base, /\.context-links a\[aria-current="location"\] \{ color: var\(--color-selected\)/);
   assert.match(base, /\.site-subnav a\[aria-current="page"\] \{ color: var\(--color-selected\)/);
   assert.doesNotMatch(icons, /\.icon--/);
-  assert.match(icons, /\.journey-step \{[\s\S]*?var\(--color-accent\)/);
   assert.match(icons, /\.data-lineage-node \{[\s\S]*?--icon-color:/);
   assert.match(base, /\.ui-badge--green/);
   assert.match(base, /\.data-type-label \{[^}]*font: 12px\/1\.5 var\(--font-mono\)/);

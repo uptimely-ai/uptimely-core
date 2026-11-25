@@ -122,17 +122,19 @@ class ProjectBuilder:
                 code_artifacts = self._generate_artifacts(
                     spec_definition,
                     execution_plan,
-                    selected_features,
                     staging_root,
                     resolved_src_path,
                     requirements_file,
                 )
                 self._validate_staged_bundle(
                     staging_root,
+                    spec_definition,
+                    execution_plan,
                     selected_features,
                     spec_source.display_name,
                     code_artifacts,
                     runtime_type,
+                    resolved_src_path,
                 )
                 self._publish_bundle(staging_root)
             finally:
@@ -218,44 +220,34 @@ class ProjectBuilder:
         self,
         spec_definition: spec.Spec,
         execution_plan: compiler.ExecutionPlan,
-        selected_features: list[str] | None,
         staging_root: pathlib.Path,
         resolved_src_path: pathlib.Path,
         requirements_file: pathlib.Path | None,
     ) -> packaging.StagedCode:
-        """Stage portable inputs and the Explorer snapshot."""
+        """Stage portable source and runtime requirements."""
         try:
             spec.write_document(spec_definition, staging_root / paths.BUILD_SPEC_FILE.name)
             plan_serialization.export_json(
                 execution_plan, staging_root / paths.BUILD_EXECUTION_PLAN_FILE.name
             )
-            code_artifacts = self._code_packager.stage(
+            return self._code_packager.stage(
                 self.root, resolved_src_path, staging_root, requirements_file
             )
-            presentation_data = presentation.build_presentation_data(
-                spec_definition,
-                execution_plan,
-                features=selected_features,
-                validate_spec=False,
-                project_root=self.root,
-                src_path=resolved_src_path if resolved_src_path.is_dir() else None,
-            )
-            (staging_root / paths.EXPLORER_DATA_FILE.name).write_text(
-                presentation.serialize_presentation_data(presentation_data), encoding="utf-8"
-            )
-            return code_artifacts
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("artifact generation", str(error)) from error
 
     def _validate_staged_bundle(
         self,
         staging_root: pathlib.Path,
+        spec_definition: spec.Spec,
+        execution_plan: compiler.ExecutionPlan,
         selected_features: list[str] | None,
         spec_source: str,
         code_artifacts: packaging.StagedCode,
         runtime_type: str | None,
+        resolved_src_path: pathlib.Path,
     ) -> None:
-        """Write the bundle manifest and validate the staged spec and execution plan."""
+        """Write the manifest and Explorer snapshot, then validate the staged bundle."""
         try:
             if (
                 runtime_type is not None
@@ -290,6 +282,21 @@ class ProjectBuilder:
                 json.dumps(manifest.model_dump(), indent=2),
                 encoding="utf-8",
             )
+            try:
+                presentation_data = presentation.build_presentation_data(
+                    spec_definition,
+                    execution_plan,
+                    features=selected_features,
+                    validate_spec=False,
+                    project_root=self.root,
+                    src_path=resolved_src_path if resolved_src_path.is_dir() else None,
+                    build_manifest=manifest,
+                )
+                (staging_root / paths.EXPLORER_DATA_FILE.name).write_text(
+                    presentation.serialize_presentation_data(presentation_data), encoding="utf-8"
+                )
+            except _SPEC_PROCESSING_ERRORS as error:
+                raise errors.ProjectBuildError("artifact generation", str(error)) from error
             self._store.load_at(staging_root, validate=False, log_structure=False)
         except (
             OSError,
