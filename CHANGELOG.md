@@ -10,6 +10,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Explorer organizes profile overview cards by category, grouping uncategorized profiles together.
 - Explorer home cards show formatted timestamps, success indicators, test
   outcome bars, and expandable build, test, and run metadata. Static exports
   include build timestamps and the latest test report. Rebuild existing project
