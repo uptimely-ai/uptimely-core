@@ -21,6 +21,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   non-I/O operator compute bindings.
 - `uptimely test --show` displays input and expected output dataframes within
   the terminal width and compares expected and actual output on mismatches.
+- `uptimely test` copies the JSON test cases used by each run to
+  `artifacts/test/data/`.
 
 ## [0.12.0] - 2026-11-24
 

@@ -109,7 +109,8 @@ workflow cases are rejected. Test cases do not run upstream operators or merges.
 Functions still execute Python code and are not sandboxed. Test only trusted
 builds, and keep side effects out of the selected functions.
 
-The command saves the latest results to `artifacts/test/test.json` without
+The command saves the latest results to `artifacts/test/test.json` and copies
+the JSON case files used for that run to `artifacts/test/data/`, without
 changing `artifacts/run/`. The report records case outcomes, errors, timestamps,
 and a fingerprint of the build manifest, Spec, and plan. The fingerprint does
 not include bundled code bytes. The command exits with status 0 when all cases

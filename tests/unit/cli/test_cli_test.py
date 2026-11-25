@@ -135,10 +135,13 @@ def test_test_command_uses_saved_source_and_preserves_run(
     capsys: pytest.CaptureFixture[str],
     example_project_factory: example_support.ProjectFactory,
 ) -> None:
-    project, _, _ = _case_project(tmp_path, example_project_factory)
+    project, case_path, _ = _case_project(tmp_path, example_project_factory)
     (project / "src" / "pump_analytics.py").write_text(
         'raise RuntimeError("live source must not be used")\n', encoding="utf-8"
     )
+    test_data = project / "artifacts" / "test" / "data"
+    test_data.mkdir(parents=True)
+    (test_data / "stale.json").write_text("{}", encoding="utf-8")
     run_path = project / "artifacts" / "run"
     run_path.mkdir(parents=True, exist_ok=True)
     sentinel = run_path / "sentinel"
@@ -147,9 +150,12 @@ def test_test_command_uses_saved_source_and_preserves_run(
     invoke(monkeypatch, str(project), "--config", str(project / "case-config.toml"))
 
     report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
+    copied_case = test_data / case_path.name
     assert report["status"] == "passed"
     assert report["build"]["fingerprint"]
     assert len(report["cases"]) == 1
+    assert copied_case.read_bytes() == case_path.read_bytes()
+    assert not (test_data / "stale.json").exists()
     output = capsys.readouterr().out
     assert "1 passed, 0 failed" in output
     assert "Inputs:" not in output

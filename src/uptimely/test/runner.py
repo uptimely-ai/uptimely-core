@@ -4,6 +4,7 @@ import datetime
 import json
 import os
 import pathlib
+import shutil
 import tempfile
 import typing
 from collections import abc
@@ -57,6 +58,7 @@ class TestRunner:
                 raise FileNotFoundError(
                     f"Configured test folder {self.app.config.test.path} not found"
                 )
+            self._copy_test_data(folder)
             with self.app.read_build_bundle() as bundle:
                 report.build = run_models.BuildIdentity.from_bundle(bundle)
                 if bundle.source_path is None:
@@ -146,6 +148,18 @@ class TestRunner:
                         raise ValueError(f"Empty case ID in {path}")
                     cases.append((path.stem, operator, case_id, invocation, case))
         return cases
+
+    def _copy_test_data(self, folder: pathlib.Path) -> None:
+        """Copy the current JSON case files to the test artifact directory."""
+        target = self.app.root / paths.TEST_DATA_DIR
+        source_files = sorted(folder.glob("*.json"))
+        source_names = {path.name for path in source_files}
+        target.mkdir(parents=True, exist_ok=True)
+        for stale_file in target.glob("*.json"):
+            if stale_file.name not in source_names:
+                stale_file.unlink()
+        for source in source_files:
+            shutil.copy2(source, target / source.name)
 
     @staticmethod
     def _unique_keys(pairs: list[tuple[str, typing.Any]]) -> dict[str, typing.Any]:
