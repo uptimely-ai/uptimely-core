@@ -1,5 +1,5 @@
 {
-  "op-aggregate-bearing_temperature_category_max-c44c0486": {
+  "aggregate_bearing_temperature_by_category": {
     "cases": {
       "basic": {
         "inputs": {

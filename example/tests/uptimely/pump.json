@@ -1,5 +1,5 @@
 {
-  "op-select_columns-series_max_capacity-37a647d9": {
+  "select_series_max_capacity": {
     "cases": {
       "basic": {
         "inputs": {
@@ -37,7 +37,7 @@
       }
     }
   },
-  "op-select_columns-category_max_capacity-2fe61923": {
+  "select_category_max_capacity": {
     "cases": {
       "basic": {
         "inputs": {
@@ -75,7 +75,7 @@
       }
     }
   },
-  "op-first_non_null_value-max_capacity-ff83edcb": {
+  "resolve_max_capacity": {
     "cases": {
       "series_fallback": {
         "inputs": {
@@ -195,7 +195,7 @@
       }
     }
   },
-  "op-min_max_scale-health_signal_normalized-b3b03332": {
+  "normalize_bearing_temperature": {
     "cases": {
       "basic": {
         "inputs": {

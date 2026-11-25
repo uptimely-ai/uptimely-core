@@ -1,5 +1,5 @@
 {
-  "op-aggregate-bearing_temperature_series_max-eadf990d": {
+  "aggregate_bearing_temperature_by_series": {
     "cases": {
       "basic": {
         "inputs": {

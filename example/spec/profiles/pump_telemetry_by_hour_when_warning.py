@@ -114,6 +114,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
+            id="calculate_operating_point_recommendation",
             compute=Bind(
                 analytics.operation_point_optimization,
                 dataset=ref.dataset(),
@@ -130,6 +131,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
+            id="set_recommended_flow_rate",
             outputs=[features.recommended_flow_rate],
             compute=Bind(
                 ref.function(
@@ -143,6 +145,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
+            id="extract_recommended_differential_pressure",
             compute=Bind(
                 analytics.extract_field,
                 dataset=ref.dataset(),
@@ -152,6 +155,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
+            id="extract_energy_cost_score",
             compute=Bind(
                 analytics.extract_field,
                 dataset=ref.dataset(),
@@ -161,6 +165,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
+            id="extract_convergence",
             compute=Bind(
                 analytics.extract_field,
                 dataset=ref.dataset(),
@@ -170,6 +175,7 @@ class PumpTelemetryByHourWhenWarning(Profile):
             ),
         ),
         Operator(
+            id="write_hourly_warning_telemetry",
             compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
