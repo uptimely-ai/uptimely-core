@@ -133,16 +133,23 @@ def test_export_includes_validated_run_previews_and_all_log_pages(
     test_report = test_models.TestReport(
         started_at=datetime.datetime(2026, 11, 24, tzinfo=datetime.UTC),
         finished_at=datetime.datetime(2026, 11, 24, 0, 1, tzinfo=datetime.UTC),
-        status="passed",
+        status="failed",
         cases=[
             test_models.CaseResult(
-                profile="pump", operator="calculate", case="basic", status="passed"
+                profile="pump",
+                operator="calculate",
+                case="basic",
+                status="failed",
+                data=test_models.Case.model_validate(
+                    {"inputs": {"dataset": [{"x": 1}]}, "expected": {"return": [{"x": 2}]}}
+                ),
+                actual=[{"x": 3}],
             )
         ],
     )
     test_path = project_root / "artifacts" / "test" / "test.json"
     test_path.parent.mkdir(parents=True)
-    test_path.write_text(test_report.model_dump_json(), encoding="utf-8")
+    test_path.write_text(test_report.model_dump_json(by_alias=True), encoding="utf-8")
     runs = store.RunStore(project_root)
     manifest = runs.read_manifest()
     entries = [
@@ -175,7 +182,7 @@ def test_export_includes_validated_run_previews_and_all_log_pages(
             exported_test = json.loads(archive.read("data/test.json"))
     else:
         exported_test = json.loads((output / "data/test.json").read_bytes())
-    assert exported_test == test_report.model_dump(mode="json")
+    assert exported_test == test_report.model_dump(mode="json", by_alias=True)
 
     (runs.root / manifest.profiles["telemetry"].preview_path).unlink()
     with pytest.raises(FileNotFoundError):

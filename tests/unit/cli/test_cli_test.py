@@ -232,6 +232,24 @@ def test_test_command_saves_failures_and_continues(
     assert "does not match expected" in capsys.readouterr().out
 
 
+def test_test_command_saves_actual_rows_when_empty_output_was_expected(
+    tmp_path: pathlib.Path,
+    monkeypatch: pytest.MonkeyPatch,
+    example_project_factory: example_support.ProjectFactory,
+) -> None:
+    project, case_path, suite = _case_project(tmp_path, example_project_factory)
+    next(iter(suite.values()))["cases"]["basic"]["expected"]["return"] = []
+    case_path.write_text(json.dumps(suite), encoding="utf-8")
+
+    with pytest.raises(SystemExit):
+        invoke(monkeypatch, str(project), "--config", str(project / "case-config.toml"))
+
+    report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
+    assert report["cases"][0]["actual"] == [
+        {"machine_series_id": "S1", "bearing_temperature_series_max": 70.0}
+    ]
+
+
 @pytest.mark.parametrize("mismatch", [False, True])
 def test_show_prints_all_case_inputs_and_expected_outputs(
     tmp_path: pathlib.Path,
@@ -291,11 +309,17 @@ def test_show_prints_all_case_inputs_and_expected_outputs(
             assert "Actual output:" not in section
 
     report = json.loads((project / "artifacts" / "test" / "test.json").read_text(encoding="utf-8"))
+    assert report["version"] == 2
     assert report["status"] == ("failed" if mismatch else "passed")
-    assert all(
-        "inputs" not in item and "expected" not in item and "actual" not in item
-        for item in report["cases"]
-    )
+    for item in report["cases"]:
+        fixture = definition["cases"][item["case"]]
+        assert item["data"] == fixture
+        if item["status"] == "failed":
+            assert item["actual"] == [
+                {"machine_series_id": "S1", "bearing_temperature_series_max": 66.0}
+            ]
+        else:
+            assert item["actual"] is None
 
 
 def test_show_displays_multiple_inputs_and_empty_output_without_truncation(

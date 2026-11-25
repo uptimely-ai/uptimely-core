@@ -166,22 +166,53 @@ def test_test_api_reads_latest_valid_report_without_caching(tmp_path: pathlib.Pa
     report = test_models.TestReport(
         started_at=datetime.datetime(2026, 11, 24, tzinfo=datetime.UTC),
         finished_at=datetime.datetime(2026, 11, 24, 0, 1, tzinfo=datetime.UTC),
-        status="passed",
+        status="failed",
         cases=[
             test_models.CaseResult(
-                profile="pump", operator="calculate", case="basic", status="passed"
+                profile="pump",
+                operator="calculate",
+                case="basic",
+                status="failed",
+                data=test_models.Case.model_validate(
+                    {"inputs": {"dataset": [{"x": 1}]}, "expected": {"return": [{"x": 2}]}}
+                ),
+                actual=[{"x": 3}],
             )
         ],
     )
     report_path = tmp_path / "artifacts" / "test" / "test.json"
     report_path.parent.mkdir(parents=True)
-    report_path.write_text(report.model_dump_json(), encoding="utf-8")
+    report_path.write_text(report.model_dump_json(by_alias=True), encoding="utf-8")
 
     status, body, headers = _get(app, "/api/test")
 
     assert status == 200
     assert headers["cache-control"] == "no-store"
-    assert json.loads(body)["cases"][0]["case"] == "basic"
+    case = json.loads(body)["cases"][0]
+    assert case["data"]["expected"]["return"] == [{"x": 2}]
+    assert case["actual"] == [{"x": 3}]
+
+    report_path.write_text(
+        json.dumps(
+            {
+                "version": 1,
+                "started_at": "2026-11-24T00:00:00Z",
+                "status": "passed",
+                "cases": [
+                    {
+                        "profile": "pump",
+                        "operator": "calculate",
+                        "case": "basic",
+                        "status": "passed",
+                    }
+                ],
+            }
+        ),
+        encoding="utf-8",
+    )
+    status, body, _ = _get(app, "/api/test")
+    assert status == 200
+    assert json.loads(body)["cases"][0]["data"] is None
 
 
 @pytest.mark.parametrize("damage", ["missing", "corrupt"])

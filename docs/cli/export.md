@@ -7,7 +7,9 @@ relative URL for `data/explorer.json`, so the export can live beneath a
 documentation site's path prefix. Run information, logs, and profile previews
 are saved in `data/run.json` and loaded through a relative URL, without live API
 endpoints. Exports made before the first run show an explicit "No saved run"
-state.
+state. The latest test report is saved in `data/test.json`, including case
+inputs, expected outputs, and actual outputs for mismatches. Review these
+artifacts for sensitive data before publishing.
 
 ## Usage
 

@@ -71,7 +71,7 @@ def _read_test(project_root: pathlib.Path) -> Response:
             status_code=503, detail=f"Saved test report could not be read: {error}"
         ) from error
     return Response(
-        report.model_dump_json(),
+        report.model_dump_json(by_alias=True),
         media_type="application/json",
         headers={"Cache-Control": "no-store"},
     )

@@ -1,7 +1,8 @@
 export const ICONS = {
   home: "house", menu: "menu", "collapse-navigation": "panel-left-close",
   "expand-navigation": "panel-left-open", spec: "book-open", plan: "list-tree",
-  execution: "play", info: "info", logs: "scroll-text", preview: "table-properties",
+  execution: "play", test: "flask-conical", cases: "list-checks",
+  info: "info", logs: "scroll-text", preview: "table-properties",
   overview: "layout-grid", features: "variable", operators: "sigma",
   profiles: "layers-2", datasets: "table-2",
   dimensions: "axis-3d", resolutions: "scan-square", functions: "square-function", source: "code-xml",
@@ -216,6 +217,9 @@ export function shell(data, view, context, content) {
       ["features", "Features", "features"], ["functions", "Functions", "functions"],
       ["dimensions", "Dimensions", "dimensions"],
       ["lineage", "Lineage", "feature-lineage"],
+    ]],
+    ["test", "Test", [
+      ["test-info", "Info", "info"], ["test-cases", "Cases", "cases"],
     ]],
     ["plan", "Execution plan", [
       ["plan", "Overview", "overview"], ["topology", "Topology", "invocation-lineage"],

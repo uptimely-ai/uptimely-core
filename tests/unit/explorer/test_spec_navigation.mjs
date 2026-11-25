@@ -1031,7 +1031,7 @@ test("Spec navigation no longer links to the removed overview", () => {
 
 test("main menu sections have noninteractive titles and separator styling", async () => {
   const markup = shell({ project: {}, scope: {} }, "plan", "", "");
-  for (const [key, title] of [["spec", "Analytical model"], ["plan", "Execution plan"], ["execution", "Run results"]]) {
+  for (const [key, title] of [["spec", "Analytical model"], ["test", "Test"], ["plan", "Execution plan"], ["execution", "Run results"]]) {
     assert.match(markup, new RegExp(`<section class="site-nav-group" aria-labelledby="nav-group-${key}">`));
     assert.match(markup, new RegExp(`<h2 class="site-nav-group-title" id="nav-group-${key}">${title}</h2>`));
     assert.doesNotMatch(markup, new RegExp(`<a[^>]*aria-label="${title}"`));
@@ -1057,6 +1057,7 @@ test("main menu preserves link order and marks only the current page active", ()
     .map(([, route]) => route));
   assert.deepEqual(routes, [
     ["profiles", "features", "functions", "dimensions", "lineage"],
+    ["test-info", "test-cases"],
     ["plan", "topology", "stages"],
     ["info", "logs", "preview", "animation"],
   ]);

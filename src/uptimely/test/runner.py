@@ -184,7 +184,7 @@ class TestRunner:
         entries: abc.Mapping[str, entrypoint.Entrypoint],
     ) -> tuple[models.CaseResult, pl.DataFrame | None]:
         result = models.CaseResult(
-            profile=profile, operator=operator, case=case_id, status="passed"
+            profile=profile, operator=operator, case=case_id, status="passed", data=case
         )
         mismatch: pl.DataFrame | None = None
         try:
@@ -217,6 +217,7 @@ class TestRunner:
             except AssertionError:
                 result.status = "failed"
                 result.message = "Returned dataframe does not match expected rows"
+                result.actual = self._frame_rows(frame)
                 mismatch = frame
         except Exception as error:
             result.status = "error"
@@ -232,15 +233,19 @@ class TestRunner:
         if any(set(row) != set(expected[0]) for row in expected):
             raise ValueError("Expected rows must have matching columns")
 
+        rows = TestRunner._frame_rows(actual)
+        pl_testing.assert_frame_equal(
+            pl.DataFrame(rows), pl.DataFrame(expected), check_dtypes=False, check_column_order=False
+        )
+
+    @staticmethod
+    def _frame_rows(frame: pl.DataFrame) -> list[dict[str, pydantic.JsonValue]]:
         def encode(value: object) -> str:
             if isinstance(value, (datetime.date, datetime.datetime)):
                 return value.isoformat()
             raise TypeError(f"Unsupported dataframe value: {type(value).__name__}")
 
-        rows = json.loads(json.dumps(actual.to_dicts(), default=encode, allow_nan=False))
-        pl_testing.assert_frame_equal(
-            pl.DataFrame(rows), pl.DataFrame(expected), check_dtypes=False, check_column_order=False
-        )
+        return json.loads(json.dumps(frame.to_dicts(), default=encode, allow_nan=False))
 
     def _save(self, report: models.TestReport) -> None:
         path = self.app.root / REPORT_PATH
@@ -251,7 +256,7 @@ class TestRunner:
                 mode="w", encoding="utf-8", dir=path.parent, prefix=".test-", delete=False
             ) as file:
                 temporary = pathlib.Path(file.name)
-                file.write(report.model_dump_json(indent=2) + "\n")
+                file.write(report.model_dump_json(indent=2, by_alias=True) + "\n")
             os.replace(temporary, path)
         finally:
             if temporary is not None:

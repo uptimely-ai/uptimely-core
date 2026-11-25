@@ -111,7 +111,9 @@ builds, and keep side effects out of the selected functions.
 
 The command saves the latest results to `artifacts/test/test.json` and copies
 the JSON case files used for that run to `artifacts/test/data/`, without
-changing `artifacts/run/`. The report records case outcomes, errors, timestamps,
-and a fingerprint of the build manifest, Spec, and plan. The fingerprint does
-not include bundled code bytes. The command exits with status 0 when all cases
-pass and 1 for failed cases or invalid setup. At least one case is required.
+changing `artifacts/run/`. The report records case inputs, expected outputs,
+actual outputs for mismatches, outcomes, errors, timestamps, and a fingerprint
+of the build manifest, Spec, and plan. The fingerprint does not include bundled
+code bytes.
+exits with status 0 when all cases pass and 1 for failed cases or invalid setup.
+At least one case is required.

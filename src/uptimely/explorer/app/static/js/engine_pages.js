@@ -55,6 +55,10 @@ export async function loadInfo(fetchData, configuration = {}) {
   return { run };
 }
 
+export async function loadTest(fetchData, configuration = {}) {
+  return responseData(fetchData, configuration.testDataUrl || "/api/test");
+}
+
 export async function loadLogs(fetchData, configuration = {}) {
   if (configuration.runDataUrl) {
     const snapshot = await responseData(fetchData, configuration.runDataUrl);
@@ -85,6 +89,142 @@ const panel = (title, content) => `<section class="ui-panel engine-panel">
 const field = (label, value) => `<div class="engine-field"><dt>${escape(label)}</dt><dd>${escape(value ?? "—")}</dd></div>`;
 const formatValue = value => value == null ? "null"
   : typeof value === "object" ? JSON.stringify(value) : String(value);
+
+export function testInfoPage(test) {
+  if (!test) {
+    return {
+      context: "",
+      content: page(heading("Info", "Information about the latest saved test.") + `
+        <section class="ui-panel engine-empty"><h2>No saved test</h2>
+        <p>Run <code>uptimely test</code> to save test results.</p></section>`),
+    };
+  }
+  const counts = (test.cases || []).reduce((result, item) => {
+    result[item.status] = (result[item.status] || 0) + 1;
+    return result;
+  }, {});
+  const duration = test.started_at && test.finished_at
+    ? (new Date(test.finished_at) - new Date(test.started_at)) / 1000 : NaN;
+  const details = `<dl class="engine-fields">
+    ${field("Status", test.status)}${field("Started", test.started_at)}
+    ${field("Finished", test.finished_at)}
+    ${field("Duration", Number.isFinite(duration) && duration >= 0 ? `${duration.toFixed(3)} s` : null)}
+    ${field("Cases", test.cases.length)}
+    ${field("Passed", counts.passed || 0)}${field("Failed", counts.failed || 0)}
+    ${field("Errors", counts.error || 0)}${field("Report version", test.version)}
+    ${field("Build fingerprint", test.build?.fingerprint)}
+    ${field("Built feature scope", test.build ? test.build.manifest?.features?.join(", ") || "All features" : null)}
+    </dl>${test.error ? `<p class="engine-error-text">${escape(test.error)}</p>` : ""}`;
+  return {
+    context: "",
+    content: page(heading("Info", "Information about the latest saved test.") +
+      `<section class="engine-run-banner engine-status-${escape(test.status)}">
+        <span>Latest test</span><strong>${escape(test.status)}</strong></section>${panel("Test details", details)}`),
+  };
+}
+
+function caseTable(rows, label) {
+  const columns = [...new Set(rows.flatMap(row => Object.keys(row)))];
+  const headers = columns.map(column => `<th scope="col">${escape(column)}</th>`).join("");
+  const body = rows.map(row => `<tr>${columns.map(column =>
+    `<td>${Object.hasOwn(row, column) ? escape(formatValue(row[column])) : "—"}</td>`).join("")}</tr>`).join("");
+  return `<div class="ui-table-scroll engine-preview-surface" tabindex="0" role="region" aria-label="${escape(label)}">
+    <table class="ui-table engine-preview-table"><thead><tr>${headers || "<th>No columns</th>"}</tr></thead>
+    <tbody>${body || `<tr><td colspan="${Math.max(columns.length, 1)}">No rows.</td></tr>`}</tbody></table></div>`;
+}
+
+const casePanel = (title, iconKey, content) => `<section class="engine-case-panel">
+  <h2 class="ui-section-title title-with-icon">${icon(iconKey, "engine-case-icon")}<span>${escape(title)}</span></h2>${content}</section>`;
+
+export function testCasesPage(data, test) {
+  if (!test || !test.cases.length) {
+    return {
+      context: "",
+      content: page(heading("Cases", "Cases from the latest saved test.") + `
+        <section class="ui-panel engine-empty"><h2>No saved cases</h2>
+        <p>${test?.error ? escape(test.error) : "Run uptimely test to save case results."}</p></section>`),
+    };
+  }
+  const groups = new Map();
+  for (const [index, item] of test.cases.entries()) {
+    if (!groups.has(item.profile)) groups.set(item.profile, new Map());
+    const operators = groups.get(item.profile);
+    if (!operators.has(item.operator)) operators.set(item.operator, []);
+    operators.get(item.operator).push(contextLink(`case-${index}`, item.case, "cases"));
+  }
+  const profiles = data.catalogs.configuration.profiles;
+  const profileIndexes = new Map([...groups.keys()].map((profile, index) => [profile, String(index + 1)]));
+  const context = `<aside class="site-context" id="test-cases-context" aria-label="Test cases context" data-context-label="test cases">
+    ${contextHeader("Cases", "cases", "test-cases-context", "test cases")}
+    <div class="test-profile-picker"><label for="test-profile">Profile</label>
+      <select id="test-profile" required><option value="" disabled selected>Choose a profile</option>
+        ${[...groups.keys()].map(profile => `<option value="${profileIndexes.get(profile)}">${escape(profiles[profile]?.name || profile)}</option>`).join("")}
+      </select></div>
+    <nav class="context-links" aria-label="Test cases by operator">${[...groups].map(([profile, operators]) =>
+      `<div data-test-profile="${profileIndexes.get(profile)}" hidden>${[...operators].map(([operator, links]) =>
+        contextGroup(operator, links)).join("")}</div>`).join("")}</nav></aside>`;
+  const sections = test.cases.map((item, index) => {
+    const status = item.status === "passed"
+      ? '<span class="engine-case-success" role="img" aria-label="Passed" title="Passed"><i data-lucide="circle-check" aria-hidden="true"></i></span>'
+      : badge(item.status, "red");
+    const details = item.data
+      ? `${Object.entries(item.data.inputs).map(([name, rows]) =>
+        casePanel(name === "dataset" ? "Input" : `Input: ${name}`, "input", caseTable(rows, `Input: ${name}`))).join("")}
+        ${casePanel(item.status === "passed" ? "Output" : "Expected output", "output",
+          caseTable(item.data.expected.return, "Expected output"))}
+        ${item.status === "failed" ? casePanel("Actual output", "output", item.actual === null || item.actual === undefined
+          ? "<p>Actual output was not saved for this case.</p>"
+          : caseTable(item.actual, "Actual output")) : ""}`
+      : '<section class="ui-panel engine-empty"><p>Case data is unavailable. Run uptimely test again to save it.</p></section>';
+    return `<section class="engine-test-case" id="case-${index}" data-test-profile="${profileIndexes.get(item.profile)}" hidden>
+      <header class="engine-profile-heading"><div><p class="engine-kicker">${escape(item.profile)} / ${escape(item.operator)}</p>
+        <h1>${escape(item.case)}</h1></div>${status}</header>
+      ${item.message ? `<p class="engine-error-text">${escape(item.message)}</p>` : ""}${details}</section>`;
+  }).join("");
+  return { context, content: page(`<p id="test-profile-prompt" role="status">Choose a profile in Cases controls to view its test cases.</p>${sections}`) };
+}
+
+export function initializeTestCases(browser, signal) {
+  const { document } = browser;
+  const picker = document.getElementById("test-profile");
+  if (!picker) return;
+  const prompt = document.getElementById("test-profile-prompt");
+  const groups = [...document.querySelectorAll("#test-cases-context [data-test-profile]")];
+  const sections = [...document.querySelectorAll(".engine-test-case")];
+  const links = [...document.querySelectorAll("#test-cases-context .context-links a[href^='#']")];
+
+  const select = (id, scroll = false) => {
+    const selected = sections.find(section => section.id === id);
+    const profile = selected?.dataset.testProfile || "";
+    picker.value = profile;
+    prompt.hidden = Boolean(selected);
+    for (const group of groups) group.hidden = group.dataset.testProfile !== profile;
+    for (const section of sections) section.hidden = section !== selected;
+    for (const link of links) {
+      if (link.hash.slice(1) === selected?.id) link.setAttribute("aria-current", "location");
+      else link.removeAttribute("aria-current");
+    }
+    if (scroll) selected?.scrollIntoView({ block: "start" });
+  };
+  const followHash = () => select(browser.location.hash.slice(1));
+  picker.addEventListener("change", () => {
+    const selected = sections.find(section => section.dataset.testProfile === picker.value);
+    if (!selected) return;
+    browser.history.pushState(null, "", `#${selected.id}`);
+    select(selected.id);
+  }, { signal });
+  for (const link of links) {
+    link.addEventListener("click", event => {
+      if (event.ctrlKey || event.metaKey || event.shiftKey || event.altKey || event.button !== 0) return;
+      event.preventDefault();
+      if (browser.location.hash !== link.hash) browser.history.pushState(null, "", link.hash);
+      select(link.hash.slice(1), true);
+    }, { signal });
+  }
+  browser.addEventListener("hashchange", followHash, { signal });
+  browser.addEventListener("popstate", followHash, { signal });
+  followHash();
+}
 
 function logEntry(entry, lineNumber) {
   const level = entry.level.toLowerCase();
@@ -251,9 +391,13 @@ export function previewPage(data, { run, previews }) {
 }
 
 export function initializePreview(browser, signal) {
+  initializeSectionSelection(browser, signal, ".engine-profile-preview", "#preview-context .context-links a[href^='#']");
+}
+
+function initializeSectionSelection(browser, signal, sectionSelector, linkSelector) {
   const { document } = browser;
-  const sections = [...document.querySelectorAll(".engine-profile-preview")];
-  const links = [...document.querySelectorAll("#preview-context .context-links a[href^='#']")];
+  const sections = [...document.querySelectorAll(sectionSelector)];
+  const links = [...document.querySelectorAll(linkSelector)];
   if (!sections.length || !links.length) return;
 
   const select = (id, scroll = false) => {
