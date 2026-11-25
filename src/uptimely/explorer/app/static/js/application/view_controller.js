@@ -38,7 +38,8 @@ const VIEWS = {
     render: (data, test) => testInfoPage(test),
   },
   "test-cases": {
-    stylesheet: "engine", engine: true, initialize: icons, load: loadTestCases,
+    stylesheet: "engine", engine: true, highlight: true,
+    initialize: [...icons, initializer("highlight")], load: loadTestCases,
     initializePage: initializeTestCases,
     render: (data, test) => testCasesPage(data, test),
   },

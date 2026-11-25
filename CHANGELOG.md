@@ -24,8 +24,9 @@ While the version is `0.x`, minor releases may include breaking changes.
 - `uptimely test` saves case inputs, outputs, and resolved calls in per-profile
   files under `artifacts/test/cases/`. Calls show dataframe arguments as
   `$<argument name>`.
-- Explorer includes a Test section with metadata and case inputs, outcomes, and
-  expected and actual output for mismatches, including in static exports.
+- Explorer includes a Test section with metadata, syntax-highlighted function
+  calls, case inputs, outcomes, and expected and actual output for mismatches,
+  including in static exports.
 
 ### Changed
 

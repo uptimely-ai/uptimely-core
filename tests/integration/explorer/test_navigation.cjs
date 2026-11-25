@@ -85,7 +85,10 @@ test("static test pages navigate to saved case details", async () => {
   };
   const cases = { calculate: { cases: { mismatch: {
     inputs: { dataset: [{ value: 1 }] }, expected: { return: [{ value: 2 }] },
-    actual: [{ value: 3 }], call: null,
+    actual: [{ value: 3 }], call: {
+      function: "example:calculate", arguments: { dataset: "$dataset", limit: 7 },
+      dataframe_inputs: { "/dataset": "dataset" },
+    },
   } } } };
   app.browser.UTIMELY_EXPLORER_CONFIG.testCasesUrl = "./data/test/cases";
   app.browser.document.querySelectorAll = () => [];
@@ -107,6 +110,9 @@ test("static test pages navigate to saved case details", async () => {
   assert.match(app.body.innerHTML, /<span class="context-link-label">mismatch<\/span>/);
   assert.match(app.body.innerHTML, /Expected output/);
   assert.match(app.body.innerHTML, /Actual output/);
+  assert.match(app.body.innerHTML, /example\.calculate\(\n  dataset=\$dataset,\n  limit=7,/);
+  assert.ok(app.scripts.some(url => url.includes("highlight.min.js")));
+  assert.equal(app.resources.find(element => element.href?.includes("monokai-sublime")).media, "all");
   assert.match(app.body.innerHTML, />3<\/td>/);
   assert.ok(app.fetched.some(([url]) => url === "./data/test/cases/readings.json"));
   assert.ok(app.fetched.every(([url]) => url.startsWith("./data/")));
