@@ -257,7 +257,9 @@ test("profile details show every declared operator in order", () => {
   }]));
   const configuration = {
     dimensions: {},
-    functions: Object.fromEntries(operators.map(operator => [operator, { name: `${operator} function`, returns: "dataframe" }])),
+    functions: Object.fromEntries(operators.map(operator => [operator, {
+      name: `${operator} function`, returns: operator === "notify" ? "none" : "dataframe",
+    }])),
     profiles: { telemetry: { grain: [], features: {}, assembly } },
   };
   const stages = [{ steps: Object.keys(assembly).map((operator_id, index) => ({
@@ -270,9 +272,10 @@ test("profile details show every declared operator in order", () => {
     Object.keys(assembly));
   assert.equal((content.match(/data-execution-form="compute"/g) || []).length, operators.length - 1);
   assert.equal((content.match(/data-execution-form="compute \+ merge"/g) || []).length, 1);
+  assert.doesNotMatch(content, /No dataset output/);
   assert.match(content, /<summary>Arguments<\/summary>/);
   assert.match(content, /<span class="ui-badge profile-operator-argument-value"><code class="language-json">\$outputs\.value_1<\/code><\/span>/);
-  assert.match(content, /class="language-json">resolved_1<\/code>/);
+  assert.doesNotMatch(content, /class="language-json">resolved_1<\/code>/);
   assert.match(content, /href="\?view=functions#function-calculate">calculate function/);
 
   configuration.profiles.telemetry.assembly = { calculate: assembly.operator_1 };
@@ -371,18 +374,32 @@ test("feature and function type displays use matching data type icons", () => {
   const profileContent = renderCatalog(data, "profiles").content;
   const profileOperator = profileContent.match(/<article id="operator-telemetry-load"[\s\S]*?<\/article>/)[0];
   const featureOperator = featureCard.match(/<article id="feature-temperature-operator-telemetry-load"[\s\S]*?<\/article>/)[0];
-  assert.equal(featureOperator.replace("feature-temperature-operator-telemetry-load", "operator-telemetry-load"),
+  assert.notEqual(featureOperator.replace("feature-temperature-operator-telemetry-load", "operator-telemetry-load"),
     profileOperator);
+  assert.match(profileOperator, /class="profile-operator-header"[\s\S]*profile-operator-merge-badge-icon" data-lucide="git-merge"[\s\S]*Merge<\/span>/);
+  assert.match(profileOperator, /<th scope="col">Argument<\/th><th scope="col">Spec value<\/th>/);
+  assert.doesNotMatch(profileOperator, /Resolved value/);
+  assert.doesNotMatch(profileOperator, /Source profiles|profile-operator-source|Grain: Collapse|Output dataset|profile-operator-target|class="profile-operator-merge"/);
   assert.match(featureOperator, /<summary>Arguments<\/summary>/);
+  assert.match(featureOperator, /<th scope="col">Argument<\/th><th scope="col">Spec value<\/th>/);
+  assert.doesNotMatch(featureOperator, /Resolved value/);
   assert.match(featureOperator, /<td><code class="language-json">telemetry\.csv<\/code><\/td>/);
-  assert.match(featureOperator, /<div class="profile-operator-function">\s*<i[^>]*class="site-icon icon--read profile-operator-function-icon" data-lucide="file-input"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
-  assert.match(featureOperator, /profile-operator-relationship-indicator/);
-  assert.match(featureOperator, /tabindex="0" title="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
-  assert.match(featureOperator, /aria-label="[^"]*Grain relationships: source: collapse, unresolved: not_applicable\."/);
-  assert.doesNotMatch(featureOperator, /<dt>Execution form<\/dt>|<dt>Grain relationship<\/dt>/);
+  assert.match(featureOperator, /class="profile-operator-signature" title="Function signature: read"\s+aria-label="Function signature: read"[\s\S]*?class="site-icon icon--read profile-operator-signature-icon" data-lucide="file-input"/);
+  assert.match(featureOperator, /<div class="profile-operator-function-link">\s*<i[^>]*class="site-icon icon--functions profile-operator-function-icon" data-lucide="square-function"[^>]*><\/i>\s*<a href="\?view=functions#function-load">Load<\/a>/);
+  assert.match(featureOperator, /href="\?view=profiles#profile-source">source<\/a>[\s\S]*?Grain: Collapse/);
+  assert.match(featureOperator, /Source unavailable[\s\S]*?Grain: Not Applicable/);
+  assert.doesNotMatch(profileOperator, /Output fragment/);
+  assert.ok(featureOperator.indexOf("Output fragment") < featureOperator.indexOf('class="profile-operator-merge"'));
+  assert.match(featureOperator, /href="\?view=functions#function-merge">merge<\/a>[\s\S]*?Output dataset/);
+  assert.match(profileOperator, /profile-operator-flow-side profile-operator-flow-side--compact/);
+  assert.match(featureOperator, /profile-operator-flow-side">\s*<div class="profile-operator-node-label"/);
   assert.ok(featureOperator.indexOf("Input features") < featureOperator.indexOf("profile-operator-compute"));
   assert.ok(featureOperator.indexOf("profile-operator-compute") < featureOperator.indexOf("Output features"));
-  assert.doesNotMatch(featureOperator, /profile-operator-flow-node|profile-operator-flow-arrow/);
+  assert.equal((featureOperator.match(/class="profile-operator-flow-arrow"/g) || []).length, 4);
+  assert.match(featureOperator, /role="group" aria-label="Operator data flow"/);
+  assert.ok(featureOperator.indexOf("Output features") < featureOperator.indexOf("<summary>Arguments</summary>"));
+  const withoutInvocations = renderCatalog({ ...data, stages: [] }, "profiles").content;
+  assert.match(withoutInvocations, /<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments<\/summary>[\s\S]*?<dt>source<\/dt><dd><code>telemetry\.csv<\/code>/);
   assert.match(featureContent, /data-category="float64" data-count="1"/);
   assert.match(featureContent, /data-lucide="hash"[^>]*><\/i><span>Temperature<\/span>/);
   assert.match(featureContext, /href="#feature-telemetry-temperature"[\s\S]*?data-lucide="hash"/);
@@ -982,11 +999,11 @@ test("lineage groups have additional horizontal spacing without changing spacing
   assert.match(lineage, /\.lineage-buttons \{[^}]*gap: 4px;/);
 });
 
-test("stage cards share compact operator styling and retain invocation details", () => {
+test("stage cards share compact operator styling without invocation details", () => {
   const step = {
     invocation_id: "read", operator_id: "load", profile: "telemetry", dataset_label: "Telemetry",
     title: "Load telemetry", function: "load", function_label: "Load telemetry",
-    role: "compute", binding_roles: ["compute", "merge"],
+    role: "compute", result: "fragment", binding_roles: ["compute", "merge"],
     grain_relationships: [{ source_profile: "source", relationship: "same" }],
     input_features: [], output_features: ["Temperature"],
     args: {}, returns: { type: { engine: "DataFrame" } },
@@ -995,30 +1012,44 @@ test("stage cards share compact operator styling and retain invocation details",
   const content = stageCards({ stages: [
     { stage: 1, steps: [step] },
     { stage: 2, steps: [{
-      ...step, invocation_id: "merge", role: "merge", title: "Merge telemetry",
+      ...step, invocation_id: "merge", role: "merge", result: "target", title: "Merge telemetry",
       function: "merge", function_label: "Merge telemetry", input_features: ["Temperature"],
       merge_dataset: "$profiles.telemetry.dataset", fragment_source: "$outputs.read",
       merge_keys: ["pump_id"], row_context: { keys: ["pump_id"] },
       depends_on_invocations: [{ id: "read", function: "Load telemetry" }],
     }] },
     { stage: 3, steps: [{
-      ...step, invocation_id: "effect", uncontrolled: true, binding_roles: ["compute"],
+      ...step, invocation_id: "effect", result: "none", uncontrolled: true, binding_roles: ["compute"],
       input_features: ["Temperature"], output_features: ["Notification"],
+    }] },
+    { stage: 4, steps: [{
+      ...step, invocation_id: "emerge", result: "target", title: "Read constants",
+      profile: "constants", dataset_label: "Constants",
+      grain_relationships: [{ source_profile: null, relationship: "emerge" }],
     }] },
   ] });
   assert.equal((content.match(/class="profile-operator"/g) || []).length, 3);
-  assert.equal((content.match(/<summary>Invocation details<\/summary>/g) || []).length, 3);
+  assert.equal((content.match(/<summary>Invocation details<\/summary>/g) || []).length, 0);
   assert.doesNotMatch(content, /<details[^>]*\bopen\b|Execution form|md:grid-cols|<dt>Grain relationship/);
-  assert.match(content, /profile-operator-header[\s\S]*ui-badge[^>]*>Compute binding<\/span>/);
-  assert.match(content, /title="[^"]*Grain relationships: source: same\."/);
-  assert.match(content, /href="\?view=functions#function-merge">Merge telemetry<\/a>/);
-  assert.match(content, /href="\?view=profiles#operator-telemetry-load">load<\/a>/);
-  assert.match(content, /href="#invocation-read"><code>Load telemetry<\/code>/);
-  assert.match(content, /<dt>Merge keys<\/dt><dd><code>\[&quot;pump_id&quot;\]<\/code>/);
-  assert.match(content, /<dt>Row context<\/dt>/);
+  const computeCard = content.match(/<article id="invocation-read"[\s\S]*?<\/article>/)[0];
+  const emergeCard = content.match(/<article id="invocation-emerge"[\s\S]*?<\/article>/)[0];
+  assert.match(computeCard, /class="profile-operator-header"[\s\S]*profile-operator-merge-badge-icon" data-lucide="git-merge"[\s\S]*Merge<\/span>/);
+  assert.doesNotMatch(content, /Compute binding|Output fragment|No dataset output/);
+  assert.match(computeCard, /profile-operator-flow-side profile-operator-flow-side--compact/);
+  assert.doesNotMatch(computeCard, /Output fragment/);
+  assert.doesNotMatch(computeCard, /class="profile-operator-merge"/);
+  assert.doesNotMatch(computeCard, /Source profiles|class="profile-operator-source"|Grain: Same/);
+  assert.doesNotMatch(content, /id="invocation-merge"|Merge inputs|Merge keys/);
+  assert.doesNotMatch(emergeCard, /Source profiles|No source profile|Grain: Emerge/);
+  assert.doesNotMatch(emergeCard, /Output dataset|class="profile-operator-target"/);
+  assert.match(content, /External effects/);
+  assert.doesNotMatch(content, /href="\?view=functions#function-merge"/);
+  assert.doesNotMatch(content, /href="\?view=profiles#operator-telemetry-load"/);
+  assert.doesNotMatch(content, /id="stage-2"/);
+  assert.doesNotMatch(content, /<dt>Merge keys<\/dt>|<dt>Fragment source<\/dt>/);
   assert.match(content, /Input features<\/dt><dd><code>Temperature<\/code>/);
   assert.match(content, /Output features \(logical\)<\/dt><dd><code>Notification<\/code>/);
-  assert.match(content, /Python return \(ignored\)/);
+  assert.doesNotMatch(content, /Python return \(ignored\)|Input-producing invocations/);
   assert.match(content, /return value is ignored/);
   const ids = [...content.matchAll(/\bid="([^"]+)"/g)].map(match => match[1]);
   assert.equal(new Set(ids).size, ids.length);
@@ -1038,14 +1069,24 @@ test("stage argument bindings prefix names with type icons and preserve typed va
   }] }] });
   assert.match(content, /<table class="ui-table">/);
   assert.match(content, /data-lucide="hash"[^>]*><\/i><span>input<\/span>/);
-  assert.match(content, /<th scope="col">Argument<\/th><th scope="col">Value<\/th>/);
+  assert.match(content, /<th scope="col">Argument<\/th><th scope="col">Resolved value<\/th>/);
   assert.match(content, /&lt;unsafe&gt;/);
-  assert.match(content, /data-type-label-text">float<\/span>/);
+  assert.match(content, /Output features[\s\S]*?<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments<\/summary>[\s\S]*?&lt;unsafe&gt;/);
   assert.match(content, /data-lucide="case-sensitive"[^>]*><\/i><span>source<\/span>/);
   const table = content.match(/<table class="ui-table">[\s\S]*?<\/table>/)[0];
   assert.doesNotMatch(table, /Data type|Binding type|Function type|Engine type|data-type-label-text|>float<|>string</);
   assert.doesNotMatch(content, /data-type="Series"|data-type="feature"/);
   assert.doesNotMatch(content, /parallel invocation/);
+});
+
+test("operator cards use a responsive input-function-output flow", async () => {
+  const styles = await readFile(new URL("../css/spec.css", root), "utf8");
+  assert.match(styles, /\.profile-operator-flow \{ display: flex;/);
+  assert.match(styles, /\.profile-operator-header \{ display: flex; align-items: flex-start; justify-content: space-between;/);
+  assert.match(styles, /\.profile-operator-flow-side--compact \.profile-operator-contract \{ margin-top: 0; \}/);
+  assert.match(styles, /@container \(max-width: 680px\) \{[\s\S]*?\.profile-operator-flow \{ flex-direction: column;/);
+  assert.match(styles, /@container \(max-width: 680px\) \{[\s\S]*?\.profile-operator-flow-arrow \{ display: none; \}/);
+  assert.match(styles, /@container \(max-width: 900px\) \{[\s\S]*?\.profile-operator-flow-with-merge \{ flex-direction: column;/);
 });
 
 test("Spec navigation no longer links to the removed overview", () => {

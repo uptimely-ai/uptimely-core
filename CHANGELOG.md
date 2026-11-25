@@ -31,6 +31,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Explorer operator cards show source profiles, grain relationships, function
+  results, and optional merge steps as a compact lineage.
 - Explorer Test and Run Info use visual status summaries and timing timelines.
   Test results show counts, and report and build details remain visible.
 - Explorer highlights output columns absent from test case inputs.

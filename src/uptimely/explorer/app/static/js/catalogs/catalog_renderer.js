@@ -441,56 +441,92 @@ export function schemaColumns(config, profile) {
   ].map(column => ({ ...column, operators: [...(producingOperators.get(column.id) || [])] }));
 }
 
-function operatorCard({ attributes, title, hasMerge, relationships, role = null,
-  inputs, outputs, uncontrolled, functionId, functionName, functionIcon,
-  argumentsMarkup, details = "" }) {
-  const relationshipIcon = grainRelationshipIcon(relationships);
-  const hasUnknownBoundary = ["operators", "not_applicable"].includes(relationshipIcon);
-  const titleIcon = hasUnknownBoundary && ["read", "write"].includes(functionIcon)
-    ? functionIcon : relationshipIcon;
-  const grainRelationships = relationships?.map(item =>
-    `${item.source_profile || "unresolved"}: ${item.relationship}`).join(", ") || "not applicable";
-  const mergeTooltip = `The resulting fragment is merged into this profile's dataset. Grain relationships: ${grainRelationships}.`;
+function operatorCard({ attributes, title, mergeFunction, relationships, profiles, profileId, profileName,
+  role = null, result, mergeDataset, fragmentSource,
+  inputs, outputs, uncontrolled, hideDatasetOutput = false, hideSourceProfiles = false,
+  hideOutputFragment = false, hideNoDatasetOutput = false,
+  mergeBadge = false, compactFlowSide = false,
+  functionId, functionName, signatureIcon, functionSignature,
+  argumentsMarkup = "" }) {
+  const profileLink = id => id
+    ? `<a href="${href("profiles", `profile-${id}`)}">${escape(label(id, profiles[id] || {}))}</a>`
+    : '<span class="profile-operator-empty">Not available</span>';
+  const target = profileId
+    ? `<a href="${href("profiles", `profile-${profileId}`)}">${escape(profileName || profileId)}</a>`
+    : '<span class="profile-operator-empty">Not available</span>';
+  const sourceRelationships = hideSourceProfiles ? [] : relationships;
+  const sources = sourceRelationships?.length ? sourceRelationships.map(item => `<div class="profile-operator-source">
+    ${item.source_profile ? profileLink(item.source_profile) : `<span>${item.relationship === "emerge" ? "No source profile" : "Source unavailable"}</span>`}
+    <span class="profile-operator-source-grain">Grain: ${escape(humanizeCategory(item.relationship))}</span>
+  </div>`).join("") : hideSourceProfiles ? "" : '<span class="profile-operator-empty">Not available</span>';
+  const mergeInputs = `<div class="profile-operator-source"><span>Dataset</span><code>${display(mergeDataset)}</code></div>
+    <div class="profile-operator-source"><span>Fragment</span><code>${display(fragmentSource)}</code></div>`;
+  const resultLabel = uncontrolled ? "External effects" : result === "fragment" ? "Output fragment"
+    : result === "target" ? hideDatasetOutput ? "" : "Output dataset"
+      : result === "none" ? "No dataset output" : "Result";
+  const resultLabelMarkup = (result === "target" && hideDatasetOutput)
+    || (result === "fragment" && hideOutputFragment)
+    || (result === "none" && !uncontrolled && hideNoDatasetOutput) ? ""
+    : `<div class="profile-operator-node-label">${icon(uncontrolled ? "external" : "datasets", "profile-operator-contract-icon")}${resultLabel}</div>`;
+  const arrow = '<span class="profile-operator-flow-arrow" aria-hidden="true"></span>';
   return `<article ${attributes} class="profile-operator">
     <header class="profile-operator-header">
       <div class="profile-operator-identity"><h4>${escape(title)}</h4>
         ${role ? `<div class="mt-2 flex flex-wrap gap-2">${badge(`${role === "merge" ? "Merge" : "Compute"} binding`, "neutral")}</div>` : ""}
       </div>
-      <div class="profile-operator-indicators">
-        <span class="profile-operator-icon-indicator" aria-hidden="true">${icon(titleIcon, "profile-operator-icon")}</span>
-        ${hasMerge ? `<span class="profile-operator-relationship-indicator" tabindex="0" title="${escape(mergeTooltip)}" aria-label="${escape(mergeTooltip)}">${icon("merge", "profile-operator-icon")}</span>` : ""}
-      </div>
+      ${mergeBadge ? `<span class="ui-badge ui-badge--neutral profile-operator-merge-badge">${icon("merge", "profile-operator-merge-badge-icon")}Merge</span>` : ""}
     </header>
-    <dl class="profile-operator-contract">
-      <div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${inputs}</dd></div>
-    </dl>
-    ${uncontrolled ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; these outputs are not materialized as dataframe columns. Dataframes are passed only through explicit arguments, and the return value is ignored.</div>' : ""}
-    <div class="profile-operator-compute">
-      <div class="profile-operator-function">
-        ${icon(functionIcon, "profile-operator-function-icon")}
-        <a href="${href("functions", `function-${functionId}`)}">${escape(functionName)}</a>
+    <div class="profile-operator-flow${mergeFunction ? " profile-operator-flow-with-merge" : ""}" role="group" aria-label="Operator data flow">
+      <div class="profile-operator-flow-side${compactFlowSide ? " profile-operator-flow-side--compact" : ""}">
+        ${role === "merge" || sources ? `<div class="profile-operator-node-label">${icon("datasets", "profile-operator-contract-icon")}${role === "merge" ? "Merge inputs" : "Source profiles"}</div>
+        <div class="profile-operator-sources">${role === "merge" ? mergeInputs : sources}</div>` : ""}
+        ${role === "merge" ? "" : `<dl class="profile-operator-contract"><div><dt>${icon("input", "profile-operator-contract-icon")}Input features</dt><dd>${inputs}</dd></div></dl>`}
       </div>
-      ${argumentsMarkup}
+      ${arrow}
+      <div class="profile-operator-compute">
+        <div class="profile-operator-function">
+          <div class="profile-operator-function-link">
+            ${icon("functions", "profile-operator-function-icon")}
+            <a href="${href("functions", `function-${functionId}`)}">${escape(functionName)}</a>
+          </div>
+          <div class="profile-operator-function-badges">
+            <span class="profile-operator-signature" title="Function signature: ${escape(functionSignature)}"
+              aria-label="Function signature: ${escape(functionSignature)}">
+              ${icon(signatureIcon, "profile-operator-signature-icon")}<span>${escape(functionSignature)}</span>
+            </span>
+          </div>
+        </div>
+      </div>
+      ${arrow}
+      <div class="profile-operator-flow-side profile-operator-output${compactFlowSide ? " profile-operator-flow-side--compact" : ""}">
+        ${resultLabelMarkup}
+        ${result === "target" && !uncontrolled && !hideDatasetOutput ? `<div class="profile-operator-target">${target}</div>` : ""}
+        ${role === "merge" ? "" : `<dl class="profile-operator-contract"><div><dt>${icon("output", "profile-operator-contract-icon")}Output features${uncontrolled ? " (logical)" : ""}</dt><dd>${outputs}</dd></div></dl>`}
+      </div>
+      ${mergeFunction ? `${arrow}<div class="profile-operator-merge">
+        <div class="profile-operator-node-label">${icon("merge", "profile-operator-contract-icon")}Merge</div>
+        <a href="${href("functions", `function-${mergeFunction.id}`)}">${escape(mergeFunction.name)}</a>
+        <div class="profile-operator-merge-target">With ${target}</div>
+      </div>${arrow}<div class="profile-operator-flow-side">
+        <div class="profile-operator-node-label">${icon("datasets", "profile-operator-contract-icon")}Output dataset</div>
+        <div class="profile-operator-target">${target}</div>
+      </div>` : ""}
     </div>
-    <dl class="profile-operator-contract profile-operator-output">
-      <div><dt>${icon("output", "profile-operator-contract-icon")}Output features${uncontrolled ? " (logical)" : ""}</dt><dd>${outputs}</dd></div>
-    </dl>
-    ${details}
+    ${uncontrolled ? '<div class="profile-operator-note">External effects are uncontrolled. Declared inputs and outputs express logical dependencies only; these outputs are not materialized as dataframe columns. Dataframes are passed only through explicit arguments, and the return value is ignored.</div>' : ""}
+    ${argumentsMarkup}
   </article>`;
 }
 
-function profileOperatorCards(config, profileId, profile, operators, invocations, idPrefix = "operator") {
+function profileOperatorCards(
+  config, profileId, profile, operators, invocations, idPrefix = "operator",
+  simplifyDataFlow = false,
+) {
   const featureList = references => references.length
     ? references.map(reference => {
       const id = reference.replace(/^\$features\./, "");
       return `<code>${escape(label(id, profile.features[id] || {}))}</code>`;
     }).join("")
     : '<span class="profile-operator-empty">None declared</span>';
-  const isEngineBound = (value, type) => /\b(?:lazy\s*)?(?:dataframes?|lazyframes?)\b/i.test(type)
-    || (typeof value === "string" && (value.startsWith("$params.") || value === "$params"))
-    || (Array.isArray(value) && value.some(item => isEngineBound(item, "")))
-    || (value !== null && typeof value === "object"
-      && Object.values(value).some(item => isEngineBound(item, "")));
   const isReference = value => (typeof value === "string" && value.startsWith("$"))
     || (Array.isArray(value) && value.some(isReference))
     || (value !== null && typeof value === "object"
@@ -514,28 +550,29 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
     return JSON.stringify(value);
   };
   const displayArgumentValue = value => escape(formatArgumentValue(value));
-  const resolvedArgumentDetails = (operatorId, operator, title, invocations) => invocations.length
-    ? `<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>${title}</summary>
+  const argumentDetails = (operatorId, operator, invocations) => {
+    const resolvedNames = new Set(invocations.flatMap(invocation => Object.keys(invocation.args || {})));
+    const unresolved = Object.entries(operator.compute.args || {}).filter(([name]) => !resolvedNames.has(name));
+    if (!invocations.length && !unresolved.length) return "";
+    return `<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments</summary>
       ${invocations.map(invocation => `<div class="ui-table-scroll" tabindex="0" role="region" aria-label="Arguments for ${escape(operatorId)}">
         <table class="ui-table"><caption class="sr-only">Arguments for ${escape(operatorId)}</caption>
-          <thead><tr><th scope="col">Argument</th><th scope="col">Spec value</th><th scope="col">Resolved value</th></tr></thead>
+          <thead><tr><th scope="col">Argument</th><th scope="col">Spec value</th></tr></thead>
           <tbody>${Object.entries(invocation.args || {}).map(([name, argument]) => {
             const type = argument.type.engine || argument.type.function || "";
-            const engineBound = isEngineBound(argument.value, type);
             const bindValue = operator.compute.args?.[name];
             const serializedBindValue = displayArgumentValue(bindValue);
             const bindDisplay = bindValue === undefined ? "—" : isReference(bindValue)
               ? `<span class="ui-badge profile-operator-argument-value"><code class="language-json">${serializedBindValue}</code></span>`
               : `<code class="language-json">${serializedBindValue}</code>`;
-            const resolvedValue = displayArgumentValue(argument.value);
-            const engineBindIndicator = `<span class="profile-operator-engine-bind" tabindex="0" data-tooltip="This value will be bound only during the engine execution." aria-label="This value will be bound only during the engine execution.">${icon("engine-bind")}</span>`;
             return `<tr><th scope="row">${typedName(name, type || "—")}</th>
-              <td>${bindDisplay}</td>
-              <td><span class="profile-operator-resolved-value">${engineBound
-    ? `<span class="ui-badge profile-operator-argument-value">${engineBindIndicator}<code class="language-json">${resolvedValue}</code></span>`
-    : `<code class="language-json">${resolvedValue}</code>`}</span></td></tr>`;
+              <td>${bindDisplay}</td></tr>`;
           }).join("")}</tbody>
-        </table></div>`).join("")}</details>` : "";
+        </table></div>`).join("")}
+      ${unresolved.length ? `<dl class="profile-operator-bound-arguments" aria-label="Spec arguments">
+        ${unresolved.map(([name, value]) => `<div><dt>${escape(name)}</dt><dd><code>${displayArgumentValue(value)}</code></dd></div>`).join("")}
+      </dl>` : ""}</details>`;
+  };
   return `<div class="profile-operator-list">${operators.map(([id, operator]) => {
     const functionId = operator.compute.function;
     const fn = config.functions[functionId] || {};
@@ -545,12 +582,21 @@ function profileOperatorCards(config, profileId, profile, operators, invocations
     return operatorCard({
       attributes: `id="${escape(idPrefix)}-${escape(profileId)}-${escape(id)}" data-profile-operator="${escape(id)}" data-execution-form="${escape(operator.execution_form)}"`,
       title: operatorLabel(id, operator),
-      hasMerge: operator.binding_roles?.includes("merge") === true,
-      relationships: operator.grain_relationships,
+      mergeFunction: operator.merge && !simplifyDataFlow
+        ? { id: operator.merge.function, name: config.functions[operator.merge.function]?.name || operator.merge.function }
+        : null,
+      relationships: operator.grain_relationships, profiles: config.profiles, profileId, profileName: label(profileId, profile),
+      result: fn.returns === "dataframe" ? (operator.merge ? "fragment" : "target") : "none",
       inputs: featureList(operatorInputs(operator)), outputs: featureList(operator.interface.outputs),
       uncontrolled: operator.is_workflow || fn.returns === "any", functionId, functionName: fn.name || functionId,
-      functionIcon: dataframeSignatureIcon(fn),
-      argumentsMarkup: resolvedArgumentDetails(id, operator, "Arguments", computeInvocations),
+      hideDatasetOutput: simplifyDataFlow, hideSourceProfiles: simplifyDataFlow,
+      hideOutputFragment: simplifyDataFlow,
+      hideNoDatasetOutput: simplifyDataFlow,
+      mergeBadge: simplifyDataFlow && Boolean(operator.merge),
+      compactFlowSide: simplifyDataFlow,
+      signatureIcon: dataframeSignatureIcon(fn),
+      functionSignature: dataframeSignatureLabel(fn),
+      argumentsMarkup: argumentDetails(id, operator, computeInvocations),
     });
   }).join("")}</div>`;
 }
@@ -591,7 +637,7 @@ function profileCards(config, invocations) {
             <td>${column.operators.length ? column.operators.map(operator => `<code class="profile-schema-operator">${escape(operator)}</code>`).join("") : '<span class="text-slate-500">None declared</span>'}</td>
           </tr>`).join("")}</tbody>
         </table></div></div>
-          ${operators.length ? `<div>${subheading("Assembly", "assembly")}${profileOperatorCards(config, id, profile, operators, invocations)}</div>` : ""}
+          ${operators.length ? `<div>${subheading("Assembly", "assembly")}${profileOperatorCards(config, id, profile, operators, invocations, "operator", true)}</div>` : ""}
         </div></section></article>`;
   }).join("");
 }
@@ -720,41 +766,39 @@ export function stageCards(data) {
     ? features.map(feature => `<code>${escape(feature)}</code>`).join("")
     : '<span class="profile-operator-empty">None declared</span>';
   const functions = data.catalogs?.configuration?.functions || {};
-  return data.stages.map(stage => `<section id="stage-${stage.stage}" data-context-item>
+  const visibleStages = data.stages.filter(stage => stage.steps.some(step => step.role !== "merge"));
+  return visibleStages.map(stage => {
+    const visibleSteps = stage.steps.filter(step => step.role !== "merge");
+    return `<section id="stage-${stage.stage}" data-context-item>
     <div class="mb-3 flex items-center gap-3"><h2 class="rounded-lg bg-slate-800 px-2.5 py-1 font-mono text-xs text-slate-300">Stage ${stage.stage}</h2>
-      <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">${stage.steps.length} invocation${stage.steps.length === 1 ? "" : "s"}</span></div>
-    <div class="profile-operator-list">${stage.steps.map(step => {
+      <span class="font-mono text-[10px] uppercase tracking-wider text-slate-500">${visibleSteps.length} invocation${visibleSteps.length === 1 ? "" : "s"}</span></div>
+    <div class="profile-operator-list">${visibleSteps.map(step => {
       const argumentsMarkup = Object.keys(step.args).length
         ? `<details class="profile-operator-bindings profile-operator-bindings-inline"><summary>Arguments</summary>
           <div class="ui-table-scroll" tabindex="0" role="region" aria-label="Argument bindings for ${escape(step.title)}"><table class="ui-table">
           <caption class="sr-only">Argument bindings for ${escape(step.title)}</caption>
-          <thead><tr>${["Argument", "Value"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
+          <thead><tr>${["Argument", "Resolved value"].map(title => `<th scope="col">${title}</th>`).join("")}</tr></thead>
           <tbody>${Object.entries(step.args).map(([id, arg]) => `<tr><th scope="row">${typedName(id, arg.type.engine || arg.type.function || "—")}</th>
             <td><code>${display(arg.value)}</code></td></tr>`).join("")}</tbody>
           </table></div></details>` : "";
-      const details = `<details class="profile-operator-bindings"><summary>Invocation details</summary>
-        <dl class="profile-operator-contract">
-          <div><dt>Profile</dt><dd><a href="${href("profiles", `profile-${step.profile}`)}">${escape(step.dataset_label || step.profile)}</a></dd></div>
-          <div><dt>Operator</dt><dd><a href="${href("profiles", `operator-${step.profile}-${step.operator_id}`)}">${escape(step.operator_id)}</a></dd></div>
-          <div><dt>${step.uncontrolled ? "Python return (ignored)" : "Returns"}</dt><dd>${dataTypeLabel(step.returns.type.engine || "—")}</dd></div>
-          <div><dt>Input-producing invocations</dt><dd>${step.depends_on_invocations.map(dep =>
-            `<a href="#invocation-${escape(dep.id)}"><code>${escape(dep.function)}</code></a>`).join("") || '<span class="profile-operator-empty">No referenced invocation inputs</span>'}</dd></div>
-          ${step.role === "merge" ? [["Merge dataset", step.merge_dataset], ["Fragment source", step.fragment_source], ["Merge keys", step.merge_keys]].map(([title, value]) =>
-            `<div><dt>${title}</dt><dd><code>${display(value)}</code></dd></div>`).join("") : ""}
-          ${step.row_context != null ? `<div><dt>Row context</dt><dd><code>${display(step.row_context)}</code></dd></div>` : ""}
-        </dl>
-      </details>`;
       return operatorCard({
         attributes: `id="invocation-${escape(step.invocation_id)}" data-invocation-id="${escape(step.invocation_id)}" data-role="${escape(step.role)}"`,
-        title: step.title, role: step.role,
-        hasMerge: step.binding_roles?.includes("merge") === true || step.role === "merge",
-        relationships: step.grain_relationships,
+        title: step.title,
+        relationships: step.grain_relationships, profiles: data.catalogs?.configuration?.profiles || {},
+        profileId: step.profile, profileName: step.dataset_label, result: step.result,
+        mergeDataset: step.merge_dataset, fragmentSource: step.fragment_source,
         inputs: featureList(step.input_features), outputs: featureList(step.output_features),
-        uncontrolled: step.uncontrolled, functionId: step.function, functionName: step.function_label,
-        functionIcon: dataframeSignatureIcon(functions[step.function] || {}),
-        argumentsMarkup, details,
+        uncontrolled: step.uncontrolled, hideDatasetOutput: true, hideOutputFragment: true,
+        hideNoDatasetOutput: true, compactFlowSide: true,
+        hideSourceProfiles: true,
+        mergeBadge: step.binding_roles?.includes("merge") || false,
+        functionId: step.function, functionName: step.function_label,
+        signatureIcon: dataframeSignatureIcon(functions[step.function] || {}),
+        functionSignature: dataframeSignatureLabel(functions[step.function] || {}),
+        argumentsMarkup,
       });
-    }).join("")}</div></section>`).join("");
+    }).join("")}</div></section>`;
+  }).join("");
 }
 
 export function renderCatalog(data, view) {
