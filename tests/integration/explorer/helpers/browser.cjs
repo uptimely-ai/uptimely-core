@@ -51,17 +51,24 @@ class BrowserHarness {
 
   createBrowser(data, ok, dataUrl) {
     const harness = this;
+    const configuration = { dataUrl };
+    if (dataUrl.startsWith("./")) {
+      configuration.runDataUrl = "./data/run.json";
+      configuration.testDataUrl = "./data/test.json";
+    }
     return {
       document: this.createDocument(),
       get location() { return harness.location; },
       history: this.history,
-      UTIMELY_EXPLORER_CONFIG: { dataUrl },
+      UTIMELY_EXPLORER_CONFIG: configuration,
       console: { error: (...args) => this.errors.push(args) },
       addEventListener: (type, callback, options) => this.listen("window", type, callback, options),
       scrollTo() {},
       fetch: async (url, options) => {
         this.fetched.push([url, options.cache]);
-        return { ok, status: ok ? 200 : 404, json: async () => data };
+        const payload = url === dataUrl ? data
+          : url.endsWith("/run.json") ? { run: null, logs: [], previews: {} } : null;
+        return { ok, status: ok ? 200 : 404, json: async () => payload };
       },
     };
   }

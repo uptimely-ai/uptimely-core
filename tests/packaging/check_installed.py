@@ -86,7 +86,7 @@ class InstalledImportsTest(unittest.TestCase):
         self.assertIn("Build files created", result.stdout)
         build = project / "artifacts" / "build"
         snapshot = json.loads((build / "explorer.json").read_text(encoding="utf-8"))
-        self.assertEqual(snapshot["format_version"], 3)
+        self.assertEqual(snapshot["format_version"], 5)
         frontend = pathlib.Path(uptimely.__file__).parent / "explorer" / "app" / "static"
         self.assertTrue((frontend / "index.html").is_file())
         self.assertTrue((frontend / "css" / "explorer.css").is_file())

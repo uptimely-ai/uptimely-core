@@ -1,6 +1,7 @@
 """Tests for static Explorer directory and ZIP exports."""
 
 import dataclasses
+import datetime
 import json
 import pathlib
 import zipfile
@@ -13,6 +14,7 @@ from uptimely import application, engine
 from uptimely import plan as execution_plan
 from uptimely.explorer import export, presentation
 from uptimely.run import models, store
+from uptimely.test import models as test_models
 
 
 def _write_snapshot(
@@ -53,11 +55,13 @@ def test_export_directory_uses_relative_assets_and_preserves_snapshot_bytes(
     assert '"./data/explorer.json"' in config
     assert "/api/explorer" not in config
     assert '"./data/run.json"' in config
+    assert '"./data/test.json"' in config
     assert json.loads((output / "data/run.json").read_bytes()) == {
         "run": None,
         "logs": [],
         "previews": {},
     }
+    assert json.loads((output / "data/test.json").read_bytes()) is None
     index = (output / "index.html").read_text(encoding="utf-8")
     assert 'href="./css/explorer.css"' in index
     assert 'src="./js/application/bootstrap.js"' in index
@@ -91,13 +95,16 @@ def test_export_zip_contains_static_frontend_and_data(
             "js/theme/tailwind_theme.js",
             "data/explorer.json",
             "data/run.json",
+            "data/test.json",
         } <= set(archive.namelist())
         assert archive.read("data/explorer.json") == snapshot_path.read_bytes()
         config = archive.read("config.js").decode("utf-8")
         assert '"./data/explorer.json"' in config
         assert "/api/explorer" not in config
         assert '"./data/run.json"' in config
+        assert '"./data/test.json"' in config
         assert json.loads(archive.read("data/run.json"))["run"] is None
+        assert json.loads(archive.read("data/test.json")) is None
 
 
 @pytest.mark.parametrize("suffix", ["", ".zip"])
@@ -123,6 +130,19 @@ def test_export_includes_validated_run_previews_and_all_log_pages(
     )
     monkeypatch.setattr(runtime, "_execute", lambda **kwargs: result)
     runtime.run(preview_rows=10)
+    test_report = test_models.TestReport(
+        started_at=datetime.datetime(2026, 11, 24, tzinfo=datetime.UTC),
+        finished_at=datetime.datetime(2026, 11, 24, 0, 1, tzinfo=datetime.UTC),
+        status="passed",
+        cases=[
+            test_models.CaseResult(
+                profile="pump", operator="calculate", case="basic", status="passed"
+            )
+        ],
+    )
+    test_path = project_root / "artifacts" / "test" / "test.json"
+    test_path.parent.mkdir(parents=True)
+    test_path.write_text(test_report.model_dump_json(), encoding="utf-8")
     runs = store.RunStore(project_root)
     manifest = runs.read_manifest()
     entries = [
@@ -150,6 +170,12 @@ def test_export_includes_validated_run_previews_and_all_log_pages(
     assert snapshot["logs"] == [entry.model_dump(mode="json") for entry in entries]
     assert snapshot["previews"]["telemetry"]["rows"] == [[value] for value in range(10)]
     assert snapshot["previews"]["telemetry"]["columns"] == [{"name": "value", "dtype": "Int64"}]
+    if suffix:
+        with zipfile.ZipFile(output) as archive:
+            exported_test = json.loads(archive.read("data/test.json"))
+    else:
+        exported_test = json.loads((output / "data/test.json").read_bytes())
+    assert exported_test == test_report.model_dump(mode="json")
 
     (runs.root / manifest.profiles["telemetry"].preview_path).unlink()
     with pytest.raises(FileNotFoundError):

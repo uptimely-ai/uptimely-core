@@ -1,8 +1,8 @@
 # Explorer
 
-The Explorer displays a project Spec and its execution plan. The functions
-below prepare and check the data used by the static Explorer. They do not build
-the project or run calculations.
+The Explorer displays a project Spec, its build provenance, and its execution
+plan. The functions below prepare and check the data used by the static
+Explorer. They do not build the project or run calculations.
 
 For user workflows, see the [Explorer guide](../concepts/explorer.md) and
 [`uptimely explore` CLI reference](../cli/explorer.md).

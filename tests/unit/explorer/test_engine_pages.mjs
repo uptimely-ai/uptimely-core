@@ -9,7 +9,9 @@ const moduleSource = source.replace(
   "./rendering/shared_markup.js",
   `data:text/javascript;base64,${Buffer.from(shared).toString("base64")}`,
 );
-const { previewPage, initializePreview, infoPage, logsPage, loadInfo, loadLogs, loadPreviews } = await import(
+const {
+  previewPage, initializePreview, infoPage, logsPage, loadDashboard, loadInfo, loadLogs, loadPreviews,
+} = await import(
   `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`
 );
 
@@ -25,6 +27,7 @@ const preview = {
 };
 
 test("exported engine pages load only relative static data without live API requests", async () => {
+  const test = { status: "passed", cases: [] };
   const snapshot = {
     run: { run_id: "exported", profiles: { first: {} } },
     logs: Array.from({ length: 1000 }, (_, index) => ({
@@ -36,15 +39,23 @@ test("exported engine pages load only relative static data without live API requ
   const fetched = [];
   const fetchData = async (url, options) => {
     fetched.push([url, options.cache]);
-    return { ok: true, json: async () => snapshot };
+    return { ok: true, json: async () => url === "./data/test.json" ? test : snapshot };
   };
-  const configuration = { runDataUrl: "./data/run.json" };
+  const configuration = {
+    runDataUrl: "./data/run.json", testDataUrl: "./data/test.json",
+  };
+  const home = await loadDashboard(fetchData, configuration);
+  assert.equal(home.run, snapshot.run);
+  assert.equal(home.test, test);
   assert.equal((await loadInfo(fetchData, configuration)).run, snapshot.run);
   const logs = await loadLogs(fetchData, configuration);
   assert.equal(logs.logs.length, 1000);
   assert.doesNotMatch(logsPage(logs).content, /id="load-more-logs"/);
   assert.equal((await loadPreviews(fetchData, configuration)).previews.first, preview);
-  assert.deepEqual(fetched, Array(3).fill(["./data/run.json", "no-store"]));
+  assert.deepEqual(fetched, [
+    ["./data/run.json", "no-store"], ["./data/test.json", "no-store"],
+    ...Array(3).fill(["./data/run.json", "no-store"]),
+  ]);
 });
 
 test("static run fetch failures are explicit, not disguised as an absent run", async () => {
@@ -54,6 +65,9 @@ test("static run fetch failures are explicit, not disguised as an absent run", a
   for (const load of [loadInfo, loadLogs, loadPreviews]) {
     await assert.rejects(load(fetchData, { runDataUrl: "./data/run.json" }), /HTTP 404/);
   }
+  await assert.rejects(loadDashboard(fetchData, {
+    runDataUrl: "./data/run.json", testDataUrl: "./data/test.json",
+  }), /HTTP 404/);
 });
 
 test("live run pages preserve API requests and paginated logs", async () => {
@@ -66,14 +80,20 @@ test("live run pages preserve API requests and paginated logs", async () => {
     fetched.push(url);
     return {
       ok: true,
-      json: async () => url === "/api/run" ? run : url.includes("/logs") ? logs : preview,
+      json: async () => url === "/api/run" ? run
+        : url === "/api/test" ? { status: "passed", cases: [] }
+          : url.includes("/logs") ? logs : preview,
     };
   };
+  const dashboard = await loadDashboard(fetchData);
+  assert.equal(dashboard.run, run);
+  assert.equal(dashboard.test.status, "passed");
   assert.equal((await loadInfo(fetchData)).run, run);
   assert.match(logsPage(await loadLogs(fetchData)).content, /id="load-more-logs"/);
   assert.equal((await loadPreviews(fetchData)).previews.first, preview);
   assert.deepEqual(fetched, [
-    "/api/run", "/api/run", "/api/run/logs?run_id=live&offset=0&limit=1000",
+    "/api/run", "/api/test", "/api/run", "/api/run",
+    "/api/run/logs?run_id=live&offset=0&limit=1000",
     "/api/run", "/api/run/preview/first?run_id=live",
   ]);
 });

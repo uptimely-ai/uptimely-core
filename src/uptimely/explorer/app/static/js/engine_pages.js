@@ -4,18 +4,19 @@ const LOG_PAGE_SIZE = 1000;
 async function responseData(fetchData, url) {
   const response = await fetchData(url, { cache: "no-store" });
   if (!response.ok) {
-    if (url === "/api/run" && response.status === 404
+    if (["/api/run", "/api/test"].includes(url) && response.status === 404
         && response.headers.get("content-type")?.includes("application/json")) {
       const body = await response.json();
-      if (body.detail?.startsWith("No saved run.")) return null;
-      throw new Error(body.detail || `Could not load Engine data (HTTP ${response.status}).`);
+      if (body.detail?.startsWith("No saved run.")
+          || body.detail?.startsWith("No saved test report.")) return null;
+      throw new Error(body.detail || `Could not load Explorer data (HTTP ${response.status}).`);
     }
     let detail = "";
     if (response.headers.get("content-type")?.includes("application/json")) {
       const body = await response.json();
       detail = body.detail || "";
     }
-    throw new Error(detail || `Could not load Engine data (HTTP ${response.status}).`);
+    throw new Error(detail || `Could not load Explorer data (HTTP ${response.status}).`);
   }
   return response.json();
 }
@@ -31,6 +32,21 @@ function runUrl(path, runId, offset = null) {
 
 async function loadLogPage(fetchData, runId, offset = 0) {
   return responseData(fetchData, runUrl("/api/run/logs", runId, offset));
+}
+
+export async function loadDashboard(fetchData, configuration = {}) {
+  if (configuration.runDataUrl) {
+    const [runSnapshot, test] = await Promise.all([
+      responseData(fetchData, configuration.runDataUrl),
+      configuration.testDataUrl ? responseData(fetchData, configuration.testDataUrl) : null,
+    ]);
+    return { run: runSnapshot.run, test };
+  }
+  const [run, test] = await Promise.all([
+    responseData(fetchData, "/api/run"),
+    responseData(fetchData, "/api/test"),
+  ]);
+  return { run, test };
 }
 
 export async function loadInfo(fetchData, configuration = {}) {

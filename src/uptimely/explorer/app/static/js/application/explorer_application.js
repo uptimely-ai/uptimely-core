@@ -2,7 +2,7 @@ import { AssetLoader } from "./asset_loader.js";
 import { Router } from "./history_router.js";
 import { getView, ViewController } from "./view_controller.js";
 
-const FORMAT_VERSION = 3;
+const FORMAT_VERSION = 5;
 
 export async function loadExplorerData(configuration, fetchData) {
   if (!configuration || typeof configuration.dataUrl !== "string") {
@@ -13,7 +13,7 @@ export async function loadExplorerData(configuration, fetchData) {
     throw new Error(`Could not load Explorer data (HTTP ${response.status}). Build the project with "uptimely build" and refresh this page.`);
   }
   const data = await response.json();
-  if (!data || data.format_version !== FORMAT_VERSION || !data.project || !data.scope || !data.catalogs
+  if (!data || data.format_version !== FORMAT_VERSION || !data.project || !data.build || !data.scope || !data.catalogs
       || !data.graphs || !data.plan || !Array.isArray(data.stages) || !Array.isArray(data.animation?.stages)) {
     throw new Error('Explorer data is missing or uses an unsupported format. Rebuild with "uptimely build".');
   }

@@ -18,6 +18,7 @@ from .paths import (
     SPEC_JSON_ENTRY_FILE,
     SPEC_PYTHON_ENTRY_FILE,
     SPEC_SOURCE_DIR,
+    TEST_REPORT_FILE,
 )
 from .python_imports import expose
 from .spec_source import (
@@ -51,6 +52,7 @@ __all__ = [
     "SPEC_JSON_ENTRY_FILE",
     "SPEC_PYTHON_ENTRY_FILE",
     "SPEC_SOURCE_DIR",
+    "TEST_REPORT_FILE",
     "SpecSourceResolver",
     "load_spec_source",
     "expose",

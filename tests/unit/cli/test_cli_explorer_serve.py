@@ -1,6 +1,7 @@
 """Tests for the packaged Explorer frontend and snapshot API."""
 
 import asyncio
+import datetime
 import io
 import json
 import logging
@@ -17,12 +18,21 @@ from uptimely import plan as execution_plan
 from uptimely.cli import explorer
 from uptimely.explorer import server as explorer_server
 from uptimely.run import store as run_store
+from uptimely.test import models as test_models
 
 
 def _snapshot(name: str = "Example project") -> dict[str, object]:
     return {
-        "format_version": 3,
+        "format_version": 5,
         "project": {"name": name, "spec_version": 3},
+        "build": {
+            "built_at": "2026-11-25T06:00:00+00:00",
+            "build_version": 6,
+            "uptimely_version": "test",
+            "features": None,
+            "spec_source": None,
+            "code_language": None,
+        },
         "scope": {"label": "all features", "features": None, "is_scoped": False},
         "catalogs": {
             "configuration": {},
@@ -148,6 +158,43 @@ def test_run_api_reads_fresh_metadata_previews_and_logs(
     assert json.loads(_get(app, "/api/run")[1])["run_id"] != run_id
     assert _get(app, f"/api/run/preview/sample?run_id={run_id}")[0] == 409
     assert _get(app, f"/api/run/logs?run_id={run_id}")[0] == 409
+
+
+def test_test_api_reads_latest_valid_report_without_caching(tmp_path: pathlib.Path) -> None:
+    app = explorer_server.create_app(tmp_path)
+    assert _get(app, "/api/test")[0] == 404
+    report = test_models.TestReport(
+        started_at=datetime.datetime(2026, 11, 24, tzinfo=datetime.UTC),
+        finished_at=datetime.datetime(2026, 11, 24, 0, 1, tzinfo=datetime.UTC),
+        status="passed",
+        cases=[
+            test_models.CaseResult(
+                profile="pump", operator="calculate", case="basic", status="passed"
+            )
+        ],
+    )
+    report_path = tmp_path / "artifacts" / "test" / "test.json"
+    report_path.parent.mkdir(parents=True)
+    report_path.write_text(report.model_dump_json(), encoding="utf-8")
+
+    status, body, headers = _get(app, "/api/test")
+
+    assert status == 200
+    assert headers["cache-control"] == "no-store"
+    assert json.loads(body)["cases"][0]["case"] == "basic"
+
+
+@pytest.mark.parametrize("damage", ["missing", "corrupt"])
+def test_test_api_reports_incomplete_reports(tmp_path: pathlib.Path, damage: str) -> None:
+    report_path = tmp_path / "artifacts" / "test" / "test.json"
+    report_path.parent.mkdir(parents=True)
+    if damage == "corrupt":
+        report_path.write_text("{", encoding="utf-8")
+
+    status, body, _ = _get(explorer_server.create_app(tmp_path), "/api/test")
+
+    assert status == (404 if damage == "missing" else 503)
+    assert json.loads(body)["detail"]
 
 
 @pytest.mark.parametrize("artifact", ["run.json", "preview/sample.json", "log.jsonl"])

@@ -533,8 +533,10 @@ test("dashboard, Features charts and plan show visual components and counts", as
   assert.match(dashboardHtml, /<h1><span>&lt;Test project&gt;<\/span><\/h1>/);
   assert.doesNotMatch(dashboardHtml, /<h1 class="title-with-icon">/);
   assert.match(dashboard(data), /dashboard-art/);
-  assert.match(dashboard(data), /spec-journey/);
-  assert.equal((dashboard(data).match(/data-stat=/g) || []).length, 5);
+  assert.doesNotMatch(dashboard(data), /Follow the analytics journey|spec-journey/);
+  assert.doesNotMatch(dashboardHtml, /dashboard-metrics/);
+  assert.match(dashboardHtml, /dashboard-result-card[^]*?dashboard-result-stats/);
+  assert.equal((dashboard(data).match(/data-stat=/g) || []).length, 3);
   const features = renderCatalog(data, "features").content;
   assert.match(features, /Features by role/);
   assert.match(features, /Features by data type/);

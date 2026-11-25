@@ -11,16 +11,19 @@ uptimely explore example --build
 
 Open <http://127.0.0.1:8001/>
 
-An Engine run is required to show data
-previews, logs, and run information:
+The home page shows build provenance and the latest saved test and run
+summaries. An Engine run is required to show data previews, logs, and detailed
+run information:
 
 ```console
+uptimely test example
 uptimely run example
 ```
 
 ## Export a static site
 
-Build the project and run it before exporting to include run information:
+Build the project, run tests, and run it before exporting to include build,
+test, and run information:
 
 ```console
 uptimely export example --output docs/example
@@ -45,7 +48,8 @@ uptimely export example --output docs/example
 uptimely export example --output cooling-pump-analytics-explorer.zip
 ```
 
-Export includes the complete saved log and bounded previews. These artifacts may
-contain sensitive data. Review them before publishing, and re-export after
-running the project to update the hosted results. Invalid or incomplete saved
-run artifacts cause export to fail rather than silently omit results.
+Export includes the complete saved log and bounded previews, plus the latest
+test report. These artifacts may contain sensitive data. Review them before
+publishing, and re-export after building, testing, or running the project to
+update the hosted results. Invalid or incomplete saved artifacts cause export
+to fail rather than silently omit results.

@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import contextlib
 import dataclasses
+import datetime
 import enum
 import json
 import pathlib
@@ -13,20 +14,33 @@ import pydantic
 
 from uptimely import plan as plan_module
 from uptimely import spec
+from uptimely.build import models as build_models
 from uptimely.explorer.sections import data_lineage, feature_lineage
 from uptimely.explorer.sections import plan as plan_section
 from uptimely.explorer.sections import spec as spec_section
 from uptimely.project import python_imports
 from uptimely.spec import operator_bindings
 
-EXPLORER_FORMAT_VERSION = 3
+EXPLORER_FORMAT_VERSION = 5
+
+
+class ExplorerBuildData(typing.TypedDict):
+    """Build provenance shown in the Explorer."""
+
+    built_at: str
+    build_version: int
+    uptimely_version: str | None
+    features: list[str] | None
+    spec_source: str | None
+    code_language: str | None
 
 
 class ExplorerPresentationData(typing.TypedDict):
     """Versioned data consumed by the Explorer frontend."""
 
-    format_version: typing.Literal[3]
+    format_version: typing.Literal[5]
     project: dict[str, object]
+    build: ExplorerBuildData
     scope: dict[str, object]
     catalogs: dict[str, object]
     graphs: dict[str, object]
@@ -73,6 +87,7 @@ def build_presentation_data(
     validate_spec: bool = True,
     project_root: pathlib.Path | None = None,
     src_path: pathlib.Path | None = None,
+    build_manifest: build_models.BuildManifest | None = None,
 ) -> ExplorerPresentationData:
     """Prepare complete Explorer presentation data without writing files.
 
@@ -84,6 +99,7 @@ def build_presentation_data(
         project_root: Project directory used to identify project-owned source files.
         src_path: Optional source directory, relative to the project root unless absolute.
             Defaults to ``src``.
+        build_manifest: Manifest for the generated build, when available.
 
     Returns:
         Versioned JSON-ready project, catalog, graph, plan, and animation data.
@@ -111,6 +127,16 @@ def build_presentation_data(
         "project": {
             "name": spec_definition.name,
             "spec_version": spec_definition.spec_version,
+        },
+        "build": {
+            "built_at": datetime.datetime.now().astimezone().isoformat(timespec="seconds"),
+            "build_version": (
+                build_manifest.build_version if build_manifest else build_models.BUILD_VERSION
+            ),
+            "uptimely_version": build_manifest.uptimely_version if build_manifest else None,
+            "features": build_manifest.features if build_manifest else features,
+            "spec_source": build_manifest.spec_source if build_manifest else None,
+            "code_language": (build_manifest.artifacts.code.language if build_manifest else None),
         },
         "scope": {
             "label": execution_scope,
@@ -149,6 +175,7 @@ def validate_presentation_data(value: object) -> ExplorerPresentationData:
     required_keys = {
         "format_version",
         "project",
+        "build",
         "scope",
         "catalogs",
         "graphs",
@@ -164,7 +191,7 @@ def validate_presentation_data(value: object) -> ExplorerPresentationData:
         or value["format_version"] != EXPLORER_FORMAT_VERSION
     ):
         raise ValueError("Explorer presentation data has an unsupported schema")
-    for key in ("project", "scope", "catalogs", "graphs", "plan", "animation"):
+    for key in ("project", "build", "scope", "catalogs", "graphs", "plan", "animation"):
         if not isinstance(value[key], dict):
             raise ValueError(f"Explorer presentation field {key!r} must be an object")
     if not isinstance(value["stages"], list):

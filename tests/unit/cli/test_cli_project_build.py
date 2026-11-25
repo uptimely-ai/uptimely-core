@@ -142,7 +142,8 @@ def test_project_build_examples(
         }
     }
     explorer_data = json.loads((root / application.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
-    assert explorer_data["format_version"] == 3
+    assert explorer_data["format_version"] == 5
+    assert explorer_data["build"]["spec_source"] == bundle.manifest.spec_source
 
 
 def test_project_build_accepts_custom_src_path(

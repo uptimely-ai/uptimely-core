@@ -17,8 +17,13 @@ function sampleData() {
   };
   const column = { name: "value", label: "<Value>", role: "Output", type: "float" };
   return {
-    format_version: 3,
+    format_version: 5,
     project: { name: "<Test project>", spec_version: 7 },
+    build: {
+      built_at: "2026-11-25T06:00:00+00:00",
+      build_version: 6, uptimely_version: "test", features: null,
+      spec_source: "spec.py:spec", code_language: "python",
+    },
     scope: { label: "all features", is_scoped: false },
     catalogs: {
       configuration: {
