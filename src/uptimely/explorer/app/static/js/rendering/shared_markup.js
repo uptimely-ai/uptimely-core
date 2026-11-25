@@ -222,7 +222,7 @@ export function shell(data, view, context, content) {
     : view === "animation" ? "Animation steps" : view[0].toUpperCase() + view.slice(1);
   const projectLink = `<a class="site-product" href="${href("home")}" title="${projectName}" aria-label="${projectName}"${view === "home" ? ' aria-current="page"' : ""}><span>${projectName}</span></a>`;
   const navigationGroups = [
-    ["spec", "Analytical model", [
+    ["spec", "Specification", [
       ["profiles", "Profiles", "profiles"],
       ["features", "Features", "features"], ["signatures", "Signatures", "signatures"],
       ["dimensions", "Dimensions", "dimensions"],
