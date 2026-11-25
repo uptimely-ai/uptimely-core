@@ -2,7 +2,7 @@
   /* Only joined dimensions, inputs, and outputs are colour coded; everything else stays neutral. */
   --lineage-join-tint: rgb(251 191 36 / 0.24); --lineage-join-text: #fef3c7; --lineage-shared: #fbbf24;
   --lineage-input-tint: rgb(56 189 248 / 0.06); --lineage-input-text: #bae6fd; --lineage-input-ring: rgb(56 189 248 / 0.55);
-  --lineage-feature-tint: rgb(14 165 233 / 0.22); --lineage-feature-text: #f0f9ff; --lineage-feature-ring: #0ea5e9;
+  --lineage-feature-ring: #0ea5e9;
 }
 .data-lineage-page { padding: 24px; min-height: calc(100vh - var(--site-topbar-height)); box-sizing: border-box; }
 .data-lineage-page h1 { font: 600 30px "Space Grotesk", sans-serif; color: #f8fafc; }

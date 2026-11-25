@@ -10,6 +10,8 @@
   --color-selected: #ecfeff;
   --color-selected-background: #164e6359;
   --color-selected-border: #22d3ee33;
+  --lineage-feature-tint: rgb(14 165 233 / 0.22);
+  --lineage-feature-text: #f0f9ff;
   --font-body: "DM Sans", sans-serif;
   --font-mono: "JetBrains Mono", monospace;
 }

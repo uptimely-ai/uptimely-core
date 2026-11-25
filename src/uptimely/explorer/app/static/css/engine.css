@@ -25,6 +25,10 @@
 .engine-preview-table th { min-width: 100px; }
 .engine-preview-table thead th { font-size: 15px; }
 .engine-preview-table td { min-width: 100px; vertical-align: top; font: 12px/1.6 var(--font-mono); }
+.engine-preview-table .engine-case-new-column {
+  background: linear-gradient(var(--lineage-feature-tint), var(--lineage-feature-tint)) var(--color-background);
+  color: var(--lineage-feature-text);
+}
 .engine-preview-table td.is-number { font-variant-numeric: tabular-nums; }
 .engine-preview-table td.is-null { color: #64748b; font-style: italic; }
 .engine-log-editor { overflow-x: auto; border: 1px solid #1e293b; border-radius: 10px;

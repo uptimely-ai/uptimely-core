@@ -30,6 +30,7 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- Explorer highlights output columns absent from test case inputs.
 - The example project's operators have descriptive IDs in Explorer and test cases.
 
 ## [0.12.0] - 2026-11-24
