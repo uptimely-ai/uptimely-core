@@ -72,6 +72,41 @@ test("nested static exports navigate run pages without contacting live APIs", as
   assert.deepEqual(app.errors, []);
 });
 
+test("static test pages navigate to saved case details", async () => {
+  const { Explorer } = await moduleAt("application/explorer_application.js");
+  const data = sampleData();
+  const app = new BrowserHarness({ data, dataUrl: "./data/explorer.json" });
+  const report = {
+    status: "failed", version: 1, started_at: "2026-11-25T00:00:00Z", finished_at: null,
+    build: null, cases: [{
+      profile: "readings", operator: "calculate", case: "mismatch", status: "failed",
+      data: { inputs: { dataset: [{ value: 1 }] }, expected: { return: [{ value: 2 }] } },
+      actual: [{ value: 3 }], message: "Mismatch",
+    }],
+  };
+  app.browser.document.querySelectorAll = () => [];
+  app.browser.fetch = async (url, options) => {
+    app.fetched.push([url, options.cache]);
+    return {
+      ok: true,
+      json: async () => url === "./data/test.json" ? report
+        : url === "./data/run.json" ? { run: null } : data,
+    };
+  };
+  app.explorer = new Explorer(app.browser, app.initializers);
+  await app.explorer.start();
+  await app.click("?view=test-info");
+  assert.match(app.body.innerHTML, /Latest test/);
+  await app.click("?view=test-cases#case-0");
+  assert.match(app.body.innerHTML, /<span>calculate<\/span>/);
+  assert.match(app.body.innerHTML, /<span class="context-link-label">mismatch<\/span>/);
+  assert.match(app.body.innerHTML, /Expected output/);
+  assert.match(app.body.innerHTML, /Actual output/);
+  assert.match(app.body.innerHTML, />3<\/td>/);
+  assert.ok(app.fetched.every(([url]) => url.startsWith("./data/")));
+  assert.deepEqual(app.errors, []);
+});
+
 test("preserves migrated hash bookmarks and reports missing, incompatible or unknown data explicitly", async () => {
   const legacy = await boot({ hash: "#feature-lineage" });
   assert.equal(legacy.location.href, "https://example.test/docs/explorer/?view=lineage");

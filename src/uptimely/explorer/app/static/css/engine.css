@@ -2,6 +2,11 @@
 .engine-page main [id] { scroll-margin-top: 20px; }
 .engine-panel, .engine-empty { margin: 20px 0; }
 .engine-panel > .ui-section-title { margin-bottom: 16px; }
+.engine-case-panel { margin: 20px 0; }
+.engine-case-panel > .ui-section-title { margin-bottom: 12px; }
+.engine-case-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.engine-case-success { display: inline-flex; color: #6ee7b7; flex-shrink: 0; }
+.engine-case-success svg { width: 22px; height: 22px; }
 .engine-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));
   gap: 10px; margin: 0; }
 .engine-field { min-width: 0; padding: 12px; border: 1px solid #1e293b; border-radius: 10px; }
@@ -11,8 +16,8 @@
 .engine-run-banner { display: flex; align-items: center; justify-content: space-between;
   gap: 12px; padding: 16px 20px; border: 1px solid #334155; border-radius: 12px;
   background: #0f172a; color: #cbd5e1; text-transform: capitalize; }
-.engine-status-succeeded { border-color: #065f46; background: #022c22; color: #a7f3d0; }
-.engine-status-failed, .engine-status-interrupted { border-color: #7f1d1d; background: #450a0a; color: #fecaca; }
+.engine-status-succeeded, .engine-status-passed { border-color: #065f46; background: #022c22; color: #a7f3d0; }
+.engine-status-failed, .engine-status-error, .engine-status-interrupted { border-color: #7f1d1d; background: #450a0a; color: #fecaca; }
 .engine-run-error:empty { display: none; }
 .engine-error-text { color: #fca5a5 !important; overflow-wrap: anywhere; }
 .engine-preview-table th { min-width: 100px; }

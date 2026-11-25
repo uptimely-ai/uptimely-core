@@ -10,7 +10,7 @@ export function initializeMobileContext(signal, closeNavigation) {
   const topbar = document.querySelector(".site-topbar");
   const media = window.matchMedia("(max-width: 640px)");
   const movable = [...panel.querySelectorAll(
-    ".lineage-control-groups, .animation-dataset-picker, .data-lineage-toolbar",
+    ".lineage-control-groups, .animation-dataset-picker, .test-profile-picker, .data-lineage-toolbar",
   )].map(element => {
     const placeholder = document.createComment("Desktop controls");
     element.before(placeholder);

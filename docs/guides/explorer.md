@@ -20,6 +20,10 @@ uptimely test example
 uptimely run example
 ```
 
+In Test > Cases, choose a profile to browse its cases grouped by operator.
+Each case shows its inputs and output, with expected and actual output for a
+mismatch.
+
 ## Export a static site
 
 Build the project, run tests, and run it before exporting to include build,
@@ -49,7 +53,8 @@ uptimely export example --output cooling-pump-analytics-explorer.zip
 ```
 
 Export includes the complete saved log and bounded previews, plus the latest
-test report. These artifacts may contain sensitive data. Review them before
-publishing, and re-export after building, testing, or running the project to
-update the hosted results. Invalid or incomplete saved artifacts cause export
-to fail rather than silently omit results.
+test report with case inputs and mismatch outputs. These artifacts may contain
+sensitive data. Review them before publishing, and re-export after building,
+testing, or running the project to update the hosted results. Invalid or
+incomplete saved artifacts cause export to fail rather than silently omit
+results.

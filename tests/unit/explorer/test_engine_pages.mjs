@@ -11,6 +11,7 @@ const moduleSource = source.replace(
 );
 const {
   previewPage, initializePreview, infoPage, logsPage, loadDashboard, loadInfo, loadLogs, loadPreviews,
+  loadTest, testInfoPage, testCasesPage, initializeTestCases,
 } = await import(
   `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`
 );
@@ -25,6 +26,114 @@ const preview = {
   columns: [{ name: "Value", dtype: "Float64" }],
   rows: [[12.5], [null], ["<script>"]],
 };
+
+test("test pages group cases by operator within each selectable profile", () => {
+  const report = {
+    status: "failed", version: 1, started_at: "2026-11-25T00:00:00Z", finished_at: null,
+    build: { fingerprint: "build-1", manifest: { features: ["temperature"] } },
+    cases: [
+      { profile: "first", operator: "aggregate", case: "good", status: "passed",
+        data: { inputs: { dataset: [{ value: "<unsafe>" }] }, expected: { return: [{ value: 1 }] } } },
+      { profile: "first", operator: "aggregate", case: "bad", status: "failed",
+        message: "Mismatch", data: { inputs: { dataset: [{ value: 2 }] }, expected: { return: [{ value: 3 }] } },
+        actual: [{ value: 4 }] },
+      { profile: "second", operator: "other", case: "old", status: "error", data: null },
+    ],
+  };
+  const info = testInfoPage(report).content;
+  assert.match(info, /build-1/);
+  assert.match(info, /temperature/);
+  assert.match(info, /<dt>Passed<\/dt><dd>1<\/dd>/);
+  assert.match(info, /<dt>Failed<\/dt><dd>1<\/dd>/);
+  const { context, content } = testCasesPage(data, report);
+  assert.match(context, /Pump readings/);
+  assert.match(context, /Daily totals/);
+  assert.match(context, /<option value="" disabled selected>Choose a profile<\/option>/);
+  assert.match(context, /<span>aggregate<\/span>/);
+  assert.match(context, /<span class="context-link-label">good<\/span>/);
+  assert.match(context, /<span class="context-link-label">bad<\/span>/);
+  assert.match(context, /<span>other<\/span>/);
+  assert.match(context, /data-test-profile="1" hidden/);
+  assert.match(content, /Choose a profile in Cases controls/);
+  assert.match(content, /&lt;unsafe&gt;/);
+  assert.doesNotMatch(content, /<unsafe>/);
+  assert.match(content, /aria-label="Passed" title="Passed"><i data-lucide="circle-check"/);
+  assert.match(content, /ui-badge--red">failed/);
+  assert.match(content, /Expected output/);
+  assert.match(content, /Actual output/);
+  for (const [title, icon] of [["Input", "input"], ["Output", "output"],
+    ["Expected output", "output"], ["Actual output", "output"]]) {
+    assert.match(content, new RegExp(`icon--${icon}[^>]*>\\s*</i><span>${title}</span></h2><div class="ui-table-scroll`));
+  }
+  assert.match(content, />3<\/td>/);
+  assert.match(content, />4<\/td>/);
+  assert.match(content, /Case data is unavailable/);
+  assert.match(testInfoPage(null).content, /No saved test/);
+  assert.match(testCasesPage(data, null).content, /No saved cases/);
+});
+
+test("test profile selection filters operators and follows case history", () => {
+  const sections = ["1", "1", "2"].map((profile, index) => ({
+    id: `case-${index}`, dataset: { testProfile: profile }, hidden: true, scrollIntoView() {},
+  }));
+  const links = sections.map(({ id }) => ({
+    hash: `#${id}`, attributes: {}, listeners: {},
+    setAttribute(name, value) { this.attributes[name] = value; },
+    removeAttribute(name) { delete this.attributes[name]; },
+    addEventListener(name, callback) { this.listeners[name] = callback; },
+  }));
+  const groups = ["1", "2"].map(profile => ({ dataset: { testProfile: profile }, hidden: true }));
+  const picker = {
+    value: "", listeners: {},
+    addEventListener(name, callback) { this.listeners[name] = callback; },
+  };
+  const prompt = { hidden: false };
+  const listeners = {};
+  const browser = {
+    location: { hash: "" },
+    history: { pushState(_state, _title, hash) { browser.location.hash = hash; } },
+    document: {
+      getElementById: id => id === "test-profile" ? picker : prompt,
+      querySelectorAll: selector => selector === ".engine-test-case" ? sections
+        : selector === "#test-cases-context [data-test-profile]" ? groups : links,
+    },
+    addEventListener(name, callback) { listeners[name] = callback; },
+  };
+  initializeTestCases(browser, new AbortController().signal);
+  assert.deepEqual(sections.map(section => section.hidden), [true, true, true]);
+  assert.equal(prompt.hidden, false);
+  picker.value = "1";
+  picker.listeners.change();
+  assert.equal(browser.location.hash, "#case-0");
+  assert.deepEqual(groups.map(group => group.hidden), [false, true]);
+  assert.deepEqual(sections.map(section => section.hidden), [false, true, true]);
+  links[1].listeners.click({ button: 0, preventDefault() {} });
+  assert.equal(browser.location.hash, "#case-1");
+  assert.equal(links[1].attributes["aria-current"], "location");
+  picker.value = "2";
+  picker.listeners.change();
+  assert.deepEqual(groups.map(group => group.hidden), [true, false]);
+  assert.deepEqual(sections.map(section => section.hidden), [true, true, false]);
+  browser.location.hash = "#case-1";
+  listeners.popstate();
+  assert.equal(picker.value, "1");
+  assert.deepEqual(sections.map(section => section.hidden), [true, false, true]);
+  browser.location.hash = "";
+  listeners.hashchange();
+  assert.equal(picker.value, "");
+  assert.equal(prompt.hidden, false);
+});
+
+test("test data loads through live and static URLs", async () => {
+  const urls = [];
+  const fetchData = async url => {
+    urls.push(url);
+    return { ok: true, json: async () => ({ status: "passed", cases: [] }) };
+  };
+  assert.equal((await loadTest(fetchData)).status, "passed");
+  assert.equal((await loadTest(fetchData, { testDataUrl: "./data/test.json" })).status, "passed");
+  assert.deepEqual(urls, ["/api/test", "./data/test.json"]);
+});
 
 test("exported engine pages load only relative static data without live API requests", async () => {
   const test = { status: "passed", cases: [] };

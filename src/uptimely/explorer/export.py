@@ -50,7 +50,11 @@ def _read_test_snapshot(project_root: pathlib.Path) -> bytes:
         content = (project_root / paths.TEST_REPORT_FILE).read_bytes()
     except FileNotFoundError:
         return b"null\n"
-    return test_models.TestReport.model_validate_json(content).model_dump_json().encode("utf-8")
+    return (
+        test_models.TestReport.model_validate_json(content)
+        .model_dump_json(by_alias=True)
+        .encode("utf-8")
+    )
 
 
 def _read_snapshot(project_root: pathlib.Path) -> bytes:

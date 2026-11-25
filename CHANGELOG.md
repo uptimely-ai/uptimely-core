@@ -23,6 +23,8 @@ While the version is `0.x`, minor releases may include breaking changes.
   the terminal width and compares expected and actual output on mismatches.
 - `uptimely test` copies the JSON test cases used by each run to
   `artifacts/test/data/`.
+- Explorer includes a Test section with metadata and case inputs, outcomes, and
+  expected and actual output for mismatches, including in static exports.
 
 ## [0.12.0] - 2026-11-24
 

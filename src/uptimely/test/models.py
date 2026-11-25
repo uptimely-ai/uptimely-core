@@ -15,6 +15,8 @@ class _Model(pydantic.BaseModel):
 class Expected(_Model):
     """Expected dataframe rows."""
 
+    model_config = pydantic.ConfigDict(populate_by_name=True)
+
     return_: list[dict[str, pydantic.JsonValue]] = pydantic.Field(alias="return")
 
 
@@ -39,12 +41,14 @@ class CaseResult(_Model):
     case: str
     status: typing.Literal["passed", "failed", "error"]
     message: str | None = None
+    data: Case | None = None
+    actual: list[dict[str, pydantic.JsonValue]] | None = None
 
 
 class TestReport(_Model):
     """Results of one completed or incomplete test run."""
 
-    version: typing.Literal[1] = 1
+    version: typing.Literal[1, 2] = 2
     started_at: datetime.datetime
     finished_at: datetime.datetime | None = None
     status: typing.Literal["running", "passed", "failed", "error"]
