@@ -77,19 +77,24 @@ test("static test pages navigate to saved case details", async () => {
   const data = sampleData();
   const app = new BrowserHarness({ data, dataUrl: "./data/explorer.json" });
   const report = {
-    status: "failed", version: 1, started_at: "2026-11-25T00:00:00Z", finished_at: null,
+    status: "failed", version: 4, started_at: "2026-11-25T00:00:00Z", finished_at: null,
     build: null, cases: [{
       profile: "readings", operator: "calculate", case: "mismatch", status: "failed",
-      data: { inputs: { dataset: [{ value: 1 }] }, expected: { return: [{ value: 2 }] } },
-      actual: [{ value: 3 }], message: "Mismatch",
+      message: "Mismatch",
     }],
   };
+  const cases = { calculate: { cases: { mismatch: {
+    inputs: { dataset: [{ value: 1 }] }, expected: { return: [{ value: 2 }] },
+    actual: [{ value: 3 }], call: null,
+  } } } };
+  app.browser.UTIMELY_EXPLORER_CONFIG.testCasesUrl = "./data/test/cases";
   app.browser.document.querySelectorAll = () => [];
   app.browser.fetch = async (url, options) => {
     app.fetched.push([url, options.cache]);
     return {
       ok: true,
       json: async () => url === "./data/test.json" ? report
+        : url === "./data/test/cases/readings.json" ? cases
         : url === "./data/run.json" ? { run: null } : data,
     };
   };
@@ -103,6 +108,7 @@ test("static test pages navigate to saved case details", async () => {
   assert.match(app.body.innerHTML, /Expected output/);
   assert.match(app.body.innerHTML, /Actual output/);
   assert.match(app.body.innerHTML, />3<\/td>/);
+  assert.ok(app.fetched.some(([url]) => url === "./data/test/cases/readings.json"));
   assert.ok(app.fetched.every(([url]) => url.startsWith("./data/")));
   assert.deepEqual(app.errors, []);
 });

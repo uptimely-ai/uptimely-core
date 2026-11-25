@@ -1,5 +1,6 @@
 """FastAPI server for the packaged Analytics Explorer frontend."""
 
+import datetime
 import json
 import logging
 import pathlib
@@ -20,9 +21,8 @@ from starlette.background import BackgroundTask
 from uptimely.build import bundle, errors
 from uptimely.explorer import export as explorer_export
 from uptimely.explorer import presentation
-from uptimely.project import paths
 from uptimely.run import store as run_store
-from uptimely.test import models as test_models
+from uptimely.test import store as test_store
 
 logger = logging.getLogger(__name__)
 _BUILD_INSTRUCTION = "Run 'uptimely build' to generate a valid Explorer snapshot."
@@ -59,9 +59,7 @@ def _read_run(load: abc.Callable[[], str]) -> Response:
 def _read_test(project_root: pathlib.Path) -> Response:
     """Read and validate the latest saved test report without caching it."""
     try:
-        report = test_models.TestReport.model_validate_json(
-            (project_root / paths.TEST_REPORT_FILE).read_bytes()
-        )
+        report = test_store.TestStore(project_root).read_report()
     except FileNotFoundError as error:
         raise HTTPException(
             status_code=404, detail="No saved test report. Run 'uptimely test' first."
@@ -71,7 +69,7 @@ def _read_test(project_root: pathlib.Path) -> Response:
             status_code=503, detail=f"Saved test report could not be read: {error}"
         ) from error
     return Response(
-        report.model_dump_json(by_alias=True),
+        test_store.TestStore.report_json(report),
         media_type="application/json",
         headers={"Cache-Control": "no-store"},
     )
@@ -139,6 +137,28 @@ def create_app(project_root: pathlib.Path) -> FastAPI:
     @app.get("/api/test", include_in_schema=False)
     def test_data() -> Response:
         return _read_test(project_root)
+
+    @app.get("/api/test/cases/{profile}", include_in_schema=False)
+    def test_cases(profile: str, started_at: datetime.datetime) -> Response:
+        tests = test_store.TestStore(project_root)
+        try:
+            report = tests.read_report()
+            if report.started_at != started_at or report.version < 4:
+                raise HTTPException(status_code=409, detail="The latest test changed.")
+            cases = tests.read_cases(report, profile)
+            if tests.read_report().started_at != started_at:
+                raise HTTPException(status_code=409, detail="The latest test changed.")
+        except KeyError as error:
+            raise HTTPException(status_code=404, detail=str(error)) from error
+        except (OSError, UnicodeDecodeError, ValueError, TypeError) as error:
+            raise HTTPException(
+                status_code=503, detail=f"Saved test cases could not be read: {error}"
+            ) from error
+        return Response(
+            test_store.CASE_ARTIFACTS.dump_json(cases, by_alias=True),
+            media_type="application/json",
+            headers={"Cache-Control": "no-store"},
+        )
 
     @app.get("/api/run/preview/{profile_id}", include_in_schema=False)
     def run_preview(profile_id: str, run_id: str | None = None) -> Response:

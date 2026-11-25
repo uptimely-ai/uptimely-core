@@ -11,7 +11,7 @@ const moduleSource = source.replace(
 );
 const {
   previewPage, initializePreview, infoPage, logsPage, loadDashboard, loadInfo, loadLogs, loadPreviews,
-  loadTest, testInfoPage, testCasesPage, initializeTestCases,
+  loadTest, loadTestCases, testInfoPage, testCasesPage, initializeTestCases,
 } = await import(
   `data:text/javascript;base64,${Buffer.from(moduleSource).toString("base64")}`
 );
@@ -33,7 +33,8 @@ test("test pages group cases by operator within each selectable profile", () => 
     build: { fingerprint: "build-1", manifest: { features: ["temperature"] } },
     cases: [
       { profile: "first", operator: "aggregate", case: "good", status: "passed",
-        data: { inputs: { dataset: [{ value: "<unsafe>" }] }, expected: { return: [{ value: 1 }] } } },
+        data: { inputs: { dataset: [{ value: "<unsafe>" }] }, expected: { return: [{ value: 1 }] } },
+        actual: [{ value: 1.000001 }] },
       { profile: "first", operator: "aggregate", case: "bad", status: "failed",
         message: "Mismatch", data: { inputs: { dataset: [{ value: 2 }] }, expected: { return: [{ value: 3 }] } },
         actual: [{ value: 4 }] },
@@ -67,6 +68,7 @@ test("test pages group cases by operator within each selectable profile", () => 
   }
   assert.match(content, />3<\/td>/);
   assert.match(content, />4<\/td>/);
+  assert.match(content, />1\.000001<\/td>/);
   assert.match(content, /Case data is unavailable/);
   assert.match(testInfoPage(null).content, /No saved test/);
   assert.match(testCasesPage(data, null).content, /No saved cases/);
@@ -133,6 +135,37 @@ test("test data loads through live and static URLs", async () => {
   assert.equal((await loadTest(fetchData)).status, "passed");
   assert.equal((await loadTest(fetchData, { testDataUrl: "./data/test.json" })).status, "passed");
   assert.deepEqual(urls, ["/api/test", "./data/test.json"]);
+});
+
+test("case pages load profile artifacts from live and static data", async () => {
+  const report = {
+    version: 4, started_at: "2026-11-25T00:00:00Z", status: "failed",
+    cases: [{ profile: "first", operator: "calculate", case: "basic", status: "failed" }],
+  };
+  const details = {
+    inputs: { dataset: [{ value: 1 }] }, expected: { return: [{ value: 2 }] },
+    actual: [{ value: 3 }], call: { function: "example:calculate", arguments: {} },
+  };
+  const fetched = [];
+  const fetchData = async url => {
+    fetched.push(url);
+    return { ok: true, json: async () => url.endsWith("test.json") || url === "/api/test"
+      ? report : { calculate: { cases: { basic: details } } } };
+  };
+  const live = await loadTestCases(fetchData);
+  const exported = await loadTestCases(fetchData, {
+    testDataUrl: "./data/test.json", testCasesUrl: "./data/test/cases",
+  });
+  assert.deepEqual(live.cases[0].data, { inputs: details.inputs, expected: details.expected });
+  assert.deepEqual(live.cases[0].actual, details.actual);
+  assert.deepEqual(exported, live);
+  assert.deepEqual(fetched, [
+    "/api/test", "/api/test/cases/first?started_at=2026-11-25T00%3A00%3A00Z",
+    "./data/test.json", "./data/test/cases/first.json",
+  ]);
+  await assert.rejects(loadTestCases(async url => ({
+    ok: true, json: async () => url === "/api/test" ? report : {},
+  })), /Missing saved test case/);
 });
 
 test("exported engine pages load only relative static data without live API requests", async () => {

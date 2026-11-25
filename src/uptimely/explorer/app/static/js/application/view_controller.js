@@ -10,7 +10,7 @@ import { initializeDataLineage } from "../animation/playback_controller.js";
 import { initializeHighlighting } from "../catalogs/function_highlighting.js";
 import {
   infoPage, initializeLogs, initializePreview, loadDashboard, loadInfo, loadLogs, loadPreviews,
-  logsPage, previewPage, loadTest, testInfoPage, testCasesPage, initializeTestCases,
+  logsPage, previewPage, loadTest, loadTestCases, testInfoPage, testCasesPage, initializeTestCases,
 } from "../engine_pages.js";
 
 const INITIALIZERS = {
@@ -38,7 +38,7 @@ const VIEWS = {
     render: (data, test) => testInfoPage(test),
   },
   "test-cases": {
-    stylesheet: "engine", engine: true, initialize: icons, load: loadTest,
+    stylesheet: "engine", engine: true, initialize: icons, load: loadTestCases,
     initializePage: initializeTestCases,
     render: (data, test) => testCasesPage(data, test),
   },
