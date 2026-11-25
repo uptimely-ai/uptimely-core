@@ -45,7 +45,7 @@ reading data or by transforming another profile.
 | `tests/uptimely/` | Provisional JSON input and expected output cases for non-I/O compute bindings. |
 | `uptimely.toml` | Project defaults, Engine settings, and configured input and output paths. |
 | `config/production.toml` | Production overrides for the project configuration. |
-| `artifacts/` | The active build, Explorer snapshot, and latest run metadata. |
+| `artifacts/` | The active build, Explorer snapshot, and latest run and test metadata, including test case data. |
 
 ## Entrypoint
 
