@@ -186,9 +186,7 @@ def test_compiler_keeps_reused_function_operators_as_distinct_invocations() -> N
         if invocation.semantics.function_id == "LazyFrame.with_columns"
     ]
     assert len(direct_invocations) == 1
-    assert direct_invocations[0].semantics.operator_id.startswith(
-        "op-LazyFrame.with_columns-recommended_flow_rate-"
-    )
+    assert direct_invocations[0].semantics.operator_id == "set_recommended_flow_rate"
     assert direct_invocations[0].semantics.output_features == ["recommended_flow_rate"]
     assert direct_invocations[0].arguments["recommended_flow_rate"] == "warning_hour_mean_flow_rate"
 

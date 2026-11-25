@@ -49,7 +49,7 @@
       }
     }
   },
-  "op-operation_point_optimization-operating_point_recommendation-592f6c97": {
+  "calculate_operating_point_recommendation": {
     "cases": {
       "basic": {
         "inputs": {
@@ -123,7 +123,7 @@
       }
     }
   },
-  "op-LazyFrame.with_columns-recommended_flow_rate-a8655b67": {
+  "set_recommended_flow_rate": {
     "cases": {
       "basic": {
         "inputs": {
@@ -158,7 +158,7 @@
       }
     }
   },
-  "op-extract_field-recommended_differential_pressure-4853a086": {
+  "extract_recommended_differential_pressure": {
     "cases": {
       "basic": {
         "inputs": {
@@ -205,7 +205,7 @@
       }
     }
   },
-  "op-extract_field-energy_cost_score-c41c3636": {
+  "extract_energy_cost_score": {
     "cases": {
       "basic": {
         "inputs": {
@@ -252,7 +252,7 @@
       }
     }
   },
-  "op-extract_field-converged-e4dbfdeb": {
+  "extract_convergence": {
     "cases": {
       "basic": {
         "inputs": {

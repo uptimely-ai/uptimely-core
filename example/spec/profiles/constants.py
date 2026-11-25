@@ -47,6 +47,7 @@ class Constants(Profile):
             ),
         ),
         Operator(
+            id="write_constants",
             compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),

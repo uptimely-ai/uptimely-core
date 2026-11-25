@@ -26,6 +26,10 @@ While the version is `0.x`, minor releases may include breaking changes.
 - Explorer includes a Test section with metadata and case inputs, outcomes, and
   expected and actual output for mismatches, including in static exports.
 
+### Changed
+
+- The example project's operators have descriptive IDs in Explorer and test cases.
+
 ## [0.12.0] - 2026-11-24
 
 ### Added

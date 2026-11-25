@@ -88,6 +88,7 @@ class Pump(Profile):
             ),
         ),
         Operator(
+            id="select_series_max_capacity",
             compute=Bind(
                 analytics.select_columns,
                 dataset=ref.dataset("pump_series"),
@@ -100,6 +101,7 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
+            id="select_category_max_capacity",
             compute=Bind(
                 analytics.select_columns,
                 dataset=ref.dataset("pump_category"),
@@ -112,6 +114,7 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
+            id="resolve_max_capacity",
             compute=Bind(
                 analytics.first_non_null_value,
                 dataset=ref.dataset(),
@@ -136,6 +139,7 @@ class Pump(Profile):
             merge=merge.default(),
         ),
         Operator(
+            id="normalize_bearing_temperature",
             compute=Bind(
                 analytics.min_max_scale,
                 dataset=ref.dataset(),
@@ -147,6 +151,7 @@ class Pump(Profile):
             ),
         ),
         Operator(
+            id="read_external_inputs",
             outputs=[features.measurement, features.reference_value],
             compute=Bind(
                 io.read_file,
@@ -169,6 +174,7 @@ class Pump(Profile):
             ),
         ),
         Operator(
+            id="run_external_workflow",
             inputs=[ref.input("measurement"), ref.input("reference_value")],
             compute=Bind(
                 io.process_pump_external_workflow,
@@ -177,6 +183,7 @@ class Pump(Profile):
             ),
         ),
         Operator(
+            id="write_pump",
             compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),

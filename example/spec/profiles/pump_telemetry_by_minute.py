@@ -47,6 +47,7 @@ class PumpTelemetryByMinute(Profile):
             ),
         ),
         Operator(
+            id="write_minute_telemetry",
             compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),

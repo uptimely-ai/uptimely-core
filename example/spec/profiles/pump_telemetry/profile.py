@@ -69,6 +69,7 @@ class PumpTelemetry(Profile):
         ],
         calculations=[
             Operator(
+                id="classify_pump_mode",
                 compute=Bind(
                     analytics.pump_mode,
                     dataset=ref.dataset(),
@@ -80,6 +81,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
+                id="calculate_pressure_flow_efficiency",
                 compute=Bind(
                     analytics.ratio,
                     dataset=ref.dataset(),
@@ -93,6 +95,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
+                id="select_room_temperature_reference",
                 compute=Bind(
                     analytics.select_columns,
                     dataset=ref.dataset("constants"),
@@ -102,6 +105,7 @@ class PumpTelemetry(Profile):
                 merge=merge.default(),
             ),
             Operator(
+                id="calculate_bearing_temperature_rise",
                 compute=Bind(
                     analytics.subtract,
                     dataset=ref.dataset(),
@@ -111,6 +115,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
+                id="calculate_bearing_temperature_delta",
                 row_context=RowContext(before=1),
                 compute=Bind(
                     analytics.delta,
@@ -123,6 +128,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
+                id="calculate_vibration_delta",
                 row_context=RowContext(before=1),
                 compute=Bind(
                     analytics.delta,
@@ -135,6 +141,7 @@ class PumpTelemetry(Profile):
                 ),
             ),
             Operator(
+                id="calculate_pump_health_score",
                 compute=Bind(
                     analytics.pump_health_score,
                     dataset=ref.dataset(),
@@ -149,6 +156,7 @@ class PumpTelemetry(Profile):
         ],
         publishing=[
             Operator(
+                id="write_pump_telemetry",
                 compute=Bind(
                     io.write_file,
                     dataset=ref.dataset(),

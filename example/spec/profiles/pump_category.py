@@ -47,6 +47,7 @@ class PumpCategory(Profile):
             ),
         ),
         Operator(
+            id="aggregate_bearing_temperature_by_category",
             inputs=[ref.input("bearing_temperature")],
             compute=Bind(
                 analytics.aggregate,
@@ -58,6 +59,7 @@ class PumpCategory(Profile):
             merge=merge.default(),
         ),
         Operator(
+            id="write_pump_category",
             compute=Bind(
                 io.write_file,
                 dataset=ref.dataset(),
