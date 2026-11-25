@@ -1,16 +1,26 @@
 # Uptimely Core
 
-Uptimely Core is an open source framework for managing interdependent data science calculations.
+Uptimely Core brings a `dbt`-like workflow to data science. Define interdependent scientific calculations in Python and work with DataFrames instead of SQL and relational databases.
 
-The goal is to free data science teams to focus on advanced analytics, mathematics, and modeling. Teams define their analytics in pure Python, while Uptimely Core minimizes the effort required for project setup, dependency modeling, debugging, testing, and validation.
+Declare analytics in Python, then build, test, and run them from the command line. Explore the results in your browser.
 
-Uptimely Core helps teams manage complex networks of analytical calculations, features, and dimensional hierarchies. Just as importantly, it makes dependencies on people, processes, and decisions easier to understand and manage.
+## Key features
 
-The framework has focus on making calculations understandable at logical level. Other tools take responsibility of orchestration and execution.
+- **Organize analytics:** Use Uptimely profiles to create semantic views for data science.
+- **Trace calculations:** Follow column-level lineage through DataFrame processing.
+- **Catch errors early:** Check processing-function signatures and validate specifications against real data.
+- **Test and inspect results:** Run automated tests and visualize DataFrame results.
+- **Build reusable algorithms:** Break complex algorithms into smaller, reusable operators.
+- **Run consistently:** Use the same calculations across cloud and edge environments.
+- **Model data clearly:** Apply dimensional-modeling best practices to data science.
+- **Find guidance easily:** Keep up-to-date documentation close at hand.
 
-Uptimely applies data-modeling best practices to organize data science into profiles. Each profile defines its dimensional grain, row scope, and set of features. Computational operators use profile metadata to define feature dependencies and bind functions, which are then used to materialize the resulting dataset.
+## Use cases
 
-Author the data science workflow in Python. Build and run from command line. Explore from web browser.
+- **Develop advanced calculations:** Structure work such as anomaly detection, signal processing, or quantum computing.
+- **Compose workflows:** Manage many dependent calculations in one workflow.
+- **Share calculation logic:** Reuse self-contained Uptimely operators across projects.
+- **Work across environments:** Keep calculations consistent between cloud and edge.
 
 > [!WARNING]
 > This project is still at version `0.x`: minor
@@ -88,13 +98,19 @@ The download does not overwrite existing files.
 uv run uptimely example --no-setup --dir .
 ```
 
-Create a build from the specification.
+Create a build from the specification:
 
 ```sh
 uv run uptimely build
 ```
 
-Run the data science pipeline using the build.
+Run automated unit tests:
+
+```sh
+uv run uptimely test
+```
+
+Materialize the calculation flow:
 
 ```sh
 uv run uptimely run
