@@ -48,6 +48,25 @@ body { margin: 0; background: var(--color-background); color: var(--color-text);
 .ui-button:disabled { opacity: .4; cursor: default; }
 .ui-panel { min-width: 0; padding: 20px; border: 1px solid #1e293b;
   border-radius: 12px; background: #0f172ac0; }
+.ui-disclosure { min-width: 0; overflow: hidden; border: 1px solid var(--color-border);
+  border-radius: 8px; background: var(--color-surface); color: var(--color-text); }
+.ui-disclosure > summary { display: flex; align-items: center; gap: 8px; padding: 10px 12px;
+  color: #cbd5e1; font: 500 12px/1.5 var(--font-body); cursor: pointer; list-style: none; }
+.ui-disclosure > summary::-webkit-details-marker { display: none; }
+.ui-disclosure > summary::after { flex: 0 0 7px; width: 7px; height: 7px; margin-left: auto;
+  transform: rotate(45deg); border: solid #94a3b8; border-width: 0 1.5px 1.5px 0;
+  content: ""; transition: transform .15s ease; }
+.ui-disclosure > summary:hover { background: #172335; color: #f1f5f9; }
+.ui-disclosure > summary:focus-visible { outline-offset: -3px; }
+.ui-disclosure[open] > summary { border-bottom: 1px solid var(--color-border); background: #111d30; color: #f1f5f9; }
+.ui-disclosure[open] > summary::after { transform: rotate(225deg); }
+.ui-disclosure--inline { overflow: hidden; border: 1px solid #155e75;
+  border-radius: 8px; background: #0c202a; }
+.ui-disclosure--inline > summary { box-sizing: border-box; width: 100%; padding: 8px 10px;
+  border: 0; border-radius: 0; background: transparent; font-size: 11px; }
+.ui-disclosure--inline > summary:hover { background: transparent; }
+.ui-disclosure--inline[open] > summary { margin-bottom: 8px; border-bottom: 1px solid #155e75;
+  background: transparent; }
 .ui-section-title, .ui-panel-heading h3 { margin: 0; color: #f1f5f9;
   font: 600 18px/1.5 "Space Grotesk", sans-serif; }
 .ui-panel-heading { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between;

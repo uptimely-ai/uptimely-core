@@ -46,8 +46,7 @@
 .dashboard-result-card .dashboard-result-meta { color: #94a3b8; font-size: 11px; }
 .dashboard-result-card code { color: #a5f3fc; font: 11px "JetBrains Mono", monospace; }
 .dashboard-result-details { margin-top: 14px; color: #94a3b8; font-size: 12px; }
-.dashboard-result-details summary { width: fit-content; cursor: pointer; color: #67e8f9; }
-.dashboard-result-details dl { display: grid; gap: 10px; margin: 14px 0 0; }
+.dashboard-result-details dl { display: grid; gap: 10px; margin: 0; padding: 10px 12px 12px; }
 .dashboard-result-details dt { font: 10px "JetBrains Mono", monospace;
   letter-spacing: .08em; text-transform: uppercase; }
 .dashboard-result-details dd { margin: 4px 0 0; color: #cbd5e1; overflow-wrap: anywhere; }

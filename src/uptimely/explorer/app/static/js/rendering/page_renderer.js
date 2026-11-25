@@ -55,7 +55,7 @@ export function dashboard(data, { run = null, test = null } = {}) {
     ? ` ${escape(className)}` : ""}" aria-label="${escape(label)}">
     ${metrics.map(([name, value]) => `<div data-stat="${escape(name)}" data-value="${escape(value)}">
       <dt>${escape(name)}</dt><dd>${escape(value)}</dd></div>`).join("")}</dl>`;
-  const details = (label, fields) => `<details class="dashboard-result-details">
+  const details = (label, fields) => `<details class="dashboard-result-details ui-disclosure">
     <summary>Details</summary>
     <dl>${fields.map(([name, value]) => `<div><dt>${escape(name)}</dt><dd>${escape(value)}</dd></div>`).join("")}</dl>
   </details>`;
@@ -184,9 +184,9 @@ export function lineage(data, topology) {
           <button class="ui-button lineage-reset" id="reset-lineage" type="button" aria-label="Reset view" title="Reset view" aria-controls="lineage">${icon("reset")}</button>
         </div>
       </div>
-      <details class="lineage-legend-panel"><summary>${icon("schema")}<span>Graph legend</span>
+      <details class="lineage-legend-panel ui-disclosure"><summary>${icon("schema")}<span>Graph legend</span>
         <span class="lineage-legend-count">${profileCount} ${profileCount === 1 ? "profile" : "profiles"}</span>
-        <i class="lineage-legend-chevron" data-lucide="chevron-down" aria-hidden="true"></i></summary>
+      </summary>
         <div class="legend" aria-label="Graph legend">
         <p class="lineage-legend-note">Colors show profiles, not run status. ${topology ? "Arrows show compiler dependencies, not every dataframe reference." : "Arrows show dependencies."}</p>
         <h3 class="legend-heading">${topology ? "Binding roles" : "Nodes"}</h3>

@@ -26,16 +26,11 @@ html:has(.lineage-page), .lineage-page { height: 100%; overflow: hidden; }
 #lineage-error, .lineage-error { position: absolute; top: 16px; left: 16px; right: 16px;
 	z-index: 3; padding: 12px; border: 1px solid #fbbf24; border-radius: 8px;
 	background: #422006; color: #fef3c7; }
-.lineage-legend-panel { min-width: 0; border: 1px solid var(--color-border); border-radius: 10px;
-	background: var(--color-background); }
-.lineage-legend-panel summary { display: flex; align-items: center; gap: 8px; padding: 12px;
-	cursor: pointer; list-style: none; font-size: 12px; font-weight: 600; }
-.lineage-legend-panel summary::-webkit-details-marker { display: none; }
-.lineage-legend-panel summary:hover { color: var(--color-accent); }
+.lineage-legend-panel { min-width: 0; }
+.lineage-legend-panel summary { font-size: 12px; font-weight: 600; }
 .lineage-legend-panel summary > svg { width: 15px; height: 15px; flex-shrink: 0; }
 .lineage-legend-count { margin-left: auto; color: var(--color-muted); font-size: 10px; font-weight: 400; }
-.lineage-legend-panel[open] .lineage-legend-chevron { transform: rotate(180deg); }
-.legend { display: grid; gap: 10px; padding: 0 12px 14px; border-top: 1px solid var(--color-border); }
+.legend { display: grid; gap: 10px; padding: 10px 12px 14px; }
 .lineage-legend-note { margin: 12px 0 0; color: var(--color-muted); font-size: 11px; line-height: 1.6; }
 .legend-heading { margin: 4px 0 0; color: var(--color-muted); font-size: 10px; font-weight: 600;
 	text-transform: uppercase; letter-spacing: .1em; }
