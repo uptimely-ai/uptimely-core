@@ -5,6 +5,8 @@
 .engine-case-panel { margin: 20px 0; }
 .engine-case-panel > .ui-section-title { margin-bottom: 12px; }
 .engine-case-icon { width: 18px; height: 18px; flex-shrink: 0; }
+.engine-case-call { padding: 14px; }
+.engine-case-call code.hljs { background: transparent; padding: 0; }
 .engine-case-success { display: inline-flex; color: #6ee7b7; flex-shrink: 0; }
 .engine-case-success svg { width: 22px; height: 22px; }
 .engine-fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 220px), 1fr));

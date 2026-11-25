@@ -161,6 +161,28 @@ function caseTable(rows, label) {
 const casePanel = (title, iconKey, content) => `<section class="engine-case-panel">
   <h2 class="ui-section-title title-with-icon">${icon(iconKey, "engine-case-icon")}<span>${escape(title)}</span></h2>${content}</section>`;
 
+function caseCall(call) {
+  if (!call) return casePanel("Function call", "functions", "<p>Function call unavailable.</p>");
+  const inputs = call.dataframe_inputs || {};
+  const pointerPart = value => String(value).replaceAll("~", "~0").replaceAll("/", "~1");
+  const format = (value, pointer) => {
+    if (Object.hasOwn(inputs, pointer)) return `$${inputs[pointer]}`;
+    if (value === null) return "None";
+    if (typeof value === "boolean") return value ? "True" : "False";
+    if (Array.isArray(value)) return `[${value.map((item, index) =>
+      format(item, `${pointer}/${index}`)).join(", ")}]`;
+    if (typeof value === "object") return `{${Object.entries(value).map(([key, item]) =>
+      `${JSON.stringify(key)}: ${format(item, `${pointer}/${pointerPart(key)}`)}`).join(", ")}}`;
+    return JSON.stringify(value);
+  };
+  const args = Object.entries(call.arguments).map(([name, value]) =>
+    `  ${name}=${format(value, `/${pointerPart(name)}`)},`);
+  const functionName = call.function.replace(":", ".");
+  const text = args.length ? `${functionName}(\n${args.join("\n")}\n)` : `${functionName}()`;
+  return casePanel("Function call", "functions",
+    `<pre class="engine-log-editor engine-case-call" tabindex="0"><code class="language-python">${escape(text)}</code></pre>`);
+}
+
 export function testCasesPage(data, test) {
   if (!test || !test.cases.length) {
     return {
@@ -205,7 +227,8 @@ export function testCasesPage(data, test) {
     return `<section class="engine-test-case" id="case-${index}" data-test-profile="${profileIndexes.get(item.profile)}" hidden>
       <header class="engine-profile-heading"><div><p class="engine-kicker">${escape(item.profile)} / ${escape(item.operator)}</p>
         <h1>${escape(item.case)}</h1></div>${status}</header>
-      ${item.message ? `<p class="engine-error-text">${escape(item.message)}</p>` : ""}${details}</section>`;
+      ${item.message ? `<p class="engine-error-text">${escape(item.message)}</p>` : ""}
+      ${caseCall(item.call)}${details}</section>`;
   }).join("");
   return { context, content: page(`<p id="test-profile-prompt" role="status">Choose a profile in Cases controls to view its test cases.</p>${sections}`) };
 }

@@ -126,6 +126,31 @@ test("test profile selection filters operators and follows case history", () => 
   assert.equal(prompt.hidden, false);
 });
 
+test("case pages show saved calls above inputs and distinguish injected dataframes", () => {
+  const report = { cases: [
+    { profile: "first", operator: "aggregate", case: "basic", status: "passed",
+      data: { inputs: { dataset: [{ value: 1 }] }, expected: { return: [{ value: 1 }] } },
+      call: {
+        function: "pump_analytics:aggregate",
+        arguments: {
+          dataset: "$dataset", literal: "$dataset", options: { "a/b~c": [null, true, "<unsafe>"] },
+        },
+        dataframe_inputs: { "/dataset": "dataset", "/options/a~1b~0c/0": "dataset" },
+      } },
+    { profile: "first", operator: "other", case: "empty", status: "error",
+      call: { function: "pump:empty", arguments: {} } },
+    { profile: "first", operator: "other", case: "old", status: "error" },
+  ] };
+  const { content } = testCasesPage(data, report);
+  assert.match(content, /<code class="language-python">pump_analytics\.aggregate/);
+  assert.match(content, /pump_analytics\.aggregate\(\n  dataset=\$dataset,/);
+  assert.match(content, /literal=&quot;\$dataset&quot;/);
+  assert.match(content, /&quot;a\/b~c&quot;: \[\$dataset, True, &quot;&lt;unsafe&gt;&quot;\]/);
+  assert.ok(content.indexOf("pump_analytics.aggregate") < content.indexOf("<span>Input</span>"));
+  assert.match(content, /pump\.empty\(\)/);
+  assert.match(content, /Function call unavailable\./);
+});
+
 test("test data loads through live and static URLs", async () => {
   const urls = [];
   const fetchData = async url => {

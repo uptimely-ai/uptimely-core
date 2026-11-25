@@ -21,8 +21,9 @@ uptimely run example
 ```
 
 In Test > Cases, choose a profile to browse its cases grouped by operator.
-Each case shows its inputs and output, with expected and actual output for a
-mismatch.
+Each case shows its resolved function call, inputs, and output, with expected
+and actual output for a mismatch. Dataframe arguments use input markers such as
+`$dataset`. The call is illustrative rather than executable Python.
 
 ## Export a static site
 
