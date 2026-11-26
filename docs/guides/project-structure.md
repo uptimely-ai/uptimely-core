@@ -33,7 +33,6 @@ project/
 │       └── <profile>/
 │           └── features.yaml
 ├── tests/
-│   └── uptimely/
 └── artifacts/
     ├── build/
     │   ├── build.json
@@ -57,12 +56,15 @@ project/
 | `code/` | Python source and its development environment. The folder is optional. |
 | `code/src/` | Importable Python modules for data access, calculations, and output. |
 | `spec/` | The workflow specification, written in YAML, Python, or JSON. |
-| `tests/uptimely/` | Default folder for project operator cases. |
+| `tests/` | Default folder for project operator cases. |
 | `requirements/` | Optional definition of package dependencies and laguage version. The Python runtime uses `requirements/pyproject.toml`. |
 | `artifacts/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
 | `uptimely.toml` | Project defaults and settings under `application`, `code`, `engine`, `test`, `paths`, and `params`. See [Configure a project](configuration.md). |
 | `code/pyproject.toml` | Project metadata and dependencies. Select it with `code.requirements` unless another definition is selected or discovered under `requirements/`. |
 | `code/.devcontainer/` | Optional development container configuration for the code workspace. |
+
+The `tests/` folder is the default location for operator case files. The
+example sets `[test] path = "tests"` explicitly in `uptimely.toml`.
 
 `code/` is a source and development area, not a second Uptimely project root.
 Keep `uptimely.toml`, `spec/`, and workflow data at the outer project root.

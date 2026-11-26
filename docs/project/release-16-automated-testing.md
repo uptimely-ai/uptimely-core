@@ -21,7 +21,7 @@ plans.
 
 | title | breaking | description |
 |---|---|---|
-| Discover profile suites and named cases | No | Load `tests/uptimely/interface_data/<profile_id>.md` or `.json` relative to the project. Require one source per profile and reject duplicate formats, unknown resources, duplicate cases, and empty selections. |
+| Discover profile suites and named cases | No | Load `tests/interface_data/<profile_id>.md` or `.json` relative to the project. Require one source per profile and reject duplicate formats, unknown resources, duplicate cases, and empty selections. |
 | Group cases by operator | No | Use `assembly.<operator_id>` and `cases.<case_id>`. Keep fixtures outside the production Spec. |
 | Parse Markdown tables strictly | No | Use `markdown-it-py` with table support and strict Pydantic models. Preserve source locations in diagnostics. |
 | Define operator case fields | No | Support compute/merge arguments and returns, parameter overrides, structured arguments, expected exceptions, dataframe schemas, comparison options, and feature selection. |
@@ -161,7 +161,7 @@ Register project checks and define their context for evaluating profile data.
 
 | title | breaking | description |
 |---|---|---|
-| Discover registered Python quality checks | No | Load explicitly registered checks under `tests/uptimely/quality/`. Keep these separate from runtime `validations`. |
+| Discover registered Python quality checks | No | Load explicitly registered checks under `tests/quality/`. Keep these separate from runtime `validations`. |
 | Define quality-check context | No | Provide profile ID, grain and feature metadata, a fully collected dataset, and explicitly requested datasets for cross-profile checks. |
 | Attribute quality outcomes without projection | No | Attribute outcomes to profiles and declared features without silently projecting the input frame. |
 

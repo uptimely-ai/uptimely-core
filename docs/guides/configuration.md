@@ -44,7 +44,7 @@ requirements = "pyproject.toml"
 src = "src"
 
 [test]
-path = "tests/uptimely"
+path = "tests"
 
 [engine]
 preview_rows = 5
@@ -97,7 +97,7 @@ are command-specific options rather than project settings.
 ### Test settings
 
 `test.path` selects the test directory relative to the project root or as an
-absolute path. It defaults to `tests/uptimely`. The `uptimely test` command
+absolute path. It defaults to `tests`. The `uptimely test` command
 runs the JSON cases in that directory against the saved build. See
 [`uptimely test`](../cli/project.md#uptimely-test).
 

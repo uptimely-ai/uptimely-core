@@ -29,7 +29,7 @@ Below is the full configuration file reference.
 | `code.language` | String | Code language. Only `"python"` is supported and it is the default. |
 | `code.requirements` | String | Optional project-root-relative or absolute requirements definition file. If omitted, discover `requirements/pyproject.toml` or the project root's `pyproject.toml`. Overridden by the `requirements_file` argument to `Uptimely.build()`. |
 | `code.src` | String | Optional project-root-relative or absolute source path used when building. The selected source is copied into the active build. |
-| `test.path` | String | Nonempty project-root-relative or absolute test directory. Default: `"tests/uptimely"`. |
+| `test.path` | String | Nonempty project-root-relative or absolute test directory. Default: `"tests"`. |
 | `engine.preview_rows` | Integer | Positive integer. Default: `5`. |
 | `engine.backend.type` | String | Default: `"python_venv"`. |
 | `engine.backend.definition` | String | Optional. |

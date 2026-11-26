@@ -98,10 +98,10 @@ uv run uptimely example --dir pump-analytics
 cd pump-analytics
 ```
 
-The Uptimely project root keeps `uptimely.toml`, `spec/`, and `data/`. Its
-`code/` folder is a separate Python source and development environment. The
-commands below use the root environment. To use the code environment instead,
-run them with `uv run --project code uptimely <command>`.
+The Uptimely project root keeps `uptimely.toml`, `spec/`, `data/`, and operator
+test cases in `tests/`. Its `code/` folder is a separate Python source and
+development environment. The commands below use the root environment. To use
+the code environment instead, run them with `uv run --project code uptimely <command>`.
 
 Create a build from the specification:
 

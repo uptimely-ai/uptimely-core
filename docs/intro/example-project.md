@@ -50,7 +50,7 @@ reading data or by transforming another profile.
 | `code/init.sh` | Installs uv if needed and syncs the code development environment. |
 | `code/.devcontainer/` | Development container configuration. |
 | `spec/` | YAML dimensions, function catalog, and profile declarations. |
-| `tests/uptimely/` | Provisional JSON input and expected output cases for non-I/O compute bindings. |
+| `tests/` | Provisional JSON input and expected output cases for non-I/O compute bindings. |
 | `uptimely.toml` | Project defaults, Engine settings, and configured input and output paths. |
 | `config/production.toml` | Production overrides for the project configuration. |
 | `artifacts/` | The active build, Explorer snapshot, and latest run and test metadata, including test case data. |

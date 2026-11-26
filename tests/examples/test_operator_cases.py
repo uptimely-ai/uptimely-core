@@ -8,7 +8,7 @@ from support import examples as example_support
 from uptimely import application
 from uptimely.test import runner
 
-CASE_DIR = example_support.REPOSITORY_ROOT / "example" / "tests" / "uptimely"
+CASE_DIR = example_support.REPOSITORY_ROOT / "example" / "tests"
 
 
 def test_example_operator_cases(example_bundle_factory: example_support.BundleFactory) -> None:
