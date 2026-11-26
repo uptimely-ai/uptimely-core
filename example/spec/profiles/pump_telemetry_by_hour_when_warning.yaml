@@ -1,0 +1,79 @@
+name: Telemetry by Hour when Warning
+description: Operating-point recommendations calculated from hourly warning telemetry.
+category: Telemetry
+scope: Only telemetry records with pump_mode = warning.
+seed: aggregate_warning
+grain: [machine_dimension.machine, machine_timestamp.hour]
+order: [machine_timestamp.hour]
+features:
+  recommended_flow_rate:
+    description: Illustrative recommended cooling-water flow for a warning record.
+    type: float
+    unit: m3/h
+assembly:
+  aggregate_warning:
+    function: pump_analytics:aggregate
+    args:
+      aggregations:
+        "$input.warning_differential_pressure": mean
+        "$input.warning_flow_rate": mean
+        "$input.warning_motor_power": mean
+        "$input.warning_bearing_temperature": max
+        "$input.warning_vibration_rms": max
+      dimensions: [pump_id, hour]
+      rename:
+        warning_differential_pressure: "$output.warning_hour_mean_differential_pressure"
+        warning_flow_rate: "$output.warning_hour_mean_flow_rate"
+        warning_motor_power: "$output.warning_hour_mean_motor_power"
+        warning_bearing_temperature: "$output.warning_hour_max_bearing_temperature"
+        warning_vibration_rms: "$output.warning_hour_max_vibration_rms"
+  calculate_operating_point_recommendation:
+    function: pump_analytics:operation_point_optimization
+    args:
+      optimization_features:
+        - "$input.warning_hour_mean_differential_pressure"
+        - "$input.warning_hour_mean_flow_rate"
+        - "$input.warning_hour_mean_motor_power"
+        - "$input.warning_hour_max_bearing_temperature"
+        - "$input.warning_hour_max_vibration_rms"
+      output: "$output.operating_point_recommendation"
+      bearing_temperature_warning_limit: 90.0
+      vibration_warning_limit: 4.5
+  set_recommended_flow_rate:
+    function: LazyFrame.with_columns
+    outputs: [recommended_flow_rate]
+    args:
+      recommended_flow_rate: "$input.warning_hour_mean_flow_rate"
+  extract_recommended_differential_pressure:
+    function: pump_analytics:extract_field
+    args:
+      column: "$input.operating_point_recommendation"
+      field: recommended_differential_pressure
+      output: "$output.recommended_differential_pressure"
+  extract_energy_cost_score:
+    function: pump_analytics:extract_field
+    args:
+      column: "$input.operating_point_recommendation"
+      field: energy_cost_score
+      output: "$output.energy_cost_score"
+  extract_convergence:
+    function: pump_analytics:extract_field
+    args:
+      column: "$input.operating_point_recommendation"
+      field: converged
+      output: "$output.converged"
+  write_hourly_warning_telemetry:
+    function: pump_io:write_file
+    args:
+      features:
+        - "$input.warning_hour_mean_differential_pressure"
+        - "$input.warning_hour_mean_flow_rate"
+        - "$input.warning_hour_mean_motor_power"
+        - "$input.warning_hour_max_bearing_temperature"
+        - "$input.warning_hour_max_vibration_rms"
+        - "$input.operating_point_recommendation"
+        - "$input.recommended_flow_rate"
+        - "$input.recommended_differential_pressure"
+        - "$input.energy_cost_score"
+        - "$input.converged"
+      output: "$paths.pump_telemetry_by_hour_when_warning_output"

@@ -403,6 +403,7 @@ def test_project_build_forwards_source_and_feature_options(
     builder_class.return_value.build.assert_called_once_with(
         python_spec="spec.spec:spec",
         json_spec=source,
+        yaml_spec=None,
         features=["reading"],
         code=app.config.code,
     )

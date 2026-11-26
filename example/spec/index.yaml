@@ -1,0 +1,4 @@
+name: Data center cooling pump analytics
+source:
+  name: yaml
+  generated: false

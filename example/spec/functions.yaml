@@ -1,0 +1,10 @@
+LazyFrame.with_columns:
+  returns: dataframe
+  entrypoint: polars.lazyframe.frame:LazyFrame.with_columns
+  validate_signature: false
+  args:
+    self:
+      type: dataframe
+    recommended_flow_rate:
+      type: string
+  description: Add columns to this LazyFrame.

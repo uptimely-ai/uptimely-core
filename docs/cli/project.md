@@ -5,7 +5,7 @@ Build the generated resources for an analytics project.
 ```console
 uptimely build [PROJECT_ROOT] \
   [--project-root PATH] [--src-path PATH] [--config CONFIG_OR_PATH] \
-  [--python-spec MODULE:ATTRIBUTE | --json-spec PATH] \
+  [--python-spec MODULE:ATTRIBUTE | --json-spec PATH | --yaml-spec PATH] \
   [--features FEATURE [FEATURE ...]] [--log-level LEVEL]
 ```
 
@@ -33,8 +33,9 @@ Selections must be nonempty and valid. Duplicate names are normalized.
 | `--project-root PATH` | — | Current working directory | Explicit form of the project directory argument. Cannot be combined with positional `PROJECT_ROOT`. |
 | `--config CONFIG_OR_PATH` | — | Root `uptimely.toml`<br>Otherwise built-in defaults | Pass a config name such as `prod` to load `config/prod.toml`, recursively overriding root `uptimely.toml`. Pass a TOML path to load that file alone without merging root settings. Relative paths resolve from the current working directory. |
 | `--src-path PATH` | `code.src` | TOML setting if set<br>Otherwise the literal directory name `src` | Python source directory, relative to the project root or given as an absolute path. Overrides the configured value for this command. |
-| `--python-spec MODULE:ATTRIBUTE` | `application.python_spec` | TOML setting if set<br>Otherwise discover standard sources | Select an importable Python attribute containing a `Spec` instance. The project root and configured source directory are added while loading it. Mutually exclusive with `--json-spec`. |
-| `--json-spec PATH` | `application.json_spec` | TOML setting if set<br>Otherwise discover standard sources | Select source spec JSON. Mutually exclusive with `--python-spec`. Relative CLI and configured paths are resolved from the project root. |
+| `--python-spec MODULE:ATTRIBUTE` | `application.python_spec` | TOML setting if set<br>Otherwise discover standard sources | Select an importable Python attribute containing a `Spec` instance. The project root and configured source directory are added while loading it. Mutually exclusive with other source options. |
+| `--json-spec PATH` | `application.json_spec` | TOML setting if set<br>Otherwise discover standard sources | Select source spec JSON. Relative paths resolve from the project root. Mutually exclusive with other source options. |
+| `--yaml-spec PATH` | `application.yaml_spec` | TOML setting if set<br>Otherwise discover standard sources | Select a YAML file or directory. Relative paths resolve from the project root. Mutually exclusive with other source options. |
 | `--features FEATURE ...` | — | All features | Select one or more output features and their required dependencies. |
 | `--log-level LEVEL` | — | `info` | Set Uptimely logging to `debug`, `info`, `warning`, `error`, or `critical`. Debug includes build duration, output folder, spec source, resource counts, and plan size. |
 

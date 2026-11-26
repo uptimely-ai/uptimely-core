@@ -22,7 +22,8 @@ contract. See [Python authoring](../guides/python-authoring.md) for declarations
 | [model](spec-model.md) | Work with Spec document types. |
 | [serialization](spec-serialization.md) | Write a Spec as JSON. |
 | [validation](spec-validation.md) | Check a Spec and read validation errors. |
-| [Python authoring](../guides/python-authoring.md) | Declare profiles and calculations. |
+| [YAML authoring](../guides/yaml-authoring.md) | Declare a Spec in YAML files. |
+| [Python authoring](../guides/python-authoring.md) | Declare profiles and calculations in Python. |
 | [Feature graphs](feature-graph.md) | Inspect feature dependencies. |
 
 ## Working with spec

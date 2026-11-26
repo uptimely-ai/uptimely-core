@@ -1,0 +1,102 @@
+name: Cooling Pump
+description: One row per cooling pump with condition and workflow inputs.
+category: Cooling System
+scope: Cooling-pump telemetry and external workflow inputs for data centers
+seed: read_pump_assets
+grain: [machine_dimension.machine]
+relations:
+  - facility_dimension.server_room
+  - facility_dimension.data_center
+  - machine_dimension.machine_series
+  - machine_dimension.machine_category
+features:
+  pump_max_capacity:
+    description: Maximum chilled-water flow capacity specified for this pump.
+    type: float
+    unit: m3/h
+  measurement:
+    description: Measured cooling-system value provided to the external workflow.
+    type: float
+  reference_value:
+    description: Reference value used to normalize the cooling-system measurement.
+    type: float
+assembly:
+  read_pump_assets:
+    function: pump_io:read_file
+    args:
+      source: "$paths.pump_assets_source"
+      rename:
+        max_capacity: "$output.pump_max_capacity"
+      schema:
+        max_capacity: float
+  select_series_max_capacity:
+    function: pump_analytics:select_columns
+    args:
+      columns: [machine_series_id, "$input.max_capacity_series"]
+      rename:
+        max_capacity_series: "$output.series_max_capacity"
+    merge: default
+  select_category_max_capacity:
+    function: pump_analytics:select_columns
+    args:
+      columns: [machine_category_id, "$input.max_capacity_category"]
+      rename:
+        max_capacity_category: "$output.category_max_capacity"
+    merge: default
+  resolve_max_capacity:
+    function: pump_analytics:first_non_null_value
+    args:
+      features: ["$input.pump_max_capacity", "$input.series_max_capacity", "$input.category_max_capacity"]
+      output: "$output.max_capacity"
+  bearing_temperature_by_pump:
+    function: pump_analytics:aggregate
+    args:
+      aggregations:
+        "$input.bearing_temperature": max
+      dimensions: "$profiles.@.grain.ids"
+      rename:
+        bearing_temperature: "$output.bearing_temperature_max"
+    merge: default
+  normalize_bearing_temperature:
+    function: pump_analytics:min_max_scale
+    args:
+      feature: "$input.bearing_temperature_max"
+      lower_bound: -1.0
+      upper_bound: 1.0
+      features: ["$input.bearing_temperature_max"]
+      output: "$output.health_signal_normalized"
+  read_external_inputs:
+    function: pump_io:read_file
+    args:
+      source: "$paths.pump_external_inputs_source"
+      schema:
+        measurement: float
+        reference_value: float
+      rename:
+        measurement: "$output.measurement"
+        reference_value: "$output.reference_value"
+    merge:
+      function: pump_merge:merge_pump_inputs
+      args:
+        dataset: "$profiles.@.dataset"
+        fragment: "$operators.@.fragment"
+        dataset_identifiers: [pump_id, server_room_id, data_center_id]
+  run_external_workflow:
+    function: pump_io:process_pump_external_workflow
+    inputs: [measurement, reference_value]
+    args:
+      source: "$paths.pump_external_inputs_source"
+      output: "$paths.pump_external_workflow_output"
+  write_pump:
+    function: pump_io:write_file
+    args:
+      features:
+        - "$input.pump_max_capacity"
+        - "$input.series_max_capacity"
+        - "$input.category_max_capacity"
+        - "$input.max_capacity"
+        - "$input.measurement"
+        - "$input.reference_value"
+        - "$input.bearing_temperature_max"
+        - "$input.health_signal_normalized"
+      output: "$paths.pump_output"

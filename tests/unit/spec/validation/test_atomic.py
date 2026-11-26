@@ -357,7 +357,7 @@ def test_function_contract_rules_are_role_and_arity_based(document: spec.Spec) -
 
 
 def test_zero_dataframe_no_result_compute_contract_is_valid(document: spec.Spec) -> None:
-    _, operator = next((key, item) for key, item in document.operator_items if item.merge is None)
+    operator = document.profiles["pump_telemetry"].assembly["read_pump_telemetry"]
     function = document.functions[operator.compute.function]
     function.returns = "none"
     function.args.clear()

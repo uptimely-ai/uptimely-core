@@ -1,5 +1,5 @@
 [application]
-python_spec = "spec.spec:spec"
+yaml_spec = "spec"
 
 [code]
 language = "python"

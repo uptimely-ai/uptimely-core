@@ -22,13 +22,13 @@ project/
 │       ├── io.py
 │       └── merge.py
 ├── spec/
-│   ├── spec.py <-- default spec entrypoint
-│   ├── profile_<name>.py
-│   ├── profile_<name>/
-│   │   ├── __init__.py
-│   │   ├── profile.py
-│   │   └── features.py
-│   └── dimension.py
+│   ├── index.yaml
+│   ├── dimensions.yaml
+│   ├── functions.yaml
+│   └── profiles/
+│       ├── <profile>.yaml
+│       └── <profile>/
+│           └── features.yaml
 ├── tests/
 │   └── uptimely/
 └── artifacts/
@@ -52,7 +52,7 @@ project/
 | `data/input/` | Local data and reference datasets used by the workflow. |
 | `data/output/` | Results you want to keep, share, or reuse. |
 | `src/` | Importable Python modules for data access, calculations, and output. |
-| `spec/` | The workflow specification, written in Python or JSON. |
+| `spec/` | The workflow specification, written in YAML, Python, or JSON. |
 | `tests/uptimely/` | Default folder for project operator cases. |
 | `requirements/` | Optional definition of package dependencies and laguage version. The Python runtime uses `requirements/pyproject.toml`. |
 | `artifacts/` | Generated builds, Explorer snapshots, and metadata, logs, and previews from the latest run. |
@@ -83,9 +83,10 @@ project root's `pyproject.toml`.
 
 ## Spec profiles
 
-Keep a profile in one module while its declarations remain easy to navigate.
-For larger profiles, use a package to separate the profile, features, and
-related declarations while keeping a `profile.py` entrypoint.
+Keep a profile in one file while its declarations remain easy to navigate.
+For larger profiles, use a directory to separate features and other fields.
+See [YAML authoring](yaml-authoring.md) for composition rules. Python and JSON
+specifications are also supported.
 
 ## Files
 

@@ -7,10 +7,12 @@ import pathlib
 
 from uptimely import spec
 from uptimely.codebase.python import entrypoint as entrypoint_module
+from uptimely.spec import yaml as yaml_spec_module
 
 from . import defaults, paths
 
 JsonSourceInput = str | pathlib.Path | None
+YamlSourceInput = str | pathlib.Path | None
 
 
 @dataclasses.dataclass(frozen=True)
@@ -42,7 +44,19 @@ class JsonSpecSource:
         return str(self.path.resolve())
 
 
-ResolvedSpecSource = PythonSpecSource | JsonSpecSource
+@dataclasses.dataclass(frozen=True)
+class YamlSpecSource:
+    """Describe a YAML Spec file or directory."""
+
+    path: pathlib.Path
+
+    @property
+    def display_name(self) -> str:
+        """Return the resolved YAML source path."""
+        return str(self.path.resolve())
+
+
+ResolvedSpecSource = PythonSpecSource | JsonSpecSource | YamlSpecSource
 
 
 class SpecSourceResolver:
@@ -55,10 +69,11 @@ class SpecSourceResolver:
         self,
         python_spec: str | None = None,
         json_spec: JsonSourceInput = None,
+        yaml_spec: YamlSourceInput = None,
     ) -> ResolvedSpecSource:
         """Select one explicit or discovered source without loading it."""
-        if python_spec is not None and json_spec is not None:
-            raise ValueError("Specify either a Python entrypoint or a spec JSON source, not both")
+        if sum(value is not None for value in (python_spec, json_spec, yaml_spec)) > 1:
+            raise ValueError("Specify only one Python, JSON, or YAML spec source")
 
         if python_spec is not None:
             return PythonSpecSource(
@@ -70,15 +85,23 @@ class SpecSourceResolver:
             if not json_path.is_absolute():
                 json_path = self.project_root / json_path
             return JsonSpecSource(json_path)
+        if yaml_spec is not None:
+            yaml_path = pathlib.Path(yaml_spec)
+            if not yaml_path.is_absolute():
+                yaml_path = self.project_root / yaml_path
+            return YamlSpecSource(yaml_path)
 
         python_path = self.project_root / paths.SPEC_PYTHON_ENTRY_FILE
         json_path = self.project_root / paths.SPEC_JSON_ENTRY_FILE
+        yaml_path = self.project_root / paths.SPEC_SOURCE_DIR
         python_available = python_path.is_file()
         json_available = json_path.is_file()
-        if python_available and json_available:
+        yaml_available = yaml_path.is_dir() and any(
+            item.is_file() and item.suffix in {".yaml", ".yml"} for item in yaml_path.rglob("*")
+        )
+        if sum((python_available, json_available, yaml_available)) > 1:
             raise ValueError(
-                f"Ambiguous spec sources: {python_path} and {json_path}. "
-                "Specify one source explicitly."
+                f"Ambiguous spec sources in {yaml_path}. Specify one source explicitly."
             )
         if python_available:
             return PythonSpecSource(
@@ -91,9 +114,11 @@ class SpecSourceResolver:
             )
         if json_available:
             return JsonSpecSource(json_path)
+        if yaml_available:
+            return YamlSpecSource(yaml_path)
         raise FileNotFoundError(
-            f"No spec source found. Expected {python_path} or {json_path}. "
-            "Specify a Python entrypoint or JSON spec source explicitly."
+            f"No spec source found. Expected {python_path}, {json_path}, "
+            f"or YAML files in {yaml_path}. Specify a source explicitly."
         )
 
 
@@ -101,4 +126,6 @@ def load_spec_source(source: ResolvedSpecSource, *, validate: bool = True) -> sp
     """Load and convert a resolved specification source."""
     if isinstance(source, PythonSpecSource):
         return spec.load_python_spec(source.entrypoint, validate=validate)
-    return spec.load_spec(source.path, validate=validate)
+    if isinstance(source, JsonSpecSource):
+        return spec.load_spec(source.path, validate=validate)
+    return yaml_spec_module.load_spec(source.path, validate=validate)

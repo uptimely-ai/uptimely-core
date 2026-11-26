@@ -1,0 +1,42 @@
+machine_dimension:
+  resolutions:
+    machine:
+      key: pump_id
+      type: string
+      parent: machine_series
+    machine_series:
+      key: machine_series_id
+      type: string
+      parent: machine_category
+    machine_category:
+      key: machine_category_id
+      type: string
+  description: Cooling system pump
+machine_timestamp:
+  resolutions:
+    timestamp:
+      key: timestamp
+      type: datetime
+      parent: minute
+    minute:
+      key: minute
+      type: datetime
+      parent: hour
+    hour:
+      key: hour
+      type: datetime
+      parent: day
+    day:
+      key: day
+      type: datetime
+  description: UTC timestamp of cooling pump telemetry at one-minute grain
+facility_dimension:
+  resolutions:
+    server_room:
+      key: server_room_id
+      type: string
+      parent: data_center
+    data_center:
+      key: data_center_id
+      type: string
+  description: Server room and its parent data center

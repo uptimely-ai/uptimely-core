@@ -10,6 +10,12 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- YAML Specs can be composed from files whose paths correspond to Spec keys.
+  Builds accept YAML files or directories with `--yaml-spec` or
+  `application.yaml_spec`.
+- YAML operators support concise function bindings and feature references,
+  inferring their function contracts, feature interfaces, and dataframe sources
+  from declarations.
 - Explorer organizes profile overview cards by category, grouping uncategorized profiles together.
 - Explorer home cards show formatted timestamps, success indicators, test
   outcome bars, and expandable build, test, and run metadata. Static exports

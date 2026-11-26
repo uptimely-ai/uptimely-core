@@ -27,6 +27,11 @@ def configure_build_parser(parser: argparse.ArgumentParser) -> None:
         type=pathlib.Path,
         help="Source spec JSON path (overrides standard source discovery)",
     )
+    source.add_argument(
+        "--yaml-spec",
+        type=pathlib.Path,
+        help="Source YAML Spec file or directory (overrides standard source discovery)",
+    )
     common.configure_project_root_arguments(
         parser,
         option_help="Root added to the import path and used to resolve the output bundle",
@@ -144,6 +149,7 @@ def run(args: argparse.Namespace, parser: argparse.ArgumentParser) -> None:
             bundle = app.build(
                 python_spec=args.python_spec,
                 json_spec=args.json_spec,
+                yaml_spec=args.yaml_spec,
                 features=args.features,
                 src_path=args.src_path,
             )

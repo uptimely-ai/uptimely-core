@@ -1,0 +1,19 @@
+name: Telemetry by Minute
+description: Maximum motor-bearing temperature per cooling pump and minute.
+category: Telemetry
+seed: aggregate_telemetry
+grain: [machine_dimension.machine, machine_timestamp.minute]
+assembly:
+  aggregate_telemetry:
+    function: pump_analytics:aggregate
+    args:
+      aggregations:
+        "$input.bearing_temperature": max
+      dimensions: [pump_id, minute]
+      rename:
+        bearing_temperature: "$output.bearing_temperature_minute_max"
+  write_minute_telemetry:
+    function: pump_io:write_file
+    args:
+      features: ["$input.bearing_temperature_minute_max"]
+      output: "$paths.pump_telemetry_by_minute_output"

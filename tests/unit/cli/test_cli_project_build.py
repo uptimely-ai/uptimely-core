@@ -108,7 +108,7 @@ def test_project_build_examples(
         )
         assert "| Build   | Build scope" in result.out
         assert "| all features" in result.out
-        assert "| spec.spec:spec" in result.out
+        assert str(root / "spec") in result.out
     else:
         assert result.out == (
             "INFO     | Start spec validation\n"
@@ -144,6 +144,25 @@ def test_project_build_examples(
     explorer_data = json.loads((root / application.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert explorer_data["format_version"] == 5
     assert explorer_data["build"]["spec_source"] == bundle.manifest.spec_source
+
+
+def test_yaml_cli_source_overrides_configured_source(
+    tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    root = copy_unbuilt_example(tmp_path)
+    config = root / "uptimely.toml"
+    config.write_text(
+        config.read_text(encoding="utf-8").replace(
+            'yaml_spec = "spec"', 'json_spec = "missing.json"'
+        ),
+        encoding="utf-8",
+    )
+
+    invoke(monkeypatch, "--project-root", str(root), "--yaml-spec", "spec")
+
+    bundle = application.load_build_bundle(root)
+    assert bundle.manifest.spec_source == str(root / "spec")
+    assert "pump_telemetry" in bundle.spec_definition.profiles
 
 
 def test_project_build_accepts_custom_src_path(

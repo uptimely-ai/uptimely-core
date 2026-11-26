@@ -110,6 +110,7 @@ class Uptimely:
         *,
         python_spec: str | None = None,
         json_spec: project_spec_source.JsonSourceInput = None,
+        yaml_spec: project_spec_source.YamlSourceInput = None,
         features: feature_selection.FeatureSelection = None,
         src_path: pathlib.Path | None = None,
         requirements_file: str | pathlib.Path | None = None,
@@ -120,6 +121,8 @@ class Uptimely:
             python_spec: Optional ``module:attribute`` containing a Python Spec.
                 Defaults to the configured source or standard source discovery.
             json_spec: Optional explicit spec JSON path, relative to the project root
+                unless absolute. Defaults to the configured source or standard discovery.
+            yaml_spec: Optional YAML file or directory, relative to the project root
                 unless absolute. Defaults to the configured source or standard discovery.
             features: Optional output features to compile with their dependencies.
             src_path: Optional source directory, relative to the project root unless absolute.
@@ -134,9 +137,10 @@ class Uptimely:
             BuildLockError: Another builder or active bundle reader holds the lock.
             ProjectBuildError: Loading, compilation, generation, or publication fails.
         """
-        if python_spec is None and json_spec is None:
+        if python_spec is None and json_spec is None and yaml_spec is None:
             python_spec = self.config.application.python_spec
             json_spec = self.config.application.json_spec
+            yaml_spec = self.config.application.yaml_spec
         code = self.config.code
         if requirements_file is not None or src_path is not None:
             code = config_module.PythonCodeSettings(
@@ -149,6 +153,7 @@ class Uptimely:
         return builder.ProjectBuilder(self.root).build(
             python_spec=python_spec,
             json_spec=json_spec,
+            yaml_spec=yaml_spec,
             features=features,
             code=code,
         )
