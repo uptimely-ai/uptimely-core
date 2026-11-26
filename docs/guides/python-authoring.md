@@ -16,7 +16,7 @@ Also, python makes it easy to load and publish specification in any remote stora
 
 For minimal working example, see the home page from Getting Started.
 
-For larger example of Python authoring, see the example project in Getting Started.
+For a complete YAML-authored specification, see the example project in Getting Started.
 
 ## Operators
 

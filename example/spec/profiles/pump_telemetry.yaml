@@ -1,0 +1,104 @@
+name: Telemetry
+description: Cooling-water and condition readings from data-center pumps, sampled at one-minute
+  intervals.
+category: Telemetry
+scope: Synthetic data-center cooling pump telemetry for demonstration
+seed: read_pump_telemetry
+grain: [machine_dimension.machine, machine_timestamp.timestamp]
+relations:
+  - facility_dimension.server_room
+  - facility_dimension.data_center
+  - machine_dimension.machine_series
+  - machine_dimension.machine_category
+  - machine_timestamp.minute
+  - machine_timestamp.hour
+  - machine_timestamp.day
+order: [machine_timestamp.timestamp]
+assembly:
+  read_pump_telemetry:
+    function: pump_io:read_pump_telemetry
+    outputs:
+      - differential_pressure
+      - flow_rate
+      - bearing_temperature
+      - vibration_rms
+      - motor_power
+      - mode
+    args:
+      pump_telemetry_source: "$paths.telemetry_source"
+      pump_source: "$paths.pump_assets_source"
+  classify_pump_mode:
+    function: pump_analytics:pump_mode
+    args:
+      bearing_temperature: "$input.bearing_temperature"
+      vibration_rms: "$input.vibration_rms"
+      output: "$output.pump_mode"
+      bearing_temperature_warning_limit: 90.0
+      vibration_warning_limit: 4.5
+  calculate_pressure_flow_efficiency:
+    function: pump_analytics:ratio
+    args:
+      numerator_features: ["$input.differential_pressure", "$input.flow_rate"]
+      denominator_features: ["$input.motor_power"]
+      scale: 0.027777777777777776
+      output: "$output.pressure_flow_efficiency"
+  select_room_temperature_reference:
+    function: pump_analytics:select_columns
+    args:
+      columns: ["$input.room_temperature"]
+      rename:
+        room_temperature: "$output.room_temperature_reference"
+    merge: default
+  calculate_bearing_temperature_rise:
+    function: pump_analytics:subtract
+    args:
+      feature: "$input.bearing_temperature"
+      subtrahend: "$input.room_temperature_reference"
+      output: "$output.bearing_temperature_rise"
+  calculate_bearing_temperature_delta:
+    function: pump_analytics:delta
+    row_context:
+      before:
+        rows: 1
+      after: {}
+    args:
+      feature: "$input.bearing_temperature"
+      partition_by: [pump_id]
+      order_by: timestamp
+      num_rows: "$operators.@.row_context.before"
+      output: "$output.bearing_temperature_delta"
+  calculate_vibration_delta:
+    function: pump_analytics:delta
+    row_context:
+      before:
+        rows: 1
+      after: {}
+    args:
+      feature: "$input.vibration_rms"
+      partition_by: [pump_id]
+      order_by: timestamp
+      num_rows: "$operators.@.row_context.before"
+      output: "$output.vibration_delta"
+  calculate_pump_health_score:
+    function: pump_analytics:pump_health_score
+    args:
+      health_features: ["$input.bearing_temperature_delta", "$input.vibration_delta", "$input.pressure_flow_efficiency"]
+      output: "$output.pump_health_score"
+  write_pump_telemetry:
+    function: pump_io:write_file
+    args:
+      features:
+        - "$input.mode"
+        - "$input.pump_mode"
+        - "$input.differential_pressure"
+        - "$input.flow_rate"
+        - "$input.bearing_temperature"
+        - "$input.vibration_rms"
+        - "$input.motor_power"
+        - "$input.pressure_flow_efficiency"
+        - "$input.room_temperature_reference"
+        - "$input.bearing_temperature_rise"
+        - "$input.bearing_temperature_delta"
+        - "$input.vibration_delta"
+        - "$input.pump_health_score"
+      output: "$paths.pump_telemetry_output"

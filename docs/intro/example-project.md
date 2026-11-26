@@ -12,9 +12,9 @@ illustrative calculations.
 
 Profile is Uptimely's primary concept to organize data science in manageable components.
 
-Each profile is declared in `spec/profiles/<profile_id>.py` or in a package at
-`spec/profiles/<profile_id>/` when its features and profile declaration need
-separate modules.
+Each profile is declared in `spec/profiles/<profile_id>.yaml`. Larger
+profiles can also use a `spec/profiles/<profile_id>/` directory for fields
+such as features.
 Each profile names a seed operator that initializes its dataset, either by
 reading data or by transforming another profile.
 
@@ -41,7 +41,7 @@ reading data or by transforming another profile.
 | `src/pump_io.py` | Input readers, output writers, and the sample external workflow. |
 | `src/pump_merge.py` | Custom merge for external measurements. |
 | `src/pump_util.py` | Small helper used by the analytical functions. |
-| `spec/` | Dimensions, profile declarations, and the combined Python spec. |
+| `spec/` | YAML dimensions, function catalog, and profile declarations. |
 | `tests/uptimely/` | Provisional JSON input and expected output cases for non-I/O compute bindings. |
 | `uptimely.toml` | Project defaults, Engine settings, and configured input and output paths. |
 | `config/production.toml` | Production overrides for the project configuration. |
@@ -49,11 +49,15 @@ reading data or by transforming another profile.
 
 ## Entrypoint
 
-The heart of the project is in `spec/spec.py`. It combines analytical specification of functions, profiles, operators and dimension into a single Python object.
+The YAML files in `spec/` describe the dimensions, functions, profiles, and
+operators. File and directory names identify keys in the combined Spec.
+Operators use Python function entrypoints and explicit feature references.
+The build derives function contracts and feature interfaces from those declarations.
 
 ## Build and run
 
-When a build is created the Python object is serialized to a specification file in json format.
+When a build is created, the YAML files are combined into a specification file
+in JSON format.
 
 At the same time, a portable execution plan with resolved function arguments is generated. It can be consumed either by Uptimely's built-in engine, or deployed to any orcestrator that can execute Python functions.
 

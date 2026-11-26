@@ -117,6 +117,7 @@ nav:
           - Project template: guides/project-template.md
           - Configure a project: guides/configuration.md
       - Basics:
+          - YAML authoring: guides/yaml-authoring.md
           - Python authoring: guides/python-authoring.md
           - Python examples: guides/python-spec-document.md
           - Build a project: guides/build.md

@@ -1,0 +1,19 @@
+name: Telemetry by Day
+description: Maximum motor-bearing temperature per cooling pump and day.
+category: Telemetry
+seed: aggregate_telemetry
+grain: [machine_dimension.machine, machine_timestamp.day]
+assembly:
+  aggregate_telemetry:
+    function: pump_analytics:aggregate
+    args:
+      aggregations:
+        "$input.bearing_temperature": max
+      dimensions: [pump_id, day]
+      rename:
+        bearing_temperature: "$output.bearing_temperature_day_max"
+  write_daily_telemetry:
+    function: pump_io:write_file
+    args:
+      features: ["$input.bearing_temperature_day_max"]
+      output: "$paths.pump_telemetry_by_day_output"

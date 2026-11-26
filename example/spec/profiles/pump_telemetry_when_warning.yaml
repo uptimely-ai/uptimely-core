@@ -1,0 +1,27 @@
+name: Telemetry when Warning
+description: Telemetry readings filtered to warning condition.
+category: Telemetry
+scope: Only telemetry records with pump_mode = warning.
+seed: filter_warning
+grain: [machine_dimension.machine, machine_timestamp.timestamp]
+relations: [machine_timestamp.hour]
+order: [machine_timestamp.timestamp]
+assembly:
+  filter_warning:
+    function: pump_analytics:filter_rows
+    inputs:
+      - pump_mode
+      - differential_pressure
+      - flow_rate
+      - motor_power
+      - bearing_temperature
+      - vibration_rms
+    args:
+      feature: "$input.pump_mode"
+      value: warning
+      rename:
+        differential_pressure: "$output.warning_differential_pressure"
+        flow_rate: "$output.warning_flow_rate"
+        motor_power: "$output.warning_motor_power"
+        bearing_temperature: "$output.warning_bearing_temperature"
+        vibration_rms: "$output.warning_vibration_rms"

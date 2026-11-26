@@ -1,0 +1,23 @@
+differential_pressure:
+  description: Differential pressure across the cooling-water pump.
+  type: float
+  unit: bar
+flow_rate:
+  description: Cooling-water circulation flow rate.
+  type: float
+  unit: m3/h
+bearing_temperature:
+  description: Drive-end motor-bearing temperature.
+  type: float
+  unit: C
+vibration_rms:
+  description: Overall cooling-pump vibration RMS.
+  type: float
+  unit: mm/s
+motor_power:
+  description: Active electric power consumed by the cooling-pump motor.
+  type: float
+  unit: kW
+mode:
+  description: 'Flow band: below_rated_flow or at_or_above_rated_flow, based on rated cooling-water flow.'
+  type: string

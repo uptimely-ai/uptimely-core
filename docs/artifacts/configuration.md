@@ -23,8 +23,9 @@ Below is the full configuration file reference.
 
 | Setting | TOML value | Default or constraint |
 | --- | --- | --- |
-| `application.python_spec` | String | Optional `MODULE:ATTRIBUTE` entrypoint. Mutually exclusive with `application.json_spec`. |
-| `application.json_spec` | String | Optional project-root-relative or absolute path. Mutually exclusive with `application.python_spec`. |
+| `application.python_spec` | String | Optional `MODULE:ATTRIBUTE` entrypoint. Mutually exclusive with other source settings. |
+| `application.json_spec` | String | Optional project-root-relative or absolute JSON path. Mutually exclusive with other source settings. |
+| `application.yaml_spec` | String | Optional project-root-relative or absolute YAML file or directory. Mutually exclusive with other source settings. |
 | `code.language` | String | Code language. Only `"python"` is supported and it is the default. |
 | `code.requirements` | String | Optional project-root-relative or absolute requirements definition file. If omitted, discover `requirements/pyproject.toml` or the project root's `pyproject.toml`. Overridden by the `requirements_file` argument to `Uptimely.build()`. |
 | `code.src` | String | Optional project-root-relative or absolute source path used when building. The selected source is copied into the active build. |

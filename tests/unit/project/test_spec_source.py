@@ -12,6 +12,28 @@ from uptimely.spec import validation
 FIXTURE_SPEC = pathlib.Path(__file__).parents[2] / "fixtures/spec/observation_totals.json"
 
 
+def test_yaml_source_discovery_and_explicit_path(tmp_path: pathlib.Path) -> None:
+    directory = tmp_path / "spec"
+    directory.mkdir()
+    (directory / "index.yaml").write_text("name: Example\n", encoding="utf-8")
+    resolver = project_spec_source.SpecSourceResolver(tmp_path)
+
+    for source in (resolver.resolve(), resolver.resolve(yaml_spec="spec")):
+        assert source == project_spec_source.YamlSpecSource(directory)
+        assert project_spec_source.load_spec_source(source).name == "Example"
+
+
+def test_yaml_source_discovery_reports_ambiguity(tmp_path: pathlib.Path) -> None:
+    directory = tmp_path / "spec"
+    directory.mkdir()
+    (directory / "index.yaml").write_text("name: Example\n", encoding="utf-8")
+    (directory / "spec.json").write_text("{}", encoding="utf-8")
+    resolver = project_spec_source.SpecSourceResolver(tmp_path)
+    with pytest.raises(ValueError, match="Ambiguous spec sources"):
+        resolver.resolve()
+    assert isinstance(resolver.resolve(yaml_spec="spec"), project_spec_source.YamlSpecSource)
+
+
 def test_json_source_loads_configured_path(tmp_path: pathlib.Path) -> None:
     configured_path = tmp_path / "custom-spec.json"
     configured_path.write_bytes(FIXTURE_SPEC.read_bytes())

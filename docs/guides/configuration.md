@@ -36,7 +36,7 @@ shows a complete project configuration.
 
 ```toml
 [application]
-python_spec = "spec.spec:spec"
+yaml_spec = "spec"
 
 [code]
 language = "python"
@@ -64,10 +64,12 @@ threshold = 10
 
 ### Application settings
 
-Set either `application.python_spec` or `application.json_spec` to select a
-specification source, not both. `python_spec` uses the `MODULE:ATTRIBUTE`
-entrypoint format. `json_spec` is a path relative to the project root unless it
-is absolute. See [Specification source discovery](build.md#specification-source-discovery)
+Set one of `application.python_spec`, `application.json_spec`, or
+`application.yaml_spec` to select a specification source. `python_spec` uses
+the `MODULE:ATTRIBUTE` entrypoint format. `json_spec` is a JSON file path or a
+directory containing `spec.json`. `yaml_spec` is a YAML file or directory path.
+Paths are relative to the project
+root unless absolute. See [Specification source discovery](build.md#specification-source-discovery)
 for automatic selection and ambiguous-source errors.
 
 ### Code settings
@@ -81,7 +83,7 @@ from the project root's `pyproject.toml` if available.
 `code.src` is a Python source directory, relative to the project
 root unless absolute. If omitted, it defaults to `src`. CLI values for the
 specification source and source path override the corresponding settings. A
-CLI specification source overrides both configured source fields. Explicit
+CLI specification source overrides the configured source. Explicit
 Python method arguments also override the corresponding project settings.
 
 The project root is not configured in `uptimely.toml`. The CLI's positional

@@ -1,0 +1,34 @@
+name: Cooling Pump Series
+description: Maximum motor-bearing temperature for each cooling-pump series.
+category: Cooling System
+scope: Cooling-pump series declared in the data-center asset registry
+seed: read_pump_series
+grain: [machine_dimension.machine_series]
+features:
+  max_capacity_series:
+    description: Default maximum chilled-water flow capacity for the pump series.
+    type: float
+    unit: m3/h
+assembly:
+  read_pump_series:
+    function: pump_io:read_file
+    args:
+      source: "$paths.pump_series_source"
+      rename:
+        max_capacity: "$output.max_capacity_series"
+      schema:
+        max_capacity: float
+  aggregate_bearing_temperature_by_series:
+    function: pump_analytics:aggregate
+    args:
+      aggregations:
+        "$input.bearing_temperature": max
+      dimensions: [machine_series_id]
+      rename:
+        bearing_temperature: "$output.bearing_temperature_series_max"
+    merge: default
+  write_pump_series:
+    function: pump_io:write_file
+    args:
+      features: ["$input.bearing_temperature_series_max", "$input.max_capacity_series"]
+      output: "$paths.pump_series_output"

@@ -62,13 +62,18 @@ class ProjectSettings(pydantic.BaseModel):
 
     python_spec: str | None = pydantic.Field(default=None, min_length=1)
     json_spec: str | None = pydantic.Field(default=None, min_length=1)
+    yaml_spec: str | None = pydantic.Field(default=None, min_length=1)
 
     @pydantic.model_validator(mode="after")
     def validate_spec_source(self) -> ProjectSettings:
-        """Require Python and JSON spec sources to be mutually exclusive."""
-        if self.python_spec is not None and self.json_spec is not None:
+        """Require specification sources to be mutually exclusive."""
+        if (
+            sum(value is not None for value in (self.python_spec, self.json_spec, self.yaml_spec))
+            > 1
+        ):
             raise ValueError(
-                "Specify either application.python_spec or application.json_spec, not both"
+                "Specify either application.python_spec, application.json_spec, "
+                "or application.yaml_spec, not multiple sources"
             )
         return self
 

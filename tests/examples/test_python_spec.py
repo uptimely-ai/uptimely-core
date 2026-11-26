@@ -1,24 +1,11 @@
 import polars as pl
 import pump_analytics as analytics
 import pytest
-from example.spec import dimension as pump_dimensions
-from example.spec import spec as pump_telemetry_spec
-from example.spec.profiles import (
-    constants,
-    pump,
-    pump_category,
-    pump_series,
-    pump_telemetry,
-    pump_telemetry_by_day,
-    pump_telemetry_by_hour,
-    pump_telemetry_by_hour_when_warning,
-    pump_telemetry_by_minute,
-    pump_telemetry_when_warning,
-)
 from support import examples as example_support
 
 from uptimely import spec
 from uptimely.spec import python as python_spec
+from uptimely.spec import yaml as yaml_spec
 from uptimely.spec.python import binding_conversion
 
 SPEC_PATH = example_support.EXAMPLES_ROOT / "artifacts/build/spec.json"
@@ -49,7 +36,7 @@ def test_aggregate_executes_independently() -> None:
 
 
 def test_pump_dimensions_are_declared_in_spec_order() -> None:
-    inferred = pump_telemetry_spec.spec.to_model().dimensions
+    inferred = yaml_spec.load_spec(example_support.EXAMPLES_ROOT / "spec").dimensions
 
     assert list(inferred) == ["machine_dimension", "machine_timestamp", "facility_dimension"]
     assert list(inferred["machine_dimension"].resolutions) == [
@@ -68,62 +55,24 @@ def test_pump_dimensions_are_declared_in_spec_order() -> None:
     assert inferred["machine_timestamp"].resolutions["timestamp"].parent == "minute"
     assert inferred["machine_timestamp"].resolutions["minute"].parent == "hour"
     assert inferred["machine_timestamp"].resolutions["hour"].parent == "day"
-    assert pump_dimensions.FACILITY_DIMENSION.id == "facility_dimension"
-    assert [resolution.id for resolution in pump_dimensions.FACILITY_DIMENSION.resolutions] == [
+    facility = inferred["facility_dimension"]
+    assert list(facility.resolutions) == [
         "server_room",
         "data_center",
     ]
-    assert pump_dimensions.FACILITY_DIMENSION.resolutions[0].parent == "data_center"
+    assert facility.resolutions["server_room"].parent == "data_center"
 
 
-def test_pump_profiles_are_declared_in_spec_order() -> None:
-    expected = [
-        pump_telemetry.PumpTelemetry,
-        pump.Pump,
-        constants.Constants,
-        pump_series.PumpSeries,
-        pump_category.PumpCategory,
-        pump_telemetry_by_minute.PumpTelemetryByMinute,
-        pump_telemetry_when_warning.PumpTelemetryWhenWarning,
-        pump_telemetry_by_hour_when_warning.PumpTelemetryByHourWhenWarning,
-        pump_telemetry_by_hour.PumpTelemetryByHour,
-        pump_telemetry_by_day.PumpTelemetryByDay,
-    ]
-
-    assert [
-        profile.category for profile in pump_telemetry_spec.spec.to_model().profiles.values()
-    ] == [
-        "Telemetry",
-        "Cooling System",
-        "Configuration",
-        "Cooling System",
-        "Cooling System",
-        "Telemetry",
-        "Telemetry",
-        "Telemetry",
-        "Telemetry",
-        "Telemetry",
-    ]
-    assert [type(profile) for profile in pump_telemetry_spec.spec.profiles] == expected
-    assert [profile.id for profile in pump_telemetry_spec.spec.profiles] == [
-        "pump_telemetry",
-        "pump",
-        "constants",
-        "pump_series",
-        "pump_category",
-        "pump_telemetry_by_minute",
-        "pump_telemetry_when_warning",
-        "pump_telemetry_by_hour_when_warning",
-        "pump_telemetry_by_hour",
-        "pump_telemetry_by_day",
-    ]
-    assert pump_telemetry.PumpTelemetry.grain == [
-        pump_dimensions.MACHINE_DIMENSION.at("machine"),
-        pump_dimensions.MACHINE_TIMESTAMP.at("timestamp"),
-    ]
-    assert pump.Pump.grain == [
-        pump_dimensions.MACHINE_DIMENSION.at("machine"),
-    ]
+def test_pump_profiles_have_expected_categories_and_grains() -> None:
+    profiles = yaml_spec.load_spec(example_support.EXAMPLES_ROOT / "spec").profiles
+    assert profiles["pump_telemetry"].category == "Telemetry"
+    assert profiles["pump"].category == "Cooling System"
+    assert profiles["constants"].category == "Configuration"
+    assert profiles["pump_telemetry"].grain_reference_set == {
+        ("machine_dimension", "machine"),
+        ("machine_timestamp", "timestamp"),
+    }
+    assert profiles["pump"].grain_reference_set == {("machine_dimension", "machine")}
 
 
 def test_argument_definition_supports_recursive_compact_types() -> None:
@@ -140,7 +89,7 @@ def test_argument_definition_supports_recursive_compact_types() -> None:
 
 
 def test_function_catalog_contracts_are_independent_of_grain_relationships() -> None:
-    spec_definition = pump_telemetry_spec.spec.to_model()
+    spec_definition = yaml_spec.load_spec(example_support.EXAMPLES_ROOT / "spec")
 
     user_functions = {
         function_id: function
@@ -202,8 +151,8 @@ def test_example_manifest_parses_complete_spec() -> None:
         "timestamp",
     ]
     assert isinstance(spec_definition, spec.Spec)
-    assert spec_definition.source.name == "python_api"
-    assert spec_definition.source.generated is True
+    assert spec_definition.source.name == "yaml"
+    assert spec_definition.source.generated is False
     assert spec_definition.functions["aggregate"].returns == "dataframe"
 
     pump_profile = spec_definition.profiles["pump"]
@@ -219,35 +168,14 @@ def test_example_manifest_parses_complete_spec() -> None:
     assert "bearing_temperature_max" in collapse.output_features
 
 
-def test_spec_from_profiles_python_api() -> None:
-    spec_definition = spec.from_python(
-        profiles=pump_telemetry_spec.spec.profiles,
-        name=pump_telemetry_spec.spec.name,
-    )
-
-    assert set(spec_definition.profiles) == {
-        "pump_telemetry",
-        "pump",
-        "constants",
-        "pump_series",
-        "pump_category",
-        "pump_telemetry_by_minute",
-        "pump_telemetry_when_warning",
-        "pump_telemetry_by_hour_when_warning",
-        "pump_telemetry_by_hour",
-        "pump_telemetry_by_day",
-    }
-    assert spec_definition.name == pump_telemetry_spec.spec.name
-    assert spec_definition.source.name == "python_api"
-    assert spec_definition.source.generated is True
-    reader = spec_definition.profiles["pump_telemetry"].assembly["read_pump_telemetry"]
-    assert spec_definition.functions[reader.compute.function].frame_signature == (0, 1)
+def test_yaml_example_matches_exported_spec() -> None:
+    authored = yaml_spec.load_spec(example_support.EXAMPLES_ROOT / "spec")
+    exported = spec.load_spec(SPEC_PATH)
+    assert authored.model_dump() == exported.model_dump()
 
 
-def test_example_timestamp_order_matches_python_declaration() -> None:
-    authored = spec.from_python(
-        profiles=pump_telemetry_spec.spec.profiles,
-    )
+def test_example_timestamp_order_matches_yaml_declaration() -> None:
+    authored = yaml_spec.load_spec(example_support.EXAMPLES_ROOT / "spec")
     exported = spec.load_spec(SPEC_PATH)
     expected = [
         {

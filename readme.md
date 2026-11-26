@@ -130,7 +130,7 @@ Open the project in a code editor, modify the code, build and run it again and e
 
 ## Python API
 
-The previous example was built by the [Python-authored example specification](https://github.com/uptimely-ai/uptimely-core/tree/main/example). The specification describes profiles, grains, features and operators. Functions remain pure Python.
+The previous example uses a [YAML-authored specification](https://github.com/uptimely-ai/uptimely-core/tree/main/example). Specifications describe profiles, grains, features and operators. Functions remain pure Python.
 
 Here is even more simplified example.
 

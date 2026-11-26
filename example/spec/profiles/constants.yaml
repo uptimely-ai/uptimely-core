@@ -1,0 +1,29 @@
+name: Project Constants
+description: Physical constants used by cooling pump analytics.
+category: Configuration
+seed: read_constants
+features:
+  gravity:
+    description: Gravitational acceleration for engineering calculations.
+    type: float
+    unit: m/s^2
+  room_temperature:
+    description: Ambient pump-room temperature used as the thermal reference.
+    type: float
+    unit: C
+assembly:
+  read_constants:
+    function: pump_io:read_file
+    args:
+      source: "$paths.constants_source"
+      schema:
+        gravity: float
+        room_temperature: float
+      rename:
+        gravity: "$output.gravity"
+        room_temperature: "$output.room_temperature"
+  write_constants:
+    function: pump_io:write_file
+    args:
+      features: ["$input.gravity", "$input.room_temperature"]
+      output: "$paths.constants_output"

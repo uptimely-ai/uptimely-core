@@ -26,6 +26,7 @@ from .spec_source import (
     PythonSpecSource,
     ResolvedSpecSource,
     SpecSourceResolver,
+    YamlSpecSource,
     load_spec_source,
 )
 
@@ -54,6 +55,7 @@ __all__ = [
     "SPEC_SOURCE_DIR",
     "TEST_REPORT_FILE",
     "SpecSourceResolver",
+    "YamlSpecSource",
     "load_spec_source",
     "expose",
 ]

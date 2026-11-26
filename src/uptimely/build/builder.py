@@ -63,6 +63,7 @@ class ProjectBuilder:
         *,
         python_spec: str | None = None,
         json_spec: project_spec_source.JsonSourceInput = None,
+        yaml_spec: project_spec_source.YamlSourceInput = None,
         features: feature_selection.FeatureSelection = None,
         code: project_config.CodeSettings | None = None,
     ) -> models.BuildBundle:
@@ -71,6 +72,8 @@ class ProjectBuilder:
         Args:
             python_spec: Optional ``module:attribute`` containing a Python Spec.
             json_spec: Optional explicit spec JSON path, relative to the project root
+                unless absolute.
+            yaml_spec: Optional YAML file or directory, relative to the project root
                 unless absolute.
             features: Optional output features to compile with their dependencies.
             code: Project code settings. If absent, the language comes from the
@@ -90,7 +93,7 @@ class ProjectBuilder:
             raise errors.ProjectBuildError("feature selection", str(error)) from error
         try:
             spec_source = project_spec_source.SpecSourceResolver(self.root).resolve(
-                python_spec, json_spec
+                python_spec, json_spec, yaml_spec
             )
         except _SPEC_PROCESSING_ERRORS as error:
             raise errors.ProjectBuildError("source loading", str(error)) from error
@@ -334,6 +337,7 @@ def build(
     features: feature_selection.FeatureSelection = None,
     *,
     code: project_config.CodeSettings | None = None,
+    yaml_spec: project_spec_source.YamlSourceInput = None,
 ) -> models.BuildBundle:
     """Build and publish project artifacts through a root-bound builder.
 
@@ -341,6 +345,8 @@ def build(
         project_root: Project directory, defaulting to the current directory.
         python_spec: Optional ``module:attribute`` containing a Python Spec.
         json_spec: Optional explicit spec JSON path, relative to the project root
+            unless absolute.
+        yaml_spec: Optional YAML file or directory, relative to the project root
             unless absolute.
         features: Optional output features to compile with their dependencies.
         code: Project code settings. If absent, the language comes from the
@@ -357,6 +363,7 @@ def build(
     return ProjectBuilder(project_root).build(
         python_spec=python_spec,
         json_spec=json_spec,
+        yaml_spec=yaml_spec,
         features=features,
         code=code,
     )
