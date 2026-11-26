@@ -120,14 +120,12 @@ Any other person or team can access the full chain of analytical operators and r
   </div>
 </div>
 
-Save this maintenance detection specification as `spec/spec.py` in the shared
-project:
+Save the maintenance detection specification as `spec/spec.yaml` in the shared
+project. Keep the calculations in an importable Python module such as
+`functions.py`:
 
 ```python
-# script
-
 import polars as pl
-import uptimely as up
 
 
 def read_values() -> pl.DataFrame:
@@ -144,49 +142,41 @@ def intermediate_step(dataset: pl.LazyFrame, output: str) -> pl.LazyFrame:
     return dataset.with_columns(random_value.alias(output))
 
 
-def derive_maintenance(dataset: pl.LazyFrame, intermediate: str, output: str) -> pl.LazyFrame:
+def derive_maintenance(
+    dataset: pl.LazyFrame,
+    intermediate: str,
+    output: str,
+) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(intermediate) > 0.5).alias(output))
+```
 
-
-measurement_id = up.Dimension(
-    id="measurement_id",
-    resolutions=[up.Resolution(id="measurement_id", key="id", type="integer")],
-)
-
-
-class Telemetry(up.Profile):
-    grain = [measurement_id.at("measurement_id")]
-    seed = "read_values"
-
-    assembly = [
-        up.Operator(
-            id="read_values",
-            outputs=[up.Feature(id="value")],
-            compute=up.Bind(read_values),
-        ),
-        up.Operator(
-            compute=up.Bind(
-                intermediate_step,
-                dataset=up.ref.dataset(),
-                output=up.ref.output("intermediate_result"),
-            ),
-        ),
-        up.Operator(
-            id="is_maintenance",
-            compute=up.Bind(
-                derive_maintenance,
-                dataset=up.ref.dataset(),
-                intermediate=up.ref.input("intermediate_result"),
-                output=up.ref.output("is_maintenance"),
-            ),
-        ),
-    ]
-
-
-spec = up.Spec(
-    profiles=[Telemetry],
-    name="Analytics Specification",
-)
+```yaml
+name: Analytics Specification
+dimensions:
+  measurement_id:
+    resolutions:
+      measurement_id:
+        key: id
+        type: integer
+profiles:
+  telemetry:
+    grain: [measurement_id.measurement_id]
+    seed: read_values
+    assembly:
+      read_values:
+        function: functions:read_values
+        outputs: [value]
+      intermediate_step:
+        function: functions:intermediate_step
+        args:
+          dataset: "$profiles.@.dataset"
+          output: "$output.intermediate_result"
+      is_maintenance:
+        function: functions:derive_maintenance
+        args:
+          dataset: "$profiles.@.dataset"
+          intermediate: "$input.intermediate_result"
+          output: "$output.is_maintenance"
 ```
 
 The build artifacts are created from command line:

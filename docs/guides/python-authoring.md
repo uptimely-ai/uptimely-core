@@ -1,46 +1,34 @@
-# Python authoring
+# Python functions and YAML specs
 
-Maintaining a large json specification file manually can be challenging.
+Specifications can be authored in YAML, while calculation functions remain
+ordinary Python. YAML keeps project declarations separate from the code that
+implements calculations.
 
-While json format remains as the source of truth, it is easier to manage the specification through Python interface.
-
-## Why Python authoring
-
-Python makes syntax easier to read and enable splitting specification to multiple modules, that can import each other.
-
-You can create large number of almost similar profiles, features and operators with minimal number of code. Python "frontend" immediately tells you if you are referring to non-existing variables.
-
-Also, python makes it easy to load and publish specification in any remote storage.
-
-## How to do it?
-
-For minimal working example, see the home page from Getting Started.
-
-For a complete YAML-authored specification, see the example project in Getting Started.
+For file layout, references, and a complete example, see
+[YAML specification authoring](yaml-authoring.md) and the [example
+project](../intro/example-project.md).
 
 ## Operators
 
-An `Operator` connects a function to a profile. Its `inputs` and `outputs`
-declare feature dependencies and outputs, and its `Bind` takes a function
-followed by its named arguments. If `inputs` is omitted, feature references in
-the arguments are used to infer dependencies. Set `inputs=[]` to disable that
+An operator connects a function to a profile. Its `inputs` and `outputs`
+declare feature dependencies and outputs, and its `args` mapping passes named
+arguments to the function. If `inputs` is omitted, feature references in the
+arguments are used to infer dependencies. Set `inputs: []` to disable that
 inference.
 
-Every operator requires `compute=Bind(...)`. Add `merge` when its returned
-fragment must be integrated into the target dataset.
+Every operator requires a `function`. Add `merge` when its returned fragment
+must be integrated into the target dataset.
 
 ### References
 
-Use `ref` to refer to profile data, features, and other Spec values without
-loading data during authoring. Both `ref.input("name")` and
-`ref.input("name").id` pass the feature identifier and infer an input
-dependency unless the feature is an operator output. Explicit `inputs` override
-inference. Bind arguments must use `ref.input()` or `ref.output()` for feature
-references. Declare `Feature` instances in `Operator.outputs`, not as argument
-values.
+Use `$input.<feature>` and `$output.<feature>` to refer to input and output
+features in arguments. Input references infer dependencies unless the feature
+is an operator output. Explicit `inputs` override inference. Output references
+also declare output features, including any needed descriptions, types, or
+units under `features`.
 
-Use `ref.paths("name")` for a file or directory configured in the project's
-`paths` map. Use `ref.params("name")` for a scalar configured in `params`.
+Use `$paths.<name>` for a file or directory configured in the project's
+`paths` map. Use `$params.<name>` for a scalar configured in `params`.
 See [Runtime values](configuration.md#runtime-values) for runtime resolution
 rules.
 
@@ -49,22 +37,23 @@ rules.
 See [Fragment and merge](../concepts/dataframes.md#fragments-and-datasets)
 for when a merge is needed and how results are accumulated.
 
-Use the default merge explicitly:
+Declare the default merge in YAML when an operator's returned fragment must be
+integrated into its target dataset:
 
-```python
-Operator(
-    outputs=[Feature(id="pressure_limit")],
-    compute=Bind(
-        ref.function("project_io:read_limits", returns="dataframe"),
-        source=ref.paths("limits_source"),
-    ),
-    merge=merge.default(),
-)
+```yaml
+assembly:
+  read_limits:
+    function: project_io:read_limits
+    outputs: [pressure_limit]
+    args:
+      source: "$paths.limits_source"
+    merge: default
 ```
 
-A custom `merge=Bind(...)` uses
-`dataset=ref.dataset()` and `fragment=ref.fragment()` and returns the
-complete target. Its dataset argument must allow `None` for initialization.
+A custom merge mapping uses a `function` and `args` fields. Bind
+`dataset` to `"$profiles.@.dataset"` and `fragment` to
+`"$operators.@.fragment"`, and return the complete target. The function's
+dataset argument must allow `None` for initialization.
 
 ### Seeds and execution order
 
@@ -76,29 +65,19 @@ Seed dataset can contain only the dimension, but may contain feature columns add
 ## Row context
 
 Use a bare integer as row-count shorthand, and reference a declared direction
-from the operator's binding arguments when the function also needs that value:
+from the function arguments when the calculation also needs that value. In a
+profile where `value` is available:
 
-```python
-# script
-
-import polars as pl
-import uptimely as up
-from uptimely.spec.row_context import RowContext
-
-
-def rolling_mean(dataset: pl.DataFrame, value: str, output: str, before: int) -> pl.DataFrame:
-    return dataset.with_columns(pl.col(value).rolling_mean(window_size=before + 1).alias(output))
-
-
-up.Operator(
-    id="rolling_mean",
-    row_context=RowContext(before=1),
-    compute=up.Bind(
-        rolling_mean,
-        dataset=up.ref.dataset(),
-        value=up.ref.input("value"),
-        output=up.ref.output("mean").id,
-        before=up.ref.row_context("before"),
-    ),
-)
+```yaml
+assembly:
+  rolling_mean:
+    function: analytics:rolling_mean
+    row_context:
+      before:
+        rows: 1
+      after: {}
+    args:
+      value: "$input.value"
+      output: "$output.mean"
+      before: "$operators.@.row_context.before"
 ```

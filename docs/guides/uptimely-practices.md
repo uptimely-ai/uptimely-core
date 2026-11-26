@@ -16,44 +16,42 @@ Uptimely's hierarchical profiles bridges scalability with exceptional scenarios.
 
 ## Operators
 
-When many features use the same calculation, create one operator per feature in
-a loop. Each operator then records its own input and output dependency.
-
-Create one operator per feature:
+When many features use the same calculation, create one operator per feature.
+Each operator then records its own input and output dependency. Calculation
+functions remain Python:
 
 ```python
 import polars as pl
-import uptimely as up
 
 
-@up.function(returns="dataframe")
 def double_single(dataset: pl.LazyFrame, feature: str) -> pl.LazyFrame:
     return dataset.with_columns((pl.col(feature) * 2).alias(f"{feature}_doubled"))
-
-
-def double_operator(index: int, source_feature: str) -> up.Operator:
-    return up.Operator(
-        id=f"double_signal_{index}",
-        compute=up.Bind(
-            double_single,
-            dataset=up.ref.dataset(),
-            feature=up.ref.input(source_feature),
-        ),
-    )
-
-
-source_features = [f"signal_{index}" for index in range(100)]
-operators = [double_operator(index, feature) for index, feature in enumerate(source_features)]
 ```
 
-Avoid one operator whose function accepts all 100 features:
+Declare one operator for each source feature in YAML:
+
+```yaml
+assembly:
+  double_signal_0:
+    function: analytics:double_single
+    inputs: [signal_0]
+    outputs: [signal_0_doubled]
+    args:
+      feature: "$input.signal_0"
+  double_signal_1:
+    function: analytics:double_single
+    inputs: [signal_1]
+    outputs: [signal_1_doubled]
+    args:
+      feature: "$input.signal_1"
+```
+
+An alternative is one operator whose function accepts all the features:
 
 ```python
 import polars as pl
-import uptimely as up
 
 
-@up.function(returns="dataframe")
 def double_many(dataset: pl.LazyFrame, features: list[str], outputs: list[str]) -> pl.LazyFrame:
     return dataset.with_columns(
         [
@@ -61,23 +59,18 @@ def double_many(dataset: pl.LazyFrame, features: list[str], outputs: list[str]) 
             for feature, output in zip(features, outputs, strict=True)
         ]
     )
-
-
-source_features = [f"signal_{index}" for index in range(100)]
-output_features = [f"{feature}_doubled" for feature in source_features]
-
-operator = up.Operator(
-    id="double_all_signals",
-    compute=up.Bind(
-        double_many,
-        dataset=up.ref.dataset(),
-        features=[up.ref.input(feature) for feature in source_features],
-        outputs=[up.ref.output(feature) for feature in output_features],
-    ),
-)
 ```
 
-Both approaches materialize the same values. The loop gives each operator a
-separate input-output relationship. With one operator, lineage associates its
-outputs with the full set of inputs, so downstream features can appear
-dependent on all 100 signals.
+```yaml
+assembly:
+  double_all_signals:
+    function: analytics:double_many
+    args:
+      features: ["$input.signal_0", "$input.signal_1"]
+      outputs: ["$output.signal_0_doubled", "$output.signal_1_doubled"]
+```
+
+Both approaches materialize the same values. Separate operators give each
+source feature its own input-output relationship. With one operator, lineage
+associates its outputs with the full set of inputs, so downstream features can
+appear dependent on all 100 signals.

@@ -74,32 +74,26 @@ For example, it could return `{"region": {"in": ["North"]}}`; it need not
 enumerate every matching profile key. The filter column names and dimension
 reference syntax above are illustrative, not a finalized schema contract.
 
-The corresponding Python authoring API could use declarative `Scope` classes:
+An equivalent YAML authoring form could declare reusable scopes:
 
-```python
-class CategoriesAAndB(Scope):
-    name = "Machines in product categories A and B"
-    filters = {
-        "product_category": {"in": ["A", "B"]},
-        "measurement_timestamp": {
-            "range": {
-                "gte": "2026-01-01T00:00:00Z",
-                "lt": "2026-02-01T00:00:00Z",
-            }
-        },
-    }
-
-
-class CustomNorthScope(Scope):
-    name = "Custom North operations scope"
-    action = {
-        "function": "functions.select_north_scope",
-        "args": {},
-    }
+```yaml
+scopes:
+  categories_a_and_b:
+    name: Machines in product categories A and B
+    filters:
+      product_category: {in: [A, B]}
+      measurement_timestamp:
+        range:
+          gte: "2026-01-01T00:00:00Z"
+          lt: "2026-02-01T00:00:00Z"
+  custom_north_scope:
+    name: Custom North operations scope
+    action:
+      function: functions.select_north_scope
+      args: {}
 ```
 
-This class-based syntax is illustrative; the authoring contract should define
-whether scope declarations are classes, instances, or both, and how action
+This syntax is illustrative; the authoring contract should define how action
 references are expressed.
 
 | title | breaking | description |

@@ -39,26 +39,17 @@ This case is applicable when the cluster resources are not scaled automatically,
 
 ### Configure partitioned execution
 
-In Python authored spec, bind `start_id` and `end_id` params to read function.
+In the YAML spec, bind `start_id` and `end_id` params to the read function.
 
 For example, bind a source function in its operator:
 
-```python
-# example
-import polars as pl
-import uptimely as up
-
-
-def read_pumps(start_id: int, end_id: int) -> pl.DataFrame:
-    # Read data, filter by start_id and end_id
-    return df
-
-
-up.Bind(
-    read_pumps,
-    start_id=up.ref.params("start_id"),
-    end_id=up.ref.params("end_id"),
-)
+```yaml
+assembly:
+  read_pumps:
+    function: project_io:read_pumps
+    args:
+      start_id: "$params.start_id"
+      end_id: "$params.end_id"
 ```
 
 In project configuration: Define common settings in `uptimely.toml`.
