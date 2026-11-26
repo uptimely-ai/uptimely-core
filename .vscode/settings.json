@@ -2,7 +2,7 @@
     "python-envs.defaultEnvManager": "ms-python.python:poetry",
     "python-envs.defaultPackageManager": "ms-python.python:poetry",
     "python.analysis.extraPaths": [
-        "${workspaceFolder}/example/src"
+        "${workspaceFolder}/example/code/src"
     ],
     "python.testing.pytestArgs": [
         "tests"

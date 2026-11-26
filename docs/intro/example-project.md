@@ -8,6 +8,11 @@ Core workflow.
 Health scores, warning thresholds, and operating-point recommendations are
 illustrative calculations.
 
+The Uptimely project root is this directory. Keep `uptimely.toml`, `spec/`,
+`data/`, tests, and artifacts here. `code/` is a separate Python source and
+development project, independent of the spec. Its `init.sh` syncs the
+code-specific environment.
+
 ## Analytical profiles
 
 Profile is Uptimely's primary concept to organize data science in manageable components.
@@ -37,10 +42,13 @@ reading data or by transforming another profile.
 | --- | --- |
 | `data/input/` | Synthetic telemetry, asset metadata, constants, and external workflow inputs. |
 | `data/output/` | Materialized profile results written by the workflow. |
-| `src/pump_analytics.py` | Analytical calculations and profile transformations. |
-| `src/pump_io.py` | Input readers, output writers, and the sample external workflow. |
-| `src/pump_merge.py` | Custom merge for external measurements. |
-| `src/pump_util.py` | Small helper used by the analytical functions. |
+| `code/src/pump_analytics.py` | Analytical calculations and profile transformations. |
+| `code/src/pump_io.py` | Input readers, output writers, and the sample external workflow. |
+| `code/src/pump_merge.py` | Custom merge for external measurements. |
+| `code/src/pump_util.py` | Small helper used by the analytical functions. |
+| `code/pyproject.toml` | Python runtime dependencies. |
+| `code/init.sh` | Installs uv if needed and syncs the code development environment. |
+| `code/.devcontainer/` | Development container configuration. |
 | `spec/` | YAML dimensions, function catalog, and profile declarations. |
 | `tests/uptimely/` | Provisional JSON input and expected output cases for non-I/O compute bindings. |
 | `uptimely.toml` | Project defaults, Engine settings, and configured input and output paths. |

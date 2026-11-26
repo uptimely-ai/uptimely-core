@@ -1,7 +1,7 @@
 {
     "name": "Data-center cooling pump analytics example",
     "image": "python:3.13-slim",
-    "workspaceMount": "source=${localWorkspaceFolder},target=/workspaces/example,type=bind",
+    "workspaceMount": "source=${localWorkspaceFolder}/..,target=/workspaces/example,type=bind",
     "workspaceFolder": "/workspaces/example",
     // Optional persistent Docker volume.
     // "mounts": [
@@ -11,10 +11,10 @@
         "UV_LINK_MODE": "copy"
     },
     "remoteEnv": {
-        "PATH": "${containerWorkspaceFolder}/.venv/bin:${containerEnv:HOME}/.local/bin:${containerEnv:PATH}"
+        "PATH": "${containerWorkspaceFolder}/code/.venv/bin:${containerEnv:HOME}/.local/bin:${containerEnv:PATH}"
     },
     "onCreateCommand": "apt-get update && apt-get install -y --no-install-recommends curl",
-    "postCreateCommand": "bash init.sh",
+    "postCreateCommand": "bash code/init.sh",
     "forwardPorts": [8001],
     "portsAttributes": {
         "8001": {

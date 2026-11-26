@@ -8,6 +8,11 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+### Changed
+
+- Group the example's Python source and development environment under `code/`.
+- Remove `--no-setup` from `uptimely example`; downloads always include setup files.
+
 ### Added
 
 - YAML Specs can be composed from files whose paths correspond to Spec keys.

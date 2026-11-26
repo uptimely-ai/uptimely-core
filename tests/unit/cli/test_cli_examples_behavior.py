@@ -83,26 +83,25 @@ def test_cli_output_and_revision(
 def test_examples_without_subcommand_downloads_default_destination(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
-    calls: list[tuple[pathlib.Path, str | None, bool]] = []
+    calls: list[tuple[pathlib.Path, str | None]] = []
     monkeypatch.setattr(
         examples,
         "download_examples",
-        lambda output, ref, *, no_setup: calls.append((output, ref, no_setup)) or output,
+        lambda output, ref: calls.append((output, ref)) or output,
     )
     monkeypatch.setattr(sys, "argv", ["uptimely", "example"])
 
     cli.main()
 
-    assert calls == [(pathlib.Path("example"), None, False)]
+    assert calls == [(pathlib.Path("example"), None)]
     assert "Downloaded examples to example" in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
-    ("arguments", "expected_output", "expected_ref", "expected_no_setup"),
+    ("arguments", "expected_output", "expected_ref"),
     [
-        (["example", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD", False),
-        (["example", "--dir", "pump-analytics", "--ref", "HEAD"], "pump-analytics", "HEAD", False),
-        (["example", "--no-setup", "--dir", "pump-analytics"], "pump-analytics", None, True),
+        (["example", "--output", "samples", "--ref", "HEAD"], "samples", "HEAD"),
+        (["example", "--dir", "pump-analytics", "--ref", "HEAD"], "pump-analytics", "HEAD"),
     ],
 )
 def test_examples_options_work_with_command(
@@ -110,19 +109,18 @@ def test_examples_options_work_with_command(
     arguments: list[str],
     expected_output: str,
     expected_ref: str | None,
-    expected_no_setup: bool,
 ) -> None:
-    calls: list[tuple[pathlib.Path, str | None, bool]] = []
+    calls: list[tuple[pathlib.Path, str | None]] = []
     monkeypatch.setattr(
         examples,
         "download_examples",
-        lambda output, ref, *, no_setup: calls.append((output, ref, no_setup)) or output,
+        lambda output, ref: calls.append((output, ref)) or output,
     )
     monkeypatch.setattr(sys, "argv", ["uptimely", *arguments])
 
     cli.main()
 
-    assert calls == [(pathlib.Path(expected_output), expected_ref, expected_no_setup)]
+    assert calls == [(pathlib.Path(expected_output), expected_ref)]
 
 
 def test_download_help_describes_version_default(
@@ -171,7 +169,10 @@ def test_destination_created_during_download_is_preserved(
     assert list(tmp_path.iterdir()) == [output]
 
 
-@pytest.mark.parametrize("arguments", [[], ["example", "unknown"], ["examples"]])
+@pytest.mark.parametrize(
+    "arguments",
+    [[], ["example", "unknown"], ["examples"], ["example", "--no-setup"]],
+)
 def test_cli_requires_valid_subcommands(
     monkeypatch: pytest.MonkeyPatch, arguments: list[str]
 ) -> None:

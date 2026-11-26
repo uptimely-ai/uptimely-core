@@ -3,8 +3,8 @@ yaml_spec = "spec"
 
 [code]
 language = "python"
-requirements = "pyproject.toml"
-src = "src"
+requirements = "code/pyproject.toml"
+src = "code/src"
 
 [engine]
 preview_rows = 5

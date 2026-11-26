@@ -37,6 +37,10 @@ def github(monkeypatch: pytest.MonkeyPatch) -> list[str]:
             "project-main/readme.md": "not an example",
             "project-main/example/README.md": "Example guide",
             "project-main/example/init.sh": "setup",
+            "project-main/example/.devcontainer/devcontainer.json": "{}",
+            "project-main/example/code/init.sh": "code setup",
+            "project-main/example/code/.devcontainer/devcontainer.json": "{}",
+            "project-main/example/code/pyproject.toml": "runtime",
             "project-main/example/run.py": "print('example')",
             "project-main/example/data/sample.csv": "x\n1\n",
             "project-main/src/module.py": "not an example",
@@ -62,7 +66,11 @@ def test_download_examples(tmp_path: pathlib.Path, github: list[str]) -> None:
     assert sorted(
         str(path.relative_to(output)) for path in output.rglob("*") if path.is_file()
     ) == [
+        ".devcontainer/devcontainer.json",
         "README.md",
+        "code/.devcontainer/devcontainer.json",
+        "code/init.sh",
+        "code/pyproject.toml",
         "data/sample.csv",
         "init.sh",
         "run.py",
@@ -185,107 +193,23 @@ def test_existing_destination_is_preserved(
         assert output.is_symlink()
 
 
-def test_no_setup_merges_into_existing_directory(
-    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
-) -> None:
-    data = _archive(
-        {
-            "project/example/README.md": "guide",
-            "project/example/pyproject.toml": "setup",
-            "project/example/init.sh": "example setup",
-            "project/example/.devcontainer/devcontainer.json": "{}",
-            "project/example/__init__.py": "",
-            "project/example/src/analytics.py": "code",
-            "project/example/src/init.sh": "nested script",
-            "project/example/spec/spec.py": "spec",
-            "project/example/uptimely.toml": "",
-            "project/example/data/input/sample.csv": "data",
-        }
-    )
-    monkeypatch.setattr(examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(data))
-    (tmp_path / "README.md").write_text("existing guide")
-    (tmp_path / "init.sh").write_text("existing script")
-    (tmp_path / ".devcontainer").mkdir()
-    (tmp_path / ".devcontainer/devcontainer.json").write_text("existing container")
-    (tmp_path / "src").mkdir()
-    (tmp_path / "src/other.py").write_text("existing code")
-    monkeypatch.setattr(sys, "argv", ["uptimely", "example", "--no-setup", "--dir", str(tmp_path)])
-
-    cli.main()
-
-    assert (tmp_path / "pyproject.toml").read_text() == "setup"
-    assert (tmp_path / "README.md").read_text() == "existing guide"
-    assert (tmp_path / "init.sh").read_text() == "existing script"
-    assert (tmp_path / ".devcontainer/devcontainer.json").read_text() == "existing container"
-    assert (tmp_path / "src/other.py").read_text() == "existing code"
-    for path in (
-        "__init__.py",
-        "src/analytics.py",
-        "src/init.sh",
-        "spec/spec.py",
-        "uptimely.toml",
-        "data/input/sample.csv",
-    ):
-        assert (tmp_path / path).is_file()
-
-
-def test_no_setup_excludes_init_script_from_new_directory(
-    tmp_path: pathlib.Path, github: list[str]
-) -> None:
-    output = tmp_path / "example"
-    examples.download_examples(output, no_setup=True)
-    assert not (output / "init.sh").exists()
-    assert (output / "run.py").is_file()
-
-
-@pytest.mark.parametrize("kind", ["file", "directory", "symlink", "parent-symlink"])
-def test_no_setup_rejects_conflicts_before_copying(
-    tmp_path: pathlib.Path, github: list[str], kind: str
-) -> None:
-    output = tmp_path / "example"
-    output.mkdir()
-    if kind == "parent-symlink":
-        outside = tmp_path / "outside"
-        outside.mkdir()
-        (output / "data").symlink_to(outside, target_is_directory=True)
-    else:
-        target = output / "run.py"
-        if kind == "file":
-            target.write_text("existing")
-        elif kind == "directory":
-            target.mkdir()
-        else:
-            target.symlink_to(tmp_path / "missing")
-
-    with pytest.raises(FileExistsError):
-        examples.download_examples(output, no_setup=True)
-
-    assert not (output / "README.md").exists()
-    if kind == "parent-symlink":
-        assert not list(outside.iterdir())
-        assert not (output / "run.py").exists()
-    elif kind == "file":
-        assert target.read_text() == "existing"
-        assert not (output / "data/sample.csv").exists()
-
-
-def test_no_setup_example_builds_and_runs_in_existing_environment(
+def test_downloaded_example_builds_and_runs_in_existing_environment(
     tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     source = pathlib.Path(__file__).resolve().parents[3] / "example"
     buffer = io.BytesIO()
     with zipfile.ZipFile(buffer, "w") as archive:
-        for directory in ("src", "spec", "data/input"):
+        for directory in ("code/src", "spec", "data/input"):
             for path in (source / directory).rglob("*"):
                 if path.is_file() and "__pycache__" not in path.parts:
                     archive.write(path, f"project/example/{path.relative_to(source)}")
         archive.write(source / "uptimely.toml", "project/example/uptimely.toml")
-        archive.write(source / "pyproject.toml", "project/example/pyproject.toml")
+        archive.write(source / "code/pyproject.toml", "project/example/code/pyproject.toml")
     monkeypatch.setattr(
         examples.request, "urlopen", lambda *args, **kwargs: io.BytesIO(buffer.getvalue())
     )
     output = tmp_path / "pump-analytics"
-    examples.download_examples(output, no_setup=True)
+    examples.download_examples(output)
     environment = os.environ.copy()
     environment.pop("PYTHONPATH", None)
     for command in ("build", "run"):
@@ -308,7 +232,7 @@ def test_no_setup_example_builds_and_runs_in_existing_environment(
             text=True,
             timeout=90,
         )
-    assert (output / "pyproject.toml").is_file()
+    assert (output / "code/pyproject.toml").is_file()
 
 
 def test_examples_cli_reports_existing_default_destination(

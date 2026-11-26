@@ -11,6 +11,7 @@ from support import examples as example_support
 
 from uptimely import application, spec
 from uptimely.explorer import presentation
+from uptimely.project import python_imports
 from uptimely.spec import operator_bindings
 
 
@@ -130,13 +131,15 @@ def test_saved_explorer_snapshot_matches_rebuilt_spec_and_plan(
     saved = json.loads(
         (pump_bundle.project_root / application.EXPLORER_DATA_FILE).read_text(encoding="utf-8")
     )
-    rebuilt = presentation.build_presentation_data(
-        pump_bundle.spec_definition,
-        pump_bundle.execution_plan,
-        features=pump_bundle.manifest.features,
-        project_root=pump_bundle.project_root,
-        build_manifest=pump_bundle.manifest,
-    )
+    project = application.Uptimely(pump_bundle.project_root)
+    with python_imports.expose(pump_bundle.project_root, src_path=project.config.code.src):
+        rebuilt = presentation.build_presentation_data(
+            pump_bundle.spec_definition,
+            pump_bundle.execution_plan,
+            features=pump_bundle.manifest.features,
+            project_root=pump_bundle.project_root,
+            build_manifest=pump_bundle.manifest,
+        )
 
     rebuilt["build"]["built_at"] = saved["build"]["built_at"]
     assert saved == json.loads(presentation.serialize_presentation_data(rebuilt))

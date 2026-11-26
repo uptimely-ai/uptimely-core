@@ -60,8 +60,6 @@ docs = ["mkdocs>=1.6,<2.0", "mkdocs-material>=9.7,<10.0", "mkdocstrings[python]>
 [tool.poetry]
 packages = [
   { include = "uptimely", from = "src" },
-  # Include the example in editable development installs only.
-  { include = "example", format = [] },
 ]
 
 [tool.poetry.group.docs]
@@ -85,7 +83,7 @@ convention = "google"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
-pythonpath = ["example", "example/src"]
+pythonpath = ["example", "example/code/src"]
 addopts = "--strict-markers --strict-config -n 8"
 markers = [
   "integration: end-to-end tests using example projects",

@@ -9,6 +9,7 @@ from support import execution as execution_support
 
 from uptimely import application, compiler, spec
 from uptimely import plan as execution_plan
+from uptimely.project import config as project_config
 
 
 def test_synthetic_bundle_factory_uses_independent_test_owned_directories(
@@ -134,10 +135,11 @@ def test_scoped_example_is_built_once_for_multiple_consumers(
         *,
         json_spec: pathlib.Path,
         features: tuple[str, ...],
+        code: project_config.CodeSettings,
     ) -> application.BuildBundle:
         nonlocal build_calls
         build_calls += 1
-        return original_build(project_root, json_spec=json_spec, features=features)
+        return original_build(project_root, json_spec=json_spec, features=features, code=code)
 
     monkeypatch.setattr(application, "build", build)
 
@@ -157,7 +159,11 @@ def test_shared_examples_are_built_once_under_concurrent_requests(
 ) -> None:
     examples_root = tmp_path / "example"
     builds: list[pathlib.Path] = []
-    monkeypatch.setattr(application, "build", builds.append)
+
+    def build(project_root: pathlib.Path, *, code: project_config.CodeSettings) -> None:
+        builds.append(project_root)
+
+    monkeypatch.setattr(application, "build", build)
 
     with futures.ThreadPoolExecutor(max_workers=4) as executor:
         list(executor.map(example_support.prepare_example_projects, [examples_root] * 4))
@@ -173,7 +179,7 @@ def test_failed_example_build_can_be_retried(
 ) -> None:
     examples_root = tmp_path / "example"
 
-    def fail_build(project_root: pathlib.Path) -> None:
+    def fail_build(project_root: pathlib.Path, *, code: project_config.CodeSettings) -> None:
         raise RuntimeError("Example build failed")
 
     monkeypatch.setattr(application, "build", fail_build)
@@ -182,7 +188,11 @@ def test_failed_example_build_can_be_retried(
     assert not (tmp_path / ".examples-ready").exists()
 
     builds: list[pathlib.Path] = []
-    monkeypatch.setattr(application, "build", builds.append)
+
+    def record_build(project_root: pathlib.Path, *, code: project_config.CodeSettings) -> None:
+        builds.append(project_root)
+
+    monkeypatch.setattr(application, "build", record_build)
     example_support.prepare_example_projects(examples_root)
 
     assert builds == [examples_root]
