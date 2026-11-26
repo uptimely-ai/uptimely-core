@@ -110,7 +110,7 @@ def test_selected_workflow_ignores_returns_and_reports_failures(
     fails: bool,
 ) -> None:
     root = example_project_factory(tmp_path / "example", features=("measurement",))
-    source = root / "src" / "pump_io.py"
+    source = root / "code" / "src" / "pump_io.py"
     statement = "raise RuntimeError('workflow failed')" if fails else "return {'ignored': True}"
     source.write_text(
         source.read_text(encoding="utf-8")
@@ -141,7 +141,7 @@ def test_saved_build_keeps_running_bundled_workflow_after_source_edit(
     expected = output.read_bytes()
     output.unlink()
 
-    source = root / "src" / "pump_io.py"
+    source = root / "code" / "src" / "pump_io.py"
     source.write_text("raise RuntimeError('edited after build')\n", encoding="utf-8")
 
     assert app.run().failures == {}

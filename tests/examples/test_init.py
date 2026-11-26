@@ -36,7 +36,7 @@ def test_init_installs_uv_when_needed_and_syncs_project(
         )
         curl.chmod(0o755)
 
-    script = pathlib.Path(__file__).resolve().parents[2] / "example" / "init.sh"
+    script = pathlib.Path(__file__).resolve().parents[2] / "example" / "code" / "init.sh"
     log = tmp_path / "uv-args"
     args = ["bash", str(script)]
     if sourced:
@@ -84,7 +84,7 @@ def test_init_stops_when_uv_download_fails(
         curl.write_text("#!/bin/sh\nexit 22\n")
         curl.chmod(0o755)
 
-    script = pathlib.Path(__file__).resolve().parents[2] / "example" / "init.sh"
+    script = pathlib.Path(__file__).resolve().parents[2] / "example" / "code" / "init.sh"
     args = ["bash", str(script)]
     if sourced:
         args = [

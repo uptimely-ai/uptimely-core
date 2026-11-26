@@ -47,7 +47,8 @@ def prepare_example_projects(examples_root: pathlib.Path) -> None:
             ignore=shutil.ignore_patterns("artifacts", "__pycache__"),
             dirs_exist_ok=True,
         )
-        application_module.build(examples_root)
+        code = application_module.Uptimely(examples_root).config.code
+        application_module.build(examples_root, code=code)
         ready.touch()
 
 
@@ -61,10 +62,12 @@ def _example_project(features: tuple[str, ...] | None) -> pathlib.Path:
     root = pathlib.Path(tempfile.mkdtemp(prefix="scoped-example-", dir=EXAMPLES_ROOT.parent))
     target = root / "example"
     shutil.copytree(source, target, ignore=shutil.ignore_patterns("artifacts", "__pycache__"))
+    code = application_module.Uptimely(target).config.code
     application_module.build(
         target,
         json_spec=source / application_module.BUILD_OUTPUT_DIR / "spec.json",
         features=features,
+        code=code,
     )
     return target
 

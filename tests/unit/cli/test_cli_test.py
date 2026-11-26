@@ -126,7 +126,9 @@ def _case_project(
         (project / "tests" / "uptimely" / "pump_series.json").read_text(encoding="utf-8")
     )
     case_path.write_text(json.dumps(suite), encoding="utf-8")
-    (project / "case-config.toml").write_text('[test]\npath = "cases"\n', encoding="utf-8")
+    (project / "case-config.toml").write_text(
+        '[code]\nsrc = "code/src"\n[test]\npath = "cases"\n', encoding="utf-8"
+    )
     return project, case_path, suite
 
 
@@ -137,7 +139,7 @@ def test_test_command_uses_saved_source_and_preserves_run(
     example_project_factory: example_support.ProjectFactory,
 ) -> None:
     project, case_path, suite = _case_project(tmp_path, example_project_factory)
-    (project / "src" / "pump_analytics.py").write_text(
+    (project / "code" / "src" / "pump_analytics.py").write_text(
         'raise RuntimeError("live source must not be used")\n', encoding="utf-8"
     )
     test_data = project / "artifacts" / "test" / "data"
@@ -189,7 +191,7 @@ def test_test_command_builds_before_running_cases(
     example_project_factory: example_support.ProjectFactory,
 ) -> None:
     project, case_path, suite = _case_project(tmp_path, example_project_factory)
-    source = project / "src" / "pump_analytics.py"
+    source = project / "code" / "src" / "pump_analytics.py"
     original = "getattr(pl.col(feature), method)().alias(rename.get(feature, feature))"
     changed = "(getattr(pl.col(feature), method)() + 1.0).alias(rename.get(feature, feature))"
     content = source.read_text(encoding="utf-8")

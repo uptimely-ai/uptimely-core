@@ -133,14 +133,9 @@ def test_project_build_examples(
         "runtime/pyproject.toml",
     }
     assert bundle.manifest.artifacts.execution_plan == "plan.json"
-    project_metadata = tomllib.loads((root / "pyproject.toml").read_text(encoding="utf-8"))
+    project_metadata = tomllib.loads((root / "code" / "pyproject.toml").read_text(encoding="utf-8"))
     assert bundle.requirements_file is not None
-    assert tomllib.loads(bundle.requirements_file.read_text(encoding="utf-8")) == {
-        "project": {
-            "requires-python": project_metadata["project"]["requires-python"],
-            "dependencies": project_metadata["project"]["dependencies"],
-        }
-    }
+    assert tomllib.loads(bundle.requirements_file.read_text(encoding="utf-8")) == project_metadata
     explorer_data = json.loads((root / application.EXPLORER_DATA_FILE).read_text(encoding="utf-8"))
     assert explorer_data["format_version"] == 5
     assert explorer_data["build"]["spec_source"] == bundle.manifest.spec_source
@@ -170,7 +165,7 @@ def test_project_build_accepts_custom_src_path(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     root = copy_unbuilt_example(tmp_path)
-    (root / "src").rename(root / "python")
+    (root / "code" / "src").rename(root / "python")
     monkeypatch.chdir(tmp_path)
 
     invoke(monkeypatch, str(root), "--src-path", "python")

@@ -20,12 +20,12 @@ cd pump-analytics
 Inititalize the project with uv:
 
 ```sh
-source init.sh
+source code/init.sh
 ```
 
 ### Dev Container
 
-Alternatively, the environment can be established to an isolated Dev Container. Install Docker and the VS Code Dev Containers extension, then open the example folder in VS Code and
+Alternatively, the environment can be established to an isolated Dev Container. Install Docker and the VS Code Dev Containers extension, then open the `code/` folder in VS Code and
 select **Dev Containers: Reopen in Container** from the Command Palette.
 
 The container runs the same setup script automatically. Run the
@@ -33,7 +33,17 @@ commands below in its terminal. Explorer port 8001 is forwarded to your host.
 
 ## Verify setup
 
-Depending on setup, use either of:
+Run commands from the example project root. In the Dev Container, its virtual
+environment is already on `PATH`:
 
-* `uptimely build`
-* `uv run uptimely build`
+```sh
+uptimely build
+uptimely run
+```
+
+For local setup, select the environment synced from `code/pyproject.toml`:
+
+```sh
+uv run --project code uptimely build
+uv run --project code uptimely run
+```

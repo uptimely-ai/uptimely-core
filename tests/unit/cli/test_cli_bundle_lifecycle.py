@@ -105,7 +105,7 @@ def test_project_build_packages_python_source_and_runtime_definition(
     )
     (root / "poetry.lock").write_text("# development lock\n", encoding="utf-8")
 
-    build = project_build.build(root)
+    build = project_build.build(root, code=project_config.CodeSettings(src="code/src"))
 
     assert build.manifest.artifacts.model_dump()["code"] == {
         "language": "python",
@@ -120,8 +120,9 @@ def test_project_build_packages_python_source_and_runtime_definition(
     assert not (build.root / "poetry.lock").exists()
     assert not (source / "__pycache__").exists()
 
-    shutil.rmtree(root / "src")
-    result = application.Uptimely(root).run(preview_rows=1)
+    app = application.Uptimely(root)
+    shutil.rmtree(root / "code" / "src")
+    result = app.run(preview_rows=1)
 
     assert result.failures == {}
     assert result.datasets
@@ -234,7 +235,7 @@ def test_project_build_reports_legacy_runtime_directory(
 def test_bundle_loader_checks_runtime_definition_path(tmp_path: pathlib.Path) -> None:
     root = tmp_path / "project"
     example_support.copy_example_project(root)
-    build = project_build.build(root)
+    build = project_build.build(root, code=project_config.CodeSettings(src="code/src"))
     manifest_path = root / application.BUILD_MANIFEST_FILE
     manifest = build.manifest.model_dump()
     manifest["artifacts"]["code"]["requirements"] = "other/pyproject.toml"
@@ -292,7 +293,7 @@ def test_bundle_loader_requires_declared_python_source(
 ) -> None:
     root = tmp_path / "project"
     example_support.copy_example_project(root)
-    build = project_build.build(root)
+    build = project_build.build(root, code=project_config.CodeSettings(src="code/src"))
     assert build.source_path is not None
     shutil.rmtree(build.source_path)
 
