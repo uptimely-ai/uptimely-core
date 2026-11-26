@@ -19,6 +19,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Added
 
+- Add a version-matched per-user CLI installer for Linux, macOS, and WSL
+  to GitHub releases.
 - YAML Specs can be composed from files whose paths correspond to Spec keys.
   Builds accept YAML files or directories with `--yaml-spec` or
   `application.yaml_spec`.

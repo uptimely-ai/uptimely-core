@@ -57,6 +57,14 @@ jobs:
             --format=zip \
             HEAD:example \
             > "dist/example.zip"
+      - name: Create versioned installer
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          grep -Fx "UPTIMELY_PACKAGE='uptimely-core@latest'" scripts/install.sh
+          sed "s/^UPTIMELY_PACKAGE='uptimely-core@latest'$/UPTIMELY_PACKAGE='uptimely-core==$version'/" \
+            scripts/install.sh > dist/install.sh
+          grep -Fx "UPTIMELY_PACKAGE='uptimely-core==$version'" dist/install.sh
+          sh -n dist/install.sh
       - name: Publish GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
