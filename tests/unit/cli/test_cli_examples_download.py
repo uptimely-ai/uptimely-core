@@ -80,6 +80,48 @@ def test_download_examples(tmp_path: pathlib.Path, github: list[str]) -> None:
     assert list(output.parent.iterdir()) == [output]
 
 
+def test_download_examples_merges_into_current_directory(
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    (tmp_path / "project.py").write_text("existing project")
+    monkeypatch.chdir(tmp_path)
+
+    assert examples.download_examples(pathlib.Path(".")) == tmp_path
+
+    assert (tmp_path / "README.md").read_text() == "Example guide"
+    assert (tmp_path / "project.py").read_text() == "existing project"
+    assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
+
+
+def test_current_directory_conflict_does_not_write_any_example_files(
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    readme = tmp_path / "README.md"
+    readme.write_text("existing README")
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(FileExistsError, match="already exists"):
+        examples.download_examples(pathlib.Path("."))
+
+    assert readme.read_text() == "existing README"
+    assert not (tmp_path / "init.sh").exists()
+    assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
+
+
+def test_current_directory_does_not_follow_existing_symlink_directories(
+    tmp_path: pathlib.Path, github: list[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    outside = tmp_path / "outside"
+    outside.mkdir()
+    (tmp_path / "code").symlink_to(outside, target_is_directory=True)
+    monkeypatch.chdir(tmp_path)
+
+    with pytest.raises(FileExistsError, match="Cannot use example destination directory"):
+        examples.download_examples(pathlib.Path("."))
+
+    assert list(outside.iterdir()) == []
+
+
 def test_download_revision(tmp_path: pathlib.Path, github: list[str]) -> None:
     examples.download_examples(tmp_path / "example", "feature/demo")
     assert github == ["https://codeload.github.com/example/project/zip/feature%2Fdemo"]
@@ -235,14 +277,14 @@ def test_downloaded_example_builds_and_runs_in_existing_environment(
     assert (output / "code/pyproject.toml").is_file()
 
 
-def test_examples_cli_reports_existing_default_destination(
+def test_examples_cli_reports_conflicting_default_file(
     tmp_path: pathlib.Path,
     monkeypatch: pytest.MonkeyPatch,
     capsys: pytest.CaptureFixture[str],
+    github: list[str],
 ) -> None:
-    output = tmp_path / "example"
-    output.mkdir()
-    (output / "keep.txt").write_text("keep")
+    output = tmp_path / "README.md"
+    output.write_text("keep")
     monkeypatch.chdir(tmp_path)
     monkeypatch.setattr(sys, "argv", ["uptimely", "example"])
 
@@ -251,10 +293,11 @@ def test_examples_cli_reports_existing_default_destination(
 
     assert error.value.code == 1
     message = capsys.readouterr().err
-    assert f"Examples destination already exists: {output}" in message
+    assert f"Example file already exists: {output}" in message
     assert "Nothing was overwritten." in message
-    assert "--dir DIR" in message
-    assert (output / "keep.txt").read_text() == "keep"
+    assert output.read_text() == "keep"
+    assert not (tmp_path / "init.sh").exists()
+    assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
 
 
 @pytest.mark.parametrize(

@@ -62,8 +62,8 @@ def test_cli_success(
     monkeypatch.setattr(sys, "argv", ["uptimely", "example"])
     cli.main()
     assert github == ["https://codeload.github.com/example/project/zip/v1.2.3"]
-    assert f"Downloaded examples to {tmp_path / 'example'}" in capsys.readouterr().out
-    assert (tmp_path / "example/README.md").exists()
+    assert f"Downloaded examples to {tmp_path}" in capsys.readouterr().out
+    assert (tmp_path / "README.md").exists()
 
 
 def test_cli_output_and_revision(
@@ -93,8 +93,8 @@ def test_examples_without_subcommand_downloads_default_destination(
 
     cli.main()
 
-    assert calls == [(pathlib.Path("example"), None)]
-    assert "Downloaded examples to example" in capsys.readouterr().out
+    assert calls == [(pathlib.Path("."), None)]
+    assert "Downloaded examples to ." in capsys.readouterr().out
 
 
 @pytest.mark.parametrize(
