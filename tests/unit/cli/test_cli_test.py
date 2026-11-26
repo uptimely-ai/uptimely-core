@@ -23,7 +23,7 @@ def test_default_folder_requires_saved_build(
     tmp_path: pathlib.Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
 ) -> None:
     project = tmp_path / "project"
-    (project / "tests" / "uptimely").mkdir(parents=True)
+    (project / "tests").mkdir(parents=True)
     monkeypatch.chdir(tmp_path)
 
     with pytest.raises(SystemExit) as error:
@@ -42,14 +42,13 @@ def test_missing_default_folder_is_reported(
 ) -> None:
     monkeypatch.chdir(tmp_path)
     if create_file:
-        (tmp_path / "tests").mkdir()
-        (tmp_path / "tests" / "uptimely").write_text("", encoding="utf-8")
+        (tmp_path / "tests").write_text("", encoding="utf-8")
 
     with pytest.raises(SystemExit) as error:
         invoke(monkeypatch)
 
     assert error.value.code == 1
-    assert "Configured test folder tests/uptimely not found" in capsys.readouterr().err
+    assert "Configured test folder tests not found" in capsys.readouterr().err
 
 
 @pytest.mark.parametrize("absolute", [False, True])
@@ -122,9 +121,7 @@ def _case_project(
     folder = project / "cases"
     folder.mkdir()
     case_path = folder / "pump_series.json"
-    suite = json.loads(
-        (project / "tests" / "uptimely" / "pump_series.json").read_text(encoding="utf-8")
-    )
+    suite = json.loads((project / "tests" / "pump_series.json").read_text(encoding="utf-8"))
     case_path.write_text(json.dumps(suite), encoding="utf-8")
     (project / "case-config.toml").write_text(
         '[code]\nsrc = "code/src"\n[test]\npath = "cases"\n', encoding="utf-8"

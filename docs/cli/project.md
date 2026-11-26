@@ -64,7 +64,7 @@ uptimely test [PROJECT_ROOT] [--project-root PATH] [--config CONFIG_OR_PATH] \
   [--build] [--show] [--log-level LEVEL]
 ```
 
-The command reads JSON files from `test.path`, defaulting to `tests/uptimely`
+The command reads JSON files from `test.path`, defaulting to `tests`
 relative to the project root. Absolute paths are also supported. The project
 directory and config options follow the same rules as `uptimely build`.
 The command uses the saved plan and bundled source, not live project source,

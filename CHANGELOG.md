@@ -12,6 +12,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 - Group the example's Python source and development environment under `code/`.
 - Remove `--no-setup` from `uptimely example`; downloads always include setup files.
+- Use `tests/` as the default project operator-case folder and configure it
+  explicitly in the example project.
 
 ### Added
 

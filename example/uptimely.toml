@@ -14,6 +14,9 @@ type = "python_venv"
 dataframe = "polars"
 evaluation = "eager"
 
+[test]
+path = "tests"
+
 [paths]
 constants_source = "data/input/constants.json"
 pump_assets_source = "data/input/pump_assets.json"
