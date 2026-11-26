@@ -112,6 +112,8 @@ nav:
           - Explorer: concepts/explorer.md
   - Guides:
       - Project setup:
+          - CLI setup: guides/cli-setup.md
+          - Python environment setup: guides/python-setup.md
           - Project structure: guides/project-structure.md
           - Multiple projects: guides/multiple-projects.md
           - Project template: guides/project-template.md

@@ -50,11 +50,22 @@ More business benefits at [uptimely.ai/core/](https://uptimely.ai/core/).
 
 ## Install
 
-Python 3.13 or newer is required.
+**Recommended: install the CLI**
 
-**Install in existing Python environment**
+On Linux, macOS, and WSL, install the published Uptimely CLI for the current user:
 
-Install Uptimely Core with the command that matches your tooling:
+```sh
+curl -LsSf https://uptimely.ai/core/install.sh | sh
+```
+
+Restart your terminal, then confirm with `uptimely --help`. See the
+[CLI setup guide](https://uptimely-ai.github.io/uptimely-core/guides/cli-setup/)
+for installation locations, updates, and removal.
+
+**Alternative: install in an existing Python environment**
+
+Python 3.13 or newer is required. Install Uptimely Core with the command that
+matches your tooling:
 
 ```sh
 pip install uptimely-core
@@ -68,53 +79,39 @@ poetry add uptimely-core
 uv add uptimely-core
 ```
 
-**Create a new Python environment**
-
-Go to your project directory.
-
-If uv is not installed, [install it](https://docs.astral.sh/uv/getting-started/installation/) on macOS or Linux:
-
-```sh
-curl -LsSf https://astral.sh/uv/install.sh | sh
-```
-
-Restart your shell if `uv` is not found.
-
-```sh
-uv init --bare --python 3.13
-uv add uptimely-core
-```
+To create a new environment with uv, see the
+[Python environment setup guide](https://uptimely-ai.github.io/uptimely-core/guides/python-setup/).
 
 ## Build and run
 
 **Go to your project root**.
 
-Following commands assume `uv` Python environment. With Poetry use `poetry run uptimely <command>`. For other activated environment, just `uptimely <command>`.
+Following commands assume CLI installation. With Python installation you might need to use eg `uv run uptimely <command>`.
 
 Download the full example project into the current project directory. Existing
 files are preserved, and the command stops if an example file would overwrite
 one:
 
 ```sh
-uv run uptimely example
+uptimely example
 ```
 
 Create a build from the specification:
 
 ```sh
-uv run uptimely build
+uptimely build
 ```
 
 Run automated unit tests:
 
 ```sh
-uv run uptimely test
+uptimely test
 ```
 
 Materialize the calculation flow:
 
 ```sh
-uv run uptimely run
+uptimely run
 ```
 
 ## Explore the project
@@ -122,7 +119,7 @@ uv run uptimely run
 Explore resources and results in the local web app:
 
 ```sh
-uv run uptimely explore
+uptimely explore
 ```
 
 Read more about [example project](https://uptimely-ai.github.io/uptimely-core/intro/example-project/) from the docs.
