@@ -38,8 +38,6 @@ upstream producers or replacing normal engine run artifacts.
 
 | title | breaking | description |
 |---|---|---|
-| Seed isolated case state | No | Add a shared execution seam to seed dataset and fragment state without running upstream producers. |
-| Invoke selected bindings and capture results | No | Reuse runtime argument resolution, entrypoints, grain keys, and row-context handling. Preserve production execution semantics. |
 | Reuse merge and contract behavior | No | Apply existing contract checks and built-in/custom merge behavior. Require disambiguation when an operator matches multiple invocations. |
 
 ## Work package: Fixture arguments and assertions
@@ -62,7 +60,6 @@ Keep fixture execution separate from normal runs and make external I/O opt-in.
 
 | title | breaking | description |
 |---|---|---|
-| Isolate case state and production outputs | No | Start each case with fresh runtime state, continue independent cases after failures, and leave `artifacts/run/` unchanged. |
 | Gate external I/O and document trust limits | No | Require explicit opt-in for source reads, publication writes, and opaque workflows called through compute. Do not claim to sandbox trusted Python functions. |
 | Verify fixture execution behavior | No | Test missing fixtures, invalid overrides, lazy failures, merge contracts, and unchanged production behavior. Document binding, chained-operator, and workflow test distinctions. |
 
@@ -118,7 +115,6 @@ requests.
 
 | title | breaking | description |
 |---|---|---|
-| Serve validated saved test reports | No | Read the current project's `artifacts/tests/test.json` through a read-only FastAPI API. Validate versions and distinguish absent and malformed reports. |
 | Detect stale build reports safely | No | Detect stale build identity. Do not accept arbitrary paths, import test functions, or execute checks from report endpoints. |
 
 ## Work package: Explorer test results
@@ -133,7 +129,6 @@ frontend, FastAPI server, and static export.
 | Add the Explorer Tests section | No | Show run time, outcome, duration, profile counts, coverage, uncovered resources, and operator/case drill-down. |
 | Show case inputs and results | No | Display compute/merge statuses, inputs, expected and bounded actual values, schemas, and source references. Escape fixture and error text. |
 | Distinguish report states | No | Distinguish absent, failed, incomplete, and stale reports. |
-| Include test snapshots in static exports | No | Include validated snapshots with an explicit not-run state when no report exists. |
 | Test Explorer report presentation | No | Test API and frontend counts, filters, tables, errors, stale reports, and API-free exports. |
 | Update test workflow documentation | No | Keep Explorer docs minimal and update CLI, Python API, project layout, and example guides. |
 
