@@ -133,13 +133,20 @@ Read more about [example project](https://uptimely-ai.github.io/uptimely-core/in
 
 Open the project in a code editor, modify the code, build and run it again and explore the new results.
 
-## Python API
+## YAML specification
 
-The previous example uses a [YAML-authored specification](https://github.com/uptimely-ai/uptimely-core/tree/main/example). Specifications describe profiles, grains, features and operators. Functions remain pure Python.
+This minimal example uses Python functions and a YAML specification. Create a
+new project folder, install Uptimely Core as described above, and add the
+following files.
 
-Here is even more simplified example.
+Set the source directory in `uptimely.toml`:
 
-Put this to `src/functions.py`:
+```toml
+[code]
+src = "code/src"
+```
+
+Put this in `code/src/functions.py`:
 
 ```python
 import polars as pl
@@ -163,78 +170,60 @@ def print_results(dataset: pl.DataFrame, dims: list[str], features: list[str]) -
     print(dataset.select(*dims, *features))
 ```
 
-Store this code to `spec/spec.py`:
+Store this as `spec/index.yaml`:
 
-```python
-from src import functions
-from uptimely import (
-    Bind,
-    Dimension,
-    Operator,
-    Profile,
-    Resolution,
-    Spec,
-    ref,
-)
-
-measurement = Dimension(
-    id="measurement_id",
-    resolutions=[Resolution(id="id", type="integer")],
-)
-
-
-class CoolingPump(Profile):
-    grain = [measurement.at("id")]
-    seed = "read_values"
-
-    assembly = [
-        Operator(
-            id="read_values",
-            compute=Bind(
-                functions.read_values,
-                dims=[ref.key("id")],
-                features=[ref.output("value")],
-            ),
-        ),
-        Operator(
-            compute=Bind(
-                functions.double,
-                dataset=ref.dataset(),
-                value=ref.input("value"),
-                output=ref.output("doubled"),
-            ),
-        ),
-        Operator(
-            compute=Bind(
-                functions.print_results,
-                dataset=ref.dataset(),
-                dims=[ref.key("id")],
-                features=[ref.input("doubled")],
-            ),
-        ),
-    ]
-
-
-spec = Spec(
-    profiles=[CoolingPump],
-    name="Cooling Pump Specification",
-)
+```yaml
+name: Cooling Pump Specification
+dimensions:
+  measurement_id:
+    resolutions:
+      id:
+        key: id
+        type: integer
+profiles:
+  cooling_pump:
+    grain: [measurement_id.id]
+    seed: read_values
+    assembly:
+      read_values:
+        function: functions:read_values
+        outputs: [value]
+        args:
+          dims: [id]
+          features: ["$output.value"]
+      double:
+        function: functions:double
+        args:
+          value: "$input.value"
+          output: "$output.doubled"
+      print_results:
+        function: functions:print_results
+        args:
+          dims: [id]
+          features: ["$input.doubled"]
 ```
 
-Put this code in `run.py`.
-
-```python
-from uptimely import Uptimely
-
-app = Uptimely()
-app.build()
-result = app.run()
-```
-
-Run in Python:
+From the project root, build and run the project:
 
 ```sh
-python run.py
+uv run uptimely build
+uv run uptimely run
+```
+
+The output shows `doubled` values of 20 and 40.
+
+## Python API
+
+It is possible to work with Uptomely objects through Python API. For example, load the built spec and list a profile's operators:
+
+```python
+# example
+from uptimely import spec
+
+document = spec.load_spec("artifacts/build/spec.json")
+profile = document.profiles["cooling_pump"]
+operators = list(profile.assembly)
+print(f"cooling_pump has {len(operators)} operators: {', '.join(operators)}")
 ```
 
 ## Repository guide
