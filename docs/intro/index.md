@@ -2,7 +2,7 @@
 
 Uptimely Core brings a `dbt`-like workflow to data science. Define interdependent scientific calculations in Python and work with DataFrames instead of SQL and relational databases.
 
-Declare analytics in Python, then build, test, and run them from the command line. Explore the results in your browser.
+Declare results in YAML, write lightweight Python functions, then build, test, and run analytics from the command line. Explore the results in your browser.
 
 ## Key features
 
@@ -207,7 +207,7 @@ The output shows `doubled` values of 20 and 40.
 
 ## Python API
 
-It is possible to work with Uptomely objects through Python API. For example, load the built spec and list a profile's operators:
+It is possible to work with Uptimely objects through Python API. For example, load the built spec and list a profile's operators:
 
 ```python
 # example

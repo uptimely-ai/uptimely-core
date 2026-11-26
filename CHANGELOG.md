@@ -8,37 +8,64 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-11-26
+
+### Breaking
+
+- `uptimely example` now downloads example files into the current directory
+  instead of creating a new `example/` directory.
+- Remove `--no-setup` from `uptimely example`. Example downloads always include
+  setup files.
+- Move the downloadable example's Python environment and source files under
+  `code/`.
+- Use `tests/` as the default operator-case folder instead of
+  `tests/uptimely/`. Configure `tests/` explicitly in existing projects.
+- Replace the downloadable example's Python authoring files with YAML Specs and
+  YAML operator declarations.
+
 ### Changed
 
-- `uptimely example` now adds example files to the current directory by default
-  and preserves existing files.
-- Group the example's Python source and development environment under `code/`.
-- Remove `--no-setup` from `uptimely example`; downloads always include setup files.
-- Use `tests/` as the default project operator-case folder and configure it
-  explicitly in the example project.
+- `uptimely example` preserves existing project files and stops before
+  overwriting conflicting example files.
+- Python authoring examples now use YAML Specs and YAML operator declarations.
+- Explorer calls the analytical model a Specification and separates declared
+  function signatures from implementation functions.
+- Explorer feature, signature, test, and run information use clearer icons and
+  labels.
+- Explorer operator cards show source profiles, grain relationships, function
+  results, and optional merge steps as a compact lineage.
+- Explorer Test and Run Info use visual status summaries and timing timelines.
+  Test results show counts, and report and build details remain visible.
+- Explorer highlights output columns absent from test case inputs.
+- The example project's operators have descriptive IDs in Explorer and test cases.
+- Documentation and example guides now cover CLI setup, Python setup,
+  YAML authoring, project structure, and test workflows.
 
 ### Added
 
 - Add a version-matched per-user CLI installer for Linux, macOS, and WSL
   to GitHub releases.
+- The public `uptimely.test` package exposes `TestRunner` for isolated operator
+  case execution.
 - YAML Specs can be composed from files whose paths correspond to Spec keys.
   Builds accept YAML files or directories with `--yaml-spec` or
   `application.yaml_spec`.
 - YAML operators support concise function bindings and feature references,
   inferring their function contracts, feature interfaces, and dataframe sources
   from declarations.
-- Explorer organizes profile overview cards by category, grouping uncategorized profiles together.
+- Explorer organizes profile overview cards by category, grouping uncategorized
+  profiles together.
 - Explorer home cards show formatted timestamps, success indicators, test
   outcome bars, and expandable build, test, and run metadata. Static exports
   include build timestamps and the latest test report. Rebuild existing project
   artifacts to refresh their Explorer snapshot.
 - `uptimely test` runs JSON operator cases from a configurable test folder
   against the saved build and saves the latest results under `artifacts/test/`.
-  Use `--build` to build first.
+  Use `--build` to build first and `--show` to print input and output dataframes.
 - The example project includes provisional input and expected-output cases for
   non-I/O operator compute bindings.
-- `uptimely test --show` displays input and expected output dataframes within
-  the terminal width and compares expected and actual output on mismatches.
+- `uptimely test --show` displays input and expected-output dataframes within
+  the terminal width and highlights mismatches.
 - `uptimely test` saves case inputs, outputs, and resolved calls in per-profile
   files under `artifacts/test/cases/`. Calls show dataframe arguments as
   `$<argument name>`.
@@ -46,14 +73,12 @@ While the version is `0.x`, minor releases may include breaking changes.
   calls, case inputs, outcomes, and expected and actual output for mismatches,
   including in static exports.
 
-### Changed
+### Fixed
 
-- Explorer operator cards show source profiles, grain relationships, function
-  results, and optional merge steps as a compact lineage.
-- Explorer Test and Run Info use visual status summaries and timing timelines.
-  Test results show counts, and report and build details remain visible.
-- Explorer highlights output columns absent from test case inputs.
-- The example project's operators have descriptive IDs in Explorer and test cases.
+- `uptimely example` preserves existing project files and stops instead of
+  overwriting conflicting example files.
+- The example project's runtime dependency accepts Uptimely Core 0.13.0 instead
+  of rejecting the installed release.
 
 ## [0.12.0] - 2026-11-24
 

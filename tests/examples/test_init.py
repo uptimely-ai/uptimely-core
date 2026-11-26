@@ -4,8 +4,22 @@ import os
 import pathlib
 import shutil
 import subprocess
+import tomllib
 
 import pytest
+from packaging import requirements
+
+
+def test_example_accepts_current_package_release() -> None:
+    manifest = pathlib.Path(__file__).resolve().parents[2] / "example" / "code" / "pyproject.toml"
+    dependencies = tomllib.loads(manifest.read_text(encoding="utf-8"))["project"]["dependencies"]
+    uptimely_requirement = next(
+        requirement
+        for dependency in dependencies
+        if (requirement := requirements.Requirement(dependency)).name == "uptimely-core"
+    )
+    assert uptimely_requirement.specifier.contains("0.13.0")
+    assert not uptimely_requirement.specifier.contains("0.12.0")
 
 
 @pytest.mark.parametrize("installation", ["existing", "curl"])
