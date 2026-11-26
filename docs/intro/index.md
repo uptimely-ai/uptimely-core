@@ -91,17 +91,13 @@ uv add uptimely-core
 
 Following commands assume `uv` Python environment. With Poetry use `poetry run uptimely <command>`. For other activated environment, just `uptimely <command>`.
 
-Download the full example project into a new directory:
+Download the full example project into the current project directory. Existing
+files are preserved, and the command stops if an example file would overwrite
+one:
 
 ```sh
-uv run uptimely example --dir pump-analytics
-cd pump-analytics
+uv run uptimely example
 ```
-
-The Uptimely project root keeps `uptimely.toml`, `spec/`, and `data/`. Its
-`code/` folder is a separate Python source and development environment. The
-commands below use the root environment. To use the code environment instead,
-run them with `uv run --project code uptimely <command>`.
 
 Create a build from the specification:
 
@@ -214,7 +210,7 @@ The output shows `doubled` values of 20 and 40.
 
 ## Python API
 
-Load the built spec and list a profile's operators:
+It is possible to work with Uptomely objects through Python API. For example, load the built spec and list a profile's operators:
 
 ```python
 # example

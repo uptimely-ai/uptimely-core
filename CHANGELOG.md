@@ -10,6 +10,8 @@ While the version is `0.x`, minor releases may include breaking changes.
 
 ### Changed
 
+- `uptimely example` now adds example files to the current directory by default
+  and preserves existing files.
 - Group the example's Python source and development environment under `code/`.
 - Remove `--no-setup` from `uptimely example`; downloads always include setup files.
 - Use `tests/` as the default project operator-case folder and configure it

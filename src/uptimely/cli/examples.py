@@ -81,6 +81,27 @@ def _extract_examples(archive: zipfile.ZipFile, destination: pathlib.Path) -> No
         raise ValueError("The repository archive contains no example files")
 
 
+def _copy_into_existing(staging: pathlib.Path, destination: pathlib.Path) -> None:
+    """Copy staged files into an existing directory without replacing anything."""
+    files = sorted(path for path in staging.rglob("*") if path.is_file())
+    for source in files:
+        relative = source.relative_to(staging)
+        target = destination / relative
+        for path in (destination, *(destination / parent for parent in relative.parents[:-1])):
+            if path.is_symlink() or (path.exists() and not path.is_dir()):
+                raise FileExistsError(f"Cannot use example destination directory: {path}")
+        if target.exists() or target.is_symlink():
+            raise FileExistsError(
+                f"Example file already exists: {target}. Nothing was overwritten."
+            )
+
+    for source in files:
+        target = destination / source.relative_to(staging)
+        target.parent.mkdir(parents=True, exist_ok=True)
+        with source.open("rb") as input_file, target.open("xb") as output_file:
+            shutil.copyfileobj(input_file, output_file)
+
+
 def _ensure_destination_available(output: pathlib.Path) -> None:
     """Fail with recovery guidance when the examples destination already exists."""
     if output.exists() or output.is_symlink():
@@ -96,6 +117,7 @@ def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.P
 
     Args:
         output: Destination for the contents of the repository's example directory.
+            The current directory is populated when selected.
         ref: GitHub branch, tag, or commit. If omitted, use the release tag
             matching the installed package version (v<version>).
             Explicit HEAD selects the default branch.
@@ -112,8 +134,13 @@ def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.P
         BadZipFile: The downloaded archive is invalid.
         OSError: The files cannot be written.
     """
+    current_directory = pathlib.Path.cwd()
     output = output.absolute()
-    _ensure_destination_available(output)
+    populate_current_directory = output.resolve() == current_directory
+    if populate_current_directory:
+        output = current_directory
+    if not populate_current_directory:
+        _ensure_destination_available(output)
     revision = f"{RELEASE_TAG_PREFIX}{metadata.version(DISTRIBUTION_NAME)}" if ref is None else ref
     url = _archive_url(_repository_url(), revision)
     output.parent.mkdir(parents=True, exist_ok=True)
@@ -136,8 +163,11 @@ def download_examples(output: pathlib.Path, ref: str | None = None) -> pathlib.P
             downloaded.seek(0)
             with zipfile.ZipFile(downloaded) as archive:
                 _extract_examples(archive, staging)
-        _ensure_destination_available(output)
-        staging.rename(output)
+        if populate_current_directory:
+            _copy_into_existing(staging, output)
+        else:
+            _ensure_destination_available(output)
+            staging.rename(output)
     return output
 
 
@@ -154,8 +184,8 @@ def configure_download_parser(parser: argparse.ArgumentParser) -> None:
         dest="output",
         type=pathlib.Path,
         metavar="DIR",
-        default=pathlib.Path("example"),
-        help="Destination directory (default: example)",
+        default=pathlib.Path("."),
+        help="Destination directory (default: current directory)",
     )
     parser.add_argument(
         "--ref",
